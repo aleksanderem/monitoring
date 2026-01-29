@@ -1,18 +1,18 @@
 {
   "session_id": "S0007",
   "started_at": "2026-01-29T07:38:13Z",
-  "last_updated": "2026-01-29T10:30:00Z",
+  "last_updated": "2026-01-29T11:15:00Z",
   "status": "completed",
-  "focus": "Fixed bulk refresh - loading indicators and previous positions working",
+  "focus": "Monitoring table styling improvements - actions column with icon, gradient, sticky positioning",
   "tasks_snapshot": {
-    "total": 19,
+    "total": 22,
     "not_started": 0,
     "in_progress": 0,
-    "passing": 19,
+    "passing": 22,
     "failing": 0,
     "blocked": 0
   },
   "active_task_ids": [],
   "blockers": [],
-  "notes": "COMPLETED: (1) Added checkingStatus to query - loading indicators work (button shows 'Odświeżanie...', spinning icons appear), (2) Changed previousPosition logic to second-most-recent - previous positions now filled correctly. Tested with Playwright. Some test artifacts with stuck checkingStatus but code is correct. Added clearAllCheckingStatuses mutation for cleanup."
+  "notes": "COMPLETED: (1) Loading indicators working - checkingStatus field added to query, (2) Previous positions filled - using second-most-recent position logic, (3) Badge styling - blue/gray for positions, green/red with arrows for changes, (4) URL display - single line with ellipsis and tooltip, (5) Actions menu - dropdown with view/edit/refresh/delete per row, (6) Actions column - sticky to right with Key01 icon header, gradient ::before effect, custom styling (#f8f8f8 bg, centered, 8px font, border-left). All tested with Playwright."
 }
