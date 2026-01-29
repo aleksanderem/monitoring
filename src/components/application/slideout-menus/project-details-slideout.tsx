@@ -172,15 +172,22 @@ export function ProjectDetailsSlideout({
 
                 <span className="h-px w-full bg-border-secondary" />
 
-                {/* Statistics card */}
+                {/* Domain statistics cards - one per domain */}
                 <section className="flex flex-col gap-3">
-                  <MetricsChart04
-                    title={project.domainCount.toString()}
-                    subtitle="Active Domains"
-                    change="+12%"
-                    changeTrend="positive"
-                    changeDescription="vs last month"
-                  />
+                  {domains && domains.length > 0 ? (
+                    domains.map((domain) => (
+                      <MetricsChart04
+                        key={domain._id}
+                        title={domain.keywordCount.toString()}
+                        subtitle={domain.domain}
+                        change="+12%"
+                        changeTrend="positive"
+                        changeDescription="vs last month"
+                      />
+                    ))
+                  ) : (
+                    <p className="text-sm text-tertiary">No domains added yet</p>
+                  )}
                 </section>
               </TabPanel>
 
