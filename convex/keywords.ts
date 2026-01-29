@@ -802,6 +802,64 @@ export const storePosition = mutation({
   },
 });
 
+// Queue keywords for position refresh (bulk operation)
+export const refreshKeywordPositions = mutation({
+  args: { keywordIds: v.array(v.id("keywords")) },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    if (args.keywordIds.length === 0) {
+      throw new Error("No keywords selected");
+    }
+
+    // Get the first keyword to find the domain
+    const firstKeyword = await ctx.db.get(args.keywordIds[0]);
+    if (!firstKeyword) {
+      throw new Error("Keyword not found");
+    }
+
+    // Verify all keywords belong to the same domain
+    const domainId = firstKeyword.domainId;
+    for (const keywordId of args.keywordIds) {
+      const keyword = await ctx.db.get(keywordId);
+      if (!keyword || keyword.domainId !== domainId) {
+        throw new Error("All keywords must belong to the same domain");
+      }
+    }
+
+    // Check permission
+    const context = await getContextFromKeyword(ctx, args.keywordIds[0]);
+    if (!context) {
+      throw new Error("Context not found");
+    }
+    await requirePermission(ctx, "keywords.view", context);
+
+    // Create a check job for these keywords
+    const jobId = await ctx.db.insert("keywordCheckJobs", {
+      domainId,
+      status: "pending",
+      totalKeywords: args.keywordIds.length,
+      processedKeywords: 0,
+      failedKeywords: 0,
+      keywordIds: args.keywordIds,
+      createdAt: Date.now(),
+    });
+
+    // Update each keyword's checking status
+    for (const keywordId of args.keywordIds) {
+      await ctx.db.patch(keywordId, {
+        checkingStatus: "queued",
+        checkJobId: jobId,
+      });
+    }
+
+    return jobId;
+  },
+});
+
 // Bulk import keywords with detailed results
 export const importKeywords = mutation({
   args: {

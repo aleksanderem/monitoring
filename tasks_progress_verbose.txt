@@ -466,3 +466,29 @@ All 15 tasks implemented successfully
 Ready for final browser testing and verification
 
 ---
+
+=== SESSION S0006 START === 2026-01-29T18:00:00Z
+Focus: Add bulk actions to KeywordMonitoringTable
+Continuing from: S0005 (monitoring tab complete)
+Active tasks: #18
+
+S0006. Context:
+- User confirmed monitoring tab layout is working: "tak jest git" (yes it's good)
+- User requested bulk actions: "to teraz co do tabeli monitoringu, potrzebuje, żeby była możliowość bulk akcji takich jak 'Odśwież pozycję manualnie czy Usuń'"
+- Translation: "now regarding the monitoring table, I need the ability for bulk actions like 'Refresh position manually' or 'Delete'"
+
+---
+
+S0006. Task #18: Add bulk actions to monitoring table
+Plan:
+1. Add checkbox column as first column
+2. Add selectedRows state: Set<Id<"keywords">>
+3. Add "select all" checkbox in header
+4. Create bulk actions toolbar (appears when selections exist)
+5. Add "Odśwież" (Refresh) and "Usuń" (Delete) buttons
+6. Create backend mutations for bulk operations
+7. Implement action handlers with optimistic updates
+
+Starting implementation...
+
+---

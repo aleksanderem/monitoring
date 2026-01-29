@@ -1,5 +1,5 @@
 {
-  "session_id": "S0003",
+  "session_id": "S0006",
   "date": "2026-01-29",
   "tasks": [
     {
@@ -85,35 +85,77 @@
       "status": "passing",
       "created_session": "S0003",
       "last_updated_session": "S0003"
+    },
+    {
+      "id": 13,
+      "name": "monitoring_tab_backend_queries",
+      "status": "passing",
+      "created_session": "S0004",
+      "last_updated_session": "S0005"
+    },
+    {
+      "id": 14,
+      "name": "monitoring_tab_charts_components",
+      "status": "passing",
+      "created_session": "S0004",
+      "last_updated_session": "S0005"
+    },
+    {
+      "id": 15,
+      "name": "monitoring_tab_statistics_section",
+      "status": "passing",
+      "created_session": "S0004",
+      "last_updated_session": "S0005"
+    },
+    {
+      "id": 16,
+      "name": "monitoring_tab_keyword_table",
+      "status": "passing",
+      "created_session": "S0004",
+      "last_updated_session": "S0005"
+    },
+    {
+      "id": 17,
+      "name": "monitoring_tab_page_integration",
+      "status": "passing",
+      "created_session": "S0005",
+      "last_updated_session": "S0005"
+    },
+    {
+      "id": 18,
+      "name": "add_bulk_actions_to_monitoring_table",
+      "status": "not_started",
+      "created_session": "S0006",
+      "last_updated_session": "S0006"
     }
   ],
-  "reason": "Phase 1 (Foundation) complete - all 10 tasks passing",
-  "thinking_process": "Successfully executed Phase 1 plan in 3 batches. All foundation components created, tested, and documented. See tasks_progress_verbose.txt for detailed session history.",
-  "connected_tasks": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  "reason": "Adding bulk actions feature to KeywordMonitoringTable per user request",
+  "thinking_process": "User confirmed monitoring tab is working correctly. Now requesting bulk action capabilities (multi-select with checkboxes, refresh position manually, delete) for the monitoring table. This requires: checkbox column, selected rows state, bulk action toolbar, and backend mutations.",
+  "connected_tasks": [16, 18],
   "how_to_test": [
     {
       "id": 1,
-      "name": "Visit /test-patterns page",
-      "status": "done",
-      "is_ok": true,
-      "data_for_next_step": ["All pattern components visible and working"],
-      "session_id": "S0003"
+      "name": "Select multiple keywords via checkboxes",
+      "status": "not_started",
+      "is_ok": null,
+      "data_for_next_step": [],
+      "session_id": "S0006"
     },
     {
       "id": 2,
-      "name": "Test Cmd+K command palette",
-      "status": "done",
-      "is_ok": true,
-      "data_for_next_step": ["Command palette opens on Cmd+K"],
-      "session_id": "S0003"
+      "name": "Click 'Odśwież' button with selections",
+      "status": "not_started",
+      "is_ok": null,
+      "data_for_next_step": [],
+      "session_id": "S0006"
     },
     {
       "id": 3,
-      "name": "Verify build succeeds",
-      "status": "done",
-      "is_ok": true,
-      "data_for_next_step": ["npm run build completes without errors"],
-      "session_id": "S0003"
+      "name": "Click 'Usuń' button with selections",
+      "status": "not_started",
+      "is_ok": null,
+      "data_for_next_step": [],
+      "session_id": "S0006"
     }
   ]
 }

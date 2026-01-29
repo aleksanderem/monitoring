@@ -1,14 +1,17 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery } from "convex/react";
-import { Hash01, ChevronUp, ChevronDown, ChevronSelectorVertical } from "@untitledui/icons";
+import { useQuery, useMutation } from "convex/react";
+import { Hash01, ChevronUp, ChevronDown, ChevronSelectorVertical, RefreshCcw01, Trash01 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { BadgeWithDot } from "@/components/base/badges/badges";
+import { Button } from "@/components/base/buttons/button";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { MiniSparkline } from "@/components/domain/charts/MiniSparkline";
+import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
 import { cx } from "@/utils/cx";
+import { toast } from "sonner";
 
 interface KeywordMonitoringTableProps {
   domainId: Id<"domains">;
@@ -90,12 +93,15 @@ function SortableHeader({ column, currentColumn, direction, onClick, children, c
 
 export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps) {
   const keywords = useQuery(api.keywords.getKeywordMonitoring, { domainId });
+  const refreshPositions = useMutation(api.keywords.refreshKeywordPositions);
+  const deleteKeywords = useMutation(api.keywords.deleteKeywords);
 
   const [sortColumn, setSortColumn] = useState<SortColumn>("currentPosition");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+  const [selectedRows, setSelectedRows] = useState<Set<Id<"keywords">>>(new Set());
 
   // Handle column sort
   const handleSort = (column: SortColumn) => {
@@ -104,6 +110,54 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
     } else {
       setSortColumn(column);
       setSortDirection("asc");
+    }
+  };
+
+  // Handle select all
+  const handleSelectAll = () => {
+    if (selectedRows.size === paginatedKeywords.length && paginatedKeywords.length > 0) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(paginatedKeywords.map((kw) => kw.keywordId)));
+    }
+  };
+
+  // Handle row selection
+  const handleRowSelect = (keywordId: Id<"keywords">) => {
+    const newSelected = new Set(selectedRows);
+    if (newSelected.has(keywordId)) {
+      newSelected.delete(keywordId);
+    } else {
+      newSelected.add(keywordId);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  // Handle bulk refresh
+  const handleBulkRefresh = async () => {
+    if (selectedRows.size === 0) return;
+
+    try {
+      await refreshPositions({ keywordIds: Array.from(selectedRows) });
+      toast.success(`Odświeżanie pozycji dla ${selectedRows.size} słów kluczowych zostało zakolejkowane`);
+      setSelectedRows(new Set());
+    } catch (error) {
+      toast.error("Nie udało się odświeżyć pozycji");
+      console.error(error);
+    }
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedRows.size === 0) return;
+
+    try {
+      await deleteKeywords({ keywordIds: Array.from(selectedRows) });
+      toast.success(`Usunięto ${selectedRows.size} słów kluczowych`);
+      setSelectedRows(new Set());
+    } catch (error) {
+      toast.error("Nie udało się usunąć słów kluczowych");
+      console.error(error);
     }
   };
 
@@ -184,13 +238,52 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
     );
   }
 
+  const allCurrentPageSelected = paginatedKeywords.length > 0 &&
+    paginatedKeywords.every((kw) => selectedRows.has(kw.keywordId));
+  const someCurrentPageSelected = paginatedKeywords.some((kw) => selectedRows.has(kw.keywordId));
+
   return (
     <div className="flex flex-col gap-6">
+      {/* Bulk actions toolbar */}
+      {selectedRows.size > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-secondary bg-primary p-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-primary">
+              {selectedRows.size} zaznaczonych
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              color="secondary"
+              iconLeading={RefreshCcw01}
+              onClick={handleBulkRefresh}
+            >
+              Odśwież pozycję
+            </Button>
+            <DeleteConfirmationDialog
+              title={`Usuń ${selectedRows.size} słów kluczowych?`}
+              description="Ta akcja spowoduje trwałe usunięcie zaznaczonych słów kluczowych i wszystkich powiązanych danych o rankingach. Nie można tej operacji cofnąć."
+              confirmLabel="Usuń słowa kluczowe"
+              onConfirm={handleBulkDelete}
+            >
+              <Button
+                size="sm"
+                color="secondary-destructive"
+                iconLeading={Trash01}
+              >
+                Usuń
+              </Button>
+            </DeleteConfirmationDialog>
+          </div>
+        </div>
+      )}
+
       {/* Search bar */}
       <div className="flex items-center gap-4">
         <input
           type="text"
-          placeholder="Search keywords..."
+          placeholder="Szukaj słów kluczowych..."
           value={searchQuery}
           onChange={(e) => {
             setSearchQuery(e.target.value);
@@ -205,6 +298,20 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
         <table className="w-full">
           <thead className="sticky top-0 z-10 border-b-2 border-secondary bg-primary backdrop-blur">
             <tr>
+              {/* Checkbox column */}
+              <th className="w-12 px-4 py-3 text-left">
+                <input
+                  type="checkbox"
+                  checked={allCurrentPageSelected}
+                  ref={(el) => {
+                    if (el) {
+                      el.indeterminate = someCurrentPageSelected && !allCurrentPageSelected;
+                    }
+                  }}
+                  onChange={handleSelectAll}
+                  className="h-4 w-4 cursor-pointer rounded border-secondary text-brand-600 focus:ring-brand-600"
+                />
+              </th>
               <SortableHeader column="phrase" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
                 Keyword
               </SortableHeader>
@@ -241,15 +348,27 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
             {paginatedKeywords.map((keyword, index) => {
               const statusBadge = getStatusBadge(keyword.status);
               const difficultyBadge = getDifficultyBadge(keyword.difficulty);
+              const isSelected = selectedRows.has(keyword.keywordId);
 
               return (
                 <tr
                   key={keyword.keywordId}
                   className={cx(
                     "border-b border-secondary transition-colors hover:bg-secondary-subtle",
-                    index % 2 === 0 ? "bg-primary" : "bg-secondary-subtle"
+                    isSelected && "bg-brand-50",
+                    !isSelected && (index % 2 === 0 ? "bg-primary" : "bg-secondary-subtle")
                   )}
                 >
+                  {/* Checkbox */}
+                  <td className="px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleRowSelect(keyword.keywordId)}
+                      className="h-4 w-4 cursor-pointer rounded border-secondary text-brand-600 focus:ring-brand-600"
+                    />
+                  </td>
+
                   {/* Keyword */}
                   <td className="px-6 py-4">
                     <span className="font-medium text-primary">{keyword.phrase}</span>
