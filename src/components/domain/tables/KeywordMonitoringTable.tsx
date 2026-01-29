@@ -238,7 +238,105 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
             </tr>
           </thead>
           <tbody>
-            {/* Table rows will be added in next task */}
+            {paginatedKeywords.map((keyword, index) => {
+              const statusBadge = getStatusBadge(keyword.status);
+              const difficultyBadge = getDifficultyBadge(keyword.difficulty);
+
+              return (
+                <tr
+                  key={keyword.keywordId}
+                  className={cx(
+                    "border-b border-secondary transition-colors hover:bg-secondary-subtle",
+                    index % 2 === 0 ? "bg-primary" : "bg-secondary-subtle"
+                  )}
+                >
+                  {/* Keyword */}
+                  <td className="px-6 py-4">
+                    <span className="font-medium text-primary">{keyword.phrase}</span>
+                  </td>
+
+                  {/* Current Position */}
+                  <td className="px-6 py-4">
+                    {keyword.currentPosition ? (
+                      <span className={cx(
+                        "inline-flex items-center justify-center rounded-md px-3 py-1 text-lg font-semibold",
+                        getPositionBadgeClass(keyword.currentPosition)
+                      )}>
+                        {keyword.currentPosition}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-tertiary">—</span>
+                    )}
+                  </td>
+
+                  {/* Previous Position */}
+                  <td className="px-6 py-4">
+                    <span className="text-sm text-secondary">
+                      {keyword.previousPosition || "—"}
+                    </span>
+                  </td>
+
+                  {/* Change with Sparkline */}
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      {keyword.change !== 0 ? (
+                        <span className={cx(
+                          "flex items-center gap-1 text-sm font-medium",
+                          keyword.change > 0 ? "text-utility-success-600" : "text-utility-error-600"
+                        )}>
+                          {keyword.change > 0 ? "↑" : "↓"} {Math.abs(keyword.change)}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-tertiary">→ 0</span>
+                      )}
+                      <MiniSparkline data={keyword.positionHistory} className="text-utility-gray-400" />
+                    </div>
+                  </td>
+
+                  {/* Status */}
+                  <td className="px-6 py-4">
+                    <BadgeWithDot size="sm" color={statusBadge.color} type="modern">
+                      {statusBadge.label}
+                    </BadgeWithDot>
+                  </td>
+
+                  {/* Potential */}
+                  <td className="px-6 py-4">
+                    <span className="font-medium text-primary">
+                      {formatNumber(keyword.potential)}
+                    </span>
+                  </td>
+
+                  {/* Search Volume */}
+                  <td className="px-6 py-4">
+                    <span className="text-sm text-secondary">
+                      {formatNumber(keyword.searchVolume)}
+                    </span>
+                  </td>
+
+                  {/* Difficulty */}
+                  <td className="px-6 py-4">
+                    <BadgeWithDot size="sm" color={difficultyBadge.color} type="modern">
+                      {keyword.difficulty} • {difficultyBadge.label}
+                    </BadgeWithDot>
+                  </td>
+
+                  {/* URL */}
+                  <td className="px-6 py-4">
+                    <span className="truncate font-mono text-sm text-tertiary" title={keyword.url}>
+                      {keyword.url ? new URL(keyword.url).pathname : "—"}
+                    </span>
+                  </td>
+
+                  {/* Last Updated */}
+                  <td className="px-6 py-4">
+                    <span className="text-sm text-tertiary">
+                      {new Date(keyword.lastUpdated).toLocaleDateString()}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
