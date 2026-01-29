@@ -38,7 +38,7 @@ export const fetchSinglePositionInternal = internalAction({
 
     if (!login || !password) {
       // Mock data for dev mode
-      const position = Math.random() > 0.2 ? Math.floor(Math.random() * 50) + 1 : null;
+      const position = Math.random() > 0.05 ? Math.floor(Math.random() * 50) + 1 : null;
 
       await ctx.runMutation(internal.dataforseo.storePositionInternal, {
         keywordId: args.keywordId,
@@ -187,7 +187,7 @@ export const fetchSinglePosition = action({
 
     if (!login || !password) {
       // Mock data for dev mode
-      const position = Math.random() > 0.2 ? Math.floor(Math.random() * 50) + 1 : null;
+      const position = Math.random() > 0.05 ? Math.floor(Math.random() * 50) + 1 : null;
 
       await ctx.runMutation(internal.dataforseo.storePositionInternal, {
         keywordId: args.keywordId,
