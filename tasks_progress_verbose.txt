@@ -426,3 +426,38 @@ S0003. Task #14 - Create Domain Dialog (PASSING):
 Commit: 33f0f99 - Create Domain dialog with project selection and settings
 
 ---
+
+=== SESSION S0004 START === 2026-01-29T11:30:00Z
+Focus: Domain Overview Dashboard - Backend Queries
+New session for implementing Task 1 of Domain Overview Dashboard
+
+---
+
+S0004. Task #17 - Add backend queries for keyword performance (PASSING):
+- Added three Convex query functions to convex/keywords.ts
+- Location: After getKeywordWithHistory query (line 100)
+- Queries implemented:
+  1. getRecentChanges: Fetches keywords with biggest position changes over time period
+     * Args: domainId, days (default 7), limit (default 10)
+     * Returns: Keywords sorted by absolute change magnitude
+     * Filters: Only active keywords, requires at least 2 positions
+     * Output: keywordId, phrase, oldPosition, newPosition, change, searchVolume, url
+  
+  2. getTopPerformers: Gets top gainers and losers for performance tables
+     * Args: domainId, days (default 30), limit (default 10)
+     * Returns: {gainers: [], losers: []} with top performers in each category
+     * Filters: Only active keywords with position data
+     * Sorting: Gainers by biggest improvement, losers by biggest decline
+  
+  3. getTopKeywordsByVolume: Gets highest search volume keywords with trend data
+     * Args: domainId, limit (default 10)
+     * Returns: Keywords sorted by search volume descending
+     * Includes: Current position, change vs previous, 7-day history
+     * Filters: Only keywords with search volume data
+- TypeScript compilation: ✓ Passing (Convex functions ready in 5.53s)
+- All queries follow existing Convex patterns in the file
+- Status: PASSING
+
+Commit: fc03f0a - feat: add keyword performance queries for dashboard
+
+---
