@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, FC } from "react";
 import { Input } from "@/components/base/input/input";
+import { Button } from "@/components/base/buttons/button";
 import { BulkActionBar } from "./BulkActionBar";
 
 export interface Column<T> {
@@ -14,8 +15,15 @@ export interface Column<T> {
 
 export interface BulkAction {
   label: string;
-  icon?: React.ReactNode;
+  icon?: FC<{ className?: string }> | React.ReactNode;
   onClick: (selectedIds: Set<string>) => void | Promise<void>;
+  variant?: "default" | "destructive";
+}
+
+export interface RowAction<T> {
+  label: string;
+  icon?: FC<{ className?: string }> | React.ReactNode;
+  onClick: (row: T) => void | Promise<void>;
   variant?: "default" | "destructive";
 }
 
@@ -26,6 +34,7 @@ export interface DataTableWithFiltersProps<T> {
   searchPlaceholder?: string;
   searchKeys?: (keyof T)[];
   bulkActions?: BulkAction[];
+  rowActions?: RowAction<T>[];
   emptyState?: React.ReactNode;
 }
 
@@ -36,6 +45,7 @@ export function DataTableWithFilters<T extends { _id: string }>({
   searchPlaceholder = "Search...",
   searchKeys,
   bulkActions,
+  rowActions,
   emptyState,
 }: DataTableWithFiltersProps<T>) {
   const [search, setSearch] = useState("");
@@ -123,12 +133,17 @@ export function DataTableWithFilters<T extends { _id: string }>({
                   {column.header}
                 </th>
               ))}
+              {rowActions && (
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 bg-white">
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + (bulkActions ? 1 : 0)} className="px-4 py-8 text-center">
+                <td colSpan={columns.length + (bulkActions ? 1 : 0) + (rowActions ? 1 : 0)} className="px-4 py-8 text-center">
                   {emptyState || <span className="text-gray-500">No data found</span>}
                 </td>
               </tr>
@@ -159,6 +174,26 @@ export function DataTableWithFilters<T extends { _id: string }>({
                         : null}
                     </td>
                   ))}
+                  {rowActions && (
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {rowActions.map((action, index) => (
+                          <Button
+                            key={index}
+                            size="sm"
+                            color="tertiary"
+                            iconLeading={action.icon}
+                            onClick={(e: React.MouseEvent) => {
+                              e.stopPropagation();
+                              action.onClick(row);
+                            }}
+                          >
+                            {action.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))
             )}

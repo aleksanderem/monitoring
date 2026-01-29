@@ -1,11 +1,12 @@
 "use client";
 
+import { FC } from "react";
 import { Button } from "@/components/base/buttons/button";
 import { X } from "@untitledui/icons";
 
 export interface BulkAction {
   label: string;
-  icon?: React.ReactNode;
+  icon?: FC<{ className?: string }> | React.ReactNode;
   onClick: (selectedIds: Set<string>) => void | Promise<void>;
   variant?: "default" | "destructive";
 }
@@ -36,9 +37,9 @@ export function BulkActionBar({
               key={index}
               size="sm"
               color="tertiary"
+              iconLeading={action.icon}
               onClick={() => action.onClick(selectedIds)}
             >
-              {action.icon}
               {action.label}
             </Button>
           ))}
@@ -48,9 +49,9 @@ export function BulkActionBar({
       <Button
         size="sm"
         color="tertiary"
+        iconLeading={X}
         onClick={onClearSelection}
       >
-        <X className="h-4 w-4" />
         Clear
       </Button>
     </div>

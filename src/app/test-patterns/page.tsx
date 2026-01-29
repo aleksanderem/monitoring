@@ -4,7 +4,7 @@ import { useState } from "react";
 import { SlideoutDetailView, DataTableWithFilters } from "@/components/patterns";
 import { BreadcrumbNav, LoadingState } from "@/components/shared";
 import { Button } from "@/components/base/buttons/button";
-import { Trash01 } from "@untitledui/icons";
+import { Trash01, Edit05 } from "@untitledui/icons";
 
 const mockProjects = [
   { _id: "1", name: "Project Alpha", domainCount: 5, keywordCount: 120 },
@@ -83,9 +83,22 @@ export default function TestPatternsPage() {
           bulkActions={[
             {
               label: "Delete",
-              icon: <Trash01 className="h-4 w-4 mr-2" />,
+              icon: Trash01,
               variant: "destructive",
               onClick: (ids) => console.log("Delete", Array.from(ids)),
+            },
+          ]}
+          rowActions={[
+            {
+              label: "Edit",
+              icon: Edit05,
+              onClick: (row) => console.log("Edit", row),
+            },
+            {
+              label: "Delete",
+              icon: Trash01,
+              variant: "destructive",
+              onClick: (row) => console.log("Delete", row),
             },
           ]}
           onRowClick={(row) => console.log("Clicked", row)}
