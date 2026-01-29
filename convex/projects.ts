@@ -84,6 +84,46 @@ export const getProject = query({
   },
 });
 
+// Create a new project (simplified - uses user's first team)
+export const create = mutation({
+  args: {
+    name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get user's first team
+    const membership = await ctx.db
+      .query("teamMembers")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!membership) {
+      throw new Error("User is not a member of any team");
+    }
+
+    const teamId = membership.teamId;
+
+    // Get team to access organizationId
+    const team = await ctx.db.get(teamId);
+    if (!team) {
+      throw new Error("Team not found");
+    }
+
+    // Create the project
+    const projectId = await ctx.db.insert("projects", {
+      teamId,
+      name: args.name,
+      createdAt: Date.now(),
+    });
+
+    return projectId;
+  },
+});
+
 // Create a new project
 export const createProject = mutation({
   args: {
@@ -114,6 +154,60 @@ export const createProject = mutation({
     });
 
     return projectId;
+  },
+});
+
+// Update project (simplified)
+export const update = mutation({
+  args: {
+    id: v.id("projects"),
+    name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    await ctx.db.patch(args.id, {
+      name: args.name,
+    });
+  },
+});
+
+// Delete project (simplified)
+export const remove = mutation({
+  args: {
+    id: v.id("projects"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get all domains for this project
+    const domains = await ctx.db
+      .query("domains")
+      .withIndex("by_project", (q) => q.eq("projectId", args.id))
+      .collect();
+
+    // Delete all keywords for each domain, then delete domains
+    for (const domain of domains) {
+      const keywords = await ctx.db
+        .query("keywords")
+        .withIndex("by_domain", (q) => q.eq("domainId", domain._id))
+        .collect();
+
+      for (const keyword of keywords) {
+        await ctx.db.delete(keyword._id);
+      }
+
+      await ctx.db.delete(domain._id);
+    }
+
+    // Delete the project
+    await ctx.db.delete(args.id);
   },
 });
 
@@ -234,6 +328,67 @@ export const deleteProject = mutation({
     }
 
     await ctx.db.delete(args.projectId);
+  },
+});
+
+// List all projects for current user
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+
+    // Get user's teams
+    const memberships = await ctx.db
+      .query("teamMembers")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    if (memberships.length === 0) {
+      return [];
+    }
+
+    const teamIds = memberships.map((m) => m.teamId);
+
+    // Get all projects from user's teams
+    const allProjects: any[] = [];
+    for (const teamId of teamIds) {
+      const projects = await ctx.db
+        .query("projects")
+        .withIndex("by_team", (q) => q.eq("teamId", teamId))
+        .collect();
+      allProjects.push(...projects);
+    }
+
+    // Get domain count and keyword count for each project
+    const projectsWithStats = await Promise.all(
+      allProjects.map(async (project) => {
+        const domains = await ctx.db
+          .query("domains")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect();
+
+        // Count total keywords across all domains in this project
+        let keywordCount = 0;
+        for (const domain of domains) {
+          const keywords = await ctx.db
+            .query("keywords")
+            .withIndex("by_domain", (q) => q.eq("domainId", domain._id))
+            .collect();
+          keywordCount += keywords.length;
+        }
+
+        return {
+          ...project,
+          domainCount: domains.length,
+          keywordCount,
+        };
+      })
+    );
+
+    return projectsWithStats;
   },
 });
 
