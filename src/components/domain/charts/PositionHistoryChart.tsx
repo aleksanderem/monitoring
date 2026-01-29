@@ -18,7 +18,7 @@ interface PositionHistoryChartProps {
 type DateRange = 30 | 90 | 180 | 365 | "all";
 
 export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
-  const [dateRange, setDateRange] = useState<DateRange>(90);
+  const [dateRange, setDateRange] = useState<DateRange>("all");
   const isDesktop = useBreakpoint("lg");
 
   const history = useQuery(
