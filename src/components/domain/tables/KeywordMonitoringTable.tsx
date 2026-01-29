@@ -116,7 +116,6 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [selectedRows, setSelectedRows] = useState<Set<Id<"keywords">>>(new Set());
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnId>>(
     new Set(["position", "previous", "change", "status", "volume", "difficulty", "lastUpdated"])
   );
@@ -166,19 +165,16 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const handleBulkRefresh = async () => {
     if (selectedRows.size === 0) return;
 
-    setIsRefreshing(true);
     try {
       console.log("Calling refreshPositions with:", Array.from(selectedRows));
       const result = await refreshPositions({ keywordIds: Array.from(selectedRows) });
       console.log("Refresh result:", result);
       toast.success(`Odświeżanie pozycji dla ${selectedRows.size} słów kluczowych zostało zakolejkowane`);
-      setSelectedRows(new Set());
+      // Don't clear selection - let user see which keywords are being refreshed
     } catch (error) {
       console.error("Refresh error details:", error);
       const errorMessage = error instanceof Error ? error.message : "Nie udało się odświeżyć pozycji";
       toast.error(`Błąd: ${errorMessage}`);
-    } finally {
-      setIsRefreshing(false);
     }
   };
 
@@ -196,6 +192,12 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
       console.error("Delete error:", error);
     }
   };
+
+  // Check if any keywords are currently being refreshed
+  const hasRefreshingKeywords = useMemo(() => {
+    if (!keywords) return false;
+    return keywords.some(kw => kw.checkingStatus === "queued" || kw.checkingStatus === "checking");
+  }, [keywords]);
 
   // Filter and sort keywords
   const filteredAndSortedKeywords = useMemo(() => {
@@ -294,9 +296,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
               color="secondary"
               iconLeading={RefreshCcw01}
               onClick={handleBulkRefresh}
-              disabled={isRefreshing}
+              disabled={hasRefreshingKeywords}
             >
-              {isRefreshing ? "Odświeżanie..." : "Odśwież pozycję"}
+              {hasRefreshingKeywords ? "Odświeżanie..." : "Odśwież pozycję"}
             </Button>
             <DeleteConfirmationDialog
               title={`Usuń ${selectedRows.size} słów kluczowych?`}
@@ -428,7 +430,8 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
               const statusBadge = getStatusBadge(keyword.status);
               const difficultyBadge = getDifficultyBadge(keyword.difficulty);
               const isSelected = selectedRows.has(keyword.keywordId);
-              const isBeingRefreshed = isRefreshing && isSelected;
+              // Show loading if keyword is queued or currently being checked
+              const isBeingRefreshed = keyword.checkingStatus === "queued" || keyword.checkingStatus === "checking";
 
               return (
                 <tr
