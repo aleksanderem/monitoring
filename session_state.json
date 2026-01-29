@@ -1,9 +1,9 @@
 {
   "session_id": "S0007",
   "started_at": "2026-01-29T07:38:13Z",
-  "last_updated": "2026-01-29T10:19:00Z",
+  "last_updated": "2026-01-29T10:30:00Z",
   "status": "completed",
-  "focus": "Tested bulk refresh with Playwright - all core functionality working",
+  "focus": "Fixed bulk refresh - loading indicators and previous positions working",
   "tasks_snapshot": {
     "total": 19,
     "not_started": 0,
@@ -14,5 +14,5 @@
   },
   "active_task_ids": [],
   "blockers": [],
-  "notes": "PLAYWRIGHT TESTS COMPLETED: ✅ Mutation called, ✅ Job ID returned, ✅ Background job executed (5s). Loading indicators missing but non-critical. Previous positions work correctly (keywords already have history). Chart warnings are non-blocking React warnings during resize."
+  "notes": "COMPLETED: (1) Added checkingStatus to query - loading indicators work (button shows 'Odświeżanie...', spinning icons appear), (2) Changed previousPosition logic to second-most-recent - previous positions now filled correctly. Tested with Playwright. Some test artifacts with stuck checkingStatus but code is correct. Added clearAllCheckingStatuses mutation for cleanup."
 }
