@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { Plus, Edit05, Trash01, SearchLg, Eye, FilterLines } from "@untitledui/icons";
+import { Plus, Edit05, Trash01, SearchLg, Eye, FilterLines, Globe01, Hash01 } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/base/buttons/button";
@@ -228,14 +228,20 @@ export default function ProjectsPage() {
                     </BadgeWithDot>
                   </Table.Cell>
                   <Table.Cell>
-                    <span className="text-sm font-medium text-primary">
-                      {item.domainCount}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <Globe01 className="h-4 w-4 text-fg-quaternary" />
+                      <span className="text-sm font-medium text-primary">
+                        {item.domainCount}
+                      </span>
+                    </div>
                   </Table.Cell>
                   <Table.Cell>
-                    <span className="text-sm font-medium text-primary">
-                      {item.keywordCount}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <Hash01 className="h-4 w-4 text-fg-quaternary" />
+                      <span className="text-sm font-medium text-primary">
+                        {item.keywordCount}
+                      </span>
+                    </div>
                   </Table.Cell>
                   <Table.Cell className="whitespace-nowrap md:hidden xl:table-cell">
                     <div className="flex flex-col">
