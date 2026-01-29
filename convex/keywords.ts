@@ -153,6 +153,69 @@ export const getPositionDistribution = query({
   },
 });
 
+// Get movement trend over time (gainers vs losers per day)
+export const getMovementTrend = query({
+  args: {
+    domainId: v.id("domains"),
+    days: v.optional(v.number())
+  },
+  handler: async (ctx, args) => {
+    const daysToFetch = args.days || 30;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysToFetch);
+    const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
+
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    // Build a map of date -> {gainers, losers}
+    const trendMap = new Map<string, { gainers: number; losers: number }>();
+
+    for (const keyword of keywords) {
+      const positions = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+        .filter((q) => q.gte(q.field("date"), cutoffDateStr))
+        .collect();
+
+      // Sort by date to compare consecutive positions
+      positions.sort((a, b) => a.date.localeCompare(b.date));
+
+      for (let i = 1; i < positions.length; i++) {
+        const prev = positions[i - 1];
+        const curr = positions[i];
+        const dateKey = curr.date;
+
+        if (!trendMap.has(dateKey)) {
+          trendMap.set(dateKey, { gainers: 0, losers: 0 });
+        }
+
+        const trend = trendMap.get(dateKey)!;
+
+        // Only count if both positions are valid numbers
+        if (curr.position !== null && prev.position !== null) {
+          if (curr.position < prev.position) {
+            trend.gainers++;
+          } else if (curr.position > prev.position) {
+            trend.losers++;
+          }
+        }
+      }
+    }
+
+    // Convert map to array sorted by date
+    return Array.from(trendMap.entries())
+      .map(([date, data]) => ({
+        date: new Date(date).getTime(),
+        gainers: data.gainers,
+        losers: data.losers,
+      }))
+      .sort((a, b) => a.date - b.date);
+  },
+});
+
 // Get recent keyword position changes (for recent changes table)
 export const getRecentChanges = query({
   args: {
