@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { Hash01, ChevronUp, ChevronDown, ChevronSelectorVertical, RefreshCcw01, Trash01, Settings01, ArrowUp, ArrowDown, Eye, Edit05 } from "@untitledui/icons";
+import { Hash01, ChevronUp, ChevronDown, ChevronSelectorVertical, RefreshCcw01, Trash01, Settings01, ArrowUp, ArrowDown, Eye, Edit05, Key01 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { BadgeWithDot, BadgeWithIcon } from "@/components/base/badges/badges";
@@ -284,6 +284,19 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
 
   return (
     <div className="flex flex-col gap-6">
+      <style>{`
+        .actions-sticky-header::before,
+        .actions-sticky-cell::before {
+          content: '';
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(270deg, rgb(225 225 225) 0%, rgb(41 41 41 / 0%) 75%);
+          top: 0;
+          left: -56px;
+          pointer-events: none;
+        }
+      `}</style>
       {/* Bulk actions toolbar */}
       {selectedRows.size > 0 && (
         <div className="flex items-center justify-between rounded-lg border border-secondary bg-primary p-4">
@@ -430,14 +443,20 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                 </th>
               )}
               <th
-                className="sticky border-l border-secondary text-center text-xs font-semibold uppercase tracking-wide text-tertiary"
+                className="sticky border-l border-secondary text-center text-xs font-semibold uppercase tracking-wide text-tertiary actions-sticky-header"
                 style={{
                   background: "#f8f8f8",
                   right: "1px",
-                  padding: "12px 0",
+                  fontSize: "8px",
+                  padding: "0 10px",
+                  position: "relative",
                 }}
               >
-                Actions
+                <Tooltip title="Akcje" placement="bottom">
+                  <TooltipTrigger>
+                    <Key01 className="h-3 w-3 inline-block" />
+                  </TooltipTrigger>
+                </Tooltip>
               </th>
             </tr>
           </thead>
@@ -596,11 +615,12 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
 
                   {/* Actions */}
                   <td
-                    className="sticky border-l border-secondary text-center"
+                    className="sticky border-l border-secondary text-center actions-sticky-cell"
                     style={{
                       background: "#f8f8f8",
                       right: "1px",
                       padding: "0",
+                      position: "relative",
                     }}
                   >
                     <Dropdown.Root>
