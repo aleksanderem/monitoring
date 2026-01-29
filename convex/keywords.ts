@@ -871,6 +871,30 @@ export const refreshKeywordPositions = mutation({
   },
 });
 
+// Clear all checking statuses (for debugging/cleanup)
+export const clearAllCheckingStatuses = mutation({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    let cleared = 0;
+    for (const keyword of keywords) {
+      if (keyword.checkingStatus) {
+        await ctx.db.patch(keyword._id, {
+          checkingStatus: undefined,
+          checkJobId: undefined,
+        });
+        cleared++;
+      }
+    }
+
+    return { cleared };
+  },
+});
+
 // Bulk import keywords with detailed results
 export const importKeywords = mutation({
   args: {
