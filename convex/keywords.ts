@@ -835,7 +835,7 @@ export const refreshKeywordPositions = mutation({
     if (!context) {
       throw new Error("Context not found");
     }
-    await requirePermission(ctx, "keywords.view", context);
+    await requirePermission(ctx, "keywords.refresh", context);
 
     // Create a check job for these keywords
     const jobId = await ctx.db.insert("keywordCheckJobs", {
