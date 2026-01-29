@@ -181,10 +181,13 @@ export const processKeywordCheckJobInternal = internalAction({
       });
 
       try {
-        // Check if this is first-time check
-        const isFirstTime = !keyword.lastUpdated;
+        // Check if keyword has any position history
+        const existingPositions = await ctx.runQuery(internal.keywordCheckJobs.getKeywordPositionsCountInternal, {
+          keywordId,
+        });
+        const needsHistory = existingPositions === 0;
 
-        if (isFirstTime) {
+        if (needsHistory) {
           // Use fetchSinglePosition with history
           console.log(`[processKeywordCheckJob] First-time check for ${keyword.phrase}, fetching with history`);
           const result = await ctx.runAction(internal.dataforseo.fetchSinglePositionInternal, {
@@ -362,5 +365,18 @@ export const clearKeywordCheckingStatusInternal = internalMutation({
       checkingStatus: undefined,
       checkJobId: undefined,
     });
+  },
+});
+
+export const getKeywordPositionsCountInternal = internalQuery({
+  args: {
+    keywordId: v.id("keywords"),
+  },
+  handler: async (ctx, args) => {
+    const positions = await ctx.db
+      .query("keywordPositions")
+      .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
+      .collect();
+    return positions.length;
   },
 });
