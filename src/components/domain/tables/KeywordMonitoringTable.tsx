@@ -58,7 +58,8 @@ function getPositionBadgeClass(position: number | null): string {
 }
 
 // Helper: Get difficulty badge
-function getDifficultyBadge(difficulty: number) {
+function getDifficultyBadge(difficulty: number | null) {
+  if (!difficulty) return { label: "—", color: "gray" as const };
   if (difficulty <= 30) return { label: "Easy", color: "success" as const };
   if (difficulty <= 60) return { label: "Medium", color: "warning" as const };
   return { label: "Hard", color: "error" as const };
@@ -585,7 +586,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   {visibleColumns.has("potential") && (
                     <td className="px-6 py-4">
                       <span className="font-medium text-primary">
-                        {formatNumber(keyword.potential)}
+                        {keyword.potential ? formatNumber(keyword.potential) : "—"}
                       </span>
                     </td>
                   )}
@@ -594,7 +595,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   {visibleColumns.has("volume") && (
                     <td className="px-6 py-4">
                       <span className="text-sm text-secondary">
-                        {formatNumber(keyword.searchVolume)}
+                        {keyword.searchVolume ? formatNumber(keyword.searchVolume) : "—"}
                       </span>
                     </td>
                   )}
@@ -602,9 +603,13 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   {/* Difficulty */}
                   {visibleColumns.has("difficulty") && (
                     <td className="px-6 py-4">
-                      <BadgeWithDot size="sm" color={difficultyBadge.color} type="modern">
-                        {keyword.difficulty} • {difficultyBadge.label}
-                      </BadgeWithDot>
+                      {keyword.difficulty ? (
+                        <BadgeWithDot size="sm" color={difficultyBadge.color} type="modern">
+                          {keyword.difficulty} • {difficultyBadge.label}
+                        </BadgeWithDot>
+                      ) : (
+                        <span className="text-sm text-tertiary">—</span>
+                      )}
                     </td>
                   )}
 

@@ -351,22 +351,22 @@ export const getKeywordMonitoring = query({
         : null;
       const change = currentPosition && previousPosition
         ? previousPosition - currentPosition // Negative means dropped
-        : 0;
+        : null;
 
       // Determine status
       let status: "rising" | "stable" | "falling" | "new" = "stable";
       if (previousPosition === null && currentPosition !== null) {
         status = "new";
-      } else if (change > 0) {
+      } else if (change && change > 0) {
         status = "rising"; // Improved (lower position number)
-      } else if (change < 0) {
+      } else if (change && change < 0) {
         status = "falling"; // Dropped (higher position number)
       }
 
       // Calculate potential
       const potential = currentPosition && latestPosition?.searchVolume
         ? Math.round(latestPosition.searchVolume * getCTRForPosition(currentPosition))
-        : 0;
+        : null;
 
       // Build position history array for sparkline (last 30 days)
       const positionHistory = positions.map(p => ({
@@ -381,9 +381,9 @@ export const getKeywordMonitoring = query({
         previousPosition,
         change,
         status,
-        searchVolume: latestPosition?.searchVolume || 0,
-        difficulty: latestPosition?.difficulty || 0,
-        url: latestPosition?.url || "",
+        searchVolume: latestPosition?.searchVolume || null,
+        difficulty: latestPosition?.difficulty || null,
+        url: latestPosition?.url || null,
         positionHistory,
         lastUpdated: latestPosition?._creationTime || keyword._creationTime,
         potential,
