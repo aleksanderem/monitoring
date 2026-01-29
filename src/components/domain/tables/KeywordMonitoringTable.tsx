@@ -445,9 +445,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     <span className="truncate font-mono text-sm text-tertiary" title={keyword.url}>
                       {keyword.url ? (() => {
                         try {
-                          return new URL(keyword.url).pathname;
+                          return new URL(keyword.url).pathname.toLowerCase();
                         } catch {
-                          return keyword.url;
+                          return keyword.url.toLowerCase();
                         }
                       })() : "—"}
                     </span>
