@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { Hash01, ChevronUp, ChevronDown, ChevronSelectorVertical, RefreshCcw01, Trash01, Settings01, ArrowUp, ArrowDown } from "@untitledui/icons";
+import { Hash01, ChevronUp, ChevronDown, ChevronSelectorVertical, RefreshCcw01, Trash01, Settings01, ArrowUp, ArrowDown, Eye, Edit05 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { BadgeWithDot, BadgeWithIcon } from "@/components/base/badges/badges";
@@ -12,6 +12,7 @@ import { MiniSparkline } from "@/components/domain/charts/MiniSparkline";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
 import { DialogTrigger, Popover } from "react-aria-components";
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
+import { Dropdown } from "@/components/base/dropdown/dropdown";
 import { cx } from "@/utils/cx";
 import { toast } from "sonner";
 
@@ -428,6 +429,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   Last Updated
                 </th>
               )}
+              <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-tertiary">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -582,6 +586,54 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                       </span>
                     </td>
                   )}
+
+                  {/* Actions */}
+                  <td className="px-6 py-4 text-right">
+                    <Dropdown.Root>
+                      <Dropdown.DotsButton />
+                      <Dropdown.Popover>
+                        <Dropdown.Menu
+                          onAction={async (key) => {
+                            switch (key) {
+                              case "view":
+                                // TODO: Open preview modal with history
+                                toast.info(`Podgląd frazy: ${keyword.phrase}`);
+                                break;
+                              case "edit":
+                                // TODO: Open edit modal
+                                toast.info(`Edycja frazy: ${keyword.phrase}`);
+                                break;
+                              case "refresh":
+                                try {
+                                  await refreshPositions({ keywordIds: [keyword.keywordId] });
+                                  toast.success(`Odświeżanie pozycji dla "${keyword.phrase}"`);
+                                } catch (error) {
+                                  const errorMessage = error instanceof Error ? error.message : "Nie udało się odświeżyć pozycji";
+                                  toast.error(`Błąd: ${errorMessage}`);
+                                }
+                                break;
+                              case "delete":
+                                try {
+                                  await deleteKeywords({ keywordIds: [keyword.keywordId] });
+                                  toast.success(`Usunięto frazę: ${keyword.phrase}`);
+                                } catch (error) {
+                                  const errorMessage = error instanceof Error ? error.message : "Nie udało się usunąć frazy";
+                                  toast.error(errorMessage);
+                                }
+                                break;
+                            }
+                          }}
+                        >
+                          <Dropdown.Item key="view" label="Podgląd" icon={Eye} />
+                          <Dropdown.Item key="edit" label="Edytuj" icon={Edit05} />
+                          <Dropdown.Separator />
+                          <Dropdown.Item key="refresh" label="Odśwież pozycję" icon={RefreshCcw01} />
+                          <Dropdown.Separator />
+                          <Dropdown.Item key="delete" label="Usuń" icon={Trash01} />
+                        </Dropdown.Menu>
+                      </Dropdown.Popover>
+                    </Dropdown.Root>
+                  </td>
                 </tr>
               );
             })}
