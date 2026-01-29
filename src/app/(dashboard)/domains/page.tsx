@@ -14,6 +14,7 @@ import { BadgeWithDot } from "@/components/base/badges/badges";
 import { EmptyState } from "@/components/application/empty-state/empty-state";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
+import { DomainDetailsSlideout } from "@/components/application/slideout-menus/domain-details-slideout";
 import { toast } from "sonner";
 
 // Helper to format relative time
@@ -260,16 +261,22 @@ export default function DomainsPage() {
                   </Table.Cell>
                   <Table.Cell className="px-4">
                     <div className="flex justify-end gap-0.5">
-                      <ButtonUtility
-                        size="xs"
-                        color="tertiary"
-                        tooltip="View domain"
-                        icon={Eye}
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          toast.info("Domain details coming soon");
+                      <DomainDetailsSlideout
+                        domainId={item._id}
+                        onDelete={() => {
+                          // Will be handled by Delete button inside slideout
                         }}
-                      />
+                      >
+                        <ButtonUtility
+                          size="xs"
+                          color="tertiary"
+                          tooltip="View domain"
+                          icon={Eye}
+                          onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                          }}
+                        />
+                      </DomainDetailsSlideout>
                       <ButtonUtility
                         size="xs"
                         color="tertiary"
