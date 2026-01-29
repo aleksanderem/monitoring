@@ -489,37 +489,32 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
 
                   {/* Keyword */}
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-medium text-primary">{keyword.phrase}</span>
-                        {keyword.url && (
-                          <Tooltip title={keyword.url} placement="bottom">
-                            <TooltipTrigger>
-                              <span
-                                className="font-mono text-tertiary cursor-default"
-                                style={{
-                                  whiteSpace: "nowrap",
-                                  width: "170px",
-                                  textOverflow: "ellipsis",
-                                  overflow: "hidden",
-                                  fontSize: "9px",
-                                  display: "block",
-                                }}
-                              >
-                                {(() => {
-                                  try {
-                                    return new URL(keyword.url).pathname.toLowerCase();
-                                  } catch {
-                                    return keyword.url.toLowerCase();
-                                  }
-                                })()}
-                              </span>
-                            </TooltipTrigger>
-                          </Tooltip>
-                        )}
-                      </div>
-                      {isBeingRefreshed && (
-                        <RefreshCcw01 className="h-4 w-4 animate-spin text-brand-600" />
+                    <div className="flex flex-col gap-1">
+                      <span className="font-medium text-primary">{keyword.phrase}</span>
+                      {keyword.url && (
+                        <Tooltip title={keyword.url} placement="bottom">
+                          <TooltipTrigger>
+                            <span
+                              className="font-mono text-tertiary cursor-default"
+                              style={{
+                                whiteSpace: "nowrap",
+                                width: "170px",
+                                textOverflow: "ellipsis",
+                                overflow: "hidden",
+                                fontSize: "9px",
+                                display: "block",
+                              }}
+                            >
+                              {(() => {
+                                try {
+                                  return new URL(keyword.url).pathname.toLowerCase();
+                                } catch {
+                                  return keyword.url.toLowerCase();
+                                }
+                              })()}
+                            </span>
+                          </TooltipTrigger>
+                        </Tooltip>
                       )}
                     </div>
                   </td>
