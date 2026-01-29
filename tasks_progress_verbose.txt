@@ -490,3 +490,43 @@ S0004. Task #19 - Create PositionHistoryChart component (PASSING):
 Commit: b5beaf9 - feat: add PositionHistoryChart component
 
 ---
+
+S0004. Task #20 - Create MetricCard component (PASSING):
+- Created src/components/domain/cards/MetricCard.tsx
+- Features:
+  * Reusable component for displaying metrics with title and value
+  * Optional trend indicator with MetricChangeIndicator
+  * Optional icon using FeaturedIcon (gray theme, modern, lg size)
+  * Optional badge in header
+  * Optional actions in top-right corner
+  * Optional subtitle or change description
+  * Responsive font sizes (text-2xl on mobile, lg:text-3xl on desktop)
+  * Number formatting with toLocaleString()
+- Props interface:
+  * title: string (required)
+  * value: string | number (required)
+  * subtitle?: string
+  * icon?: FC<{ className?: string }>
+  * trend?: "positive" | "negative" | null
+  * change?: string (e.g., "+12%")
+  * changeDescription?: string (e.g., "vs last month")
+  * badge?: ReactNode
+  * actions?: ReactNode
+  * className?: string
+- Styling:
+  * Uses bg-primary with shadow-xs and ring-secondary border
+  * Responsive padding (px-4 py-5 on mobile, md:px-5 on desktop)
+  * Gap between elements (gap-4 on mobile, md:gap-5 on desktop)
+  * Absolute positioning for actions in top-right
+- Integration:
+  * Uses @/components/foundations/featured-icon/featured-icon
+  * Uses @/components/application/metrics/metrics (MetricChangeIndicator)
+  * Uses @/utils/cx for className merging
+- TypeScript compilation: ✓ Passing (npm run build successful)
+- Build output: Compiled successfully in 3.1s
+- Status: PASSING
+
+Commit: 15c323d - feat: add reusable MetricCard component
+
+---
+
