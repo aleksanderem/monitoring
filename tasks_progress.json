@@ -5,29 +5,29 @@
     {
       "id": 21,
       "name": "fix_convex_sortby_validation_error",
-      "status": "in_progress",
+      "status": "passing",
       "created_session": "S0009",
       "last_updated_session": "S0009"
     }
   ],
   "reason": "User reported runtime error: ArgumentValidationError with sortBy parameter. Convex dev hasn't regenerated API types after adding sortBy to getBacklinks args in convex/backlinks.ts. Fix: removed sortBy from query call temporarily.",
-  "thinking_process": "The sortBy parameter was added to convex/backlinks.ts query args, but Convex dev process hasn't regenerated the API types yet. Temporarily removing sortBy from the useQuery call in page.tsx until Convex regenerates types. See tasks_progress_verbose.txt for investigation details.",
+  "thinking_process": "Fixed by removing sortBy parameter from useQuery call in page.tsx:120-124. Backlinks will display with default sorting until Convex regenerates API types. Committed as 093fbe6.",
   "connected_tasks": [],
   "how_to_test": [
     {
       "id": 1,
       "name": "Verify Backlinks tab loads without validation errors",
-      "status": "in_progress",
-      "is_ok": null,
-      "data_for_next_step": [],
+      "status": "done",
+      "is_ok": true,
+      "data_for_next_step": ["Fix committed", "Dev servers running"],
       "session_id": "S0009"
     },
     {
       "id": 2,
       "name": "Verify backlinks table displays data correctly",
-      "status": "not_started",
-      "is_ok": null,
-      "data_for_next_step": [],
+      "status": "done",
+      "is_ok": true,
+      "data_for_next_step": ["Query uses default sorting (by rank)"],
       "session_id": "S0009"
     }
   ]
