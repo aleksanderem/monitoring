@@ -592,3 +592,39 @@ Commit: 790b550 - feat(backend): Add CTR helper and position distribution query
 
 ---
 
+=== SESSION S0005 CONTINUED === 2026-01-29T15:40:00Z
+Focus: Monitoring Tab Implementation - Task 2 (Movement Trend Query)
+Active task: #22
+
+---
+
+S0005. Monitoring Tab Task #2 - Movement Trend Query (PASSING):
+- Added getMovementTrend query to convex/keywords.ts (after getPositionDistribution)
+  * Args: domainId (required), days (optional, defaults to 30)
+  * Returns array of {date, gainers, losers} objects sorted chronologically
+  * Tracks daily keyword position movements (gainers = improved rank, losers = dropped rank)
+- Implementation details:
+  * Calculates cutoff date based on days parameter (30-day default)
+  * Queries all keywords for the domain
+  * For each keyword, fetches position history from keywordPositions table within date range
+  * Sorts positions by date string (using localeCompare)
+  * Compares consecutive positions to detect movement (lower position = better rank = gainer)
+  * Only counts movements when both positions are non-null numbers
+  * Aggregates daily gainers/losers counts into a map keyed by date string
+  * Converts map to array with Unix timestamps for frontend charting
+- Bug fixes during implementation:
+  * Initial attempt used Date.now() - milliseconds for cutoff, but date field is string type
+  * Fixed to use string date comparison (YYYY-MM-DD format)
+  * Initial sort attempted numeric subtraction (a.date - b.date) on strings
+  * Fixed to use localeCompare for proper string date sorting
+  * Added null checks for position values to avoid comparing null positions
+- Verification:
+  * Convex dev compilation: ✓ Passing (6.15s)
+  * No TypeScript errors
+  * Function ready for MovementTrendChart component
+- Status: PASSING
+
+Commit: 4e37152 - feat(backend): Add movement trend query for 30-day analysis
+
+---
+

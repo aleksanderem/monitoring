@@ -1,18 +1,18 @@
 {
   "session_id": "S0005",
   "started_at": "2026-01-29T15:25:00Z",
-  "last_updated": "2026-01-29T15:35:00Z",
+  "last_updated": "2026-01-29T15:45:00Z",
   "status": "active",
-  "focus": "Monitoring Tab Implementation - Task 25 (CTR Helper and Position Distribution) completed",
+  "focus": "Monitoring Tab Implementation - Task 2 (Movement Trend Query) completed",
   "tasks_snapshot": {
-    "total": 16,
-    "not_started": 14,
+    "total": 17,
+    "not_started": 13,
     "in_progress": 0,
-    "passing": 1,
+    "passing": 2,
     "failing": 0,
     "blocked": 0
   },
-  "active_task_ids": [25],
+  "active_task_ids": [22],
   "blockers": [],
-  "notes": "Task 25 (CTR Helper and Position Distribution): ✓ Complete. Added getCTRForPosition helper and getPositionDistribution query to convex/keywords.ts. Convex compilation passing."
+  "notes": "Task 2 (Movement Trend Query): ✓ Complete. Added getMovementTrend query to convex/keywords.ts for tracking daily gainers vs losers over 30 days. Convex compilation passing."
 }
