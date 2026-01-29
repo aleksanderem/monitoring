@@ -14,6 +14,7 @@ import { BadgeWithDot } from "@/components/base/badges/badges";
 import { EmptyState } from "@/components/application/empty-state/empty-state";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
+import { CreateDomainDialog } from "@/components/application/modals/create-domain-dialog";
 import { DomainDetailsSlideout } from "@/components/application/slideout-menus/domain-details-slideout";
 import { toast } from "sonner";
 
@@ -108,9 +109,11 @@ export default function DomainsPage() {
           </div>
           <div className="flex flex-col gap-4 lg:flex-row">
             <div className="flex items-start gap-3">
-              <Button size="md">
-                Add Domain
-              </Button>
+              <CreateDomainDialog>
+                <Button size="md">
+                  Add Domain
+                </Button>
+              </CreateDomainDialog>
             </div>
           </div>
         </div>
@@ -130,9 +133,11 @@ export default function DomainsPage() {
           </EmptyState.Content>
 
           <EmptyState.Footer>
-            <Button size="md">
-              Add Domain
-            </Button>
+            <CreateDomainDialog>
+              <Button size="md">
+                Add Domain
+              </Button>
+            </CreateDomainDialog>
           </EmptyState.Footer>
         </EmptyState>
       ) : (
