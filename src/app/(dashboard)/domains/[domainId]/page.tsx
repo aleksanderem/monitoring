@@ -27,6 +27,8 @@ import { Breadcrumbs } from "@/components/application/breadcrumbs/breadcrumbs";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { MetricsChart04 } from "@/components/application/metrics/metrics";
 import { toast } from "sonner";
+import { PositionHistoryChart } from "@/components/domain/charts/PositionHistoryChart";
+import { ExecutiveSummary } from "@/components/domain/sections/ExecutiveSummary";
 
 // Helper to format date
 function formatDate(timestamp: number) {
@@ -176,53 +178,19 @@ export default function DomainDetailPage() {
           <Tabs orientation="vertical" defaultSelectedKey="overview">
             {/* Overview Tab */}
             <TabPanel id="overview">
-              <div className="flex flex-col gap-6">
-                {/* Status and metrics */}
-                <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-primary">Overview</h2>
-                    <BadgeWithDot size="md" type="modern" color="success">
-                      Active
-                    </BadgeWithDot>
-                  </div>
+              <div className="flex flex-col gap-8">
+                {/* Position History Chart */}
+                <PositionHistoryChart domainId={domainId} />
 
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                    <div className="flex flex-col gap-1">
-                      <p className="text-sm font-medium text-tertiary">Keywords</p>
-                      <div className="flex items-center gap-2">
-                        <Hash01 className="h-5 w-5 text-fg-quaternary" />
-                        <p className="text-2xl font-semibold text-primary">{keywords.length}</p>
-                      </div>
-                    </div>
+                {/* Executive Summary Metrics */}
+                <ExecutiveSummary domainId={domainId} />
 
-                    <div className="flex flex-col gap-1">
-                      <p className="text-sm font-medium text-tertiary">Created</p>
-                      <div className="flex flex-col">
-                        <p className="text-sm font-semibold text-primary">{formatRelativeTime(domain.createdAt)}</p>
-                        <p className="text-sm text-tertiary">{formatDate(domain.createdAt)}</p>
-                      </div>
-                    </div>
-
-                    {domain.lastRefreshedAt && (
-                      <div className="flex flex-col gap-1">
-                        <p className="text-sm font-medium text-tertiary">Last Refreshed</p>
-                        <div className="flex flex-col">
-                          <p className="text-sm font-semibold text-primary">{formatRelativeTime(domain.lastRefreshedAt)}</p>
-                          <p className="text-sm text-tertiary">{formatDate(domain.lastRefreshedAt)}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                {/* Placeholder for future sections */}
+                <div className="rounded-xl border border-secondary bg-primary p-6">
+                  <p className="text-sm text-tertiary">
+                    Additional analytics coming soon: Recent changes, alerts, performance tables
+                  </p>
                 </div>
-
-                {/* Metrics card */}
-                <MetricsChart04
-                  title={keywords.length.toString()}
-                  subtitle="Tracked Keywords"
-                  change="+12%"
-                  changeTrend="positive"
-                  changeDescription="vs last month"
-                />
               </div>
             </TabPanel>
 
