@@ -70,10 +70,11 @@ export default function DomainDetailPage() {
   const domainId = params.domainId as Id<"domains">;
 
   const domain = useQuery(api.domains.getDomain, { domainId });
+  const keywords = useQuery(api.keywords.getKeywords, { domainId });
   const deleteDomain = useMutation(api.domains.remove);
+  const refreshKeywords = useMutation(api.keywords.refreshKeywordPositions);
 
-  // TODO: Add keywords query
-  const keywords: any[] = [];
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const handleDelete = async () => {
     try {
@@ -82,6 +83,22 @@ export default function DomainDetailPage() {
       router.push("/domains");
     } catch (error) {
       toast.error("Failed to delete domain");
+      console.error(error);
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      if (!keywords || keywords.length === 0) {
+        toast.error("No keywords to refresh");
+        return;
+      }
+
+      const keywordIds = keywords.map(k => k._id);
+      await refreshKeywords({ keywordIds });
+      toast.success(`Refreshing ${keywords.length} keywords...`);
+    } catch (error) {
+      toast.error("Failed to start refresh");
       console.error(error);
     }
   };
@@ -147,14 +164,14 @@ export default function DomainDetailPage() {
                 color="tertiary"
                 tooltip="Refresh rankings"
                 icon={RefreshCcw01}
-                onClick={() => toast.info("Refresh coming soon")}
+                onClick={handleRefresh}
               />
               <ButtonUtility
                 size="sm"
                 color="tertiary"
                 tooltip="Edit"
                 icon={Edit01}
-                onClick={() => toast.info("Edit dialog coming soon")}
+                onClick={() => setIsEditModalOpen(true)}
               />
               <DeleteConfirmationDialog
                 title={`Delete "${domain.domain}"?`}
