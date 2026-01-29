@@ -380,3 +380,49 @@ S0003. ProjectDetailsSlideout Layout Refinements:
 
 ---
 
+
+S0003. Per-Domain Metric Cards & Reports:
+- User feedback: "Zamiast active domains powinna byc nazwa domeny" + "Taka karta jest per domena w projekcie tutaj"
+- Changed from single "Active Domains" summary card to per-domain cards
+- Each domain gets own MetricsChart04 showing:
+  * Domain name as subtitle (e.g., "kolabo.pl")
+  * Keyword count as main metric
+  * Trend indicator with chart
+- User feedback: "i zgubiłeś buttony od raportow"
+- Restored Reports section with conditional buttons
+- User feedback: "i usun zduplikowana domene nad karta statystyk"
+- Removed Domain Summary list (was duplicate)
+- User feedback: "daj sekcje z buttonami i 'Reports' margin-top:16px"
+- Added mt-4 (16px) spacing to Reports section
+- Commits:
+  * 6f3f151: Show per-domain metric cards instead of single summary
+  * cc8c395: Remove duplicate domain list, restore report buttons
+  * 27fc28e: Add margin-top to Reports section
+- Build passing ✓
+
+---
+
+S0003. Task #14 - Create Domain Dialog (PASSING):
+- Created CreateDomainDialog component at src/components/application/modals/create-domain-dialog.tsx
+- Features:
+  * Domain name input (required)
+  * Project selection dropdown (loads from api.projects.list)
+  * Search engine select (Google, Google Poland, Bing)
+  * Refresh frequency select (Daily, Weekly, On demand)
+  * Form validation and loading states
+  * Toast notifications for success/error
+- Integration:
+  * Uses AriaDialogTrigger pattern matching CreateProjectDialog
+  * Integrated into Domains page (header and EmptyState buttons)
+  * Supports children prop or default "Add Domain" button
+  * Optional defaultProjectId prop for pre-selecting project
+- Convex integration:
+  * Uses api.domains.create simplified mutation
+  * Auto-fills location="Poland" and language="pl" on backend
+  * Defaults: searchEngine="google.com", refreshFrequency="weekly"
+- Build passing ✓
+- Status: PASSING
+
+Commit: 33f0f99 - Create Domain dialog with project selection and settings
+
+---
