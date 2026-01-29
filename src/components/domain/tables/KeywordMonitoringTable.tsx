@@ -510,18 +510,14 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   {visibleColumns.has("change") && (
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        {keyword.change !== 0 ? (
-                          <BadgeWithIcon
-                            type="pill-color"
-                            color={keyword.change > 0 ? "success" : "error"}
-                            size="sm"
-                            iconLeading={keyword.change > 0 ? ArrowUp : ArrowDown}
-                          >
-                            {Math.abs(keyword.change)}
-                          </BadgeWithIcon>
-                        ) : (
-                          <span className="text-sm text-tertiary">—</span>
-                        )}
+                        <BadgeWithIcon
+                          type="pill-color"
+                          color={keyword.change > 0 ? "success" : keyword.change < 0 ? "error" : "gray"}
+                          size="sm"
+                          iconLeading={keyword.change > 0 ? ArrowUp : keyword.change < 0 ? ArrowDown : undefined}
+                        >
+                          {keyword.change === 0 ? "0" : Math.abs(keyword.change)}
+                        </BadgeWithIcon>
                         <MiniSparkline data={keyword.positionHistory} className="text-utility-gray-400" />
                       </div>
                     </td>
