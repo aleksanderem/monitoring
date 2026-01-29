@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { RouteProvider } from "@/providers/router-provider";
 import { Theme } from "@/providers/theme";
+import { CommandProvider } from "@/providers/CommandProvider";
+import { ToastProvider } from "@/providers/ToastProvider";
 import "@/styles/globals.css";
 import { cx } from "@/utils/cx";
 
@@ -30,7 +32,12 @@ export default function RootLayout({
         <html lang="en" suppressHydrationWarning>
             <body className={cx(inter.variable, "bg-primary antialiased")}>
                 <RouteProvider>
-                    <Theme>{children}</Theme>
+                    <Theme>
+                        <CommandProvider>
+                            {children}
+                            <ToastProvider />
+                        </CommandProvider>
+                    </Theme>
                 </RouteProvider>
             </body>
         </html>
