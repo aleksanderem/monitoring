@@ -33,12 +33,14 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
   }
 
   // Convert object to array
-  const chartData = Object.entries(data)
-    .map(([name, value]) => ({
-      name: name.charAt(0).toUpperCase() + name.slice(1),
-      value,
-    }))
-    .sort((a, b) => b.value - a.value);
+  const chartData = data
+    ? Object.entries(data)
+        .map(([name, value]) => ({
+          name: name.charAt(0).toUpperCase() + name.slice(1),
+          value,
+        }))
+        .sort((a, b) => b.value - a.value)
+    : [];
 
   if (chartData.length === 0) {
     return (
