@@ -166,7 +166,7 @@ export function ProjectDetailsSlideout({
                 <span className="h-px w-full bg-border-secondary" />
 
                 {/* Reports section */}
-                <section className="flex flex-col gap-3">
+                <section className="mt-4 flex flex-col gap-3">
                   <p className="text-sm font-semibold text-primary">Reports</p>
                   {hasConfiguredReports ? (
                     <div className="flex gap-3">
