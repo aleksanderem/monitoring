@@ -728,3 +728,208 @@ Commit: d5ca1fc - feat(ui): Add position distribution bar chart
 
 ---
 
+
+S0005. Monitoring Tab Task #7 - MovementTrendChart Component (PASSING):
+- Created src/components/domain/charts/MovementTrendChart.tsx
+  * Line chart showing 30-day trend of keyword movements (gainers vs losers)
+  * Uses data from api.keywords.getMovementTrend query (created in Task 2)
+- Features:
+  * Two-line chart with Gainers (green) and Losers (red) lines
+  * Responsive design with useBreakpoint hook for legend layout
+  * Loading state with LoadingState component showing skeleton during data fetch
+  * Date axis with formatted dates (month + day)
+  * Y-axis with number formatting using toLocaleString
+  * Smooth monotone line interpolation (type="monotone")
+  * Active dot indicators on hover with white fill and colored stroke
+  * CartesianGrid for better data reading (horizontal lines only)
+  * Responsive margins (larger on desktop)
+- Styling:
+  * Green line (stroke-utility-success-600) for keywords improving position
+  * Red line (stroke-utility-error-600) for keywords losing position
+  * Card container with rounded-xl border, padding, and gap
+  * Title: "Position Movement Trend (30d)" with semibold text
+  * Chart height: h-80 (20rem / 320px)
+  * Uses Recharts library components: LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer
+- Integration:
+  * Queries api.keywords.getMovementTrend with domainId and days: 30
+  * Transforms data to chart format: {date: Date, Gainers: number, Losers: number}
+  * Uses ChartLegendContent and ChartTooltipContent from charts-base
+  * Handles undefined state during loading
+- Verification:
+  * TypeScript compilation: ✓ Passing (npx tsc --noEmit)
+  * No errors or warnings
+  * Component ready for integration into monitoring dashboard
+- Status: PASSING
+
+Commit: e8bbc90 - feat(ui): Add movement trend line chart with gainers/losers
+
+---
+
+
+S0005. Monitoring Tab Task #8 - MonitoringStats Section Component (PASSING):
+- Created src/components/domain/sections/MonitoringStats.tsx
+  * Statistics grid section displaying 4 key monitoring metrics
+  * Uses data from api.keywords.getMonitoringStats query
+  * Responsive grid layout: 1 col mobile, 2 cols tablet, 4 cols desktop
+  * Section title: "Statistics" with semibold text
+- Metric Cards implemented:
+  1. Total Monitored: Shows totalKeywords with "Active keywords" subtitle
+     * Icon: Hash01
+     * Badge: LiveBadge component (sm size) for live monitoring indicator
+  2. Average Position: Shows avgPosition with trend indicator
+     * Icon: TrendUp02 or TrendDown02 (based on movement direction)
+     * Trend: positive if position improved (change < 0), negative if worse (change > 0)
+     * Change: Shows absolute value of avgPositionChange7d with "vs. last week"
+     * Note: Lower position number = better rank, so negative change is positive trend
+  3. Est. Monthly Traffic: Shows estimatedMonthlyTraffic with K/M formatting
+     * Icon: BarChart03
+     * Subtitle: "Potential monthly visitors"
+     * Formatter: Converts 1000+ to "1.0K", 1000000+ to "1.0M"
+  4. Position Changes (7d): Shows netMovement7d (gainers - losers)
+     * Icon: RefreshCcw01
+     * Trend: positive if net positive, negative if net negative
+     * Subtitle: Custom JSX showing "↑ X / ↓ Y" with colored counts
+     * Green text (utility-success-600) for gainers
+     * Red text (utility-error-600) for losers
+- Features:
+  * Loading state: Shows LoadingState component with "card" type during data fetch
+  * All metrics use MetricCard component for consistent styling
+  * LiveBadge shows pulsating indicator on Total Monitored card
+  * Trend indicators show direction and magnitude of changes
+  * Movement breakdown shows granular up/down counts
+- Integration:
+  * Queries api.keywords.getMonitoringStats with domainId prop
+  * Uses existing MetricCard component from src/components/domain/cards/MetricCard.tsx
+  * Uses existing LiveBadge component from src/components/domain/badges/LiveBadge.tsx
+  * Icons from @untitledui/icons package
+- Verification:
+  * TypeScript compilation: ✓ Passing (npx tsc --noEmit)
+  * No errors or warnings
+  * Component follows exact task specifications
+  * Ready for integration into monitoring dashboard page
+- Status: PASSING
+
+Commit: 220b0a6 - feat(ui): Add monitoring statistics section with 4 metric cards
+
+---
+
+S0005. Monitoring Tab Tasks 10-14 - KeywordMonitoringTable Component (PASSING):
+- Task 10: Table Structure & Helpers (PASSING)
+  * Created src/components/domain/tables/KeywordMonitoringTable.tsx
+  * TypeScript types: KeywordMonitoringTableProps, SortColumn, SortDirection
+  * Helper functions:
+    - formatNumber: Formats numbers with K/M abbreviations (1000+ → "1.0K", 1000000+ → "1.0M")
+    - getPositionBadgeClass: Returns color classes based on position ranges (1-3, 4-10, 11-20, 21-50, 51-100, 100+)
+    - getDifficultyBadge: Returns {label, color} for Easy/Medium/Hard based on difficulty score
+    - getStatusBadge: Returns {label, color} for Rising/Falling/New/Stable status
+  * Imports: useQuery, Convex API, icons, badges, LoadingState, MiniSparkline, cx utility
+  * Commit: da8bcb5 - feat(ui): Add keyword monitoring table structure and helpers
+
+- Task 11: State & Sorting Logic (PASSING)
+  * State management with useState hooks:
+    - sortColumn: SortColumn (defaults to "currentPosition")
+    - sortDirection: SortDirection (defaults to "asc")
+    - searchQuery: string (for keyword filtering)
+    - currentPage: number (pagination, defaults to 1)
+    - pageSize: number (defaults to 50 rows per page)
+  * handleSort function: Toggles direction if same column, sets to asc if new column
+  * filteredAndSortedKeywords useMemo:
+    - Applies search filter (case-insensitive substring match on phrase)
+    - Applies sorting logic for all 7 sortable columns
+    - Handles null positions (treats as 999 for sorting)
+    - Returns sorted array
+  * Pagination calculations:
+    - totalPages: Math.ceil based on filtered count and pageSize
+    - paginatedKeywords: Slices filtered array to current page
+  * Queries api.keywords.getKeywordMonitoring with domainId
+  * Commit: df18073 - feat(ui): Add table state management and sorting logic
+
+- Task 12: Loading/Empty States (PASSING)
+  * Loading state: Returns LoadingState component when keywords === undefined
+  * Empty state: Shows Hash01 icon with message when no keywords exist
+    - Card container with border, padding, centered content
+    - Two-line message: "No keywords being monitored" + "Add keywords to start tracking their rankings"
+  * Search bar: Input field with border, focus ring, placeholder text
+    - Resets currentPage to 1 when search query changes
+    - Full-width responsive input with proper styling
+  * Table structure:
+    - Container with overflow-x-auto for horizontal scroll
+    - Rounded border, sticky header with backdrop-blur
+    - Empty tbody placeholder (rows added in Task 14)
+  * Pagination controls:
+    - Shows "Showing X-Y of Z keywords" count
+    - Previous/Next buttons with disabled states
+    - Proper boundary handling (page 1 and last page)
+  * Commit: 90c7c7a - feat(ui): Add table loading, empty states, and pagination
+
+- Task 13: Table Headers (PASSING)
+  * Created SortableHeader component:
+    - Props: column, currentColumn, direction, onClick, children, className
+    - Shows ChevronUp/ChevronDown when active based on direction
+    - Shows ChevronSelectorVertical (opacity-0) when inactive
+    - Cursor pointer, hover effect on text color
+    - Uppercase text styling with tracking-wide
+  * Implemented 10 table header columns:
+    1. Keyword (sortable)
+    2. Position (sortable)
+    3. Previous (non-sortable)
+    4. Change (sortable)
+    5. Status (non-sortable)
+    6. Potential (sortable)
+    7. Volume (sortable)
+    8. Difficulty (sortable)
+    9. URL (non-sortable)
+    10. Last Updated (non-sortable)
+  * All sortable headers use SortableHeader component
+  * Non-sortable headers use plain th elements with consistent styling
+  * Commit: 789cb21 - feat(ui): Add sortable table headers with icons
+
+- Task 14: Table Rows (PASSING)
+  * Implemented tbody with paginatedKeywords.map:
+    - 10 table cell columns matching headers
+    - Alternating row colors (bg-primary / bg-secondary-subtle)
+    - Hover effect with bg-secondary-subtle
+    - Border-b between rows
+  * Column implementations:
+    1. Keyword: Font-medium text-primary with phrase
+    2. Position: Badge with color-coded background based on position range
+    3. Previous: Text-secondary with previousPosition or "—"
+    4. Change: Colored arrow (↑/↓) + absolute value + MiniSparkline
+    5. Status: BadgeWithDot with color from getStatusBadge
+    6. Potential: Font-medium formatted number
+    7. Volume: Text-secondary formatted number
+    8. Difficulty: BadgeWithDot showing "X • Easy/Medium/Hard"
+    9. URL: Truncated pathname from URL object, font-mono
+    10. Last Updated: Formatted date string
+  * Special handling:
+    - Position badge: Large font (text-lg), rounded-md, px-3 py-1 padding
+    - Change sparkline: Flex layout with gap-2 between text and chart
+    - URL: Extracts pathname from URL, truncates with title tooltip
+    - Colors: Green for gainers (change > 0), red for losers (change < 0)
+  * Commit: 111de4b - feat(ui): Add table row rendering with all 10 columns
+
+- TypeScript Bug Fixes (PASSING):
+  * Issue 1: ChevronsUpDown not exported from @untitledui/icons
+    - Fixed: Changed to ChevronSelectorVertical (available in package)
+    - Updated import statement and SortableHeader usage
+  * Issue 2: MiniSparkline expects non-nullable position
+    - Fixed: Updated MiniSparklineProps to accept position: number | null
+    - Added filter before mapping to remove null positions
+    - Added type assertion (as number) after filter
+  * Verification: npx tsc --noEmit passes with no errors
+  * Commit: 8e4d38c - fix: Update icon import and handle nullable positions in MiniSparkline
+
+Summary of Tasks 10-14:
+✓ Complete KeywordMonitoringTable component with all 5 parts
+✓ Structure with TypeScript types and helper functions
+✓ State management with sorting, search, and pagination
+✓ Loading and empty states with proper UI feedback
+✓ Sortable headers with icons and hover effects
+✓ Table rows with all 10 columns fully rendered
+✓ TypeScript compilation passing (fixed 2 errors)
+✓ 6 git commits made (5 features + 1 fix)
+
+Component is ready for integration into monitoring dashboard page.
+
+---
+
