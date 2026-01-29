@@ -360,3 +360,23 @@ Next Phase: Domains & Keywords modules (similar CRUD patterns)
 
 ---
 
+S0003. ProjectDetailsSlideout Layout Refinements:
+- User feedback via screenshot: "Tutaj daj padding gora dol 15px" + "Tutaj daj divider przed Domain summary" + "Raporty/domena do podmniany na kartę statystyk z untitled ui"
+- Changes made:
+  1. Added py-[15px] to summary section (with Active badge and domain/keyword counts)
+  2. Kept existing divider before Domain Summary section
+  3. Replaced Reports section with MetricsChart04 component
+- MetricsChart04 integration:
+  * Shows domain count as main metric
+  * Displays "+12% vs last month" trend indicator
+  * Subtitle: "Active Domains"
+  * Uses existing chart component from @/components/application/metrics/metrics
+- Removed unused imports (Button, FileCheck02, Send01 icons)
+- Removed hasConfiguredReports variable (no longer needed)
+- Build passing ✓
+- Commits:
+  * 1f354d4: Update ProjectDetailsSlideout layout - icons, domain summary, reports section
+  * 59fa34a: Refine ProjectDetailsSlideout - add padding, divider, MetricsChart04
+
+---
+
