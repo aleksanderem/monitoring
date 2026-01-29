@@ -565,3 +565,30 @@ Commit: 0cb9a05 - feat: add ExecutiveSummary section with 6 metric cards
 
 ---
 
+S0004. Monitoring Tab Task #25 - CTR Helper and Position Distribution Query (PASSING):
+- Added getCTRForPosition helper function to convex/keywords.ts
+  * Industry-standard CTR curve based on organic search position
+  * Detailed CTR values for positions 1-10 (ranging from 28.5% to 2.5%)
+  * Fallback rates for positions 11-20 (1.5%), 21-50 (0.5%), 51-100 (0.1%), 100+ (0%)
+  * Function placed after imports at top of file
+- Added getPositionDistribution query to convex/keywords.ts
+  * Args: domainId (required)
+  * Returns distribution object with counts for: top3, pos4_10, pos11_20, pos21_50, pos51_100, pos100plus
+  * Queries all keywords for domain
+  * For each keyword, fetches latest position from keywordPositions table
+  * Categorizes into appropriate bucket based on position value
+  * Skips keywords with no position data
+- Bug fix during implementation:
+  * Initial version tried to access keyword.position directly
+  * Fixed to query keywordPositions table for latest position (follows pattern from getKeywords query)
+  * Uses .withIndex("by_keyword") with .order("desc").first() to get most recent position
+- Verification:
+  * Convex dev compilation: ✓ Passing (6.69s)
+  * No TypeScript errors
+  * Functions ready and available for frontend use
+- Status: PASSING
+
+Commit: 790b550 - feat(backend): Add CTR helper and position distribution query
+
+---
+
