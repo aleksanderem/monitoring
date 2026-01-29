@@ -27,6 +27,10 @@ import { Breadcrumbs } from "@/components/application/breadcrumbs/breadcrumbs";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { CloseButton } from "@/components/base/buttons/close-button";
 import { Input } from "@/components/base/input/input";
+import { Select } from "@/components/base/select/select";
+import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
+import { Heading as AriaHeading } from "react-aria-components";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { MetricsChart04 } from "@/components/application/metrics/metrics";
 import { toast } from "sonner";
@@ -347,19 +351,32 @@ export default function DomainDetailPage() {
       {/* Edit Domain Modal */}
       <ModalOverlay isOpen={isEditModalOpen} onOpenChange={setIsEditModalOpen} isDismissable>
         <Modal>
-          <Dialog>
-            {({ close }) => (
-              <div className="flex flex-col gap-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-primary">Edit Domain Settings</h2>
-                    <p className="mt-1 text-sm text-tertiary">Update refresh frequency and search settings</p>
-                  </div>
-                  <CloseButton onPress={() => setIsEditModalOpen(false)} />
+          <Dialog className="overflow-hidden">
+            <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-160">
+              <CloseButton
+                onClick={() => setIsEditModalOpen(false)}
+                theme="light"
+                size="lg"
+                className="absolute top-3 right-3 z-10"
+              />
+
+              <div className="flex flex-col gap-4 px-4 pt-5 sm:px-6 sm:pt-6">
+                <div className="relative w-max max-sm:hidden">
+                  <FeaturedIcon color="gray" size="lg" theme="modern" icon={Settings01} />
+                  <BackgroundPattern pattern="circle" size="sm" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                 </div>
 
-                <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
-                  <div>
+                <div className="z-10 flex flex-col gap-0.5">
+                  <AriaHeading slot="title" className="text-md font-semibold text-primary">
+                    Edit Domain Settings
+                  </AriaHeading>
+                  <p className="text-sm text-tertiary">Update refresh frequency and search settings for {domain.domain}</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleEditSubmit} className="flex flex-col gap-5 px-4 pb-6 pt-5 sm:px-6">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
                     <label className="mb-1.5 block text-sm font-medium text-secondary">
                       Refresh Frequency
                     </label>
@@ -374,50 +391,44 @@ export default function DomainDetailPage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-secondary">
-                      Search Engine
-                    </label>
-                    <Input
-                      value={editForm.searchEngine}
-                      onChange={(e) => setEditForm({ ...editForm, searchEngine: e.target.value })}
-                      placeholder="google.pl"
-                    />
-                  </div>
+                  <Input
+                    label="Search Engine"
+                    size="md"
+                    value={editForm.searchEngine}
+                    onChange={(e) => setEditForm({ ...editForm, searchEngine: e.target.value })}
+                    placeholder="google.pl"
+                    className="sm:col-span-1"
+                  />
 
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-secondary">
-                      Location
-                    </label>
-                    <Input
-                      value={editForm.location}
-                      onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
-                      placeholder="Poland"
-                    />
-                  </div>
+                  <Input
+                    label="Location"
+                    size="md"
+                    value={editForm.location}
+                    onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                    placeholder="Poland"
+                    className="sm:col-span-1"
+                  />
 
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-secondary">
-                      Language
-                    </label>
-                    <Input
-                      value={editForm.language}
-                      onChange={(e) => setEditForm({ ...editForm, language: e.target.value })}
-                      placeholder="pl"
-                    />
-                  </div>
+                  <Input
+                    label="Language"
+                    size="md"
+                    value={editForm.language}
+                    onChange={(e) => setEditForm({ ...editForm, language: e.target.value })}
+                    placeholder="pl"
+                    className="sm:col-span-2"
+                  />
+                </div>
 
-                  <div className="flex justify-end gap-3 border-t border-secondary pt-4">
-                    <Button type="button" color="secondary" onClick={() => setIsEditModalOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" color="primary">
-                      Save Changes
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            )}
+                <div className="flex justify-end gap-3 border-t border-secondary pt-5">
+                  <Button type="button" color="secondary" size="lg" onClick={() => setIsEditModalOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" color="primary" size="lg" iconLeading={Save01}>
+                    Save Changes
+                  </Button>
+                </div>
+              </form>
+            </div>
           </Dialog>
         </Modal>
       </ModalOverlay>
