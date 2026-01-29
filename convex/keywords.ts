@@ -330,13 +330,6 @@ export const getKeywordMonitoring = query({
 
       positions.sort((a, b) => a.date.localeCompare(b.date));
 
-      // Find position from 7 days ago
-      const sevenDaysAgoStr = new Date(sevenDaysAgo).toISOString().split('T')[0];
-      const sevenDaysAgoPositions = positions.filter(p => p.date <= sevenDaysAgoStr);
-      const previousPosition = sevenDaysAgoPositions.length > 0
-        ? sevenDaysAgoPositions[sevenDaysAgoPositions.length - 1].position
-        : null;
-
       // Get current position (most recent)
       const latestPosition = await ctx.db
         .query("keywordPositions")
@@ -345,6 +338,17 @@ export const getKeywordMonitoring = query({
         .first();
 
       const currentPosition = latestPosition?.position || null;
+
+      // Get previous position (second most recent)
+      const allPositionsDesc = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+        .order("desc")
+        .take(2);
+
+      const previousPosition = allPositionsDesc.length >= 2
+        ? allPositionsDesc[1].position
+        : null;
       const change = currentPosition && previousPosition
         ? previousPosition - currentPosition // Negative means dropped
         : 0;
@@ -383,6 +387,7 @@ export const getKeywordMonitoring = query({
         positionHistory,
         lastUpdated: latestPosition?._creationTime || keyword._creationTime,
         potential,
+        checkingStatus: keyword.checkingStatus,
       });
     }
 
