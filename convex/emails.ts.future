@@ -1,0 +1,335 @@
+import { v } from "convex/values";
+import { action, internalMutation, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
+
+/**
+ * Internal query to get users who should receive position change alerts
+ */
+export const getUsersForPositionAlerts = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const prefs = await ctx.db
+      .query("userNotificationPreferences")
+      .filter((q) => q.eq(q.field("positionChanges"), true))
+      .collect();
+
+    const users = await Promise.all(
+      prefs.map(async (pref) => {
+        const user = await ctx.db.get(pref.userId);
+        return user ? { userId: pref.userId, email: user.email, name: user.name } : null;
+      })
+    );
+
+    return users.filter((u): u is NonNullable<typeof u> => u !== null);
+  },
+});
+
+/**
+ * Internal query to get users who should receive daily digests
+ */
+export const getUsersForDailyDigest = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const prefs = await ctx.db
+      .query("userNotificationPreferences")
+      .filter((q) => q.eq(q.field("dailyDigest"), true))
+      .collect();
+
+    const users = await Promise.all(
+      prefs.map(async (pref) => {
+        const user = await ctx.db.get(pref.userId);
+        return user ? { userId: pref.userId, email: user.email, name: user.name } : null;
+      })
+    );
+
+    return users.filter((u): u is NonNullable<typeof u> => u !== null);
+  },
+});
+
+/**
+ * Internal query to get users who should receive weekly reports
+ */
+export const getUsersForWeeklyReport = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const prefs = await ctx.db
+      .query("userNotificationPreferences")
+      .filter((q) => q.eq(q.field("weeklyReport"), true))
+      .collect();
+
+    const users = await Promise.all(
+      prefs.map(async (pref) => {
+        const user = await ctx.db.get(pref.userId);
+        return user ? { userId: pref.userId, email: user.email, name: user.name } : null;
+      })
+    );
+
+    return users.filter((u): u is NonNullable<typeof u> => u !== null);
+  },
+});
+
+/**
+ * Internal mutation to log email sending
+ */
+export const logEmailSent = internalMutation({
+  args: {
+    type: v.literal("email"),
+    recipient: v.string(),
+    subject: v.string(),
+    status: v.union(v.literal("sent"), v.literal("failed")),
+    error: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("notificationLogs", {
+      type: args.type,
+      recipient: args.recipient,
+      subject: args.subject,
+      status: args.status,
+      error: args.error,
+      metadata: args.metadata,
+      createdAt: Date.now(),
+    });
+  },
+});
+
+/**
+ * Action to send position change alert email
+ * This is called by Convex cron or when position changes are detected
+ */
+export const sendPositionChangeAlert = action({
+  args: {
+    userEmail: v.string(),
+    userName: v.string(),
+    keyword: v.string(),
+    domain: v.string(),
+    oldPosition: v.number(),
+    newPosition: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const changeDirection = args.newPosition < args.oldPosition ? "up" : "down";
+    const positionDelta = Math.abs(args.newPosition - args.oldPosition);
+
+    // Only send if change is >= 3 positions
+    if (positionDelta < 3) {
+      return { sent: false, reason: "Change too small" };
+    }
+
+    try {
+      // In a real implementation, this would call the email service
+      // For now, we'll just log it
+      await ctx.runMutation(internal.emails.logEmailSent, {
+        type: "email",
+        recipient: args.userEmail,
+        subject: `Position ${changeDirection}: ${args.keyword}`,
+        status: "sent",
+        metadata: {
+          keyword: args.keyword,
+          domain: args.domain,
+          oldPosition: args.oldPosition,
+          newPosition: args.newPosition,
+        },
+      });
+
+      return { sent: true };
+    } catch (error) {
+      await ctx.runMutation(internal.emails.logEmailSent, {
+        type: "email",
+        recipient: args.userEmail,
+        subject: `Position ${changeDirection}: ${args.keyword}`,
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+
+      return { sent: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  },
+});
+
+/**
+ * Action to send daily digest email
+ */
+export const sendDailyDigest = action({
+  args: {
+    userEmail: v.string(),
+    userName: v.string(),
+    date: v.string(),
+    topGainers: v.array(v.object({
+      keyword: v.string(),
+      domain: v.string(),
+      oldPosition: v.number(),
+      newPosition: v.number(),
+      change: v.number(),
+    })),
+    topLosers: v.array(v.object({
+      keyword: v.string(),
+      domain: v.string(),
+      oldPosition: v.number(),
+      newPosition: v.number(),
+      change: v.number(),
+    })),
+    totalKeywords: v.number(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      await ctx.runMutation(internal.emails.logEmailSent, {
+        type: "email",
+        recipient: args.userEmail,
+        subject: `Daily SEO Digest - ${args.date}`,
+        status: "sent",
+        metadata: {
+          date: args.date,
+          totalKeywords: args.totalKeywords,
+          gainersCount: args.topGainers.length,
+          losersCount: args.topLosers.length,
+        },
+      });
+
+      return { sent: true };
+    } catch (error) {
+      await ctx.runMutation(internal.emails.logEmailSent, {
+        type: "email",
+        recipient: args.userEmail,
+        subject: `Daily SEO Digest - ${args.date}`,
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+
+      return { sent: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  },
+});
+
+/**
+ * Action to send weekly report email
+ */
+export const sendWeeklyReport = action({
+  args: {
+    userEmail: v.string(),
+    userName: v.string(),
+    weekStart: v.string(),
+    weekEnd: v.string(),
+    stats: v.object({
+      totalKeywords: v.number(),
+      avgPosition: v.number(),
+      positionImprovement: v.number(),
+      topPerformers: v.array(v.object({
+        keyword: v.string(),
+        domain: v.string(),
+        position: v.number(),
+      })),
+    }),
+  },
+  handler: async (ctx, args) => {
+    try {
+      await ctx.runMutation(internal.emails.logEmailSent, {
+        type: "email",
+        recipient: args.userEmail,
+        subject: `Weekly SEO Report - ${args.weekStart} to ${args.weekEnd}`,
+        status: "sent",
+        metadata: {
+          weekStart: args.weekStart,
+          weekEnd: args.weekEnd,
+          stats: args.stats,
+        },
+      });
+
+      return { sent: true };
+    } catch (error) {
+      await ctx.runMutation(internal.emails.logEmailSent, {
+        type: "email",
+        recipient: args.userEmail,
+        subject: `Weekly SEO Report - ${args.weekStart} to ${args.weekEnd}`,
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+
+      return { sent: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  },
+});
+
+/**
+ * Action to send limit warning email
+ */
+export const sendLimitWarning = action({
+  args: {
+    userEmail: v.string(),
+    userName: v.string(),
+    limitType: v.union(v.literal("keywords"), v.literal("domains"), v.literal("projects")),
+    currentUsage: v.number(),
+    maxLimit: v.number(),
+    percentageUsed: v.number(),
+    organizationName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      await ctx.runMutation(internal.emails.logEmailSent, {
+        type: "email",
+        recipient: args.userEmail,
+        subject: `Limit Warning: ${args.limitType} at ${args.percentageUsed}%`,
+        status: "sent",
+        metadata: {
+          limitType: args.limitType,
+          currentUsage: args.currentUsage,
+          maxLimit: args.maxLimit,
+          percentageUsed: args.percentageUsed,
+        },
+      });
+
+      return { sent: true };
+    } catch (error) {
+      await ctx.runMutation(internal.emails.logEmailSent, {
+        type: "email",
+        recipient: args.userEmail,
+        subject: `Limit Warning: ${args.limitType} at ${args.percentageUsed}%`,
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+
+      return { sent: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  },
+});
+
+/**
+ * Action to send team invitation email
+ */
+export const sendTeamInvitation = action({
+  args: {
+    inviteeEmail: v.string(),
+    inviteeName: v.optional(v.string()),
+    inviterName: v.string(),
+    teamName: v.string(),
+    role: v.string(),
+    joinUrl: v.string(),
+    expiresAt: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      await ctx.runMutation(internal.emails.logEmailSent, {
+        type: "email",
+        recipient: args.inviteeEmail,
+        subject: `You've been invited to join ${args.teamName}`,
+        status: "sent",
+        metadata: {
+          teamName: args.teamName,
+          inviterName: args.inviterName,
+          role: args.role,
+        },
+      });
+
+      return { sent: true };
+    } catch (error) {
+      await ctx.runMutation(internal.emails.logEmailSent, {
+        type: "email",
+        recipient: args.inviteeEmail,
+        subject: `You've been invited to join ${args.teamName}`,
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+
+      return { sent: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  },
+});
