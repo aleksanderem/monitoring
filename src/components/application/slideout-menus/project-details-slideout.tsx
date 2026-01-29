@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Folder, Globe01, Hash01, Edit01, Trash01, Settings01, FileCheck02, Send01 } from "@untitledui/icons";
+import { Folder, Globe01, Hash01, Edit01, Trash01, Settings01 } from "@untitledui/icons";
 import { SlideoutMenu } from "@/components/application/slideout-menus/slideout-menu";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
-import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { BadgeWithDot } from "@/components/base/badges/badges";
+import { MetricsChart04 } from "@/components/application/metrics/metrics";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -47,9 +47,6 @@ export function ProjectDetailsSlideout({
 
   const project = useQuery(api.projects.getProject, { projectId });
   const domains = useQuery(api.projects.getDomains, { projectId });
-
-  // TODO: Check if reports are configured
-  const hasConfiguredReports = false;
 
   // Helper to format date
   const formatDate = (timestamp: number) => {
@@ -125,7 +122,7 @@ export function ProjectDetailsSlideout({
             <Tabs defaultSelectedKey="overview">
               <TabPanel id="overview">
                 {/* Summary section with icons */}
-                <section className="flex items-center justify-between">
+                <section className="flex items-center justify-between py-[15px]">
                   <BadgeWithDot size="md" type="modern" color="success">
                     Active
                   </BadgeWithDot>
@@ -175,23 +172,15 @@ export function ProjectDetailsSlideout({
 
                 <span className="h-px w-full bg-border-secondary" />
 
-                {/* Reports section */}
+                {/* Statistics card */}
                 <section className="flex flex-col gap-3">
-                  <p className="text-sm font-semibold text-primary">Reports</p>
-                  {hasConfiguredReports ? (
-                    <div className="flex gap-3">
-                      <Button size="md" color="secondary" iconLeading={FileCheck02} className="flex-1">
-                        Wygeneruj raport
-                      </Button>
-                      <Button size="md" color="secondary" iconLeading={Send01} className="flex-1">
-                        Wyślij raport
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button size="md" color="secondary">
-                      Skonfiguruj raporty
-                    </Button>
-                  )}
+                  <MetricsChart04
+                    title={project.domainCount.toString()}
+                    subtitle="Active Domains"
+                    change="+12%"
+                    changeTrend="positive"
+                    changeDescription="vs last month"
+                  />
                 </section>
               </TabPanel>
 
