@@ -136,3 +136,16 @@ Commits:
 All builds passing successfully.
 
 ---
+
+S0003. Settings Example Download:
+- User request: "to jeszcze pobierz npx untitledui@latest example settings-01/01"
+- Downloaded using: npx untitledui@latest example settings-01/01 -e src/app -p components
+- Created src/app/settings-01.tsx with settings page reference
+- Includes text-editor component
+- Shows example of settings page layout and patterns
+- Result: Have reference for settings page implementation
+
+Commit: Settings example downloaded
+Build: Passing ✓
+
+---
