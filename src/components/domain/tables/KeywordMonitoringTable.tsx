@@ -11,6 +11,7 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { MiniSparkline } from "@/components/domain/charts/MiniSparkline";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
 import { DialogTrigger, Popover } from "react-aria-components";
+import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { cx } from "@/utils/cx";
 import { toast } from "sonner";
 
@@ -463,26 +464,29 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                       <div className="flex flex-col gap-1">
                         <span className="font-medium text-primary">{keyword.phrase}</span>
                         {keyword.url && (
-                          <span
-                            className="font-mono text-tertiary"
-                            style={{
-                              whiteSpace: "nowrap",
-                              width: "170px",
-                              textOverflow: "ellipsis",
-                              overflow: "hidden",
-                              fontSize: "9px",
-                              display: "block",
-                            }}
-                            title={keyword.url}
-                          >
-                            {(() => {
-                              try {
-                                return new URL(keyword.url).pathname.toLowerCase();
-                              } catch {
-                                return keyword.url.toLowerCase();
-                              }
-                            })()}
-                          </span>
+                          <Tooltip title={keyword.url} placement="bottom">
+                            <TooltipTrigger>
+                              <span
+                                className="font-mono text-tertiary cursor-default"
+                                style={{
+                                  whiteSpace: "nowrap",
+                                  width: "170px",
+                                  textOverflow: "ellipsis",
+                                  overflow: "hidden",
+                                  fontSize: "9px",
+                                  display: "block",
+                                }}
+                              >
+                                {(() => {
+                                  try {
+                                    return new URL(keyword.url).pathname.toLowerCase();
+                                  } catch {
+                                    return keyword.url.toLowerCase();
+                                  }
+                                })()}
+                              </span>
+                            </TooltipTrigger>
+                          </Tooltip>
                         )}
                       </div>
                       {isBeingRefreshed && (
