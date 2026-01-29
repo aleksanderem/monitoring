@@ -121,7 +121,6 @@ export default function DomainDetailPage() {
     domainId,
     limit: backlinksPageSize,
     offset: (backlinksPage - 1) * backlinksPageSize,
-    sortBy: "rank",
   });
 
   const handleFetchBacklinks = async () => {

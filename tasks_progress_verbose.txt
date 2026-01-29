@@ -627,3 +627,39 @@ All tasks passing
 
 ---
 
+
+=== SESSION S0009 START === 2026-01-29T15:00:00Z
+Focus: Fix Convex validation error for sortBy parameter in backlinks query
+Continuing from: S0008 (completed - Visibility and Backlinks tabs fully implemented)
+Active tasks: #21
+
+---
+
+S0009. Task #21: Fix sortBy validation error
+Problem reported by user:
+  "Something went wrong [CONVEX Q(backlinks:getBacklinks)] [Request ID: daffb40b2507348d] 
+   Server Error ArgumentValidationError: Object contains extra field `sortBy` that is not in the validator.
+   Object: {domainId: "jd7925t8kbrbvfhr0vxm7r9wjd7ztknt", limit: 50.0, offset: 0.0, sortBy: "rank"}"
+
+Root cause analysis:
+  - In convex/backlinks.ts, added sortBy and filterDofollow parameters to getBacklinks query args
+  - Convex dev process is running but hasn't regenerated the API types yet
+  - Frontend code in page.tsx was passing sortBy: "rank" to useQuery call
+  - Convex runtime rejected the parameter because it's not in the generated validator
+
+Fix applied:
+  - Removed sortBy parameter from useQuery call in page.tsx (line 120-124)
+  - Query now only passes: domainId, limit, offset
+  - Backlinks will display with default sorting (by rank descending) until Convex regenerates types
+
+Alternative approaches considered:
+  1. Restart Convex dev to force type regeneration - rejected (might disrupt user's dev environment)
+  2. Remove sortBy from convex/backlinks.ts args - rejected (loses functionality)
+  3. Temporary removal from query call - CHOSEN (minimal impact, preserves backend capability)
+
+Next steps:
+  - Verify app loads without errors
+  - Commit the fix
+  - User can later restart Convex dev to get sortBy functionality back
+
+---
