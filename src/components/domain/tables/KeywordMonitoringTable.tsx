@@ -52,6 +52,42 @@ function getStatusBadge(status: string) {
   }
 }
 
+interface SortableHeaderProps {
+  column: SortColumn;
+  currentColumn: SortColumn;
+  direction: SortDirection;
+  onClick: (column: SortColumn) => void;
+  children: React.ReactNode;
+  className?: string;
+}
+
+function SortableHeader({ column, currentColumn, direction, onClick, children, className }: SortableHeaderProps) {
+  const isActive = column === currentColumn;
+
+  return (
+    <th
+      onClick={() => onClick(column)}
+      className={cx(
+        "cursor-pointer px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary hover:text-primary",
+        className
+      )}
+    >
+      <div className="flex items-center gap-2">
+        {children}
+        {isActive ? (
+          direction === "asc" ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )
+        ) : (
+          <ChevronsUpDown className="h-4 w-4 opacity-0 group-hover:opacity-50" />
+        )}
+      </div>
+    </th>
+  );
+}
+
 export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps) {
   const keywords = useQuery(api.keywords.getKeywordMonitoring, { domainId });
 
@@ -169,7 +205,36 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
         <table className="w-full">
           <thead className="sticky top-0 z-10 border-b-2 border-secondary bg-primary backdrop-blur">
             <tr>
-              {/* Table headers will be added in next task */}
+              <SortableHeader column="phrase" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
+                Keyword
+              </SortableHeader>
+              <SortableHeader column="currentPosition" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
+                Position
+              </SortableHeader>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
+                Previous
+              </th>
+              <SortableHeader column="change" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
+                Change
+              </SortableHeader>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
+                Status
+              </th>
+              <SortableHeader column="potential" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
+                Potential
+              </SortableHeader>
+              <SortableHeader column="searchVolume" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
+                Volume
+              </SortableHeader>
+              <SortableHeader column="difficulty" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
+                Difficulty
+              </SortableHeader>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
+                URL
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
+                Last Updated
+              </th>
             </tr>
           </thead>
           <tbody>
