@@ -22,6 +22,7 @@ import type * as keywords from "../keywords.js";
 import type * as limits from "../limits.js";
 import type * as logs from "../logs.js";
 import type * as messages from "../messages.js";
+import type * as migrations_cleanOldBacklinks from "../migrations/cleanOldBacklinks.js";
 import type * as onsite from "../onsite.js";
 import type * as organizations from "../organizations.js";
 import type * as permissions from "../permissions.js";
@@ -55,6 +56,7 @@ declare const fullApi: ApiFromModules<{
   limits: typeof limits;
   logs: typeof logs;
   messages: typeof messages;
+  "migrations/cleanOldBacklinks": typeof migrations_cleanOldBacklinks;
   onsite: typeof onsite;
   organizations: typeof organizations;
   permissions: typeof permissions;
