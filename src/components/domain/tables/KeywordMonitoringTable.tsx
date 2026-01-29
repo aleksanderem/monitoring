@@ -429,7 +429,14 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   Last Updated
                 </th>
               )}
-              <th className="sticky right-0 bg-primary px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-tertiary shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.05)]">
+              <th
+                className="sticky border-l border-secondary text-center text-xs font-semibold uppercase tracking-wide text-tertiary"
+                style={{
+                  background: "#f8f8f8",
+                  right: "1px",
+                  padding: "12px 0",
+                }}
+              >
                 Actions
               </th>
             </tr>
@@ -588,11 +595,14 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   )}
 
                   {/* Actions */}
-                  <td className={cx(
-                    "sticky right-0 px-6 py-4 text-right shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.05)]",
-                    isSelected && "bg-brand-50",
-                    !isSelected && (index % 2 === 0 ? "bg-primary" : "bg-secondary-subtle")
-                  )}>
+                  <td
+                    className="sticky border-l border-secondary text-center"
+                    style={{
+                      background: "#f8f8f8",
+                      right: "1px",
+                      padding: "0",
+                    }}
+                  >
                     <Dropdown.Root>
                       <Dropdown.DotsButton />
                       <Dropdown.Popover>
