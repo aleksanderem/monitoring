@@ -442,13 +442,13 @@ S0004. Task #17 - Add backend queries for keyword performance (PASSING):
      * Returns: Keywords sorted by absolute change magnitude
      * Filters: Only active keywords, requires at least 2 positions
      * Output: keywordId, phrase, oldPosition, newPosition, change, searchVolume, url
-  
+
   2. getTopPerformers: Gets top gainers and losers for performance tables
      * Args: domainId, days (default 30), limit (default 10)
      * Returns: {gainers: [], losers: []} with top performers in each category
      * Filters: Only active keywords with position data
      * Sorting: Gainers by biggest improvement, losers by biggest decline
-  
+
   3. getTopKeywordsByVolume: Gets highest search volume keywords with trend data
      * Args: domainId, limit (default 10)
      * Returns: Keywords sorted by search volume descending
@@ -459,5 +459,34 @@ S0004. Task #17 - Add backend queries for keyword performance (PASSING):
 - Status: PASSING
 
 Commit: fc03f0a - feat: add keyword performance queries for dashboard
+
+---
+
+S0004. Task #19 - Create PositionHistoryChart component (PASSING):
+- Created src/components/domain/charts/PositionHistoryChart.tsx
+- Features:
+  * Multi-area chart visualizing keyword distribution across position ranges over time
+  * Date range selector with ButtonGroup (30d/90d/180d/1y/All)
+  * Color-coded position ranges:
+    - Top 3: text-utility-success-600 (dark green)
+    - 4-10: text-utility-success-400 (medium green)
+    - 11-20: text-utility-warning-500 (yellow)
+    - 21-50: text-utility-gray-400 (gray)
+    - 51-100: text-utility-gray-300 (light gray)
+  * Uses Recharts library with Untitled UI styling patterns
+  * Loading state with LoadingState component
+  * Empty state with friendly message
+  * Responsive design with desktop/mobile layouts
+  * Groups position buckets for cleaner visualization (combines pos_1 + pos_2_3, etc.)
+- Integration:
+  * Queries api.domains.getVisibilityHistory with domainId and date range
+  * Uses useBreakpoint hook for responsive legend layout
+  * Transforms Convex data to chart format (date, Top 3, 4-10, 11-20, 21-50, 51-100)
+  * All areas use monotone interpolation for smooth curves
+- Component follows exact specifications from task requirements
+- TypeScript compilation: ✓ Passing
+- Status: PASSING
+
+Commit: b5beaf9 - feat: add PositionHistoryChart component
 
 ---
