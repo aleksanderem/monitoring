@@ -111,6 +111,50 @@ export const getAllActiveJobs = query({
   },
 });
 
+// Get recently completed jobs (last 2 minutes) for toast notifications
+export const getRecentCompletedJobs = query({
+  args: {},
+  handler: async (ctx, args) => {
+    const twoMinutesAgo = Date.now() - (2 * 60 * 1000);
+
+    const recentJobs = await ctx.db
+      .query("keywordCheckJobs")
+      .filter((q) =>
+        q.and(
+          q.or(
+            q.eq(q.field("status"), "completed"),
+            q.eq(q.field("status"), "failed"),
+            q.eq(q.field("status"), "cancelled")
+          ),
+          q.gte(q.field("completedAt"), twoMinutesAgo)
+        )
+      )
+      .order("desc")
+      .collect();
+
+    // Enrich with domain info
+    const enrichedJobs = await Promise.all(
+      recentJobs.map(async (job) => {
+        const domain = await ctx.db.get(job.domainId);
+
+        return {
+          _id: job._id,
+          domainId: job.domainId,
+          domainName: domain?.domain,
+          status: job.status,
+          totalKeywords: job.totalKeywords,
+          processedKeywords: job.processedKeywords,
+          failedKeywords: job.failedKeywords,
+          error: job.error,
+          completedAt: job.completedAt,
+        };
+      })
+    );
+
+    return enrichedJobs;
+  },
+});
+
 // Cancel job
 export const cancelJob = mutation({
   args: { jobId: v.id("keywordCheckJobs") },

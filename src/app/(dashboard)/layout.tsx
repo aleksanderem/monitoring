@@ -14,6 +14,7 @@ import {
 } from "@untitledui/icons";
 import { usePathname } from "next/navigation";
 import { GlobalJobStatus } from "@/components/domain/job-status/GlobalJobStatus";
+import { JobCompletionNotifier } from "@/components/domain/job-status/JobCompletionNotifier";
 
 export default function DashboardLayout({
   children,
@@ -90,6 +91,9 @@ export default function DashboardLayout({
 
       {/* Global job status indicator */}
       <GlobalJobStatus />
+
+      {/* Job completion notifications */}
+      <JobCompletionNotifier />
     </div>
   );
 }
