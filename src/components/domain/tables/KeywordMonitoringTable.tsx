@@ -293,7 +293,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
           height: 100%;
           background: linear-gradient(270deg, rgb(225 225 225) 0%, rgb(41 41 41 / 0%) 75%);
           top: 0;
-          left: -56px;
+          left: -32px;
           pointer-events: none;
         }
       `}</style>
