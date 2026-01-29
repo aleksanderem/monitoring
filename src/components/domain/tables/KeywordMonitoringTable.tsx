@@ -2,10 +2,10 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { Hash01, ChevronUp, ChevronDown, ChevronSelectorVertical, RefreshCcw01, Trash01, Settings01 } from "@untitledui/icons";
+import { Hash01, ChevronUp, ChevronDown, ChevronSelectorVertical, RefreshCcw01, Trash01, Settings01, ArrowUp, ArrowDown } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { BadgeWithDot } from "@/components/base/badges/badges";
+import { BadgeWithDot, BadgeWithIcon } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { MiniSparkline } from "@/components/domain/charts/MiniSparkline";
@@ -484,12 +484,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   {visibleColumns.has("position") && (
                     <td className="px-6 py-4">
                       {keyword.currentPosition ? (
-                        <span className={cx(
-                          "inline-flex items-center justify-center rounded-md px-3 py-1 text-lg font-semibold",
-                          getPositionBadgeClass(keyword.currentPosition)
-                        )}>
-                          {keyword.currentPosition}
-                        </span>
+                        <BadgeWithIcon type="pill-color" color="brand" size="md">
+                          #{keyword.currentPosition}
+                        </BadgeWithIcon>
                       ) : (
                         <span className="text-sm text-tertiary">—</span>
                       )}
@@ -499,9 +496,13 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   {/* Previous Position */}
                   {visibleColumns.has("previous") && (
                     <td className="px-6 py-4">
-                      <span className="text-sm text-secondary">
-                        {keyword.previousPosition || "—"}
-                      </span>
+                      {keyword.previousPosition ? (
+                        <BadgeWithIcon type="pill-color" color="brand" size="sm">
+                          #{keyword.previousPosition}
+                        </BadgeWithIcon>
+                      ) : (
+                        <span className="text-sm text-tertiary">—</span>
+                      )}
                     </td>
                   )}
 
@@ -510,14 +511,16 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         {keyword.change !== 0 ? (
-                          <span className={cx(
-                            "flex items-center gap-1 text-sm font-medium",
-                            keyword.change > 0 ? "text-utility-success-600" : "text-utility-error-600"
-                          )}>
-                            {keyword.change > 0 ? "↑" : "↓"} {Math.abs(keyword.change)}
-                          </span>
+                          <BadgeWithIcon
+                            type="pill-color"
+                            color={keyword.change > 0 ? "success" : "error"}
+                            size="sm"
+                            iconLeading={keyword.change > 0 ? ArrowUp : ArrowDown}
+                          >
+                            {Math.abs(keyword.change)}
+                          </BadgeWithIcon>
                         ) : (
-                          <span className="text-sm text-tertiary">→ 0</span>
+                          <span className="text-sm text-tertiary">—</span>
                         )}
                         <MiniSparkline data={keyword.positionHistory} className="text-utility-gray-400" />
                       </div>
