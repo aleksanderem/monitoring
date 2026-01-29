@@ -124,7 +124,7 @@
     {
       "id": 18,
       "name": "add_bulk_actions_to_monitoring_table",
-      "status": "not_started",
+      "status": "passing",
       "created_session": "S0006",
       "last_updated_session": "S0006"
     }
