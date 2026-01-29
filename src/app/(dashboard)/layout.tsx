@@ -13,6 +13,7 @@ import {
   Users01,
 } from "@untitledui/icons";
 import { usePathname } from "next/navigation";
+import { GlobalJobStatus } from "@/components/domain/job-status/GlobalJobStatus";
 
 export default function DashboardLayout({
   children,
@@ -86,6 +87,9 @@ export default function DashboardLayout({
       <main className="min-w-0 flex-1">
         {children}
       </main>
+
+      {/* Global job status indicator */}
+      <GlobalJobStatus />
     </div>
   );
 }

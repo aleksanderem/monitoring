@@ -66,6 +66,51 @@ export const getJob = query({
   },
 });
 
+// Get all active jobs (for global status indicator)
+export const getAllActiveJobs = query({
+  args: {},
+  handler: async (ctx, args) => {
+    const activeJobs = await ctx.db
+      .query("keywordCheckJobs")
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("status"), "pending"),
+          q.eq(q.field("status"), "processing")
+        )
+      )
+      .order("desc")
+      .collect();
+
+    // Enrich with domain and current keyword info
+    const enrichedJobs = await Promise.all(
+      activeJobs.map(async (job) => {
+        const domain = await ctx.db.get(job.domainId);
+        let currentKeywordPhrase: string | undefined;
+
+        if (job.currentKeywordId) {
+          const currentKeyword = await ctx.db.get(job.currentKeywordId);
+          currentKeywordPhrase = currentKeyword?.phrase;
+        }
+
+        return {
+          _id: job._id,
+          domainId: job.domainId,
+          domainName: domain?.domain,
+          status: job.status,
+          totalKeywords: job.totalKeywords,
+          processedKeywords: job.processedKeywords,
+          failedKeywords: job.failedKeywords,
+          currentKeywordPhrase,
+          createdAt: job.createdAt,
+          startedAt: job.startedAt,
+        };
+      })
+    );
+
+    return enrichedJobs;
+  },
+});
+
 // Cancel job
 export const cancelJob = mutation({
   args: { jobId: v.id("keywordCheckJobs") },
