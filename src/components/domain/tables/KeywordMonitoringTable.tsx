@@ -484,7 +484,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   {visibleColumns.has("position") && (
                     <td className="px-6 py-4">
                       {keyword.currentPosition ? (
-                        <BadgeWithIcon type="pill-color" color="brand" size="md">
+                        <BadgeWithIcon type="pill-color" color="brand" size="sm">
                           #{keyword.currentPosition}
                         </BadgeWithIcon>
                       ) : (
@@ -497,7 +497,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   {visibleColumns.has("previous") && (
                     <td className="px-6 py-4">
                       {keyword.previousPosition ? (
-                        <BadgeWithIcon type="pill-color" color="gray" size="md">
+                        <BadgeWithIcon type="pill-color" color="gray" size="sm">
                           #{keyword.previousPosition}
                         </BadgeWithIcon>
                       ) : (
