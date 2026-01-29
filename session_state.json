@@ -1,18 +1,18 @@
 {
   "session_id": "S0007",
   "started_at": "2026-01-29T07:38:13Z",
-  "last_updated": "2026-01-29T07:42:00Z",
+  "last_updated": "2026-01-29T09:58:00Z",
   "status": "active",
-  "focus": "Fix bulk actions - deployment fixed, testing functionality",
+  "focus": "Fixed bulk refresh - scheduler + history generation",
   "tasks_snapshot": {
     "total": 19,
     "not_started": 0,
-    "in_progress": 1,
-    "passing": 18,
+    "in_progress": 0,
+    "passing": 19,
     "failing": 0,
     "blocked": 0
   },
-  "active_task_ids": [19],
+  "active_task_ids": [],
   "blockers": [],
-  "notes": "Fixed: refreshKeywordPositions now deployed to dev environment. Function confirmed in backend via function-spec. Ready for user to test bulk refresh functionality in browser."
+  "notes": "FIXED: (1) Added ctx.scheduler.runAfter to actually run background job, (2) Changed history generation logic to check position count instead of lastUpdated, (3) Fixed hydration errors. Tested with Playwright - mutation works and returns job ID. Ready for user testing."
 }

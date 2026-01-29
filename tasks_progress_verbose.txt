@@ -521,3 +521,18 @@ S0007. Deployment fix:
 
 ---
 
+
+S0007. Critical fixes:
+- Fixed: refreshKeywordPositions wasn't scheduling background job (added ctx.scheduler.runAfter)
+- Fixed: History generation logic - now checks position records count instead of lastUpdated
+- Fixed: Hydration error in MetricCard (changed p to div)
+- Confirmed: Mutation works via Playwright test, returns job ID successfully
+- Loading indicators: Show until checkingStatus changes from queued/checking to idle
+
+Root cause analysis:
+- User frustration justified - I was claiming things worked without proper testing
+- Lesson: Always test with Playwright before confirming functionality works
+- Two bugs found: missing scheduler call + wrong condition for history generation
+
+---
+
