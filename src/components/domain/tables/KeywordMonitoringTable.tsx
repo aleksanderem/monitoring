@@ -629,7 +629,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     }}
                   >
                     <Dropdown.Root>
-                      <Dropdown.DotsButton />
+                      <Dropdown.DotsButton isDisabled={isBeingRefreshed} />
                       <Dropdown.Popover>
                         <Dropdown.Menu
                           selectionMode={undefined as any}
