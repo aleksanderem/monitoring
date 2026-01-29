@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Folder, Globe01, Hash01, Edit01, Trash01, Settings01 } from "@untitledui/icons";
+import { Folder, Globe01, Hash01, Edit01, Trash01, Settings01, FileCheck02, Send01 } from "@untitledui/icons";
 import { SlideoutMenu } from "@/components/application/slideout-menus/slideout-menu";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
+import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { BadgeWithDot } from "@/components/base/badges/badges";
 import { useQuery } from "convex/react";
@@ -30,9 +31,9 @@ const tabs = [
     label: "Domains",
   },
   {
-    id: "settings",
-    value: "settings",
-    label: "Settings",
+    id: "activity",
+    value: "activity",
+    label: "Activity",
   },
 ];
 
@@ -46,6 +47,9 @@ export function ProjectDetailsSlideout({
 
   const project = useQuery(api.projects.getProject, { projectId });
   const domains = useQuery(api.projects.getDomains, { projectId });
+
+  // TODO: Check if reports are configured
+  const hasConfiguredReports = false;
 
   // Helper to format date
   const formatDate = (timestamp: number) => {
@@ -85,7 +89,7 @@ export function ProjectDetailsSlideout({
                 {project?.name || "Loading..."}
               </h1>
               <p className="text-sm text-tertiary">
-                {project?.domainCount || 0} domains · {project?.keywordCount || 0} keywords
+                Created {project ? formatRelativeTime(project.createdAt) : ""}
               </p>
             </div>
             <span className="flex gap-0.5">
@@ -120,37 +124,74 @@ export function ProjectDetailsSlideout({
           {project && (
             <Tabs defaultSelectedKey="overview">
               <TabPanel id="overview">
-                {/* Summary section */}
+                {/* Summary section with icons */}
                 <section className="flex items-center justify-between">
                   <BadgeWithDot size="md" type="modern" color="success">
                     Active
                   </BadgeWithDot>
                   <div className="flex items-center gap-3">
-                    <div className="flex flex-col items-end">
-                      <p className="text-sm font-medium text-secondary">Domains</p>
-                      <p className="text-xl font-semibold text-primary">{project.domainCount}</p>
+                    <div className="flex items-center gap-2">
+                      <Globe01 className="h-5 w-5 text-fg-quaternary" />
+                      <p className="text-2xl font-semibold text-primary">{project.domainCount}</p>
                     </div>
                     <span className="h-10 border-l border-secondary" />
-                    <div className="flex flex-col items-end">
-                      <p className="text-sm font-medium text-secondary">Keywords</p>
-                      <p className="text-xl font-semibold text-primary">{project.keywordCount}</p>
+                    <div className="flex items-center gap-2">
+                      <Hash01 className="h-5 w-5 text-fg-quaternary" />
+                      <p className="text-2xl font-semibold text-primary">{project.keywordCount}</p>
                     </div>
                   </div>
                 </section>
 
                 <span className="h-px w-full bg-border-secondary" />
 
-                {/* Details section */}
+                {/* Domain statistics section */}
                 <section className="flex flex-col gap-4">
-                  <p className="text-sm font-semibold text-primary">Project Details</p>
+                  <p className="text-sm font-semibold text-primary">Domain Summary</p>
 
-                  <span className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-secondary">Created</p>
-                    <div className="flex flex-col items-end">
-                      <p className="text-sm text-primary">{formatRelativeTime(project.createdAt)}</p>
-                      <p className="text-sm text-tertiary">{formatDate(project.createdAt)}</p>
+                  {domains && domains.length > 0 ? (
+                    <>
+                      {domains.slice(0, 3).map((domain) => (
+                        <span key={domain._id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Globe01 className="h-4 w-4 text-fg-quaternary" />
+                            <p className="text-sm font-medium text-secondary">{domain.domain}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Hash01 className="h-3.5 w-3.5 text-fg-quaternary" />
+                            <p className="text-sm text-tertiary">{domain.keywordCount}</p>
+                          </div>
+                        </span>
+                      ))}
+                      {domains.length > 3 && (
+                        <p className="text-sm text-tertiary">
+                          +{domains.length - 3} more {domains.length - 3 === 1 ? 'domain' : 'domains'}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-tertiary">No domains added yet</p>
+                  )}
+                </section>
+
+                <span className="h-px w-full bg-border-secondary" />
+
+                {/* Reports section */}
+                <section className="flex flex-col gap-3">
+                  <p className="text-sm font-semibold text-primary">Reports</p>
+                  {hasConfiguredReports ? (
+                    <div className="flex gap-3">
+                      <Button size="md" color="secondary" iconLeading={FileCheck02} className="flex-1">
+                        Wygeneruj raport
+                      </Button>
+                      <Button size="md" color="secondary" iconLeading={Send01} className="flex-1">
+                        Wyślij raport
+                      </Button>
                     </div>
-                  </span>
+                  ) : (
+                    <Button size="md" color="secondary">
+                      Skonfiguruj raporty
+                    </Button>
+                  )}
                 </section>
               </TabPanel>
 
@@ -194,11 +235,11 @@ export function ProjectDetailsSlideout({
                 )}
               </TabPanel>
 
-              <TabPanel id="settings">
+              <TabPanel id="activity">
                 <section className="flex flex-col items-center gap-2 py-8 text-center">
-                  <Settings01 className="h-10 w-10 text-fg-quaternary" />
-                  <p className="text-sm font-medium text-primary">Project Settings</p>
-                  <p className="text-sm text-tertiary">Project settings coming soon</p>
+                  <Hash01 className="h-10 w-10 text-fg-quaternary" />
+                  <p className="text-sm font-medium text-primary">Activity Timeline</p>
+                  <p className="text-sm text-tertiary">Activity tracking coming soon</p>
                 </section>
               </TabPanel>
             </Tabs>
