@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Folder, Globe01, Hash01, Edit01, Trash01, Settings01 } from "@untitledui/icons";
+import { Folder, Globe01, Hash01, Edit01, Trash01, Settings01, FileCheck02, Send01 } from "@untitledui/icons";
 import { SlideoutMenu } from "@/components/application/slideout-menus/slideout-menu";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
+import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { BadgeWithDot } from "@/components/base/badges/badges";
 import { MetricsChart04 } from "@/components/application/metrics/metrics";
@@ -47,6 +48,9 @@ export function ProjectDetailsSlideout({
 
   const project = useQuery(api.projects.getProject, { projectId });
   const domains = useQuery(api.projects.getDomains, { projectId });
+
+  // TODO: Check if reports are configured
+  const hasConfiguredReports = false;
 
   // Helper to format date
   const formatDate = (timestamp: number) => {
@@ -141,37 +145,6 @@ export function ProjectDetailsSlideout({
 
                 <span className="h-px w-full bg-border-secondary" />
 
-                {/* Domain statistics section */}
-                <section className="flex flex-col gap-4">
-                  <p className="text-sm font-semibold text-primary">Domain Summary</p>
-
-                  {domains && domains.length > 0 ? (
-                    <>
-                      {domains.slice(0, 3).map((domain) => (
-                        <span key={domain._id} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Globe01 className="h-4 w-4 text-fg-quaternary" />
-                            <p className="text-sm font-medium text-secondary">{domain.domain}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Hash01 className="h-3.5 w-3.5 text-fg-quaternary" />
-                            <p className="text-sm text-tertiary">{domain.keywordCount}</p>
-                          </div>
-                        </span>
-                      ))}
-                      {domains.length > 3 && (
-                        <p className="text-sm text-tertiary">
-                          +{domains.length - 3} more {domains.length - 3 === 1 ? 'domain' : 'domains'}
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-sm text-tertiary">No domains added yet</p>
-                  )}
-                </section>
-
-                <span className="h-px w-full bg-border-secondary" />
-
                 {/* Domain statistics cards - one per domain */}
                 <section className="flex flex-col gap-3">
                   {domains && domains.length > 0 ? (
@@ -187,6 +160,27 @@ export function ProjectDetailsSlideout({
                     ))
                   ) : (
                     <p className="text-sm text-tertiary">No domains added yet</p>
+                  )}
+                </section>
+
+                <span className="h-px w-full bg-border-secondary" />
+
+                {/* Reports section */}
+                <section className="flex flex-col gap-3">
+                  <p className="text-sm font-semibold text-primary">Reports</p>
+                  {hasConfiguredReports ? (
+                    <div className="flex gap-3">
+                      <Button size="md" color="secondary" iconLeading={FileCheck02} className="flex-1">
+                        Wygeneruj raport
+                      </Button>
+                      <Button size="md" color="secondary" iconLeading={Send01} className="flex-1">
+                        Wyślij raport
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button size="md" color="secondary">
+                      Skonfiguruj raporty
+                    </Button>
                   )}
                 </section>
               </TabPanel>
