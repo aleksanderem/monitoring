@@ -345,7 +345,7 @@ export default function DomainDetailPage() {
       </div>
 
       {/* Edit Domain Modal */}
-      <ModalOverlay isOpen={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+      <ModalOverlay isOpen={isEditModalOpen} onOpenChange={setIsEditModalOpen} isDismissable>
         <Modal>
           <Dialog>
             {({ close }) => (
@@ -355,7 +355,7 @@ export default function DomainDetailPage() {
                     <h2 className="text-lg font-semibold text-primary">Edit Domain Settings</h2>
                     <p className="mt-1 text-sm text-tertiary">Update refresh frequency and search settings</p>
                   </div>
-                  <CloseButton onPress={close} />
+                  <CloseButton onPress={() => setIsEditModalOpen(false)} />
                 </div>
 
                 <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
@@ -408,7 +408,7 @@ export default function DomainDetailPage() {
                   </div>
 
                   <div className="flex justify-end gap-3 border-t border-secondary pt-4">
-                    <Button type="button" color="secondary" onClick={close}>
+                    <Button type="button" color="secondary" onClick={() => setIsEditModalOpen(false)}>
                       Cancel
                     </Button>
                     <Button type="submit" color="primary">
