@@ -142,8 +142,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
       toast.success(`Odświeżanie pozycji dla ${selectedRows.size} słów kluczowych zostało zakolejkowane`);
       setSelectedRows(new Set());
     } catch (error) {
-      toast.error("Nie udało się odświeżyć pozycji");
-      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : "Nie udało się odświeżyć pozycji";
+      toast.error(errorMessage);
+      console.error("Refresh error:", error);
     }
   };
 
@@ -156,8 +157,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
       toast.success(`Usunięto ${selectedRows.size} słów kluczowych`);
       setSelectedRows(new Set());
     } catch (error) {
-      toast.error("Nie udało się usunąć słów kluczowych");
-      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : "Nie udało się usunąć słów kluczowych";
+      toast.error(errorMessage);
+      console.error("Delete error:", error);
     }
   };
 
