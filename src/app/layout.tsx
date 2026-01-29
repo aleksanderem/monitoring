@@ -4,6 +4,7 @@ import { RouteProvider } from "@/providers/router-provider";
 import { Theme } from "@/providers/theme";
 import { CommandProvider } from "@/providers/CommandProvider";
 import { ToastProvider } from "@/providers/ToastProvider";
+import { ConvexClientProvider } from "@/providers/ConvexClientProvider";
 import "@/styles/globals.css";
 import { cx } from "@/utils/cx";
 
@@ -31,14 +32,16 @@ export default function RootLayout({
     return (
         <html lang="en" suppressHydrationWarning>
             <body className={cx(inter.variable, "bg-primary antialiased")}>
-                <RouteProvider>
-                    <Theme>
-                        <CommandProvider>
-                            {children}
-                            <ToastProvider />
-                        </CommandProvider>
-                    </Theme>
-                </RouteProvider>
+                <ConvexClientProvider>
+                    <RouteProvider>
+                        <Theme>
+                            <CommandProvider>
+                                {children}
+                                <ToastProvider />
+                            </CommandProvider>
+                        </Theme>
+                    </RouteProvider>
+                </ConvexClientProvider>
             </body>
         </html>
     );
