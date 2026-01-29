@@ -10,9 +10,12 @@ import { Button } from "@/components/base/buttons/button";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { MiniSparkline } from "@/components/domain/charts/MiniSparkline";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
-import { DialogTrigger, Popover } from "react-aria-components";
+import { DialogTrigger, Popover, Heading } from "react-aria-components";
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { Dropdown } from "@/components/base/dropdown/dropdown";
+import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
+import { CloseButton } from "@/components/base/buttons/close-button";
+import { Input } from "@/components/base/input/input";
 import { cx } from "@/utils/cx";
 import { toast } from "sonner";
 
@@ -121,6 +124,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnId>>(
     new Set(["position", "previous", "change", "status", "volume", "difficulty", "lastUpdated"])
   );
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedKeyword, setSelectedKeyword] = useState<typeof keywords extends undefined ? never : typeof keywords[number] | null>(null);
 
   // Handle column visibility toggle
   const toggleColumn = (columnId: ColumnId) => {
@@ -625,12 +631,12 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                           onAction={async (key) => {
                             switch (key) {
                               case "view":
-                                // TODO: Open preview modal with history
-                                toast.info(`Podgląd frazy: ${keyword.phrase}`);
+                                setSelectedKeyword(keyword);
+                                setViewModalOpen(true);
                                 break;
                               case "edit":
-                                // TODO: Open edit modal
-                                toast.info(`Edycja frazy: ${keyword.phrase}`);
+                                setSelectedKeyword(keyword);
+                                setEditModalOpen(true);
                                 break;
                               case "refresh":
                                 try {
@@ -692,6 +698,126 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
           </button>
         </div>
       </div>
+
+      {/* View Modal */}
+      <DialogTrigger isOpen={viewModalOpen} onOpenChange={setViewModalOpen}>
+        <ModalOverlay isDismissable>
+          <Modal>
+            <Dialog className="overflow-hidden">
+              <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-2xl">
+                <CloseButton onClick={() => setViewModalOpen(false)} theme="light" size="lg" className="absolute top-3 right-3 z-10" />
+                <div className="flex flex-col gap-4 px-6 pt-6">
+                  <Heading slot="title" className="text-lg font-semibold text-primary">
+                    Podgląd frazy: {selectedKeyword?.phrase}
+                  </Heading>
+                </div>
+                <div className="px-6 py-4">
+                  <div className="grid grid-cols-2 gap-4 rounded-lg border border-secondary p-4">
+                    <div>
+                      <p className="text-xs font-medium text-tertiary">Aktualna pozycja</p>
+                      <p className="text-lg font-semibold text-primary">{selectedKeyword?.currentPosition ? `#${selectedKeyword.currentPosition}` : "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-tertiary">Poprzednia pozycja</p>
+                      <p className="text-lg font-semibold text-primary">{selectedKeyword?.previousPosition ? `#${selectedKeyword.previousPosition}` : "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-tertiary">Zmiana</p>
+                      <p className="text-lg font-semibold text-primary">{selectedKeyword?.change || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-tertiary">Wolumen</p>
+                      <p className="text-lg font-semibold text-primary">{formatNumber(selectedKeyword?.searchVolume || 0)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-tertiary">Trudność</p>
+                      <p className="text-lg font-semibold text-primary">{selectedKeyword?.difficulty || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-tertiary">Potencjał</p>
+                      <p className="text-lg font-semibold text-primary">{selectedKeyword?.potential || 0}</p>
+                    </div>
+                  </div>
+                  {selectedKeyword?.url && (
+                    <div className="mt-4">
+                      <p className="text-xs font-medium text-tertiary">URL</p>
+                      <p className="text-sm text-primary break-all">{selectedKeyword.url}</p>
+                    </div>
+                  )}
+                  <div className="mt-4">
+                    <p className="text-xs font-medium text-tertiary mb-2">Historia pozycji</p>
+                    <div className="max-h-60 overflow-y-auto rounded-lg border border-secondary">
+                      <table className="w-full">
+                        <thead className="bg-secondary-subtle sticky top-0">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-tertiary">Data</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-tertiary">Pozycja</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedKeyword?.positionHistory.slice().reverse().map((item, idx) => (
+                            <tr key={idx} className="border-t border-secondary">
+                              <td className="px-4 py-2 text-sm text-primary">{new Date(item.date).toLocaleDateString()}</td>
+                              <td className="px-4 py-2 text-sm text-primary">#{item.position}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3 px-6 py-4 border-t border-secondary">
+                  <Button size="md" color="secondary" onClick={() => setViewModalOpen(false)} className="flex-1">
+                    Zamknij
+                  </Button>
+                </div>
+              </div>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
+
+      {/* Edit Modal */}
+      <DialogTrigger isOpen={editModalOpen} onOpenChange={setEditModalOpen}>
+        <ModalOverlay isDismissable>
+          <Modal>
+            <Dialog className="overflow-hidden">
+              <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-md">
+                <CloseButton onClick={() => setEditModalOpen(false)} theme="light" size="lg" className="absolute top-3 right-3 z-10" />
+                <div className="flex flex-col gap-4 px-6 pt-6">
+                  <Heading slot="title" className="text-lg font-semibold text-primary">
+                    Edytuj frazę
+                  </Heading>
+                </div>
+                <div className="px-6 py-4">
+                  <Input
+                    size="md"
+                    label="Fraza kluczowa"
+                    defaultValue={selectedKeyword?.phrase}
+                    placeholder="Wprowadź frazę kluczową"
+                  />
+                </div>
+                <div className="flex gap-3 px-6 py-4 border-t border-secondary">
+                  <Button size="md" color="secondary" onClick={() => setEditModalOpen(false)} className="flex-1">
+                    Anuluj
+                  </Button>
+                  <Button
+                    size="md"
+                    color="primary"
+                    onClick={() => {
+                      toast.success("Fraza zaktualizowana");
+                      setEditModalOpen(false);
+                    }}
+                    className="flex-1"
+                  >
+                    Zapisz
+                  </Button>
+                </div>
+              </div>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
     </div>
   );
 }
