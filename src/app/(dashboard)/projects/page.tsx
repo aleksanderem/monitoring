@@ -10,9 +10,25 @@ import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { InputBase } from "@/components/base/input/input";
+import { BadgeWithDot } from "@/components/base/badges/badges";
+import { Avatar } from "@/components/base/avatar/avatar";
 import { EmptyState } from "@/components/application/empty-state/empty-state";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { toast } from "sonner";
+
+// Helper to format relative time
+function formatRelativeTime(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+  if (days < 365) return `${Math.floor(days / 30)} months ago`;
+  return `${Math.floor(days / 365)} years ago`;
+}
 
 export default function ProjectsPage() {
   const projects = useQuery(api.projects.list);
@@ -160,17 +176,23 @@ export default function ProjectsPage() {
             <Table.Header>
               <Table.Head
                 id="name"
-                label="Project Name"
+                label="Project"
                 isRowHeader
                 allowsSorting
-                className="w-full max-w-1/4"
+                className="w-full max-w-1/3"
               />
+              <Table.Head id="status" label="Status" allowsSorting />
               <Table.Head id="domainCount" label="Domains" allowsSorting />
               <Table.Head id="keywordCount" label="Keywords" allowsSorting />
               <Table.Head
                 id="createdAt"
                 label="Created"
                 allowsSorting
+                className="md:hidden xl:table-cell"
+              />
+              <Table.Head
+                id="owner"
+                label="Owner"
                 className="md:hidden xl:table-cell"
               />
               <Table.Head id="actions" />
@@ -180,24 +202,60 @@ export default function ProjectsPage() {
               {(item) => (
                 <Table.Row id={item._id}>
                   <Table.Cell>
-                    <div className="whitespace-nowrap">
-                      <p className="text-sm font-medium text-primary">
-                        {item.name}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                        <span className="text-sm font-semibold">
+                          {item.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-primary">
+                          {item.name}
+                        </p>
+                        <p className="text-sm text-tertiary">
+                          {item.domainCount} domains · {item.keywordCount} keywords
+                        </p>
+                      </div>
                     </div>
                   </Table.Cell>
                   <Table.Cell>
-                    <span className="text-sm text-primary">
+                    <BadgeWithDot
+                      size="sm"
+                      color="success"
+                      type="modern"
+                    >
+                      Active
+                    </BadgeWithDot>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <span className="text-sm font-medium text-primary">
                       {item.domainCount}
                     </span>
                   </Table.Cell>
                   <Table.Cell>
-                    <span className="text-sm text-primary">
+                    <span className="text-sm font-medium text-primary">
                       {item.keywordCount}
                     </span>
                   </Table.Cell>
                   <Table.Cell className="whitespace-nowrap md:hidden xl:table-cell">
-                    {new Date(item.createdAt).toLocaleDateString()}
+                    <div className="flex flex-col">
+                      <span className="text-sm text-primary">
+                        {formatRelativeTime(item.createdAt)}
+                      </span>
+                      <span className="text-sm text-tertiary">
+                        {new Date(item.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell className="md:hidden xl:table-cell">
+                    <div className="flex items-center gap-2">
+                      <Avatar
+                        size="sm"
+                        initials="ME"
+                        className="shrink-0"
+                      />
+                      <span className="text-sm text-primary">You</span>
+                    </div>
                   </Table.Cell>
                   <Table.Cell className="px-4">
                     <div className="flex justify-end gap-0.5">
