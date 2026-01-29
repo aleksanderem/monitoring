@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/application/empty-state/empty-state";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { CreateProjectDialog } from "@/components/application/modals/create-project-dialog";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
+import { ProjectDetailsSlideout } from "@/components/application/slideout-menus/project-details-slideout";
 import { toast } from "sonner";
 
 // Helper to format relative time
@@ -268,16 +269,22 @@ export default function ProjectsPage() {
                   </Table.Cell>
                   <Table.Cell className="px-4">
                     <div className="flex justify-end gap-0.5">
-                      <ButtonUtility
-                        size="xs"
-                        color="tertiary"
-                        tooltip="View project"
-                        icon={Eye}
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          toast.info("Project details coming soon");
+                      <ProjectDetailsSlideout
+                        projectId={item._id}
+                        onDelete={() => {
+                          // Will be handled by Delete button inside slideout
                         }}
-                      />
+                      >
+                        <ButtonUtility
+                          size="xs"
+                          color="tertiary"
+                          tooltip="View project"
+                          icon={Eye}
+                          onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                          }}
+                        />
+                      </ProjectDetailsSlideout>
                       <ButtonUtility
                         size="xs"
                         color="tertiary"
