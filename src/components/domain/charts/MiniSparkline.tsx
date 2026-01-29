@@ -3,7 +3,7 @@
 import { Line, LineChart, ResponsiveContainer } from "recharts";
 
 interface MiniSparklineProps {
-  data: Array<{ date: number; position: number }>;
+  data: Array<{ date: number; position: number | null }>;
   className?: string;
 }
 
@@ -12,7 +12,9 @@ export function MiniSparkline({ data, className }: MiniSparklineProps) {
     return <div className={className} />;
   }
 
-  const chartData = data.map(point => ({ value: point.position }));
+  const chartData = data
+    .filter(point => point.position !== null)
+    .map(point => ({ value: point.position as number }));
 
   return (
     <ResponsiveContainer width={60} height={24} className={className}>

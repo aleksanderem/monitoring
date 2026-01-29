@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "convex/react";
-import { Hash01, ChevronUp, ChevronDown, ChevronsUpDown } from "@untitledui/icons";
+import { Hash01, ChevronUp, ChevronDown, ChevronSelectorVertical } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { BadgeWithDot } from "@/components/base/badges/badges";
@@ -81,7 +81,7 @@ function SortableHeader({ column, currentColumn, direction, onClick, children, c
             <ChevronDown className="h-4 w-4" />
           )
         ) : (
-          <ChevronsUpDown className="h-4 w-4 opacity-0 group-hover:opacity-50" />
+          <ChevronSelectorVertical className="h-4 w-4 opacity-0 group-hover:opacity-50" />
         )}
       </div>
     </th>
