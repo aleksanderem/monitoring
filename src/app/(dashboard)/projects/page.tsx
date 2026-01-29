@@ -4,11 +4,12 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { Plus, Edit05, Trash01 } from "@untitledui/icons";
+import { Plus, Edit05, Trash01, SearchSm, Eye } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
+import { InputBase } from "@/components/base/input/input";
 import { EmptyState } from "@/components/application/empty-state/empty-state";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { toast } from "sonner";
@@ -17,15 +18,26 @@ export default function ProjectsPage() {
   const projects = useQuery(api.projects.list);
   const deleteProject = useMutation(api.projects.remove);
 
+  const [searchQuery, setSearchQuery] = useState("");
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
     column: "name",
     direction: "ascending",
   });
 
-  const sortedItems = useMemo(() => {
+  // Filter projects based on search query
+  const filteredItems = useMemo(() => {
     if (!projects) return [];
+    if (!searchQuery.trim()) return projects;
 
-    return projects.toSorted((a, b) => {
+    const query = searchQuery.toLowerCase();
+    return projects.filter((project) =>
+      project.name.toLowerCase().includes(query)
+    );
+  }, [projects, searchQuery]);
+
+  // Sort filtered items
+  const sortedItems = useMemo(() => {
+    return filteredItems.toSorted((a, b) => {
       const first = a[sortDescriptor.column as keyof typeof a];
       const second = b[sortDescriptor.column as keyof typeof b];
 
@@ -42,7 +54,7 @@ export default function ProjectsPage() {
 
       return 0;
     });
-  }, [projects, sortDescriptor]);
+  }, [filteredItems, sortDescriptor]);
 
   const handleDelete = async (id: Id<"projects">) => {
     try {
@@ -79,7 +91,7 @@ export default function ProjectsPage() {
         </Button>
       </div>
 
-      {sortedItems.length === 0 ? (
+      {projects.length === 0 ? (
         <EmptyState size="md">
           <EmptyState.Header>
             <EmptyState.FeaturedIcon color="gray" />
@@ -99,11 +111,41 @@ export default function ProjectsPage() {
           </EmptyState.Footer>
         </EmptyState>
       ) : (
-        <TableCard.Root>
-          <TableCard.Header
-            title="All Projects"
-            badge={`${sortedItems.length} project${sortedItems.length !== 1 ? "s" : ""}`}
-          />
+        <div className="space-y-4">
+          {/* Search input */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 max-w-sm">
+              <SearchSm className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-fg-quaternary" />
+              <InputBase
+                type="text"
+                placeholder="Search projects..."
+                value={searchQuery}
+                onChange={(value) => setSearchQuery(value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          {sortedItems.length === 0 ? (
+            <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
+              <p className="text-sm text-tertiary">
+                No projects match your search &quot;{searchQuery}&quot;
+              </p>
+              <Button
+                size="sm"
+                color="tertiary"
+                onClick={() => setSearchQuery("")}
+                className="mt-4"
+              >
+                Clear search
+              </Button>
+            </div>
+          ) : (
+            <TableCard.Root>
+              <TableCard.Header
+                title="All Projects"
+                badge={`${sortedItems.length} project${sortedItems.length !== 1 ? "s" : ""}`}
+              />
           <Table
             aria-label="Projects"
             selectionMode="multiple"
@@ -157,8 +199,22 @@ export default function ProjectsPage() {
                       <ButtonUtility
                         size="xs"
                         color="tertiary"
+                        tooltip="View project"
+                        icon={Eye}
+                        onClick={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          toast.info("Project details coming soon");
+                        }}
+                      />
+                      <ButtonUtility
+                        size="xs"
+                        color="tertiary"
                         tooltip="Edit"
                         icon={Edit05}
+                        onClick={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          toast.info("Edit dialog coming soon");
+                        }}
                       />
                       <ButtonUtility
                         size="xs"
@@ -183,6 +239,8 @@ export default function ProjectsPage() {
             </Table.Body>
           </Table>
         </TableCard.Root>
+          )}
+        </div>
       )}
     </div>
   );
