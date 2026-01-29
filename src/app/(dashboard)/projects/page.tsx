@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { Plus, Edit05, Trash01, SearchSm, Eye } from "@untitledui/icons";
+import { Plus, Edit05, Trash01, SearchLg, Eye, FilterLines } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/base/buttons/button";
@@ -111,23 +111,33 @@ export default function ProjectsPage() {
           </EmptyState.Footer>
         </EmptyState>
       ) : (
-        <div className="space-y-4">
-          {/* Search input */}
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 max-w-sm">
-              <SearchSm className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-fg-quaternary" />
+        <TableCard.Root>
+          <TableCard.Header
+            title="All Projects"
+            badge={`${projects.length} project${projects.length !== 1 ? "s" : ""}`}
+          />
+
+          {/* Filters section - inside TableCard */}
+          <div className="flex justify-between gap-4 border-b border-secondary px-4 py-3 lg:px-6">
+            <div className="grid w-full grid-cols-1 gap-3 lg:w-auto lg:grid-cols-[minmax(0,296px)_max-content]">
               <InputBase
-                type="text"
+                size="sm"
+                type="search"
+                aria-label="Search"
                 placeholder="Search projects..."
+                icon={SearchLg}
                 value={searchQuery}
                 onChange={(value) => setSearchQuery(value)}
-                className="pl-10"
               />
+
+              <Button iconLeading={FilterLines} color="secondary" size="md">
+                Filters
+              </Button>
             </div>
           </div>
 
           {sortedItems.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
+            <div className="p-12 text-center">
               <p className="text-sm text-tertiary">
                 No projects match your search &quot;{searchQuery}&quot;
               </p>
@@ -141,11 +151,6 @@ export default function ProjectsPage() {
               </Button>
             </div>
           ) : (
-            <TableCard.Root>
-              <TableCard.Header
-                title="All Projects"
-                badge={`${sortedItems.length} project${sortedItems.length !== 1 ? "s" : ""}`}
-              />
           <Table
             aria-label="Projects"
             selectionMode="multiple"
@@ -238,9 +243,8 @@ export default function ProjectsPage() {
               )}
             </Table.Body>
           </Table>
-        </TableCard.Root>
           )}
-        </div>
+        </TableCard.Root>
       )}
     </div>
   );
