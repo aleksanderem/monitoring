@@ -881,3 +881,140 @@ export const remove = mutation({
     await ctx.db.delete(args.id);
   },
 });
+
+// Get visibility statistics for a domain
+export const getVisibilityStats = query({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    // Get all keywords for this domain
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    if (keywords.length === 0) {
+      return {
+        totalKeywords: 0,
+        avgPosition: 0,
+        top3Count: 0,
+        top10Count: 0,
+        top100Count: 0,
+        visibilityScore: 0,
+        visibilityChange: 0,
+      };
+    }
+
+    // Get latest positions for all keywords
+    let totalPosition = 0;
+    let positionCount = 0;
+    let top3Count = 0;
+    let top10Count = 0;
+    let top100Count = 0;
+    let visibilityScore = 0;
+
+    await Promise.all(
+      keywords.map(async (keyword) => {
+        const latestPosition = await ctx.db
+          .query("keywordPositions")
+          .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+          .order("desc")
+          .first();
+
+        if (latestPosition?.position) {
+          const pos = latestPosition.position;
+          totalPosition += pos;
+          positionCount++;
+
+          if (pos <= 3) top3Count++;
+          if (pos <= 10) top10Count++;
+          if (pos <= 100) top100Count++;
+
+          // Calculate visibility score (weighted by position)
+          // Higher positions = higher score (volume data not available yet)
+          const positionWeight = Math.max(0, (100 - pos) / 100);
+          visibilityScore += positionWeight * 100; // Base weight of 100 per keyword
+        }
+      })
+    );
+
+    const avgPosition = positionCount > 0 ? totalPosition / positionCount : 0;
+
+    // For now, visibilityChange is 0 (would need historical data comparison)
+    const visibilityChange = 0;
+
+    return {
+      totalKeywords: keywords.length,
+      avgPosition: Math.round(avgPosition * 10) / 10,
+      top3Count,
+      top10Count,
+      top100Count,
+      visibilityScore: Math.round(visibilityScore),
+      visibilityChange,
+    };
+  },
+});
+
+// Get top keywords by position ranges
+export const getTopKeywords = query({
+  args: { 
+    domainId: v.id("domains"),
+    limit: v.optional(v.number()),
+    positionRange: v.optional(v.object({
+      min: v.number(),
+      max: v.number(),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 10;
+
+    // Get all keywords for this domain
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    // Get latest position for each keyword
+    const keywordsWithPositions = await Promise.all(
+      keywords.map(async (keyword) => {
+        const positions = await ctx.db
+          .query("keywordPositions")
+          .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+          .order("desc")
+          .take(2);
+
+        const latestPosition = positions[0]?.position || null;
+        const previousPosition = positions[1]?.position || null;
+        const change = latestPosition && previousPosition 
+          ? previousPosition - latestPosition 
+          : null;
+
+        return {
+          _id: keyword._id,
+          phrase: keyword.phrase,
+          position: latestPosition,
+          previousPosition,
+          change,
+          volume: 0, // TODO: Add volume to keywords schema
+          difficulty: 0, // TODO: Add difficulty to keywords schema
+        };
+      })
+    );
+
+    // Filter by position range if provided
+    let filtered = keywordsWithPositions.filter(k => k.position !== null);
+    if (args.positionRange) {
+      filtered = filtered.filter(k => 
+        k.position !== null && 
+        k.position >= args.positionRange!.min && 
+        k.position <= args.positionRange!.max
+      );
+    }
+
+    // Sort by position (best first) and limit
+    return filtered
+      .sort((a, b) => (a.position || 999) - (b.position || 999))
+      .slice(0, limit);
+  },
+});

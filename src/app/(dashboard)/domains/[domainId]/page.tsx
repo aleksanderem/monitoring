@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import type { Id } from "../../../../../convex/_generated/dataModel";
 import {
@@ -45,6 +45,11 @@ import { MonitoringStats } from "@/components/domain/sections/MonitoringStats";
 import { KeywordMonitoringTable } from "@/components/domain/tables/KeywordMonitoringTable";
 import { LiveBadge } from "@/components/domain/badges/LiveBadge";
 import { Activity } from "@untitledui/icons";
+import { VisibilityStats } from "@/components/domain/sections/VisibilityStats";
+import { TopKeywordsTable } from "@/components/domain/tables/TopKeywordsTable";
+import { BacklinksSummaryStats } from "@/components/domain/sections/BacklinksSummaryStats";
+import { TLDDistributionChart } from "@/components/domain/charts/TLDDistributionChart";
+import { PlatformTypesChart } from "@/components/domain/charts/PlatformTypesChart";
 
 // Helper to format date
 function formatDate(timestamp: number) {
@@ -85,6 +90,39 @@ export default function DomainDetailPage() {
   const deleteDomain = useMutation(api.domains.remove);
   const refreshKeywords = useMutation(api.keywords.refreshKeywordPositions);
   const updateDomain = useMutation(api.domains.updateDomain);
+
+  // Visibility tab queries
+  const visibilityStats = useQuery(api.domains.getVisibilityStats, { domainId });
+  const top3Keywords = useQuery(api.domains.getTopKeywords, {
+    domainId,
+    limit: 10,
+    positionRange: { min: 1, max: 3 }
+  });
+  const top10Keywords = useQuery(api.domains.getTopKeywords, {
+    domainId,
+    limit: 10,
+    positionRange: { min: 4, max: 10 }
+  });
+
+  // Backlinks tab queries
+  const backlinksSummary = useQuery(api.backlinks.getBacklinkSummary, { domainId });
+  const isBacklinkDataStale = useQuery(api.backlinks.isBacklinkDataStale, { domainId });
+  const fetchBacklinksAction = useAction(api.backlinks.fetchBacklinksFromAPI);
+
+  const [isFetchingBacklinks, setIsFetchingBacklinks] = useState(false);
+
+  const handleFetchBacklinks = async () => {
+    try {
+      setIsFetchingBacklinks(true);
+      await fetchBacklinksAction({ domainId });
+      toast.success("Backlinks data fetched successfully");
+    } catch (error) {
+      toast.error("Failed to fetch backlinks data");
+      console.error(error);
+    } finally {
+      setIsFetchingBacklinks(false);
+    }
+  };
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -325,25 +363,97 @@ export default function DomainDetailPage() {
 
             {/* Visibility Tab */}
             <TabPanel id="visibility">
-              <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
-                <h2 className="text-lg font-semibold text-primary">Visibility Analysis</h2>
-                <div className="flex flex-col items-center gap-2 py-8 text-center">
-                  <TrendUp02 className="h-10 w-10 text-fg-quaternary" />
-                  <p className="text-sm font-medium text-primary">Visibility tracking coming soon</p>
-                  <p className="text-sm text-tertiary">Track your domain's overall search visibility</p>
+              <div className="flex flex-col gap-6">
+                {/* Visibility Statistics */}
+                <VisibilityStats
+                  stats={visibilityStats || {
+                    totalKeywords: 0,
+                    avgPosition: 0,
+                    top3Count: 0,
+                    top10Count: 0,
+                    top100Count: 0,
+                    visibilityScore: 0,
+                    visibilityChange: 0,
+                  }}
+                  isLoading={visibilityStats === undefined}
+                />
+
+                {/* Top Keywords Tables */}
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <TopKeywordsTable
+                    keywords={top3Keywords || []}
+                    title="Top 3 Rankings"
+                    description="Keywords ranking in positions 1-3"
+                    isLoading={top3Keywords === undefined}
+                  />
+                  <TopKeywordsTable
+                    keywords={top10Keywords || []}
+                    title="Top 10 Rankings"
+                    description="Keywords ranking in positions 4-10"
+                    isLoading={top10Keywords === undefined}
+                  />
+                </div>
+
+                {/* Position Distribution & Movement Trend */}
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <PositionDistributionChart domainId={domainId} />
+                  <MovementTrendChart domainId={domainId} />
                 </div>
               </div>
             </TabPanel>
 
             {/* Backlinks Tab */}
             <TabPanel id="backlinks">
-              <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
-                <h2 className="text-lg font-semibold text-primary">Backlinks</h2>
-                <div className="flex flex-col items-center gap-2 py-8 text-center">
-                  <Link03 className="h-10 w-10 text-fg-quaternary" />
-                  <p className="text-sm font-medium text-primary">Backlink analysis coming soon</p>
-                  <p className="text-sm text-tertiary">Monitor your domain's backlink profile</p>
+              <div className="flex flex-col gap-6">
+                {/* Header with Fetch Button */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-primary">Backlinks Analysis</h2>
+                    <p className="text-sm text-tertiary">
+                      {backlinksSummary
+                        ? `Last updated: ${new Date(backlinksSummary.fetchedAt).toLocaleDateString()}`
+                        : "No data available"}
+                    </p>
+                  </div>
+                  <Button
+                    size="md"
+                    iconLeading={RefreshCcw01}
+                    onClick={handleFetchBacklinks}
+                    disabled={isFetchingBacklinks}
+                  >
+                    {isFetchingBacklinks ? "Fetching..." : "Fetch Backlinks"}
+                  </Button>
                 </div>
+
+                {/* Summary Statistics */}
+                <BacklinksSummaryStats
+                  summary={backlinksSummary || null}
+                  isLoading={backlinksSummary === undefined}
+                />
+
+                {/* Charts */}
+                {backlinksSummary && (
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <TLDDistributionChart
+                      data={{}}
+                      isLoading={false}
+                    />
+                    <PlatformTypesChart
+                      data={{}}
+                      isLoading={false}
+                    />
+                  </div>
+                )}
+
+                {/* Note about detailed data */}
+                {backlinksSummary && (
+                  <div className="rounded-lg border border-secondary bg-secondary-subtle p-4">
+                    <p className="text-sm text-secondary">
+                      <strong>Note:</strong> Detailed TLD distribution and platform type charts will be available soon.
+                      The API integration is working and summary statistics are being fetched successfully.
+                    </p>
+                  </div>
+                )}
               </div>
             </TabPanel>
 
