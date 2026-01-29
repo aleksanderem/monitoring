@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
@@ -24,6 +24,9 @@ import { BadgeWithDot } from "@/components/base/badges/badges";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
 import { Breadcrumbs } from "@/components/application/breadcrumbs/breadcrumbs";
+import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
+import { CloseButton } from "@/components/base/buttons/close-button";
+import { Input } from "@/components/base/input/input";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { MetricsChart04 } from "@/components/application/metrics/metrics";
 import { toast } from "sonner";
@@ -73,8 +76,15 @@ export default function DomainDetailPage() {
   const keywords = useQuery(api.keywords.getKeywords, { domainId });
   const deleteDomain = useMutation(api.domains.remove);
   const refreshKeywords = useMutation(api.keywords.refreshKeywordPositions);
+  const updateDomain = useMutation(api.domains.updateDomain);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    refreshFrequency: "",
+    searchEngine: "",
+    location: "",
+    language: "",
+  });
 
   const handleDelete = async () => {
     try {
@@ -102,6 +112,38 @@ export default function DomainDetailPage() {
       console.error(error);
     }
   };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateDomain({
+        domainId,
+        settings: {
+          refreshFrequency: editForm.refreshFrequency as "daily" | "weekly" | "on_demand",
+          searchEngine: editForm.searchEngine,
+          location: editForm.location,
+          language: editForm.language,
+        },
+      });
+      toast.success("Domain updated successfully");
+      setIsEditModalOpen(false);
+    } catch (error) {
+      toast.error("Failed to update domain");
+      console.error(error);
+    }
+  };
+
+  // Populate form when modal opens
+  useEffect(() => {
+    if (isEditModalOpen && domain) {
+      setEditForm({
+        refreshFrequency: domain.settings.refreshFrequency,
+        searchEngine: domain.settings.searchEngine,
+        location: domain.settings.location,
+        language: domain.settings.language,
+      });
+    }
+  }, [isEditModalOpen, domain]);
 
   if (domain === undefined) {
     return (
@@ -301,6 +343,84 @@ export default function DomainDetailPage() {
           </div>
         </Tabs>
       </div>
+
+      {/* Edit Domain Modal */}
+      <ModalOverlay isOpen={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <Modal>
+          <Dialog>
+            {({ close }) => (
+              <div className="flex flex-col gap-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-primary">Edit Domain Settings</h2>
+                    <p className="mt-1 text-sm text-tertiary">Update refresh frequency and search settings</p>
+                  </div>
+                  <CloseButton onPress={close} />
+                </div>
+
+                <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-secondary">
+                      Refresh Frequency
+                    </label>
+                    <select
+                      value={editForm.refreshFrequency}
+                      onChange={(e) => setEditForm({ ...editForm, refreshFrequency: e.target.value })}
+                      className="w-full rounded-lg border border-secondary bg-primary px-3 py-2 text-sm text-primary focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/20"
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="on_demand">On Demand</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-secondary">
+                      Search Engine
+                    </label>
+                    <Input
+                      value={editForm.searchEngine}
+                      onChange={(e) => setEditForm({ ...editForm, searchEngine: e.target.value })}
+                      placeholder="google.pl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-secondary">
+                      Location
+                    </label>
+                    <Input
+                      value={editForm.location}
+                      onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                      placeholder="Poland"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-secondary">
+                      Language
+                    </label>
+                    <Input
+                      value={editForm.language}
+                      onChange={(e) => setEditForm({ ...editForm, language: e.target.value })}
+                      placeholder="pl"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3 border-t border-secondary pt-4">
+                    <Button type="button" color="secondary" onClick={close}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" color="primary">
+                      Save Changes
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </main>
   );
 }
