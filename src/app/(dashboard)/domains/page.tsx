@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { Edit05, Trash01, SearchLg, FilterLines, Globe01, Hash01, FolderClosed } from "@untitledui/icons";
+import { Edit05, Trash01, SearchLg, FilterLines, Globe01, Hash01, FolderClosed, Tag03, XClose } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { InputBase } from "@/components/base/input/input";
-import { BadgeWithDot } from "@/components/base/badges/badges";
+import { BadgeWithDot, Badge } from "@/components/base/badges/badges";
 import { EmptyState } from "@/components/application/empty-state/empty-state";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
@@ -38,24 +38,66 @@ export default function DomainsPage() {
   const deleteDomain = useMutation(api.domains.remove);
 
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
     column: "domain",
     direction: "ascending",
   });
 
-  // Filter domains based on search query
+  // Get all unique tags from domains
+  const allTags = useMemo(() => {
+    if (!domains) return [];
+    const tagSet = new Set<string>();
+    domains.forEach(domain => {
+      domain.tags?.forEach((tag: string) => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [domains]);
+
+  // Filter domains based on search query and selected tags
   const filteredItems = useMemo(() => {
     if (!domains) return [];
-    if (!searchQuery || typeof searchQuery !== 'string' || !searchQuery.trim()) {
-      return domains;
+
+    let filtered = domains;
+
+    // Filter by search query
+    if (searchQuery && typeof searchQuery === 'string' && searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((domain) =>
+        domain.domain.toLowerCase().includes(query) ||
+        domain.project?.name.toLowerCase().includes(query)
+      );
     }
 
-    const query = searchQuery.toLowerCase();
-    return domains.filter((domain) =>
-      domain.domain.toLowerCase().includes(query) ||
-      domain.project?.name.toLowerCase().includes(query)
-    );
-  }, [domains, searchQuery]);
+    // Filter by selected tags
+    if (selectedTags.size > 0) {
+      filtered = filtered.filter((domain) => {
+        if (!domain.tags || domain.tags.length === 0) return false;
+        return Array.from(selectedTags).some(selectedTag =>
+          domain.tags?.includes(selectedTag)
+        );
+      });
+    }
+
+    return filtered;
+  }, [domains, searchQuery, selectedTags]);
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(tag)) {
+        newSet.delete(tag);
+      } else {
+        newSet.add(tag);
+      }
+      return newSet;
+    });
+  };
+
+  const clearAllFilters = () => {
+    setSearchQuery("");
+    setSelectedTags(new Set());
+  };
 
   // Sort filtered items
   const sortedItems = useMemo(() => {
@@ -149,8 +191,8 @@ export default function DomainsPage() {
           />
 
           {/* Filters section - inside TableCard */}
-          <div className="flex justify-between gap-4 border-b border-secondary px-4 py-3 lg:px-6">
-            <div className="grid w-full grid-cols-1 gap-3 lg:w-auto lg:grid-cols-[minmax(0,296px)_max-content]">
+          <div className="border-b border-secondary px-4 py-3 lg:px-6">
+            <div className="grid w-full grid-cols-1 gap-3 lg:w-auto lg:grid-cols-[minmax(0,296px)]">
               <InputBase
                 size="sm"
                 type="search"
@@ -164,11 +206,42 @@ export default function DomainsPage() {
                   setSearchQuery(stringValue);
                 }}
               />
-
-              <Button iconLeading={FilterLines} color="secondary" size="md">
-                Filters
-              </Button>
             </div>
+
+            {/* Tag filters */}
+            {allTags.length > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 text-sm text-secondary">
+                  <Tag03 className="h-4 w-4" />
+                  <span>Tags:</span>
+                </div>
+                {allTags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className="cursor-pointer transition-all hover:ring-2 hover:ring-brand-200"
+                  >
+                    <Badge
+                      size="sm"
+                      color={selectedTags.has(tag) ? "brand" : "gray"}
+                    >
+                      {tag}
+                    </Badge>
+                  </button>
+                ))}
+                {(selectedTags.size > 0 || searchQuery) && (
+                  <Button
+                    size="sm"
+                    color="tertiary"
+                    iconLeading={XClose}
+                    onClick={clearAllFilters}
+                  >
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           {sortedItems.length === 0 ? (
@@ -202,6 +275,7 @@ export default function DomainsPage() {
                 className="w-full max-w-1/3"
               />
               <Table.Head id="project" label="Project" allowsSorting />
+              <Table.Head id="tags" label="Tags" />
               <Table.Head id="keywordCount" label="Keywords" allowsSorting />
               <Table.Head
                 id="createdAt"
@@ -238,6 +312,23 @@ export default function DomainsPage() {
                         {item.project?.name || "Unknown"}
                       </span>
                     </div>
+                  </Table.Cell>
+                  <Table.Cell>
+                    {item.tags && item.tags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {item.tags.map((tag: string) => (
+                          <Badge
+                            key={tag}
+                            size="sm"
+                            color="gray"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-tertiary">—</span>
+                    )}
                   </Table.Cell>
                   <Table.Cell>
                     <div className="flex items-center gap-2">

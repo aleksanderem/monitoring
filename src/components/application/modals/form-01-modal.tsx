@@ -3,18 +3,18 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Flag05, Save01 } from "@untitledui/icons";
 import { DialogTrigger as AriaDialogTrigger, Heading as AriaHeading } from "react-aria-components";
-import { Carousel, CarouselContext } from "@/src/components/application/carousel/carousel-base";
-import { CarouselIndicator } from "@/src/components/application/carousel/carousel.demo";
-import { Dialog, Modal, ModalOverlay } from "@/src/components/application/modals/modal";
-import { Button } from "@/src/components/base/buttons/button";
-import { CloseButton } from "@/src/components/base/buttons/close-button";
-import { Input, InputBase } from "@/src/components/base/input/input";
-import { InputGroup } from "@/src/components/base/input/input-group";
-import { Label } from "@/src/components/base/input/label";
-import { Select } from "@/src/components/base/select/select";
-import { TextAreaBase } from "@/src/components/base/textarea/textarea";
-import { FeaturedIcon } from "@/src/components/foundations/featured-icon/featured-icon";
-import { BackgroundPattern } from "@/src/components/shared-assets/background-patterns";
+import { Carousel, CarouselContext } from "@/components/application/carousel/carousel-base";
+import { CarouselIndicator } from "@/components/application/carousel/carousel.demo";
+import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
+import { Button } from "@/components/base/buttons/button";
+import { CloseButton } from "@/components/base/buttons/close-button";
+import { Input, InputBase } from "@/components/base/input/input";
+import { InputGroup } from "@/components/base/input/input-group";
+import { Label } from "@/components/base/input/label";
+import { Select } from "@/components/base/select/select";
+import { TextAreaBase } from "@/components/base/textarea/textarea";
+import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
 
 /**
  * This is a utility hook that automatically reopens the modal after

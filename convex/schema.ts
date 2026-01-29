@@ -49,6 +49,7 @@ export default defineSchema({
     projectId: v.id("projects"),
     domain: v.string(),
     createdAt: v.number(),
+    tags: v.optional(v.array(v.string())),
     settings: v.object({
       refreshFrequency: v.union(
         v.literal("daily"),

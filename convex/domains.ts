@@ -114,6 +114,8 @@ export const updateDomain = mutation({
   args: {
     domainId: v.id("domains"),
     domain: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
+    tags: v.optional(v.array(v.string())),
     settings: v.optional(
       v.object({
         refreshFrequency: v.union(
@@ -144,6 +146,8 @@ export const updateDomain = mutation({
 
     const updates: Record<string, unknown> = {};
     if (args.domain) updates.domain = args.domain;
+    if (args.projectId) updates.projectId = args.projectId;
+    if (args.tags !== undefined) updates.tags = args.tags;
     if (args.settings) updates.settings = args.settings;
 
     await ctx.db.patch(args.domainId, updates);

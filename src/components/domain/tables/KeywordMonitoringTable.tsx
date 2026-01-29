@@ -127,7 +127,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   );
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [selectedKeyword, setSelectedKeyword] = useState<typeof keywords extends undefined ? never : typeof keywords[number] | null>(null);
+  const [selectedKeyword, setSelectedKeyword] = useState<NonNullable<typeof keywords>[number] | null>(null);
 
   // Handle column visibility toggle
   const toggleColumn = (columnId: ColumnId) => {
@@ -298,9 +298,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
           position: absolute;
           width: 100%;
           height: 100%;
-          background: linear-gradient(270deg, rgb(225 225 225) 0%, rgb(41 41 41 / 0%) 75%);
+          background: linear-gradient(270deg, rgb(225 225 225 / 44%) 0%, rgb(41 41 41 / 0%) 75%);
           top: 0;
-          left: -32px;
+          left: -48px;
           pointer-events: none;
         }
       `}</style>
@@ -562,11 +562,11 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                       <div className="flex items-center gap-2">
                         <BadgeWithIcon
                           type="pill-color"
-                          color={keyword.change > 0 ? "success" : keyword.change < 0 ? "error" : "gray"}
+                          color={keyword.change === null ? "gray" : keyword.change > 0 ? "success" : keyword.change < 0 ? "error" : "gray"}
                           size="sm"
-                          iconLeading={keyword.change > 0 ? ArrowUp : keyword.change < 0 ? ArrowDown : undefined}
+                          iconLeading={keyword.change === null ? undefined : keyword.change > 0 ? ArrowUp : keyword.change < 0 ? ArrowDown : undefined}
                         >
-                          {keyword.change === 0 ? "0" : Math.abs(keyword.change)}
+                          {keyword.change === null ? "—" : keyword.change === 0 ? "0" : Math.abs(keyword.change)}
                         </BadgeWithIcon>
                         <MiniSparkline data={keyword.positionHistory} className="text-utility-gray-400" />
                       </div>

@@ -536,3 +536,51 @@ Root cause analysis:
 
 ---
 
+
+
+=== SESSION S0008 START === 2026-01-29T16:42:15Z
+Focus: Implement tag filtering on domains list page
+Continuing from: S0007 (completed notifications slideout and domain tags)
+Active tasks: #20
+
+---
+
+S0008. Task #20: Implement tag filtering on domains list
+
+Implementation details:
+1. Added state management:
+   - selectedTags: Set<string> to track active filters
+   - allTags: computed from all domains' tags using useMemo
+   
+2. Updated filtering logic:
+   - Extended filteredItems to filter by both search query AND selected tags
+   - Tags are OR-filtered (domain must have at least one selected tag)
+   - Search and tags work together (AND between the two filters)
+
+3. Added tag filter UI:
+   - Tag03 icon with "Tags:" label
+   - All unique tags rendered as clickable Badge components
+   - Selected tags shown with brand color, unselected with gray
+   - Hover effect with ring-2 ring-brand-200
+   - "Clear filters" button (shows when filters are active)
+
+4. Added tags column to table:
+   - New column between Project and Keywords
+   - Shows badges for each tag on a domain
+   - Empty state shows "—" for domains without tags
+
+5. TypeScript fixes:
+   - Added explicit type annotations for tag parameters in forEach/map callbacks
+   - Wrapped Badge in button element (Badge doesn't support onClick)
+
+Build status: ✓ Successful
+All TypeScript errors resolved
+
+Git commit: pending
+
+=== SESSION S0008 END === 2026-01-29T16:42:15Z
+Status: completed
+Task #20: PASSING
+
+---
+

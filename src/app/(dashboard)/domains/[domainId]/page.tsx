@@ -16,7 +16,8 @@ import {
   Settings01,
   Link03,
   TrendUp02,
-  HomeLine
+  HomeLine,
+  Save01
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
@@ -30,7 +31,9 @@ import { Input } from "@/components/base/input/input";
 import { Select } from "@/components/base/select/select";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
-import { Heading as AriaHeading } from "react-aria-components";
+import { Heading as AriaHeading, type Key } from "react-aria-components";
+import { Tag, TagGroup, type TagItem, TagList } from "@/components/base/tags/tags";
+import { Plus } from "@untitledui/icons";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { MetricsChart04 } from "@/components/application/metrics/metrics";
 import { toast } from "sonner";
@@ -78,17 +81,21 @@ export default function DomainDetailPage() {
 
   const domain = useQuery(api.domains.getDomain, { domainId });
   const keywords = useQuery(api.keywords.getKeywords, { domainId });
+  const projects = useQuery(api.projects.list);
   const deleteDomain = useMutation(api.domains.remove);
   const refreshKeywords = useMutation(api.keywords.refreshKeywordPositions);
   const updateDomain = useMutation(api.domains.updateDomain);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({
+    projectId: "" as Id<"projects"> | "",
+    tags: [] as TagItem[],
     refreshFrequency: "",
     searchEngine: "",
     location: "",
     language: "",
   });
+  const [newTagInput, setNewTagInput] = useState("");
 
   const handleDelete = async () => {
     try {
@@ -117,11 +124,31 @@ export default function DomainDetailPage() {
     }
   };
 
+  const handleAddTag = () => {
+    const trimmed = newTagInput.trim();
+    if (trimmed && !editForm.tags.some(t => t.label === trimmed)) {
+      setEditForm({
+        ...editForm,
+        tags: [...editForm.tags, { id: `tag-${Date.now()}`, label: trimmed }],
+      });
+      setNewTagInput("");
+    }
+  };
+
+  const handleRemoveTag = (keys: Set<Key>) => {
+    setEditForm({
+      ...editForm,
+      tags: editForm.tags.filter(tag => !keys.has(tag.id)),
+    });
+  };
+
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await updateDomain({
         domainId,
+        projectId: editForm.projectId || undefined,
+        tags: editForm.tags.length > 0 ? editForm.tags.map(t => t.label) : undefined,
         settings: {
           refreshFrequency: editForm.refreshFrequency as "daily" | "weekly" | "on_demand",
           searchEngine: editForm.searchEngine,
@@ -140,12 +167,19 @@ export default function DomainDetailPage() {
   // Populate form when modal opens
   useEffect(() => {
     if (isEditModalOpen && domain) {
+      const tags = (domain.tags || []).map((tag, idx) => ({
+        id: `tag-${idx}`,
+        label: tag,
+      }));
       setEditForm({
+        projectId: domain.projectId,
+        tags,
         refreshFrequency: domain.settings.refreshFrequency,
         searchEngine: domain.settings.searchEngine,
         location: domain.settings.location,
         language: domain.settings.language,
       });
+      setNewTagInput("");
     }
   }, [isEditModalOpen, domain]);
 
@@ -378,6 +412,66 @@ export default function DomainDetailPage() {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <label className="mb-1.5 block text-sm font-medium text-secondary">
+                      Project
+                    </label>
+                    <select
+                      value={editForm.projectId}
+                      onChange={(e) => setEditForm({ ...editForm, projectId: e.target.value as Id<"projects"> })}
+                      className="w-full rounded-lg border border-secondary bg-primary px-3 py-2 text-sm text-primary focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/20"
+                    >
+                      {projects?.map((project) => (
+                        <option key={project._id} value={project._id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="mb-1.5 block text-sm font-medium text-secondary">
+                      Tags
+                    </label>
+                    <div className="flex gap-2">
+                      <Input
+                        size="md"
+                        value={newTagInput}
+                        onChange={(value) => setNewTagInput(value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddTag();
+                          }
+                        }}
+                        placeholder="Add a tag..."
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        color="secondary"
+                        size="md"
+                        iconLeading={Plus}
+                        onClick={handleAddTag}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                    {editForm.tags.length > 0 && (
+                      <div className="mt-3">
+                        <TagGroup
+                          label="Domain tags"
+                          size="md"
+                          onRemove={handleRemoveTag}
+                        >
+                          <TagList className="flex flex-wrap gap-2" items={editForm.tags}>
+                            {(item) => <Tag {...item}>{item.label}</Tag>}
+                          </TagList>
+                        </TagGroup>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="mb-1.5 block text-sm font-medium text-secondary">
                       Refresh Frequency
                     </label>
                     <select
@@ -395,7 +489,7 @@ export default function DomainDetailPage() {
                     label="Search Engine"
                     size="md"
                     value={editForm.searchEngine}
-                    onChange={(e) => setEditForm({ ...editForm, searchEngine: e.target.value })}
+                    onChange={(value) => setEditForm({ ...editForm, searchEngine: value })}
                     placeholder="google.pl"
                     className="sm:col-span-1"
                   />
@@ -404,7 +498,7 @@ export default function DomainDetailPage() {
                     label="Location"
                     size="md"
                     value={editForm.location}
-                    onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                    onChange={(value) => setEditForm({ ...editForm, location: value })}
                     placeholder="Poland"
                     className="sm:col-span-1"
                   />
@@ -413,7 +507,7 @@ export default function DomainDetailPage() {
                     label="Language"
                     size="md"
                     value={editForm.language}
-                    onChange={(e) => setEditForm({ ...editForm, language: e.target.value })}
+                    onChange={(value) => setEditForm({ ...editForm, language: value })}
                     placeholder="pl"
                     className="sm:col-span-2"
                   />
