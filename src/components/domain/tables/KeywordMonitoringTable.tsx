@@ -454,7 +454,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   background: "#f8f8f8",
                   right: "1px",
                   fontSize: "8px",
-                  padding: "12px 0",
+                  padding: "12px",
                   width: "50px",
                   minWidth: "50px",
                 }}
@@ -623,7 +623,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     style={{
                       background: "#f8f8f8",
                       right: "1px",
-                      padding: "12px 0",
+                      padding: "12px",
                       width: "50px",
                       minWidth: "50px",
                     }}
