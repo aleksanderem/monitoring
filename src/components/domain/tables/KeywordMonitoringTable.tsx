@@ -339,9 +339,6 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                 Difficulty
               </SortableHeader>
               <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
-                URL
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
                 Last Updated
               </th>
             </tr>
@@ -373,7 +370,20 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
 
                   {/* Keyword */}
                   <td className="px-6 py-4">
-                    <span className="font-medium text-primary">{keyword.phrase}</span>
+                    <div className="flex flex-col gap-1">
+                      <span className="font-medium text-primary">{keyword.phrase}</span>
+                      {keyword.url && (
+                        <span className="font-mono text-xs text-tertiary" title={keyword.url}>
+                          {(() => {
+                            try {
+                              return new URL(keyword.url).pathname.toLowerCase();
+                            } catch {
+                              return keyword.url.toLowerCase();
+                            }
+                          })()}
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   {/* Current Position */}
@@ -440,19 +450,6 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     <BadgeWithDot size="sm" color={difficultyBadge.color} type="modern">
                       {keyword.difficulty} • {difficultyBadge.label}
                     </BadgeWithDot>
-                  </td>
-
-                  {/* URL */}
-                  <td className="px-6 py-4">
-                    <span className="truncate font-mono text-sm text-tertiary" title={keyword.url}>
-                      {keyword.url ? (() => {
-                        try {
-                          return new URL(keyword.url).pathname.toLowerCase();
-                        } catch {
-                          return keyword.url.toLowerCase();
-                        }
-                      })() : "—"}
-                    </span>
                   </td>
 
                   {/* Last Updated */}
