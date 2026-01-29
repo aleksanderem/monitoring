@@ -543,18 +543,18 @@ export default defineSchema({
   // Individual backlinks
   domainBacklinks: defineTable({
     domainId: v.id("domains"),
-    domainFrom: v.string(),
+    domainFrom: v.optional(v.string()), // Made optional for backwards compatibility with old data
     urlFrom: v.string(),
     urlTo: v.string(),
     tldFrom: v.optional(v.string()),
     anchor: v.optional(v.string()),
     textPre: v.optional(v.string()),
     textPost: v.optional(v.string()),
-    dofollow: v.boolean(),
+    dofollow: v.optional(v.boolean()), // New field, optional for backwards compatibility
     itemType: v.optional(v.string()), // anchor, redirect, image, canonical
-    rank: v.optional(v.number()),
+    rank: v.optional(v.number()), // New field name
     pageFromRank: v.optional(v.number()),
-    domainFromRank: v.optional(v.number()),
+    domainFromRank: v.optional(v.number()), // New field name
     backlink_spam_score: v.optional(v.number()),
     firstSeen: v.optional(v.string()),
     lastSeen: v.optional(v.string()),
@@ -564,6 +564,11 @@ export default defineSchema({
     semanticLocation: v.optional(v.string()),
     domainFromCountry: v.optional(v.string()),
     fetchedAt: v.number(),
+    // Old fields for backwards compatibility (will be removed after data migration)
+    nofollow: v.optional(v.boolean()), // Old field, use dofollow instead
+    inlinkRank: v.optional(v.number()), // Old field, use rank instead
+    domainInlinkRank: v.optional(v.number()), // Old field, use domainFromRank instead
+    lastVisited: v.optional(v.string()), // Old field, use lastSeen instead
   })
     .index("by_domain", ["domainId"])
     .index("by_domain_urlFrom", ["domainId", "urlFrom"])

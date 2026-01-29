@@ -98,6 +98,18 @@ export const getBacklinks = query({
   },
 });
 
+// Cleanup function to delete all old backlinks with incompatible schema
+export const deleteAllBacklinks = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const allBacklinks = await ctx.db.query("domainBacklinks").collect();
+    for (const backlink of allBacklinks) {
+      await ctx.db.delete(backlink._id);
+    }
+    return { deleted: allBacklinks.length };
+  },
+});
+
 // Internal mutation to save backlink data
 export const saveBacklinkData = internalMutation({
   args: {
