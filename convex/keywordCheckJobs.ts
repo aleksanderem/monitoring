@@ -380,3 +380,74 @@ export const getKeywordPositionsCountInternal = internalQuery({
     return positions.length;
   },
 });
+
+// Cleanup stuck jobs - runs every 5 minutes via cron
+export const cleanupStuckJobs = internalMutation({
+  args: {},
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const PENDING_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+    const PROCESSING_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+
+    // Find stuck pending jobs (pending for more than 5 minutes)
+    const stuckPendingJobs = await ctx.db
+      .query("keywordCheckJobs")
+      .withIndex("by_status", (q) => q.eq("status", "pending"))
+      .collect();
+
+    for (const job of stuckPendingJobs) {
+      if (now - job.createdAt > PENDING_TIMEOUT) {
+        console.log(`[cleanupStuckJobs] Marking stuck pending job ${job._id} as failed`);
+        await ctx.db.patch(job._id, {
+          status: "failed",
+          error: "Job timed out in pending state",
+          completedAt: now,
+        });
+
+        // Clear checking status from all keywords
+        const keywords = await ctx.db
+          .query("keywords")
+          .withIndex("by_check_job", (q) => q.eq("checkJobId", job._id))
+          .collect();
+
+        for (const keyword of keywords) {
+          await ctx.db.patch(keyword._id, {
+            checkingStatus: undefined,
+            checkJobId: undefined,
+          });
+        }
+      }
+    }
+
+    // Find stuck processing jobs (processing for more than 15 minutes)
+    const stuckProcessingJobs = await ctx.db
+      .query("keywordCheckJobs")
+      .withIndex("by_status", (q) => q.eq("status", "processing"))
+      .collect();
+
+    for (const job of stuckProcessingJobs) {
+      const startTime = job.startedAt || job.createdAt;
+      if (now - startTime > PROCESSING_TIMEOUT) {
+        console.log(`[cleanupStuckJobs] Marking stuck processing job ${job._id} as failed`);
+        await ctx.db.patch(job._id, {
+          status: "failed",
+          error: "Job timed out during processing",
+          completedAt: now,
+        });
+
+        // Clear checking status from all keywords
+        const keywords = await ctx.db
+          .query("keywords")
+          .withIndex("by_check_job", (q) => q.eq("checkJobId", job._id))
+          .collect();
+
+        for (const keyword of keywords) {
+          await ctx.db.patch(keyword._id, {
+            checkingStatus: undefined,
+            checkJobId: undefined,
+          });
+        }
+      }
+    }
+  },
+});

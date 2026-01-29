@@ -31,4 +31,11 @@ crons.weekly(
 //   internal.scheduler.triggerWeeklyReports
 // );
 
+// Cleanup stuck keyword check jobs every 5 minutes
+crons.interval(
+  "cleanup-stuck-jobs",
+  { minutes: 5 },
+  internal.keywordCheckJobs.cleanupStuckJobs
+);
+
 export default crons;
