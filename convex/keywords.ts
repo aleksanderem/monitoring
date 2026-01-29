@@ -216,6 +216,95 @@ export const getMovementTrend = query({
   },
 });
 
+// Get monitoring statistics for overview cards
+export const getMonitoringStats = query({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgoStr = new Date(sevenDaysAgo).toISOString().split('T')[0];
+
+    let totalPosition = 0;
+    let positionCount = 0;
+    let totalPositionSevenDaysAgo = 0;
+    let positionCountSevenDaysAgo = 0;
+    let estimatedMonthlyTraffic = 0;
+    let gainers = 0;
+    let losers = 0;
+    let stable = 0;
+
+    for (const keyword of keywords) {
+      // Get latest position
+      const latestPosition = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+        .order("desc")
+        .first();
+
+      if (latestPosition?.position) {
+        totalPosition += latestPosition.position;
+        positionCount++;
+
+        // Calculate potential traffic for keywords in top 50
+        if (latestPosition.position <= 50 && latestPosition.searchVolume) {
+          const ctr = getCTRForPosition(latestPosition.position);
+          estimatedMonthlyTraffic += latestPosition.searchVolume * ctr;
+        }
+      }
+
+      // Get positions from the last 7 days to compare
+      const positions = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+        .filter((q) => q.gte(q.field("date"), sevenDaysAgoStr))
+        .collect();
+
+      if (positions.length >= 2) {
+        // Sort by date
+        positions.sort((a, b) => a.date.localeCompare(b.date));
+        const oldPos = positions[0].position;
+        const newPos = positions[positions.length - 1].position;
+
+        if (oldPos !== null && newPos !== null) {
+          totalPositionSevenDaysAgo += oldPos;
+          positionCountSevenDaysAgo++;
+
+          // Determine movement status (lower position number = better)
+          if (newPos < oldPos) {
+            gainers++;
+          } else if (newPos > oldPos) {
+            losers++;
+          } else {
+            stable++;
+          }
+        }
+      }
+    }
+
+    const avgPosition = positionCount > 0 ? totalPosition / positionCount : 0;
+    const avgPositionSevenDaysAgo = positionCountSevenDaysAgo > 0
+      ? totalPositionSevenDaysAgo / positionCountSevenDaysAgo
+      : 0;
+
+    const avgPositionChange7d = avgPositionSevenDaysAgo > 0
+      ? avgPositionSevenDaysAgo - avgPosition // Negative means improvement
+      : 0;
+
+    return {
+      totalKeywords: keywords.length,
+      avgPosition: Math.round(avgPosition * 10) / 10,
+      avgPositionChange7d: Math.round(avgPositionChange7d * 10) / 10,
+      estimatedMonthlyTraffic: Math.round(estimatedMonthlyTraffic),
+      movementBreakdown: { gainers, losers, stable },
+      netMovement7d: gainers - losers,
+    };
+  },
+});
+
 // Get recent keyword position changes (for recent changes table)
 export const getRecentChanges = query({
   args: {
