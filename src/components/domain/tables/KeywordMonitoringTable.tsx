@@ -463,7 +463,18 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                       <div className="flex flex-col gap-1">
                         <span className="font-medium text-primary">{keyword.phrase}</span>
                         {keyword.url && (
-                          <span className="font-mono text-xs text-tertiary" title={keyword.url}>
+                          <span
+                            className="font-mono text-tertiary"
+                            style={{
+                              whiteSpace: "nowrap",
+                              width: "170px",
+                              textOverflow: "ellipsis",
+                              overflow: "hidden",
+                              fontSize: "9px",
+                              display: "block",
+                            }}
+                            title={keyword.url}
+                          >
                             {(() => {
                               try {
                                 return new URL(keyword.url).pathname.toLowerCase();
