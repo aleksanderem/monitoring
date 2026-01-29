@@ -35,7 +35,7 @@ export function BulkActionBar({
             <Button
               key={index}
               size="sm"
-              variant={action.variant === "destructive" ? "tertiary-color" : "tertiary-gray"}
+              color="tertiary"
               onClick={() => action.onClick(selectedIds)}
             >
               {action.icon}
@@ -47,7 +47,7 @@ export function BulkActionBar({
 
       <Button
         size="sm"
-        variant="tertiary-gray"
+        color="tertiary"
         onClick={onClearSelection}
       >
         <X className="h-4 w-4" />

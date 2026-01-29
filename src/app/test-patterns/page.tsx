@@ -53,16 +53,16 @@ export default function TestPatternsPage() {
           ]}
           actions={
             <>
-              <Button variant="tertiary-gray" size="sm">Edit</Button>
-              <Button variant="tertiary-color" size="sm">Delete</Button>
+              <Button color="tertiary" size="sm">Edit</Button>
+              <Button color="tertiary" size="sm">Delete</Button>
             </>
           }
           footer={
             <>
-              <Button variant="tertiary-gray" onClick={() => setIsOpen(false)}>
+              <Button color="secondary" onClick={() => setIsOpen(false)}>
                 Cancel
               </Button>
-              <Button variant="primary">Save</Button>
+              <Button color="primary">Save</Button>
             </>
           }
         />

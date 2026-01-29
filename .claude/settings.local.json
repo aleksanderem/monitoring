@@ -4,7 +4,9 @@
       "Bash(npm run convex:*)",
       "Bash(npm run:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -3,10 +3,10 @@
 import { useRouter } from "next/navigation";
 import {
   Folder,
-  Globe,
-  Search,
-  Settings,
-  Users
+  Globe01,
+  SearchSm,
+  Settings01,
+  Users01
 } from "@untitledui/icons";
 
 export interface CommandPaletteProps {
@@ -47,7 +47,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             onClick={() => navigate("/dashboard")}
             className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-100 rounded-lg"
           >
-            <Search className="h-4 w-4" />
+            <SearchSm className="h-4 w-4" />
             Dashboard
           </button>
 
@@ -63,7 +63,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             onClick={() => navigate("/teams")}
             className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-100 rounded-lg"
           >
-            <Users className="h-4 w-4" />
+            <Users01 className="h-4 w-4" />
             Teams
           </button>
 
@@ -71,7 +71,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             onClick={() => navigate("/settings")}
             className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-100 rounded-lg"
           >
-            <Settings className="h-4 w-4" />
+            <Settings01 className="h-4 w-4" />
             Settings
           </button>
         </div>

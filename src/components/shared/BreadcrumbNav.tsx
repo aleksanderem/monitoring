@@ -2,7 +2,7 @@
 
 import { Breadcrumbs } from "@/components/application/breadcrumbs/breadcrumbs";
 import Link from "next/link";
-import { Home } from "@untitledui/icons";
+import { Home05 } from "@untitledui/icons";
 
 export interface BreadcrumbItem {
   label: string;
@@ -17,7 +17,7 @@ export function BreadcrumbNav({ items }: BreadcrumbNavProps) {
   return (
     <Breadcrumbs type="text" divider="chevron">
       <Breadcrumbs.Item href="/dashboard">
-        <Home className="h-4 w-4" />
+        <Home05 className="h-4 w-4" />
       </Breadcrumbs.Item>
 
       {items.map((item, index) => (

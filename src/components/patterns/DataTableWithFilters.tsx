@@ -84,7 +84,7 @@ export function DataTableWithFilters<T extends { _id: string }>({
             type="search"
             placeholder={searchPlaceholder}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(value) => setSearch(value)}
             className="max-w-sm"
           />
         </div>
