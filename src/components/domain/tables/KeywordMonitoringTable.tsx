@@ -454,9 +454,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   background: "#f8f8f8",
                   right: "1px",
                   fontSize: "8px",
-                  padding: "12px 16px",
-                  width: "60px",
-                  minWidth: "60px",
+                  padding: "12px 0",
+                  width: "50px",
+                  minWidth: "50px",
                 }}
               >
                 <Tooltip title="Akcje" placement="bottom">
@@ -624,8 +624,8 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                       background: "#f8f8f8",
                       right: "1px",
                       padding: "12px 0",
-                      width: "60px",
-                      minWidth: "60px",
+                      width: "50px",
+                      minWidth: "50px",
                     }}
                   >
                     <Dropdown.Root>
