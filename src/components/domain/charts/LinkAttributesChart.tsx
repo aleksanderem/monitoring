@@ -1,21 +1,20 @@
 "use client";
 
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { Pie, PieChart } from "recharts";
 import { Settings01 } from "@untitledui/icons";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 
 interface LinkAttributesChartProps {
   data: Record<string, number>;
   isLoading?: boolean;
 }
-
-const COLORS = [
-  "#EF4444", // red
-  "#F59E0B", // amber
-  "#10B981", // green
-  "#3B82F6", // blue
-  "#8B5CF6", // purple
-  "#EC4899", // pink
-];
 
 export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProps) {
   if (isLoading) {
@@ -32,14 +31,15 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
     );
   }
 
-  // Convert object to array
+  // Convert object to array and sort
   const chartData = data
     ? Object.entries(data)
         .map(([name, value]) => ({
-          name: name.charAt(0).toUpperCase() + name.slice(1),
-          value,
+          attribute: name.charAt(0).toUpperCase() + name.slice(1),
+          links: value,
+          fill: `var(--color-${name})`,
         }))
-        .sort((a, b) => b.value - a.value)
+        .sort((a, b) => b.links - a.links)
     : [];
 
   if (chartData.length === 0) {
@@ -57,6 +57,24 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
     );
   }
 
+  // Create chart config with colors
+  const chartConfig = data
+    ? Object.entries(data).reduce((acc, [key], index) => {
+        const colors = [
+          "hsl(var(--chart-1))",
+          "hsl(var(--chart-2))",
+          "hsl(var(--chart-3))",
+          "hsl(var(--chart-4))",
+          "hsl(var(--chart-5))",
+        ];
+        acc[key] = {
+          label: key.charAt(0).toUpperCase() + key.slice(1),
+          color: colors[index % colors.length],
+        };
+        return acc;
+      }, {} as ChartConfig)
+    : {};
+
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
@@ -64,39 +82,19 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
         <p className="text-sm text-tertiary">Nofollow, noopener, and other attributes</p>
       </div>
 
-      <ResponsiveContainer width="100%" height={300}>
+      <ChartContainer config={chartConfig} className="h-[300px] w-full">
         <PieChart>
+          <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+          <ChartLegend content={<ChartLegendContent />} />
           <Pie
             data={chartData}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
-            outerRadius={80}
-            fill="#8884d8"
-            dataKey="value"
-          >
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "#FFFFFF",
-              border: "1px solid #E5E7EB",
-              borderRadius: "8px",
-              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-            }}
-            formatter={(value) => [(value || 0).toLocaleString(), "Links"]}
-          />
-          <Legend
-            verticalAlign="bottom"
-            height={36}
-            iconType="circle"
-            wrapperStyle={{ fontSize: "12px" }}
+            dataKey="links"
+            nameKey="attribute"
+            innerRadius={60}
+            strokeWidth={5}
           />
         </PieChart>
-      </ResponsiveContainer>
+      </ChartContainer>
     </div>
   );
 }
