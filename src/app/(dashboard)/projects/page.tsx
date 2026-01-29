@@ -91,20 +91,25 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-display-sm font-semibold text-primary">
-            Projects
-          </h1>
-          <p className="text-md text-tertiary mt-1">
-            Manage your SEO monitoring projects
-          </p>
+    <div className="mx-auto flex max-w-container flex-col gap-8 px-4 py-8 lg:px-8">
+      <div className="relative flex flex-col gap-5 bg-primary">
+        <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
+          <div className="flex flex-col gap-0.5 lg:gap-1">
+            <p className="text-xl font-semibold text-primary lg:text-display-xs">
+              Projects
+            </p>
+            <p className="text-md text-tertiary">
+              Manage your SEO monitoring projects and track keyword rankings.
+            </p>
+          </div>
+          <div className="flex flex-col gap-4 lg:flex-row">
+            <div className="flex items-start gap-3">
+              <Button iconLeading={Plus} size="md">
+                New Project
+              </Button>
+            </div>
+          </div>
         </div>
-
-        <Button iconLeading={Plus} size="md">
-          New Project
-        </Button>
       </div>
 
       {projects.length === 0 ? (
