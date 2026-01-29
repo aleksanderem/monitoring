@@ -8,7 +8,7 @@ import { cx } from "@/utils/cx";
 interface MetricCardProps {
   title: string;
   value: string | number;
-  subtitle?: string;
+  subtitle?: ReactNode;
   icon?: FC<{ className?: string }>;
   trend?: "positive" | "negative" | null;
   change?: string;
