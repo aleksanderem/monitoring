@@ -728,3 +728,152 @@ export const getDomainsInternal = internalQuery({
       .collect();
   },
 });
+
+// List all domains for current user (across all projects)
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+
+    // Get user's teams
+    const memberships = await ctx.db
+      .query("teamMembers")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    if (memberships.length === 0) {
+      return [];
+    }
+
+    const teamIds = memberships.map((m) => m.teamId);
+
+    // Get all projects from user's teams
+    const allProjects: any[] = [];
+    for (const teamId of teamIds) {
+      const projects = await ctx.db
+        .query("projects")
+        .withIndex("by_team", (q) => q.eq("teamId", teamId))
+        .collect();
+      allProjects.push(...projects);
+    }
+
+    const projectIds = allProjects.map((p) => p._id);
+
+    // Get all domains from these projects
+    const allDomains: any[] = [];
+    for (const projectId of projectIds) {
+      const domains = await ctx.db
+        .query("domains")
+        .withIndex("by_project", (q) => q.eq("projectId", projectId))
+        .collect();
+
+      // Add project reference and get stats for each domain
+      for (const domain of domains) {
+        const project = allProjects.find((p) => p._id === projectId);
+
+        // Get keyword count
+        const keywords = await ctx.db
+          .query("keywords")
+          .withIndex("by_domain", (q) => q.eq("domainId", domain._id))
+          .filter((q) => q.eq(q.field("status"), "active"))
+          .collect();
+
+        allDomains.push({
+          ...domain,
+          project,
+          keywordCount: keywords.length,
+        });
+      }
+    }
+
+    // Sort by creation time (most recent first)
+    return allDomains.sort((a, b) => b.createdAt - a.createdAt);
+  },
+});
+
+// Simplified create mutation (auto-resolves user's first team and project)
+export const create = mutation({
+  args: {
+    projectId: v.id("projects"),
+    domain: v.string(),
+    searchEngine: v.optional(v.string()),
+    refreshFrequency: v.optional(v.union(
+      v.literal("daily"),
+      v.literal("weekly"),
+      v.literal("on_demand")
+    )),
+  },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const domainId = await ctx.db.insert("domains", {
+      projectId: args.projectId,
+      domain: args.domain,
+      settings: {
+        refreshFrequency: args.refreshFrequency || "weekly",
+        searchEngine: args.searchEngine || "google.com",
+        location: "Poland",
+        language: "pl",
+      },
+      createdAt: Date.now(),
+    });
+
+    return domainId;
+  },
+});
+
+// Simplified delete mutation
+export const remove = mutation({
+  args: {
+    id: v.id("domains"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get domain for cascade delete
+    const domain = await ctx.db.get(args.id);
+    if (!domain) {
+      throw new Error("Domain not found");
+    }
+
+    // Delete discovered keywords
+    const discoveredKeywords = await ctx.db
+      .query("discoveredKeywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.id))
+      .collect();
+
+    for (const dk of discoveredKeywords) {
+      await ctx.db.delete(dk._id);
+    }
+
+    // Delete all keywords and positions
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.id))
+      .collect();
+
+    for (const keyword of keywords) {
+      const positions = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+        .collect();
+
+      for (const pos of positions) {
+        await ctx.db.delete(pos._id);
+      }
+
+      await ctx.db.delete(keyword._id);
+    }
+
+    await ctx.db.delete(args.id);
+  },
+});
