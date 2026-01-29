@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { Hash01, ChevronUp, ChevronDown, ChevronSelectorVertical, RefreshCcw01, Trash01 } from "@untitledui/icons";
+import { Hash01, ChevronUp, ChevronDown, ChevronSelectorVertical, RefreshCcw01, Trash01, Settings01 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { BadgeWithDot } from "@/components/base/badges/badges";
@@ -10,6 +10,7 @@ import { Button } from "@/components/base/buttons/button";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { MiniSparkline } from "@/components/domain/charts/MiniSparkline";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
+import { DialogTrigger, Popover } from "react-aria-components";
 import { cx } from "@/utils/cx";
 import { toast } from "sonner";
 
@@ -19,6 +20,19 @@ interface KeywordMonitoringTableProps {
 
 type SortColumn = "phrase" | "currentPosition" | "change" | "status" | "potential" | "searchVolume" | "difficulty";
 type SortDirection = "asc" | "desc";
+
+type ColumnId = "position" | "previous" | "change" | "status" | "potential" | "volume" | "difficulty" | "lastUpdated";
+
+const AVAILABLE_COLUMNS: { id: ColumnId; label: string }[] = [
+  { id: "position", label: "Position" },
+  { id: "previous", label: "Previous" },
+  { id: "change", label: "Change" },
+  { id: "status", label: "Status" },
+  { id: "potential", label: "Potential" },
+  { id: "volume", label: "Volume" },
+  { id: "difficulty", label: "Difficulty" },
+  { id: "lastUpdated", label: "Last Updated" },
+];
 
 // Helper: Format numbers with K/M abbreviations
 function formatNumber(num: number): string {
@@ -102,6 +116,20 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [selectedRows, setSelectedRows] = useState<Set<Id<"keywords">>>(new Set());
+  const [visibleColumns, setVisibleColumns] = useState<Set<ColumnId>>(
+    new Set(["position", "previous", "change", "status", "volume", "difficulty", "lastUpdated"])
+  );
+
+  // Handle column visibility toggle
+  const toggleColumn = (columnId: ColumnId) => {
+    const newVisible = new Set(visibleColumns);
+    if (newVisible.has(columnId)) {
+      newVisible.delete(columnId);
+    } else {
+      newVisible.add(columnId);
+    }
+    setVisibleColumns(newVisible);
+  };
 
   // Handle column sort
   const handleSort = (column: SortColumn) => {
@@ -281,7 +309,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
         </div>
       )}
 
-      {/* Search bar */}
+      {/* Search bar and column visibility */}
       <div className="flex items-center gap-4">
         <input
           type="text"
@@ -293,6 +321,35 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
           }}
           className="flex-1 rounded-lg border border-secondary bg-primary px-4 py-2 text-sm text-primary placeholder:text-tertiary focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
         />
+        <DialogTrigger>
+          <Button size="sm" color="secondary" iconLeading={Settings01}>
+            Kolumny
+          </Button>
+          <Popover
+            placement="bottom end"
+            className="w-56 origin-(--trigger-anchor-point) overflow-auto rounded-lg bg-primary shadow-lg ring-1 ring-secondary_alt will-change-transform entering:duration-150 entering:ease-out entering:animate-in entering:fade-in exiting:duration-100 exiting:ease-in exiting:animate-out exiting:fade-out"
+          >
+            <div className="flex flex-col gap-2 p-2">
+              <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-tertiary">
+                Widoczne kolumny
+              </div>
+              {AVAILABLE_COLUMNS.map((column) => (
+                <label
+                  key={column.id}
+                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary-subtle"
+                >
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.has(column.id)}
+                    onChange={() => toggleColumn(column.id)}
+                    className="h-4 w-4 cursor-pointer rounded border-secondary text-brand-600 focus:ring-brand-600"
+                  />
+                  <span className="text-sm text-primary">{column.label}</span>
+                </label>
+              ))}
+            </div>
+          </Popover>
+        </DialogTrigger>
       </div>
 
       {/* Table - Desktop view */}
@@ -317,30 +374,46 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
               <SortableHeader column="phrase" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
                 Keyword
               </SortableHeader>
-              <SortableHeader column="currentPosition" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
-                Position
-              </SortableHeader>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
-                Previous
-              </th>
-              <SortableHeader column="change" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
-                Change
-              </SortableHeader>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
-                Status
-              </th>
-              <SortableHeader column="potential" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
-                Potential
-              </SortableHeader>
-              <SortableHeader column="searchVolume" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
-                Volume
-              </SortableHeader>
-              <SortableHeader column="difficulty" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
-                Difficulty
-              </SortableHeader>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
-                Last Updated
-              </th>
+              {visibleColumns.has("position") && (
+                <SortableHeader column="currentPosition" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
+                  Position
+                </SortableHeader>
+              )}
+              {visibleColumns.has("previous") && (
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
+                  Previous
+                </th>
+              )}
+              {visibleColumns.has("change") && (
+                <SortableHeader column="change" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
+                  Change
+                </SortableHeader>
+              )}
+              {visibleColumns.has("status") && (
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
+                  Status
+                </th>
+              )}
+              {visibleColumns.has("potential") && (
+                <SortableHeader column="potential" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
+                  Potential
+                </SortableHeader>
+              )}
+              {visibleColumns.has("volume") && (
+                <SortableHeader column="searchVolume" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
+                  Volume
+                </SortableHeader>
+              )}
+              {visibleColumns.has("difficulty") && (
+                <SortableHeader column="difficulty" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
+                  Difficulty
+                </SortableHeader>
+              )}
+              {visibleColumns.has("lastUpdated") && (
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
+                  Last Updated
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -387,77 +460,93 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   </td>
 
                   {/* Current Position */}
-                  <td className="px-6 py-4">
-                    {keyword.currentPosition ? (
-                      <span className={cx(
-                        "inline-flex items-center justify-center rounded-md px-3 py-1 text-lg font-semibold",
-                        getPositionBadgeClass(keyword.currentPosition)
-                      )}>
-                        {keyword.currentPosition}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-tertiary">—</span>
-                    )}
-                  </td>
-
-                  {/* Previous Position */}
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-secondary">
-                      {keyword.previousPosition || "—"}
-                    </span>
-                  </td>
-
-                  {/* Change with Sparkline */}
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      {keyword.change !== 0 ? (
+                  {visibleColumns.has("position") && (
+                    <td className="px-6 py-4">
+                      {keyword.currentPosition ? (
                         <span className={cx(
-                          "flex items-center gap-1 text-sm font-medium",
-                          keyword.change > 0 ? "text-utility-success-600" : "text-utility-error-600"
+                          "inline-flex items-center justify-center rounded-md px-3 py-1 text-lg font-semibold",
+                          getPositionBadgeClass(keyword.currentPosition)
                         )}>
-                          {keyword.change > 0 ? "↑" : "↓"} {Math.abs(keyword.change)}
+                          {keyword.currentPosition}
                         </span>
                       ) : (
-                        <span className="text-sm text-tertiary">→ 0</span>
+                        <span className="text-sm text-tertiary">—</span>
                       )}
-                      <MiniSparkline data={keyword.positionHistory} className="text-utility-gray-400" />
-                    </div>
-                  </td>
+                    </td>
+                  )}
+
+                  {/* Previous Position */}
+                  {visibleColumns.has("previous") && (
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-secondary">
+                        {keyword.previousPosition || "—"}
+                      </span>
+                    </td>
+                  )}
+
+                  {/* Change with Sparkline */}
+                  {visibleColumns.has("change") && (
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        {keyword.change !== 0 ? (
+                          <span className={cx(
+                            "flex items-center gap-1 text-sm font-medium",
+                            keyword.change > 0 ? "text-utility-success-600" : "text-utility-error-600"
+                          )}>
+                            {keyword.change > 0 ? "↑" : "↓"} {Math.abs(keyword.change)}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-tertiary">→ 0</span>
+                        )}
+                        <MiniSparkline data={keyword.positionHistory} className="text-utility-gray-400" />
+                      </div>
+                    </td>
+                  )}
 
                   {/* Status */}
-                  <td className="px-6 py-4">
-                    <BadgeWithDot size="sm" color={statusBadge.color} type="modern">
-                      {statusBadge.label}
-                    </BadgeWithDot>
-                  </td>
+                  {visibleColumns.has("status") && (
+                    <td className="px-6 py-4">
+                      <BadgeWithDot size="sm" color={statusBadge.color} type="modern">
+                        {statusBadge.label}
+                      </BadgeWithDot>
+                    </td>
+                  )}
 
                   {/* Potential */}
-                  <td className="px-6 py-4">
-                    <span className="font-medium text-primary">
-                      {formatNumber(keyword.potential)}
-                    </span>
-                  </td>
+                  {visibleColumns.has("potential") && (
+                    <td className="px-6 py-4">
+                      <span className="font-medium text-primary">
+                        {formatNumber(keyword.potential)}
+                      </span>
+                    </td>
+                  )}
 
                   {/* Search Volume */}
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-secondary">
-                      {formatNumber(keyword.searchVolume)}
-                    </span>
-                  </td>
+                  {visibleColumns.has("volume") && (
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-secondary">
+                        {formatNumber(keyword.searchVolume)}
+                      </span>
+                    </td>
+                  )}
 
                   {/* Difficulty */}
-                  <td className="px-6 py-4">
-                    <BadgeWithDot size="sm" color={difficultyBadge.color} type="modern">
-                      {keyword.difficulty} • {difficultyBadge.label}
-                    </BadgeWithDot>
-                  </td>
+                  {visibleColumns.has("difficulty") && (
+                    <td className="px-6 py-4">
+                      <BadgeWithDot size="sm" color={difficultyBadge.color} type="modern">
+                        {keyword.difficulty} • {difficultyBadge.label}
+                      </BadgeWithDot>
+                    </td>
+                  )}
 
                   {/* Last Updated */}
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-tertiary">
-                      {new Date(keyword.lastUpdated).toLocaleDateString()}
-                    </span>
-                  </td>
+                  {visibleColumns.has("lastUpdated") && (
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-tertiary">
+                        {new Date(keyword.lastUpdated).toLocaleDateString()}
+                      </span>
+                    </td>
+                  )}
                 </tr>
               );
             })}
