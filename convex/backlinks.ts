@@ -89,8 +89,8 @@ export const getBacklinks = query({
       total: backlinks.length,
       items: backlinks.slice(offset, offset + limit),
       stats: {
-        totalDofollow: backlinks.filter(b => b.dofollow).length,
-        totalNofollow: backlinks.filter(b => !b.dofollow).length,
+        totalDofollow: backlinks.filter(b => b.dofollow === true).length,
+        totalNofollow: backlinks.filter(b => b.dofollow !== true).length,
         avgRank: backlinks.reduce((sum, b) => sum + (b.rank || 0), 0) / backlinks.length || 0,
         avgSpamScore: backlinks.reduce((sum, b) => sum + (b.backlink_spam_score || 0), 0) / backlinks.length || 0,
       },
