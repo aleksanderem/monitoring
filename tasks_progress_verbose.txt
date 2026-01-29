@@ -254,3 +254,23 @@ Commit: Projects page header updated to match reference pattern
 
 ---
 
+
+S0003. Task #8 - Create Project Dialog:
+- Created CreateProjectDialog component at src/components/application/modals/create-project-dialog.tsx
+- Uses Untitled UI Modal, ModalOverlay, Dialog components
+- Form structure:
+  * Header with title and description
+  * Single Input field for project name
+  * Cancel and Create buttons in footer
+  * Loading state during submission
+  * Form validation (required field)
+- Integrated with Convex mutation: api.projects.create
+- Toast notifications for success/error feedback
+- Auto-closes on successful creation
+- Updated Projects page to use CreateProjectDialog in both header and EmptyState
+- Removed Plus icon import (now encapsulated in dialog)
+- Build passing ✓
+- Status: PASSING
+
+---
+

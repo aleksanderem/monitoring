@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { Plus, Edit05, Trash01, SearchLg, Eye, FilterLines, Globe01, Hash01 } from "@untitledui/icons";
+import { Edit05, Trash01, SearchLg, Eye, FilterLines, Globe01, Hash01 } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/base/buttons/button";
@@ -14,6 +14,7 @@ import { BadgeWithDot } from "@/components/base/badges/badges";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { EmptyState } from "@/components/application/empty-state/empty-state";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { CreateProjectDialog } from "@/components/application/modals/create-project-dialog";
 import { toast } from "sonner";
 
 // Helper to format relative time
@@ -104,9 +105,7 @@ export default function ProjectsPage() {
           </div>
           <div className="flex flex-col gap-4 lg:flex-row">
             <div className="flex items-start gap-3">
-              <Button iconLeading={Plus} size="md">
-                New Project
-              </Button>
+              <CreateProjectDialog />
             </div>
           </div>
         </div>
@@ -126,9 +125,7 @@ export default function ProjectsPage() {
           </EmptyState.Content>
 
           <EmptyState.Footer>
-            <Button size="md" iconLeading={Plus}>
-              New Project
-            </Button>
+            <CreateProjectDialog />
           </EmptyState.Footer>
         </EmptyState>
       ) : (
