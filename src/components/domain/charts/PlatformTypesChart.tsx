@@ -55,18 +55,12 @@ export function PlatformTypesChart({ data, isLoading }: PlatformTypesChartProps)
     );
   }
 
-  // Create chart config with colors
+  // Create chart config with colors using chart CSS variables
   const chartConfig = Object.entries(data).reduce((acc, [key], index) => {
-    const colors = [
-      "hsl(var(--chart-1))",
-      "hsl(var(--chart-2))",
-      "hsl(var(--chart-3))",
-      "hsl(var(--chart-4))",
-      "hsl(var(--chart-5))",
-    ];
+    const colorVars = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
     acc[key] = {
       label: key.charAt(0).toUpperCase() + key.slice(1).replace(/-/g, " "),
-      color: colors[index % colors.length],
+      color: `var(--${colorVars[index % colorVars.length]})`,
     };
     return acc;
   }, {} as ChartConfig);

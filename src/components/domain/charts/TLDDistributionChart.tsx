@@ -56,7 +56,7 @@ export function TLDDistributionChart({ data, isLoading }: TLDDistributionChartPr
   const chartConfig = {
     count: {
       label: "Backlinks",
-      color: "hsl(var(--chart-1))",
+      color: "var(--chart-1)",
     },
   } satisfies ChartConfig;
 
