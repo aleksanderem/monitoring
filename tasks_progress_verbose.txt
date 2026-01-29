@@ -747,3 +747,27 @@ Files modified:
   - convex/backlinks.ts (strict equality in stats)
   - convex/migrations/cleanOldBacklinks.ts (created cleanup function for future)
 
+
+S0009. Issue #6: API data insertion failing with null values
+- Error: "Failed to insert document in domainBacklinks: Value does not match validator. Path: .textPost, Value: null, Validator: v.string()"
+- Root cause: DataForSEO API returns null for optional fields, but Convex v.optional() requires undefined
+- Fix: Convert all null values to undefined before inserting (using || undefined pattern)
+- Commit: f8c657e
+
+Testing after fix:
+- Ran fetchBacklinksFromAPI manually
+- Successfully fetched 1649 backlinks from API
+- Successfully stored 1000 backlinks in database (limit)
+- Distributions data saved correctly:
+  * TLD: pl (1357), com, org, etc.
+  * Platform Types: blogs (909), cms (923), ecommerce (60), etc.
+  * Countries: PL (1357), US (4), IN (4), etc.
+  * Link Attributes: nofollow (167), noopener (83), etc.
+- Summary stats: 1649 total backlinks, 261 referring domains, 189 IPs
+
+Verification:
+✓ getBacklinkDistributions returns data with all distributions
+✓ getBacklinkSummary returns summary with correct counts
+✓ Charts should now display data instead of "No data available"
+
+---
