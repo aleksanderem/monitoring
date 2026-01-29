@@ -454,7 +454,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   background: "#f8f8f8",
                   right: "1px",
                   fontSize: "8px",
-                  padding: "0 10px",
+                  padding: "12px 16px",
+                  width: "60px",
+                  minWidth: "60px",
                 }}
               >
                 <Tooltip title="Akcje" placement="bottom">
@@ -621,13 +623,17 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     style={{
                       background: "#f8f8f8",
                       right: "1px",
-                      padding: "0",
+                      padding: "12px 0",
+                      width: "60px",
+                      minWidth: "60px",
                     }}
                   >
                     <Dropdown.Root>
                       <Dropdown.DotsButton />
                       <Dropdown.Popover>
                         <Dropdown.Menu
+                          selectionMode={undefined as any}
+                          disallowEmptySelection={false}
                           onAction={async (key) => {
                             switch (key) {
                               case "view":
@@ -659,12 +665,12 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                             }
                           }}
                         >
-                          <Dropdown.Item key="view" label="Podgląd" icon={Eye} />
-                          <Dropdown.Item key="edit" label="Edytuj" icon={Edit05} />
+                          <Dropdown.Item id="view" label="Podgląd" icon={Eye} />
+                          <Dropdown.Item id="edit" label="Edytuj" icon={Edit05} />
                           <Dropdown.Separator />
-                          <Dropdown.Item key="refresh" label="Odśwież pozycję" icon={RefreshCcw01} />
+                          <Dropdown.Item id="refresh" label="Odśwież pozycję" icon={RefreshCcw01} />
                           <Dropdown.Separator />
-                          <Dropdown.Item key="delete" label="Usuń" icon={Trash01} />
+                          <Dropdown.Item id="delete" label="Usuń" icon={Trash01} />
                         </Dropdown.Menu>
                       </Dropdown.Popover>
                     </Dropdown.Root>
