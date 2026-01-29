@@ -63,7 +63,7 @@ export function MetricCard({
                 <span className="text-sm font-medium text-tertiary">{changeDescription}</span>
               )}
               {subtitle && !changeDescription && (
-                <p className="text-sm text-tertiary">{subtitle}</p>
+                <div className="text-sm text-tertiary">{subtitle}</div>
               )}
             </div>
           )}
