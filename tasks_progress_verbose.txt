@@ -99,3 +99,40 @@ Ready for Phase 2: Authentication & Layout
 
 ---
 
+
+=== SESSION S0003 CONTINUATION === 2026-01-29T06:30:00Z
+Focus: Fixing UI issues - button icon alignment and missing table actions column
+
+S0003. UI Fix #1 - Button Icon Alignment:
+- User feedback: "buttony maja z jakiegos powodu ikone nie inkline z tekstem"
+- Root cause: Icons were passed as children instead of using iconLeading prop
+- Fixed BulkActionBar.tsx to use iconLeading prop for all buttons
+- Fixed test-patterns page to pass icon components (not elements)
+- Updated type signatures: icon?: FC<{ className?: string }> | React.ReactNode
+- Result: Icons now properly inline with button text
+
+S0003. UI Fix #2 - Missing Table Actions Column:
+- User feedback: "w tabeli brakuje actions po prawej stronie"
+- Added RowAction<T> interface to DataTableWithFilters
+- Added rowActions prop to DataTableWithFiltersProps
+- Implemented actions column header (right-aligned)
+- Implemented actions cells with button group for each row
+- Added proper event handling (stopPropagation) to prevent row click conflicts
+- Updated test-patterns page with example row actions (Edit, Delete)
+- Result: Table now shows actions column on right side
+
+S0003. Dashboard Example Download:
+- User message: "Pobierz ten dashoard npx untitledui@latest example dashboards-01/02"
+- Downloaded using: npx untitledui@latest example dashboards-01/02 -e src/app -p components
+- Created src/app/dashboards-02.tsx with complete dashboard reference
+- Example includes: sidebar navigation, metrics charts, sortable tables, pagination, tabs
+- Shows desired UI appearance for the monitoring system
+- Result: Have reference for desired system UI appearance
+
+Commits:
+- d5b6788: Fix button icon alignment and add row actions column
+- d312a98: Download dashboard example for UI reference
+
+All builds passing successfully.
+
+---
