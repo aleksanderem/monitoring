@@ -512,3 +512,12 @@ S0007. Investigation findings:
 
 ---
 
+
+S0007. Deployment fix:
+- Root cause identified: Convex dev process needed restart to push new mutation to dev deployment
+- Confirmed function exists in backend via function-spec: "keywords.js:refreshKeywordPositions"
+- API uses anyApi (runtime should work despite missing TypeScript types)
+- Next: Test bulk refresh functionality in browser
+
+---
+
