@@ -305,6 +305,90 @@ export const getMonitoringStats = query({
   },
 });
 
+// Get keyword monitoring data with sparklines and status
+export const getKeywordMonitoring = query({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+
+    const results = [];
+
+    for (const keyword of keywords) {
+      // Get positions for the last 30 days for sparkline
+      const positions = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+        .filter((q) => q.gte(q.field("date"), new Date(thirtyDaysAgo).toISOString().split('T')[0]))
+        .collect();
+
+      positions.sort((a, b) => a.date.localeCompare(b.date));
+
+      // Find position from 7 days ago
+      const sevenDaysAgoStr = new Date(sevenDaysAgo).toISOString().split('T')[0];
+      const sevenDaysAgoPositions = positions.filter(p => p.date <= sevenDaysAgoStr);
+      const previousPosition = sevenDaysAgoPositions.length > 0
+        ? sevenDaysAgoPositions[sevenDaysAgoPositions.length - 1].position
+        : null;
+
+      // Get current position (most recent)
+      const latestPosition = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+        .order("desc")
+        .first();
+
+      const currentPosition = latestPosition?.position || null;
+      const change = currentPosition && previousPosition
+        ? previousPosition - currentPosition // Negative means dropped
+        : 0;
+
+      // Determine status
+      let status: "rising" | "stable" | "falling" | "new" = "stable";
+      if (previousPosition === null && currentPosition !== null) {
+        status = "new";
+      } else if (change > 0) {
+        status = "rising"; // Improved (lower position number)
+      } else if (change < 0) {
+        status = "falling"; // Dropped (higher position number)
+      }
+
+      // Calculate potential
+      const potential = currentPosition && latestPosition?.searchVolume
+        ? Math.round(latestPosition.searchVolume * getCTRForPosition(currentPosition))
+        : 0;
+
+      // Build position history array for sparkline (last 30 days)
+      const positionHistory = positions.map(p => ({
+        date: new Date(p.date).getTime(),
+        position: p.position,
+      }));
+
+      results.push({
+        keywordId: keyword._id,
+        phrase: keyword.phrase,
+        currentPosition,
+        previousPosition,
+        change,
+        status,
+        searchVolume: latestPosition?.searchVolume || 0,
+        difficulty: latestPosition?.difficulty || 0,
+        url: latestPosition?.url || "",
+        positionHistory,
+        lastUpdated: latestPosition?._creationTime || keyword._creationTime,
+        potential,
+      });
+    }
+
+    return results;
+  },
+});
+
 // Get recent keyword position changes (for recent changes table)
 export const getRecentChanges = query({
   args: {
