@@ -132,5 +132,74 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
     currentPage * pageSize
   );
 
-  return <div>Rendering coming next</div>;
+  if (keywords === undefined) {
+    return <LoadingState type="card" />;
+  }
+
+  if (!keywords || keywords.length === 0) {
+    return (
+      <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+        <div className="flex flex-col items-center gap-2 py-12 text-center">
+          <Hash01 className="h-10 w-10 text-fg-quaternary" />
+          <p className="text-sm font-medium text-primary">No keywords being monitored</p>
+          <p className="text-sm text-tertiary">Add keywords to start tracking their rankings</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Search bar */}
+      <div className="flex items-center gap-4">
+        <input
+          type="text"
+          placeholder="Search keywords..."
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="flex-1 rounded-lg border border-secondary bg-primary px-4 py-2 text-sm text-primary placeholder:text-tertiary focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
+        />
+      </div>
+
+      {/* Table - Desktop view */}
+      <div className="overflow-x-auto rounded-xl border border-secondary bg-primary">
+        <table className="w-full">
+          <thead className="sticky top-0 z-10 border-b-2 border-secondary bg-primary backdrop-blur">
+            <tr>
+              {/* Table headers will be added in next task */}
+            </tr>
+          </thead>
+          <tbody>
+            {/* Table rows will be added in next task */}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-tertiary">
+          Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredAndSortedKeywords.length)} of {filteredAndSortedKeywords.length} keywords
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="rounded-lg border border-secondary bg-primary px-3 py-1.5 text-sm font-medium text-primary hover:bg-secondary-subtle disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="rounded-lg border border-secondary bg-primary px-3 py-1.5 text-sm font-medium text-primary hover:bg-secondary-subtle disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
