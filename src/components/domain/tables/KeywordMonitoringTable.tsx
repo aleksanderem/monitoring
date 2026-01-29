@@ -297,8 +297,12 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
               iconLeading={RefreshCcw01}
               onClick={handleBulkRefresh}
               disabled={hasRefreshingKeywords}
+              className={hasRefreshingKeywords ? "opacity-60" : ""}
             >
-              {hasRefreshingKeywords ? "Odświeżanie..." : "Odśwież pozycję"}
+              <div className="flex items-center gap-2">
+                <RefreshCcw01 className={cx("h-4 w-4", hasRefreshingKeywords && "animate-spin")} />
+                <span>{hasRefreshingKeywords ? "Odświeżanie..." : "Odśwież pozycję"}</span>
+              </div>
             </Button>
             <DeleteConfirmationDialog
               title={`Usuń ${selectedRows.size} słów kluczowych?`}
