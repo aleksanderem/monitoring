@@ -3,6 +3,20 @@ import { mutation, query } from "./_generated/server";
 import { checkKeywordLimit } from "./limits";
 import { requirePermission, getContextFromDomain, getContextFromKeyword } from "./permissions";
 
+// CTR curve based on organic search position (industry standard)
+function getCTRForPosition(position: number): number {
+  const ctrMap: Record<number, number> = {
+    1: 0.285, 2: 0.157, 3: 0.110, 4: 0.080, 5: 0.072,
+    6: 0.051, 7: 0.040, 8: 0.032, 9: 0.028, 10: 0.025,
+  };
+
+  if (position <= 10) return ctrMap[position] || 0;
+  if (position <= 20) return 0.015;
+  if (position <= 50) return 0.005;
+  if (position <= 100) return 0.001;
+  return 0;
+}
+
 // Get keywords for a domain
 export const getKeywords = query({
   args: { domainId: v.id("domains") },
@@ -95,6 +109,47 @@ export const getKeywordWithHistory = query({
       change,
       history: positions.sort((a, b) => a.date.localeCompare(b.date)),
     };
+  },
+});
+
+// Get position distribution across ranking ranges
+export const getPositionDistribution = query({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    const distribution = {
+      top3: 0,
+      pos4_10: 0,
+      pos11_20: 0,
+      pos21_50: 0,
+      pos51_100: 0,
+      pos100plus: 0,
+    };
+
+    for (const keyword of keywords) {
+      // Get latest position for this keyword
+      const latestPosition = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+        .order("desc")
+        .first();
+
+      if (!latestPosition?.position) continue;
+
+      const pos = latestPosition.position;
+      if (pos <= 3) distribution.top3++;
+      else if (pos <= 10) distribution.pos4_10++;
+      else if (pos <= 20) distribution.pos11_20++;
+      else if (pos <= 50) distribution.pos21_50++;
+      else if (pos <= 100) distribution.pos51_100++;
+      else distribution.pos100plus++;
+    }
+
+    return distribution;
   },
 });
 
