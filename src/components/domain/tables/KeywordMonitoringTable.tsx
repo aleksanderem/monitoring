@@ -527,7 +527,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   {/* Current Position */}
                   {visibleColumns.has("position") && (
                     <td className="px-6 py-4">
-                      {keyword.currentPosition ? (
+                      {isBeingRefreshed ? (
+                        <RefreshCcw01 className="h-4 w-4 animate-spin text-brand-600" />
+                      ) : keyword.currentPosition ? (
                         <BadgeWithIcon type="pill-color" color="brand" size="sm">
                           #{keyword.currentPosition}
                         </BadgeWithIcon>
