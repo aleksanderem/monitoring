@@ -528,21 +528,46 @@ export default defineSchema({
     fetchedAt: v.number(),
   }).index("by_domain", ["domainId"]),
 
+  // Backlinks distributions (TLD, platforms, countries, etc.)
+  domainBacklinksDistributions: defineTable({
+    domainId: v.id("domains"),
+    tldDistribution: v.any(), // Object with TLD counts
+    platformTypes: v.any(), // Object with platform type counts
+    countries: v.any(), // Object with country counts
+    linkTypes: v.any(), // Object with link type counts (anchor, redirect, image, etc.)
+    linkAttributes: v.any(), // Object with link attributes (nofollow, noopener, etc.)
+    semanticLocations: v.any(), // Object with semantic location counts
+    fetchedAt: v.number(),
+  }).index("by_domain", ["domainId"]),
+
   // Individual backlinks
   domainBacklinks: defineTable({
     domainId: v.id("domains"),
+    domainFrom: v.string(),
     urlFrom: v.string(),
     urlTo: v.string(),
-    anchor: v.string(),
-    nofollow: v.boolean(),
-    inlinkRank: v.optional(v.number()),
-    domainInlinkRank: v.optional(v.number()),
+    tldFrom: v.optional(v.string()),
+    anchor: v.optional(v.string()),
+    textPre: v.optional(v.string()),
+    textPost: v.optional(v.string()),
+    dofollow: v.boolean(),
+    itemType: v.optional(v.string()), // anchor, redirect, image, canonical
+    rank: v.optional(v.number()),
+    pageFromRank: v.optional(v.number()),
+    domainFromRank: v.optional(v.number()),
+    backlink_spam_score: v.optional(v.number()),
     firstSeen: v.optional(v.string()),
-    lastVisited: v.optional(v.string()),
+    lastSeen: v.optional(v.string()),
+    isNew: v.optional(v.boolean()),
+    isLost: v.optional(v.boolean()),
+    pageFromTitle: v.optional(v.string()),
+    semanticLocation: v.optional(v.string()),
+    domainFromCountry: v.optional(v.string()),
     fetchedAt: v.number(),
   })
     .index("by_domain", ["domainId"])
-    .index("by_domain_urlFrom", ["domainId", "urlFrom"]),
+    .index("by_domain_urlFrom", ["domainId", "urlFrom"])
+    .index("by_domain_rank", ["domainId", "rank"]),
 
   // =================================================================
   // User Settings & Preferences

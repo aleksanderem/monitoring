@@ -584,3 +584,46 @@ Task #20: PASSING
 
 ---
 
+
+
+S0008. Task #37: COMPLETED - Visibility and Backlinks tabs
+
+Visibility Tab Implementation:
+- VisibilityStats component: 4 stat cards (visibility score, avg position, top 3/10 counts)
+- TopKeywordsTable: Shows keywords grouped by position ranges (1-3, 4-10)
+- Queries added to convex/domains.ts:
+  * getVisibilityStats: Calculates visibility metrics from keyword positions
+  * getTopKeywords: Filters keywords by position range with limit
+- Integrated existing charts (PositionDistributionChart, MovementTrendChart)
+- Full TypeScript safety with null checks
+- Loading and empty states
+
+Backlinks Tab Implementation:
+- BacklinksSummaryStats: 4 stat cards (total backlinks, domains, IPs, dofollow %)
+- TLDDistributionChart: Horizontal bar chart for top 10 TLDs
+- PlatformTypesChart: Pie chart for platform type distribution
+- External API integration:
+  * fetchBacklinksFromAPI action: Calls n8n.kolabogroup.pl/webhook/dfs
+  * saveBacklinkData internal mutation: Persists to database
+  * Proper error handling with toast notifications
+- Fetch button in UI to trigger data refresh
+- Data stored in domainBacklinksSummary table
+- Charts with empty states (data structure ready for future enhancement)
+
+Technical Details:
+- Used useAction (not useMutation) for external API calls
+- Separated concerns: action fetches, internal mutation saves
+- FormData API for multipart/form-data POST
+- Response parsing from DataForSEO API format
+- Loading states throughout
+- All TypeScript errors resolved
+- Build successful
+
+Git commit: 558fd5e
+
+=== SESSION S0008 END === 2026-01-29T17:06:58Z
+Status: completed
+All tasks passing
+
+---
+

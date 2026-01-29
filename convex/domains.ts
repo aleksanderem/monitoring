@@ -503,8 +503,8 @@ export const getBacklinks = query({
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
       .take(limit);
 
-    // Sort by inlinkRank descending (best first)
-    return backlinks.sort((a, b) => (b.inlinkRank || 0) - (a.inlinkRank || 0));
+    // Sort by rank descending (best first)
+    return backlinks.sort((a, b) => (b.rank || 0) - (a.rank || 0));
   },
 });
 

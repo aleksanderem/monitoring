@@ -580,12 +580,19 @@ export const storeBacklinks = internalMutation({
       await ctx.db.delete(bl._id);
     }
 
-    // Insert new backlinks
+    // Insert new backlinks with field mapping
     const now = Date.now();
     for (const bl of args.backlinks) {
       await ctx.db.insert("domainBacklinks", {
         domainId: args.domainId,
-        ...bl,
+        domainFrom: bl.urlFrom.split("/")[2] || "", // Extract domain from URL
+        urlFrom: bl.urlFrom,
+        urlTo: bl.urlTo,
+        anchor: bl.anchor,
+        dofollow: !bl.nofollow, // Convert nofollow to dofollow
+        rank: bl.inlinkRank,
+        firstSeen: bl.firstSeen,
+        lastSeen: bl.lastVisited,
         fetchedAt: now,
       });
     }

@@ -50,6 +50,9 @@ import { TopKeywordsTable } from "@/components/domain/tables/TopKeywordsTable";
 import { BacklinksSummaryStats } from "@/components/domain/sections/BacklinksSummaryStats";
 import { TLDDistributionChart } from "@/components/domain/charts/TLDDistributionChart";
 import { PlatformTypesChart } from "@/components/domain/charts/PlatformTypesChart";
+import { CountriesDistributionChart } from "@/components/domain/charts/CountriesDistributionChart";
+import { LinkAttributesChart } from "@/components/domain/charts/LinkAttributesChart";
+import { BacklinksTable } from "@/components/domain/tables/BacklinksTable";
 
 // Helper to format date
 function formatDate(timestamp: number) {
@@ -104,18 +107,29 @@ export default function DomainDetailPage() {
     positionRange: { min: 4, max: 10 }
   });
 
-  // Backlinks tab queries
+  // Backlinks tab queries and state
   const backlinksSummary = useQuery(api.backlinks.getBacklinkSummary, { domainId });
   const isBacklinkDataStale = useQuery(api.backlinks.isBacklinkDataStale, { domainId });
+  const backlinksDistributions = useQuery(api.backlinks.getBacklinkDistributions, { domainId });
   const fetchBacklinksAction = useAction(api.backlinks.fetchBacklinksFromAPI);
 
   const [isFetchingBacklinks, setIsFetchingBacklinks] = useState(false);
+  const [backlinksPage, setBacklinksPage] = useState(1);
+  const backlinksPageSize = 50;
+
+  const backlinksData = useQuery(api.backlinks.getBacklinks, {
+    domainId,
+    limit: backlinksPageSize,
+    offset: (backlinksPage - 1) * backlinksPageSize,
+    sortBy: "rank",
+  });
 
   const handleFetchBacklinks = async () => {
     try {
       setIsFetchingBacklinks(true);
-      await fetchBacklinksAction({ domainId });
-      toast.success("Backlinks data fetched successfully");
+      const result = await fetchBacklinksAction({ domainId });
+      toast.success(`Fetched ${result.backlinksCount} backlinks successfully`);
+      setBacklinksPage(1); // Reset to first page
     } catch (error) {
       toast.error("Failed to fetch backlinks data");
       console.error(error);
@@ -431,28 +445,37 @@ export default function DomainDetailPage() {
                   isLoading={backlinksSummary === undefined}
                 />
 
-                {/* Charts */}
-                {backlinksSummary && (
+                {/* Distribution Charts - 2x2 Grid */}
+                {backlinksSummary && backlinksDistributions && (
                   <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                     <TLDDistributionChart
-                      data={{}}
-                      isLoading={false}
+                      data={backlinksDistributions.tldDistribution}
+                      isLoading={backlinksDistributions === undefined}
                     />
                     <PlatformTypesChart
-                      data={{}}
-                      isLoading={false}
+                      data={backlinksDistributions.platformTypes}
+                      isLoading={backlinksDistributions === undefined}
+                    />
+                    <CountriesDistributionChart
+                      data={backlinksDistributions.countries}
+                      isLoading={backlinksDistributions === undefined}
+                    />
+                    <LinkAttributesChart
+                      data={backlinksDistributions.linkAttributes}
+                      isLoading={backlinksDistributions === undefined}
                     />
                   </div>
                 )}
 
-                {/* Note about detailed data */}
+                {/* Individual Backlinks Table */}
                 {backlinksSummary && (
-                  <div className="rounded-lg border border-secondary bg-secondary-subtle p-4">
-                    <p className="text-sm text-secondary">
-                      <strong>Note:</strong> Detailed TLD distribution and platform type charts will be available soon.
-                      The API integration is working and summary statistics are being fetched successfully.
-                    </p>
-                  </div>
+                  <BacklinksTable
+                    backlinks={backlinksData || null}
+                    isLoading={backlinksData === undefined}
+                    currentPage={backlinksPage}
+                    pageSize={backlinksPageSize}
+                    onPageChange={setBacklinksPage}
+                  />
                 )}
               </div>
             </TabPanel>

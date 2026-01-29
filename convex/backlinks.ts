@@ -47,26 +47,53 @@ export const fetchBacklinks = mutation({
   },
 });
 
-// Get backlinks list for a domain
+// Get backlinks list for a domain with sorting and filtering
 export const getBacklinks = query({
-  args: { 
+  args: {
     domainId: v.id("domains"),
     limit: v.optional(v.number()),
     offset: v.optional(v.number()),
+    sortBy: v.optional(v.string()), // "rank", "domainRank", "spam", "date"
+    filterDofollow: v.optional(v.boolean()), // null = all, true = dofollow, false = nofollow
   },
   handler: async (ctx, args) => {
     const limit = args.limit || 50;
     const offset = args.offset || 0;
 
-    const backlinks = await ctx.db
+    let backlinks = await ctx.db
       .query("domainBacklinks")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .order("desc")
       .collect();
+
+    // Filter by dofollow/nofollow if specified
+    if (args.filterDofollow !== undefined && args.filterDofollow !== null) {
+      backlinks = backlinks.filter(b => b.dofollow === args.filterDofollow);
+    }
+
+    // Sort by specified field
+    if (args.sortBy === "rank" && backlinks.length > 0) {
+      backlinks.sort((a, b) => (b.rank || 0) - (a.rank || 0));
+    } else if (args.sortBy === "domainRank") {
+      backlinks.sort((a, b) => (b.domainFromRank || 0) - (a.domainFromRank || 0));
+    } else if (args.sortBy === "spam") {
+      backlinks.sort((a, b) => (a.backlink_spam_score || 0) - (b.backlink_spam_score || 0));
+    } else if (args.sortBy === "date") {
+      backlinks.sort((a, b) => {
+        const dateA = a.lastSeen ? new Date(a.lastSeen).getTime() : 0;
+        const dateB = b.lastSeen ? new Date(b.lastSeen).getTime() : 0;
+        return dateB - dateA;
+      });
+    }
 
     return {
       total: backlinks.length,
       items: backlinks.slice(offset, offset + limit),
+      stats: {
+        totalDofollow: backlinks.filter(b => b.dofollow).length,
+        totalNofollow: backlinks.filter(b => !b.dofollow).length,
+        avgRank: backlinks.reduce((sum, b) => sum + (b.rank || 0), 0) / backlinks.length || 0,
+        avgSpamScore: backlinks.reduce((sum, b) => sum + (b.backlink_spam_score || 0), 0) / backlinks.length || 0,
+      },
     };
   },
 });
@@ -83,22 +110,30 @@ export const saveBacklinkData = internalMutation({
       dofollow: v.number(),
       nofollow: v.number(),
     }),
-    tldDistribution: v.any(),
-    platformTypes: v.any(),
-    countries: v.any(),
+    distributions: v.object({
+      tldDistribution: v.any(),
+      platformTypes: v.any(),
+      countries: v.any(),
+      linkTypes: v.any(),
+      linkAttributes: v.any(),
+      semanticLocations: v.any(),
+    }),
+    backlinks: v.array(v.any()),
   },
   handler: async (ctx, args) => {
+    const fetchedAt = Date.now();
+
     // Delete existing summary if any
-    const existing = await ctx.db
+    const existingSummary = await ctx.db
       .query("domainBacklinksSummary")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
       .unique();
 
-    if (existing) {
-      await ctx.db.delete(existing._id);
+    if (existingSummary) {
+      await ctx.db.delete(existingSummary._id);
     }
 
-    // Insert new summary with additional data as optional fields
+    // Insert new summary
     await ctx.db.insert("domainBacklinksSummary", {
       domainId: args.domainId,
       totalBacklinks: args.summary.totalBacklinks,
@@ -107,10 +142,74 @@ export const saveBacklinkData = internalMutation({
       totalSubnets: args.summary.totalSubnets,
       dofollow: args.summary.dofollow,
       nofollow: args.summary.nofollow,
-      fetchedAt: Date.now(),
+      fetchedAt,
     });
 
-    return { success: true };
+    // Delete existing distributions if any
+    const existingDistributions = await ctx.db
+      .query("domainBacklinksDistributions")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .unique();
+
+    if (existingDistributions) {
+      await ctx.db.delete(existingDistributions._id);
+    }
+
+    // Insert new distributions
+    await ctx.db.insert("domainBacklinksDistributions", {
+      domainId: args.domainId,
+      tldDistribution: args.distributions.tldDistribution,
+      platformTypes: args.distributions.platformTypes,
+      countries: args.distributions.countries,
+      linkTypes: args.distributions.linkTypes,
+      linkAttributes: args.distributions.linkAttributes,
+      semanticLocations: args.distributions.semanticLocations,
+      fetchedAt,
+    });
+
+    // Delete existing backlinks (we'll replace with fresh data)
+    const existingBacklinks = await ctx.db
+      .query("domainBacklinks")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    for (const backlink of existingBacklinks) {
+      await ctx.db.delete(backlink._id);
+    }
+
+    // Insert new backlinks (limit to first 1000 to avoid timeout)
+    const backlinksToInsert = args.backlinks.slice(0, 1000);
+    for (const backlink of backlinksToInsert) {
+      await ctx.db.insert("domainBacklinks", {
+        domainId: args.domainId,
+        domainFrom: backlink.domain_from || "",
+        urlFrom: backlink.url_from || "",
+        urlTo: backlink.url_to || "",
+        tldFrom: backlink.tld_from,
+        anchor: backlink.anchor,
+        textPre: backlink.text_pre,
+        textPost: backlink.text_post,
+        dofollow: backlink.dofollow || false,
+        itemType: backlink.item_type,
+        rank: backlink.rank,
+        pageFromRank: backlink.page_from_rank,
+        domainFromRank: backlink.domain_from_rank,
+        backlink_spam_score: backlink.backlink_spam_score,
+        firstSeen: backlink.first_seen,
+        lastSeen: backlink.last_seen,
+        isNew: backlink.is_new,
+        isLost: backlink.is_lost,
+        pageFromTitle: backlink.page_from_title,
+        semanticLocation: backlink.semantic_location,
+        domainFromCountry: backlink.domain_from_country,
+        fetchedAt,
+      });
+    }
+
+    return {
+      success: true,
+      backlinksInserted: backlinksToInsert.length,
+    };
   },
 });
 
@@ -152,6 +251,10 @@ export const fetchBacklinksFromAPI = action({
         throw new Error("No data in API response");
       }
 
+      // Extract individual backlinks from response
+      const backlinks_data = data[1]?.backlinks?.[0];
+      const backlinks = backlinks_data?.result?.[0]?.items || [];
+
       // Save to database
       await ctx.runMutation(internal.backlinks.saveBacklinkData, {
         domainId: args.domainId,
@@ -163,12 +266,22 @@ export const fetchBacklinksFromAPI = action({
           dofollow: (result.backlinks || 0) - (result.backlinks_nofollow || 0),
           nofollow: result.backlinks_nofollow || 0,
         },
-        tldDistribution: result.referring_links_tld || {},
-        platformTypes: result.referring_links_platform_types || {},
-        countries: result.referring_links_countries || {},
+        distributions: {
+          tldDistribution: result.referring_links_tld || {},
+          platformTypes: result.referring_links_platform_types || {},
+          countries: result.referring_links_countries || {},
+          linkTypes: result.referring_links_types || {},
+          linkAttributes: result.referring_links_attributes || {},
+          semanticLocations: result.referring_links_semantic_locations || {},
+        },
+        backlinks,
       });
 
-      return { success: true, message: "Backlinks data fetched successfully" };
+      return {
+        success: true,
+        message: "Backlinks data fetched successfully",
+        backlinksCount: backlinks.length,
+      };
     } catch (error) {
       console.error("Error fetching backlinks:", error);
       throw new Error(`Failed to fetch backlinks: ${error}`);
@@ -176,16 +289,33 @@ export const fetchBacklinksFromAPI = action({
   },
 });
 
-// Get additional backlink data (TLD, platforms, countries)
+// Get backlink distributions (TLD, platforms, countries, etc.)
 export const getBacklinkDistributions = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
-    // For now, return empty distributions
-    // TODO: Store these in a separate table or extend domainBacklinksSummary
+    const distributions = await ctx.db
+      .query("domainBacklinksDistributions")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .unique();
+
+    if (!distributions) {
+      return {
+        tldDistribution: {},
+        platformTypes: {},
+        countries: {},
+        linkTypes: {},
+        linkAttributes: {},
+        semanticLocations: {},
+      };
+    }
+
     return {
-      tldDistribution: {},
-      platformTypes: {},
-      countries: {},
+      tldDistribution: distributions.tldDistribution || {},
+      platformTypes: distributions.platformTypes || {},
+      countries: distributions.countries || {},
+      linkTypes: distributions.linkTypes || {},
+      linkAttributes: distributions.linkAttributes || {},
+      semanticLocations: distributions.semanticLocations || {},
     };
   },
 });
