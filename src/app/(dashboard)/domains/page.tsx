@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { Edit05, Trash01, SearchLg, Eye, FilterLines, Globe01, Hash01, FolderClosed } from "@untitledui/icons";
+import { Edit05, Trash01, SearchLg, FilterLines, Globe01, Hash01, FolderClosed } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/base/buttons/button";
@@ -15,7 +16,6 @@ import { EmptyState } from "@/components/application/empty-state/empty-state";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
 import { CreateDomainDialog } from "@/components/application/modals/create-domain-dialog";
-import { DomainDetailsSlideout } from "@/components/application/slideout-menus/domain-details-slideout";
 import { toast } from "sonner";
 
 // Helper to format relative time
@@ -33,6 +33,7 @@ function formatRelativeTime(timestamp: number): string {
 }
 
 export default function DomainsPage() {
+  const router = useRouter();
   const domains = useQuery(api.domains.list);
   const deleteDomain = useMutation(api.domains.remove);
 
@@ -190,6 +191,7 @@ export default function DomainsPage() {
             selectionMode="multiple"
             sortDescriptor={sortDescriptor}
             onSortChange={setSortDescriptor}
+            onRowAction={(key) => router.push(`/domains/${key}`)}
           >
             <Table.Header>
               <Table.Head
@@ -266,22 +268,6 @@ export default function DomainsPage() {
                   </Table.Cell>
                   <Table.Cell className="px-4">
                     <div className="flex justify-end gap-0.5">
-                      <DomainDetailsSlideout
-                        domainId={item._id}
-                        onDelete={() => {
-                          // Will be handled by Delete button inside slideout
-                        }}
-                      >
-                        <ButtonUtility
-                          size="xs"
-                          color="tertiary"
-                          tooltip="View domain"
-                          icon={Eye}
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                          }}
-                        />
-                      </DomainDetailsSlideout>
                       <ButtonUtility
                         size="xs"
                         color="tertiary"
