@@ -107,7 +107,7 @@ function SortableHeader({ column, currentColumn, direction, onClick, children, c
 
 export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps) {
   const keywords = useQuery(api.keywords.getKeywordMonitoring, { domainId });
-  const refreshPositions = useMutation(api.keywords.refreshKeywordPositions);
+  const refreshPositions = useMutation(api.keywords.refreshKeywordPositions as any);
   const deleteKeywords = useMutation(api.keywords.deleteKeywords);
 
   const [sortColumn, setSortColumn] = useState<SortColumn>("currentPosition");
@@ -116,6 +116,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [selectedRows, setSelectedRows] = useState<Set<Id<"keywords">>>(new Set());
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnId>>(
     new Set(["position", "previous", "change", "status", "volume", "difficulty", "lastUpdated"])
   );
@@ -165,14 +166,19 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const handleBulkRefresh = async () => {
     if (selectedRows.size === 0) return;
 
+    setIsRefreshing(true);
     try {
-      await refreshPositions({ keywordIds: Array.from(selectedRows) });
+      console.log("Calling refreshPositions with:", Array.from(selectedRows));
+      const result = await refreshPositions({ keywordIds: Array.from(selectedRows) });
+      console.log("Refresh result:", result);
       toast.success(`Odświeżanie pozycji dla ${selectedRows.size} słów kluczowych zostało zakolejkowane`);
       setSelectedRows(new Set());
     } catch (error) {
+      console.error("Refresh error details:", error);
       const errorMessage = error instanceof Error ? error.message : "Nie udało się odświeżyć pozycji";
-      toast.error(errorMessage);
-      console.error("Refresh error:", error);
+      toast.error(`Błąd: ${errorMessage}`);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -288,8 +294,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
               color="secondary"
               iconLeading={RefreshCcw01}
               onClick={handleBulkRefresh}
+              disabled={isRefreshing}
             >
-              Odśwież pozycję
+              {isRefreshing ? "Odświeżanie..." : "Odśwież pozycję"}
             </Button>
             <DeleteConfirmationDialog
               title={`Usuń ${selectedRows.size} słów kluczowych?`}
@@ -421,6 +428,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
               const statusBadge = getStatusBadge(keyword.status);
               const difficultyBadge = getDifficultyBadge(keyword.difficulty);
               const isSelected = selectedRows.has(keyword.keywordId);
+              const isBeingRefreshed = isRefreshing && isSelected;
 
               return (
                 <tr
@@ -428,7 +436,8 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   className={cx(
                     "border-b border-secondary transition-colors hover:bg-secondary-subtle",
                     isSelected && "bg-brand-50",
-                    !isSelected && (index % 2 === 0 ? "bg-primary" : "bg-secondary-subtle")
+                    !isSelected && (index % 2 === 0 ? "bg-primary" : "bg-secondary-subtle"),
+                    isBeingRefreshed && "opacity-60"
                   )}
                 >
                   {/* Checkbox */}
@@ -443,18 +452,23 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
 
                   {/* Keyword */}
                   <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-medium text-primary">{keyword.phrase}</span>
-                      {keyword.url && (
-                        <span className="font-mono text-xs text-tertiary" title={keyword.url}>
-                          {(() => {
-                            try {
-                              return new URL(keyword.url).pathname.toLowerCase();
-                            } catch {
-                              return keyword.url.toLowerCase();
-                            }
-                          })()}
-                        </span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium text-primary">{keyword.phrase}</span>
+                        {keyword.url && (
+                          <span className="font-mono text-xs text-tertiary" title={keyword.url}>
+                            {(() => {
+                              try {
+                                return new URL(keyword.url).pathname.toLowerCase();
+                              } catch {
+                                return keyword.url.toLowerCase();
+                              }
+                            })()}
+                          </span>
+                        )}
+                      </div>
+                      {isBeingRefreshed && (
+                        <RefreshCcw01 className="h-4 w-4 animate-spin text-brand-600" />
                       )}
                     </div>
                   </td>
