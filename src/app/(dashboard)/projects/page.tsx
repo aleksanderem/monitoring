@@ -15,6 +15,7 @@ import { Avatar } from "@/components/base/avatar/avatar";
 import { EmptyState } from "@/components/application/empty-state/empty-state";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { CreateProjectDialog } from "@/components/application/modals/create-project-dialog";
+import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
 import { toast } from "sonner";
 
 // Helper to format relative time
@@ -287,22 +288,24 @@ export default function ProjectsPage() {
                           toast.info("Edit dialog coming soon");
                         }}
                       />
-                      <ButtonUtility
-                        size="xs"
-                        color="tertiary"
-                        tooltip="Delete"
-                        icon={Trash01}
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          if (
-                            confirm(
-                              `Are you sure you want to delete "${item.name}"? This will also delete all domains and keywords in this project.`
-                            )
-                          ) {
-                            handleDelete(item._id);
-                          }
+                      <DeleteConfirmationDialog
+                        title={`Delete "${item.name}"?`}
+                        description="This will permanently delete the project and all associated domains and keywords. This action cannot be undone."
+                        confirmLabel="Delete project"
+                        onConfirm={async () => {
+                          await handleDelete(item._id);
                         }}
-                      />
+                      >
+                        <ButtonUtility
+                          size="xs"
+                          color="tertiary"
+                          tooltip="Delete"
+                          icon={Trash01}
+                          onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                          }}
+                        />
+                      </DeleteConfirmationDialog>
                     </div>
                   </Table.Cell>
                 </Table.Row>
