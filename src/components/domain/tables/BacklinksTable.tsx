@@ -7,11 +7,11 @@ import { Link01, ChevronLeft, ChevronRight, AlertCircle } from "@untitledui/icon
 
 interface Backlink {
   _id: string;
-  domainFrom: string;
+  domainFrom?: string; // Optional for backwards compatibility
   urlFrom: string;
   urlTo: string;
   anchor?: string;
-  dofollow: boolean;
+  dofollow?: boolean; // Optional for backwards compatibility
   rank?: number;
   domainFromRank?: number;
   backlink_spam_score?: number;
@@ -169,7 +169,7 @@ export function BacklinksTable({
                         rel="noopener noreferrer"
                         className="text-sm font-medium text-brand-600 hover:text-brand-700"
                       >
-                        {backlink.domainFrom}
+                        {backlink.domainFrom || new URL(backlink.urlFrom).hostname}
                       </a>
                       {backlink.tldFrom && (
                         <span className="text-xs text-tertiary">.{backlink.tldFrom}</span>
@@ -182,8 +182,8 @@ export function BacklinksTable({
                     </p>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <Badge size="sm" color={backlink.dofollow ? "success" : "gray"}>
-                      {backlink.dofollow ? "Dofollow" : "Nofollow"}
+                    <Badge size="sm" color={backlink.dofollow === true ? "success" : "gray"}>
+                      {backlink.dofollow === true ? "Dofollow" : "Nofollow"}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-center">
