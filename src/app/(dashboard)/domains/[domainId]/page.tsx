@@ -29,6 +29,12 @@ import { MetricsChart04 } from "@/components/application/metrics/metrics";
 import { toast } from "sonner";
 import { PositionHistoryChart } from "@/components/domain/charts/PositionHistoryChart";
 import { ExecutiveSummary } from "@/components/domain/sections/ExecutiveSummary";
+import { PositionDistributionChart } from "@/components/domain/charts/PositionDistributionChart";
+import { MovementTrendChart } from "@/components/domain/charts/MovementTrendChart";
+import { MonitoringStats } from "@/components/domain/sections/MonitoringStats";
+import { KeywordMonitoringTable } from "@/components/domain/tables/KeywordMonitoringTable";
+import { LiveBadge } from "@/components/domain/badges/LiveBadge";
+import { Activity } from "@untitledui/icons";
 
 // Helper to format date
 function formatDate(timestamp: number) {
@@ -52,7 +58,7 @@ function formatRelativeTime(timestamp: number) {
 
 const tabs = [
   { id: "overview", label: "Overview", icon: BarChart03 },
-  { id: "keywords", label: "Keywords", icon: Hash01 },
+  { id: "monitoring", label: "Monitoring", icon: Activity },
   { id: "visibility", label: "Visibility", icon: TrendUp02 },
   { id: "backlinks", label: "Backlinks", icon: Link03 },
   { id: "settings", label: "Settings", icon: Settings01 },
@@ -194,36 +200,26 @@ export default function DomainDetailPage() {
               </div>
             </TabPanel>
 
-            {/* Keywords Tab */}
-            <TabPanel id="keywords">
-              <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-primary">Keywords</h2>
-                  <Button size="md">Add Keywords</Button>
+            {/* Monitoring Tab */}
+            <TabPanel id="monitoring">
+              <div className="flex flex-col gap-8">
+                {/* Page Title with Live Badge */}
+                <div className="flex items-center gap-3">
+                  <h2 className="text-lg font-semibold text-primary">Keyword Monitoring</h2>
+                  <LiveBadge size="md" />
                 </div>
 
-                {keywords.length > 0 ? (
-                  <div className="flex flex-col gap-4">
-                    {keywords.map((keyword: any, index: number) => (
-                      <div key={keyword._id}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Hash01 className="h-5 w-5 text-fg-quaternary" />
-                            <p className="text-sm font-medium text-primary">{keyword.phrase}</p>
-                          </div>
-                          <p className="text-sm font-medium text-secondary">#{keyword.position || "—"}</p>
-                        </div>
-                        {index < keywords.length - 1 && <span className="mt-4 block h-px w-full bg-border-secondary" />}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-2 py-8 text-center">
-                    <Hash01 className="h-10 w-10 text-fg-quaternary" />
-                    <p className="text-sm font-medium text-primary">No keywords yet</p>
-                    <p className="text-sm text-tertiary">Add keywords to start tracking rankings</p>
-                  </div>
-                )}
+                {/* Charts Section */}
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <PositionDistributionChart domainId={domainId} />
+                  <MovementTrendChart domainId={domainId} />
+                </div>
+
+                {/* Statistics Section */}
+                <MonitoringStats domainId={domainId} />
+
+                {/* Monitoring Table */}
+                <KeywordMonitoringTable domainId={domainId} />
               </div>
             </TabPanel>
 
