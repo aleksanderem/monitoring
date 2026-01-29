@@ -37,7 +37,7 @@ export default function ProjectsPage() {
   const projects = useQuery(api.projects.list);
   const deleteProject = useMutation(api.projects.remove);
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
     column: "name",
     direction: "ascending",
@@ -149,7 +149,11 @@ export default function ProjectsPage() {
                 placeholder="Search projects..."
                 icon={SearchLg}
                 value={searchQuery}
-                onChange={(value) => setSearchQuery(String(value || ""))}
+                onChange={(value) => {
+                  // Handle both string and potential object/event cases
+                  const stringValue = typeof value === 'string' ? value : '';
+                  setSearchQuery(stringValue);
+                }}
               />
 
               <Button iconLeading={FilterLines} color="secondary" size="md">
