@@ -492,3 +492,23 @@ Plan:
 Starting implementation...
 
 ---
+
+=== SESSION S0007 START === 2026-01-29T07:38:13Z
+Focus: Fix bulk actions issues - column persistence, refresh functionality, investigate errors
+Continuing from: S0006 (bulk actions implemented but user reports issues)
+Active tasks: #19
+
+S0007. User feedback:
+- User message: "ok, nie zapisuje sie kolejnosc kolumn, pozyucje sie nie odswiezaja i sa jakies dwa bkledy dodatkowe"
+- Translation: "ok, column order is not being saved, positions are not refreshing and there are two additional errors"
+
+S0007. Investigation findings:
+- refreshKeywordPositions mutation EXISTS in Convex backend (confirmed via `npx convex function-spec`)
+- Function spec shows: "identifier": "keywords.js:refreshKeywordPositions", "visibility": "public"
+- api.d.ts not regenerated properly (TypeScript type issue, not runtime issue)
+- Function should be callable despite missing TypeScript types
+- Need to check browser console for actual runtime errors
+- Column visibility state in React state (not persisted) - expected behavior, not a bug unless user wants persistence
+
+---
+

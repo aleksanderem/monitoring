@@ -1,5 +1,5 @@
 {
-  "session_id": "S0006",
+  "session_id": "S0007",
   "date": "2026-01-29",
   "tasks": [
     {
@@ -127,35 +127,42 @@
       "status": "passing",
       "created_session": "S0006",
       "last_updated_session": "S0006"
+    },
+    {
+      "id": 19,
+      "name": "fix_bulk_actions_issues",
+      "status": "in_progress",
+      "created_session": "S0007",
+      "last_updated_session": "S0007"
     }
   ],
-  "reason": "Adding bulk actions feature to KeywordMonitoringTable per user request",
-  "thinking_process": "User confirmed monitoring tab is working correctly. Now requesting bulk action capabilities (multi-select with checkboxes, refresh position manually, delete) for the monitoring table. This requires: checkbox column, selected rows state, bulk action toolbar, and backend mutations.",
-  "connected_tasks": [16, 18],
+  "reason": "User reported 3 issues after bulk actions implementation: column order not saving, positions not refreshing, two additional errors",
+  "thinking_process": "Convex function exists in backend (confirmed via function-spec). api.d.ts TypeScript types not regenerated but this shouldn't prevent runtime execution. Need to investigate actual browser errors and fix runtime issues. Column order persistence may require localStorage implementation.",
+  "connected_tasks": [18, 19],
   "how_to_test": [
     {
       "id": 1,
-      "name": "Select multiple keywords via checkboxes",
-      "status": "not_started",
+      "name": "Check browser console for runtime errors",
+      "status": "in_progress",
       "is_ok": null,
       "data_for_next_step": [],
-      "session_id": "S0006"
+      "session_id": "S0007"
     },
     {
       "id": 2,
-      "name": "Click 'Odśwież' button with selections",
+      "name": "Test bulk refresh functionality",
       "status": "not_started",
       "is_ok": null,
       "data_for_next_step": [],
-      "session_id": "S0006"
+      "session_id": "S0007"
     },
     {
       "id": 3,
-      "name": "Click 'Usuń' button with selections",
+      "name": "Verify column visibility persists across page loads",
       "status": "not_started",
       "is_ok": null,
       "data_for_next_step": [],
-      "session_id": "S0006"
+      "session_id": "S0007"
     }
   ]
 }
