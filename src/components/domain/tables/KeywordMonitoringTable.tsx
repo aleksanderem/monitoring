@@ -497,7 +497,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   {visibleColumns.has("previous") && (
                     <td className="px-6 py-4">
                       {keyword.previousPosition ? (
-                        <BadgeWithIcon type="pill-color" color="brand" size="sm">
+                        <BadgeWithIcon type="pill-color" color="gray" size="md">
                           #{keyword.previousPosition}
                         </BadgeWithIcon>
                       ) : (
