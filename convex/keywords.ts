@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { checkKeywordLimit } from "./limits";
 import { requirePermission, getContextFromDomain, getContextFromKeyword } from "./permissions";
 
@@ -855,6 +856,11 @@ export const refreshKeywordPositions = mutation({
         checkJobId: jobId,
       });
     }
+
+    // Schedule background processing
+    await ctx.scheduler.runAfter(0, internal.keywordCheckJobs.processKeywordCheckJobInternal, {
+      jobId,
+    });
 
     return jobId;
   },
