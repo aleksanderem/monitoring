@@ -46,7 +46,9 @@ export default function ProjectsPage() {
   // Filter projects based on search query
   const filteredItems = useMemo(() => {
     if (!projects) return [];
-    if (!searchQuery.trim()) return projects;
+    if (!searchQuery || typeof searchQuery !== 'string' || !searchQuery.trim()) {
+      return projects;
+    }
 
     const query = searchQuery.toLowerCase();
     return projects.filter((project) =>
@@ -147,7 +149,7 @@ export default function ProjectsPage() {
                 placeholder="Search projects..."
                 icon={SearchLg}
                 value={searchQuery}
-                onChange={(value) => setSearchQuery(value)}
+                onChange={(value) => setSearchQuery(String(value || ""))}
               />
 
               <Button iconLeading={FilterLines} color="secondary" size="md">
