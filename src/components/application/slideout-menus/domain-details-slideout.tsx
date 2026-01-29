@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Globe01, Hash01, Edit01, Trash01, Settings01, FolderClosed, RefreshCcw01 } from "@untitledui/icons";
+import { Globe01, Hash01, Edit01, Trash01, Settings01, RefreshCcw01 } from "@untitledui/icons";
 import { SlideoutMenu } from "@/components/application/slideout-menus/slideout-menu";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
@@ -45,8 +45,8 @@ export function DomainDetailsSlideout({
   const [isOpen, setIsOpen] = useState(false);
 
   const domain = useQuery(api.domains.getDomain, { domainId });
-  // We'll need to get keywords for this domain - for now using placeholder
-  const keywords: any[] = []; // TODO: Add keywords query
+  // TODO: Add keywords query
+  const keywords: any[] = [];
 
   // Helper to format date
   const formatDate = (timestamp: number) => {
@@ -130,134 +130,105 @@ export function DomainDetailsSlideout({
           {domain && (
             <Tabs defaultSelectedKey="overview">
               <TabPanel id="overview">
-                <div className="flex flex-col gap-6 py-6">
-                  <section className="flex flex-col gap-3">
-                    <p className="text-sm font-semibold text-primary">Details</p>
+                {/* Summary section */}
+                <section className="flex items-center justify-between">
+                  <BadgeWithDot size="md" type="modern" color="success">
+                    Active
+                  </BadgeWithDot>
+                  <div className="flex flex-col items-end">
+                    <p className="text-sm font-medium text-secondary">Keywords</p>
+                    <p className="text-xl font-semibold text-primary">{keywords.length}</p>
+                  </div>
+                </section>
 
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-tertiary">Status</p>
-                      <BadgeWithDot size="sm" color="success" type="modern">
-                        Active
-                      </BadgeWithDot>
+                <span className="h-px w-full bg-border-secondary" />
+
+                {/* Details section */}
+                <section className="flex flex-col gap-4">
+                  <p className="text-sm font-semibold text-primary">Domain Details</p>
+
+                  <span className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-secondary">Created</p>
+                    <div className="flex flex-col items-end">
+                      <p className="text-sm text-primary">{formatRelativeTime(domain.createdAt)}</p>
+                      <p className="text-sm text-tertiary">{formatDate(domain.createdAt)}</p>
                     </div>
+                  </span>
 
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-tertiary">Created</p>
+                  {domain.lastRefreshedAt && (
+                    <span className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-secondary">Last Refreshed</p>
                       <div className="flex flex-col items-end">
-                        <p className="text-sm font-medium text-primary">
-                          {formatRelativeTime(domain.createdAt)}
-                        </p>
-                        <p className="text-sm text-tertiary">
-                          {formatDate(domain.createdAt)}
-                        </p>
+                        <p className="text-sm text-primary">{formatRelativeTime(domain.lastRefreshedAt)}</p>
+                        <p className="text-sm text-tertiary">{formatDate(domain.lastRefreshedAt)}</p>
                       </div>
-                    </div>
-
-                    {domain.lastRefreshedAt && (
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-tertiary">Last Refreshed</p>
-                        <div className="flex flex-col items-end">
-                          <p className="text-sm font-medium text-primary">
-                            {formatRelativeTime(domain.lastRefreshedAt)}
-                          </p>
-                          <p className="text-sm text-tertiary">
-                            {formatDate(domain.lastRefreshedAt)}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-tertiary">Keywords</p>
-                      <div className="flex items-center gap-2">
-                        <Hash01 className="h-4 w-4 text-fg-quaternary" />
-                        <p className="text-sm font-medium text-primary">
-                          {keywords.length}
-                        </p>
-                      </div>
-                    </div>
-                  </section>
-                </div>
+                    </span>
+                  )}
+                </section>
               </TabPanel>
 
               <TabPanel id="keywords">
-                <div className="flex flex-col gap-4 py-6">
-                  {keywords.length > 0 ? (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-primary">
-                          All Keywords ({keywords.length})
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {keywords.map((keyword) => (
-                          <div
-                            key={keyword._id}
-                            className="flex items-center justify-between rounded-lg border border-secondary p-3"
-                          >
-                            <div className="flex items-center gap-3">
-                              <Hash01 className="h-5 w-5 text-fg-quaternary" />
-                              <div>
-                                <p className="text-sm font-medium text-primary">
-                                  {keyword.phrase}
-                                </p>
-                                <p className="text-sm text-tertiary">
-                                  Position: {keyword.position || "—"}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <section className="flex flex-col items-center gap-2 rounded-lg border border-secondary p-6 text-center">
-                      <Hash01 className="h-10 w-10 text-fg-quaternary" />
-                      <p className="text-sm font-medium text-primary">
-                        No keywords yet
-                      </p>
-                      <p className="text-sm text-tertiary">
-                        Add keywords to start tracking rankings
-                      </p>
-                    </section>
-                  )}
-                </div>
-              </TabPanel>
-
-              <TabPanel id="settings">
-                <div className="flex flex-col gap-6 py-6">
-                  <section className="flex flex-col gap-3">
-                    <p className="text-sm font-semibold text-primary">Domain Settings</p>
-
+                {keywords.length > 0 ? (
+                  <section className="flex flex-col gap-4">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm text-tertiary">Search Engine</p>
-                      <p className="text-sm font-medium text-primary">
-                        {domain.settings.searchEngine}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-tertiary">Refresh Frequency</p>
-                      <BadgeWithDot size="sm" color="gray" type="modern">
-                        {domain.settings.refreshFrequency}
+                      <p className="text-sm font-semibold text-primary">Keywords</p>
+                      <BadgeWithDot size="sm" type="modern" color="gray">
+                        {keywords.length} {keywords.length === 1 ? 'keyword' : 'keywords'}
                       </BadgeWithDot>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-tertiary">Location</p>
-                      <p className="text-sm font-medium text-primary">
-                        {domain.settings.location}
-                      </p>
-                    </div>
+                    <span className="h-px w-full bg-border-secondary" />
 
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-tertiary">Language</p>
-                      <p className="text-sm font-medium text-primary">
-                        {domain.settings.language}
-                      </p>
-                    </div>
+                    {keywords.map((keyword, index) => (
+                      <div key={keyword._id}>
+                        <span className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Hash01 className="h-5 w-5 text-fg-quaternary" />
+                            <p className="text-sm font-medium text-primary">{keyword.phrase}</p>
+                          </div>
+                          <p className="text-sm font-medium text-secondary">#{keyword.position || "—"}</p>
+                        </span>
+                        {index < keywords.length - 1 && <span className="h-px w-full bg-border-secondary mt-4" />}
+                      </div>
+                    ))}
                   </section>
-                </div>
+                ) : (
+                  <section className="flex flex-col items-center gap-2 py-8 text-center">
+                    <Hash01 className="h-10 w-10 text-fg-quaternary" />
+                    <p className="text-sm font-medium text-primary">No keywords yet</p>
+                    <p className="text-sm text-tertiary">Add keywords to start tracking rankings</p>
+                  </section>
+                )}
+              </TabPanel>
+
+              <TabPanel id="settings">
+                <section className="flex flex-col gap-4">
+                  <p className="text-sm font-semibold text-primary">Domain Settings</p>
+
+                  <span className="h-px w-full bg-border-secondary" />
+
+                  <span className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-secondary">Search Engine</p>
+                    <p className="text-sm text-primary">{domain.settings.searchEngine}</p>
+                  </span>
+
+                  <span className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-secondary">Refresh Frequency</p>
+                    <BadgeWithDot size="sm" color="gray" type="modern">
+                      {domain.settings.refreshFrequency}
+                    </BadgeWithDot>
+                  </span>
+
+                  <span className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-secondary">Location</p>
+                    <p className="text-sm text-primary">{domain.settings.location}</p>
+                  </span>
+
+                  <span className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-secondary">Language</p>
+                    <p className="text-sm text-primary">{domain.settings.language}</p>
+                  </span>
+                </section>
               </TabPanel>
             </Tabs>
           )}

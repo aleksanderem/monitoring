@@ -120,108 +120,86 @@ export function ProjectDetailsSlideout({
           {project && (
             <Tabs defaultSelectedKey="overview">
               <TabPanel id="overview">
-                <div className="flex flex-col gap-6 py-6">
-                  <section className="flex flex-col gap-3">
-                    <p className="text-sm font-semibold text-primary">Details</p>
-
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-tertiary">Status</p>
-                      <BadgeWithDot size="sm" color="success" type="modern">
-                        Active
-                      </BadgeWithDot>
+                {/* Summary section */}
+                <section className="flex items-center justify-between">
+                  <BadgeWithDot size="md" type="modern" color="success">
+                    Active
+                  </BadgeWithDot>
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-col items-end">
+                      <p className="text-sm font-medium text-secondary">Domains</p>
+                      <p className="text-xl font-semibold text-primary">{project.domainCount}</p>
                     </div>
-
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-tertiary">Created</p>
-                      <div className="flex flex-col items-end">
-                        <p className="text-sm font-medium text-primary">
-                          {formatRelativeTime(project.createdAt)}
-                        </p>
-                        <p className="text-sm text-tertiary">
-                          {formatDate(project.createdAt)}
-                        </p>
-                      </div>
+                    <span className="h-10 border-l border-secondary" />
+                    <div className="flex flex-col items-end">
+                      <p className="text-sm font-medium text-secondary">Keywords</p>
+                      <p className="text-xl font-semibold text-primary">{project.keywordCount}</p>
                     </div>
+                  </div>
+                </section>
 
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-tertiary">Domains</p>
-                      <div className="flex items-center gap-2">
-                        <Globe01 className="h-4 w-4 text-fg-quaternary" />
-                        <p className="text-sm font-medium text-primary">
-                          {project.domainCount}
-                        </p>
-                      </div>
-                    </div>
+                <span className="h-px w-full bg-border-secondary" />
 
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-tertiary">Keywords</p>
-                      <div className="flex items-center gap-2">
-                        <Hash01 className="h-4 w-4 text-fg-quaternary" />
-                        <p className="text-sm font-medium text-primary">
-                          {project.keywordCount}
-                        </p>
-                      </div>
+                {/* Details section */}
+                <section className="flex flex-col gap-4">
+                  <p className="text-sm font-semibold text-primary">Project Details</p>
+
+                  <span className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-secondary">Created</p>
+                    <div className="flex flex-col items-end">
+                      <p className="text-sm text-primary">{formatRelativeTime(project.createdAt)}</p>
+                      <p className="text-sm text-tertiary">{formatDate(project.createdAt)}</p>
                     </div>
-                  </section>
-                </div>
+                  </span>
+                </section>
               </TabPanel>
 
               <TabPanel id="domains">
-                <div className="flex flex-col gap-4 py-6">
-                  {domains && domains.length > 0 ? (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-primary">
-                          All Domains ({domains.length})
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {domains.map((domain) => (
-                          <div
-                            key={domain._id}
-                            className="flex items-center justify-between rounded-lg border border-secondary p-3"
-                          >
-                            <div className="flex items-center gap-3">
-                              <Globe01 className="h-5 w-5 text-fg-quaternary" />
-                              <div>
-                                <p className="text-sm font-medium text-primary">
-                                  {domain.domain}
-                                </p>
-                                <p className="text-sm text-tertiary">
-                                  {domain.keywordCount} keywords
-                                </p>
-                              </div>
+                {domains && domains.length > 0 ? (
+                  <section className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-primary">Domains</p>
+                      <BadgeWithDot size="sm" type="modern" color="gray">
+                        {domains.length} {domains.length === 1 ? 'domain' : 'domains'}
+                      </BadgeWithDot>
+                    </div>
+
+                    <span className="h-px w-full bg-border-secondary" />
+
+                    {domains.map((domain, index) => (
+                      <div key={domain._id}>
+                        <span className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Globe01 className="h-5 w-5 text-fg-quaternary" />
+                            <div>
+                              <p className="text-sm font-medium text-primary">{domain.domain}</p>
+                              <p className="text-sm text-tertiary">{domain.settings.searchEngine}</p>
                             </div>
                           </div>
-                        ))}
+                          <div className="flex items-center gap-2">
+                            <Hash01 className="h-4 w-4 text-fg-quaternary" />
+                            <p className="text-sm font-medium text-secondary">{domain.keywordCount}</p>
+                          </div>
+                        </span>
+                        {index < domains.length - 1 && <span className="h-px w-full bg-border-secondary mt-4" />}
                       </div>
-                    </>
-                  ) : (
-                    <section className="flex flex-col items-center gap-2 rounded-lg border border-secondary p-6 text-center">
-                      <Globe01 className="h-10 w-10 text-fg-quaternary" />
-                      <p className="text-sm font-medium text-primary">
-                        No domains yet
-                      </p>
-                      <p className="text-sm text-tertiary">
-                        Add domains to start tracking keywords
-                      </p>
-                    </section>
-                  )}
-                </div>
+                    ))}
+                  </section>
+                ) : (
+                  <section className="flex flex-col items-center gap-2 py-8 text-center">
+                    <Globe01 className="h-10 w-10 text-fg-quaternary" />
+                    <p className="text-sm font-medium text-primary">No domains yet</p>
+                    <p className="text-sm text-tertiary">Add domains to start tracking keywords</p>
+                  </section>
+                )}
               </TabPanel>
 
               <TabPanel id="settings">
-                <div className="flex flex-col gap-4 py-6">
-                  <section className="flex flex-col items-center gap-2 rounded-lg border border-secondary p-6 text-center">
-                    <Settings01 className="h-10 w-10 text-fg-quaternary" />
-                    <p className="text-sm font-medium text-primary">
-                      Project Settings
-                    </p>
-                    <p className="text-sm text-tertiary">
-                      Project settings coming soon
-                    </p>
-                  </section>
-                </div>
+                <section className="flex flex-col items-center gap-2 py-8 text-center">
+                  <Settings01 className="h-10 w-10 text-fg-quaternary" />
+                  <p className="text-sm font-medium text-primary">Project Settings</p>
+                  <p className="text-sm text-tertiary">Project settings coming soon</p>
+                </section>
               </TabPanel>
             </Tabs>
           )}
