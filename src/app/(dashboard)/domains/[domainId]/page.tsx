@@ -176,12 +176,14 @@ export default function DomainDetailPage() {
 
       {/* Main content with vertical tabs */}
       <div className="mx-auto flex w-full max-w-container gap-16 lg:px-8">
-        <Tabs orientation="vertical" defaultSelectedKey="overview" className="w-auto max-lg:hidden">
-          <TabList size="sm" type="line" items={tabs} className="items-start" />
-        </Tabs>
+        <Tabs orientation="vertical" defaultSelectedKey="overview">
+          {/* Desktop Sidebar Navigation */}
+          <TabList size="sm" type="line" items={tabs} className="w-auto items-start max-lg:hidden" />
 
-        <div className="mx-auto flex w-full max-w-container min-w-0 flex-1 flex-col px-4 lg:gap-6 lg:px-0">
-          <Tabs orientation="vertical" defaultSelectedKey="overview">
+          <div className="mx-auto flex w-full max-w-container min-w-0 flex-1 flex-col px-4 lg:gap-6 lg:px-0">
+            {/* Mobile Horizontal Navigation */}
+            <TabList size="sm" type="line" items={tabs} className="lg:hidden" />
+
             {/* Overview Tab */}
             <TabPanel id="overview">
               <div className="flex flex-col gap-8">
@@ -277,8 +279,8 @@ export default function DomainDetailPage() {
                 </div>
               </div>
             </TabPanel>
-          </Tabs>
-        </div>
+          </div>
+        </Tabs>
       </div>
     </main>
   );

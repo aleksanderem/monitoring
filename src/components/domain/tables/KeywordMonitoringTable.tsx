@@ -324,7 +324,13 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   {/* URL */}
                   <td className="px-6 py-4">
                     <span className="truncate font-mono text-sm text-tertiary" title={keyword.url}>
-                      {keyword.url ? new URL(keyword.url).pathname : "—"}
+                      {keyword.url ? (() => {
+                        try {
+                          return new URL(keyword.url).pathname;
+                        } catch {
+                          return keyword.url;
+                        }
+                      })() : "—"}
                     </span>
                   </td>
 
