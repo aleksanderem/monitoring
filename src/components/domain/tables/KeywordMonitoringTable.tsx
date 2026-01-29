@@ -53,6 +53,84 @@ function getStatusBadge(status: string) {
 }
 
 export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps) {
-  // Will be completed in next steps
-  return <div>Table structure coming next</div>;
+  const keywords = useQuery(api.keywords.getKeywordMonitoring, { domainId });
+
+  const [sortColumn, setSortColumn] = useState<SortColumn>("currentPosition");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+
+  // Handle column sort
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  // Filter and sort keywords
+  const filteredAndSortedKeywords = useMemo(() => {
+    if (!keywords) return [];
+
+    let filtered = keywords;
+
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((kw) => kw.phrase.toLowerCase().includes(query));
+    }
+
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (sortColumn) {
+        case "phrase":
+          aVal = a.phrase.toLowerCase();
+          bVal = b.phrase.toLowerCase();
+          break;
+        case "currentPosition":
+          aVal = a.currentPosition || 999;
+          bVal = b.currentPosition || 999;
+          break;
+        case "change":
+          aVal = a.change;
+          bVal = b.change;
+          break;
+        case "potential":
+          aVal = a.potential;
+          bVal = b.potential;
+          break;
+        case "searchVolume":
+          aVal = a.searchVolume;
+          bVal = b.searchVolume;
+          break;
+        case "difficulty":
+          aVal = a.difficulty;
+          bVal = b.difficulty;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
+  }, [keywords, searchQuery, sortColumn, sortDirection]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAndSortedKeywords.length / pageSize);
+  const paginatedKeywords = filteredAndSortedKeywords.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  return <div>Rendering coming next</div>;
 }
