@@ -2904,8 +2904,22 @@ export const storeOnsiteAnalysisInternal = internalMutation({
     const thinContent = args.pages.filter(p => p.wordCount < 300).length;
     const slowPages = args.pages.filter(p => (p.loadTime || 0) > 3).length;
 
+    // Create a scan record for backwards compatibility
+    const tempScanId = await ctx.db.insert("onSiteScans", {
+      domainId: args.domainId,
+      status: "complete",
+      startedAt: now,
+      completedAt: now,
+      summary: {
+        totalPages: args.totalPages,
+        totalIssues: args.criticalIssues + args.warnings + args.recommendations,
+        crawlTime: 0,
+      },
+    });
+
     const analysisData = {
       domainId: args.domainId,
+      scanId: tempScanId,
       healthScore: args.healthScore,
       totalPages: args.totalPages,
       criticalIssues: args.criticalIssues,
@@ -2951,7 +2965,9 @@ export const storeOnsiteAnalysisInternal = internalMutation({
     for (const page of args.pages) {
       await ctx.db.insert("domainOnsitePages", {
         domainId: args.domainId,
+        scanId: tempScanId,
         analysisId,
+        pageSize: 0,
         ...page,
       });
     }

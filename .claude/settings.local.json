@@ -14,7 +14,8 @@
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
       "Bash(npx convex dev:*)",
-      "Bash(npx convex run:*)"
+      "Bash(npx convex run:*)",
+      "Bash(npx convex deploy:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

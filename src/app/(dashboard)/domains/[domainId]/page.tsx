@@ -17,7 +17,11 @@ import {
   Link03,
   TrendUp02,
   HomeLine,
-  Save01
+  Save01,
+  FileCheck02,
+  Lightbulb02,
+  Users01,
+  Lightning01
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
@@ -58,6 +62,11 @@ import { CountriesDistributionTable } from "@/components/domain/tables/Countries
 import { BacklinksTable } from "@/components/domain/tables/BacklinksTable";
 import { BacklinkVelocityChart } from "@/components/domain/charts/BacklinkVelocityChart";
 import { VelocityMetricsCards } from "@/components/domain/cards/VelocityMetricsCards";
+import { OnSiteSection } from "@/components/domain/sections/OnSiteSection";
+import { GapSummaryCards } from "@/components/domain/cards/GapSummaryCards";
+import { ContentGapsTable } from "@/components/domain/tables/ContentGapsTable";
+import { CompetitorManagementSection } from "@/components/domain/sections/CompetitorManagementSection";
+import { ForecastSummaryCard } from "@/components/domain/cards/ForecastSummaryCard";
 
 // Helper to format date
 function formatDate(timestamp: number) {
@@ -84,6 +93,10 @@ const tabs = [
   { id: "monitoring", label: "Monitoring", icon: Activity },
   { id: "visibility", label: "Visibility", icon: TrendUp02 },
   { id: "backlinks", label: "Backlinks", icon: Link03 },
+  { id: "competitors", label: "Competitors", icon: Users01 },
+  { id: "on-site", label: "On-Site", icon: FileCheck02 },
+  { id: "content-gaps", label: "Content Gaps", icon: Lightbulb02 },
+  { id: "insights", label: "Insights", icon: Lightning01 },
   { id: "settings", label: "Settings", icon: Settings01 },
 ];
 
@@ -123,6 +136,9 @@ export default function DomainDetailPage() {
   const velocityHistory = useQuery(api.backlinkVelocity.getVelocityHistory, { domainId, days: 30 });
   const velocityStats = useQuery(api.backlinkVelocity.getVelocityStats, { domainId, days: 30 });
   const velocity7Day = useQuery(api.backlinkVelocity.getVelocityStats, { domainId, days: 7 });
+
+  // Content gaps queries
+  const gapSummary = useQuery(api.contentGaps_queries.getGapSummary, { domainId });
 
   const [isFetchingBacklinks, setIsFetchingBacklinks] = useState(false);
   const [backlinksPage, setBacklinksPage] = useState(1);
@@ -353,6 +369,9 @@ export default function DomainDetailPage() {
                 {/* Executive Summary Metrics */}
                 <ExecutiveSummary domainId={domainId} />
 
+                {/* Forecast Summary Card */}
+                <ForecastSummaryCard domainId={domainId} />
+
                 {/* Placeholder for future sections */}
                 <div className="rounded-xl border border-secondary bg-primary p-6">
                   <p className="text-sm text-tertiary">
@@ -527,6 +546,59 @@ export default function DomainDetailPage() {
                     isLoading={backlinksData === undefined}
                   />
                 )}
+              </div>
+            </TabPanel>
+
+            {/* Competitors Tab */}
+            <TabPanel id="competitors">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-primary mb-1">Competitor Tracking</h2>
+                  <p className="text-sm text-tertiary">
+                    Monitor competitor rankings and identify keyword opportunities
+                  </p>
+                </div>
+
+                <CompetitorManagementSection domainId={domainId} />
+              </div>
+            </TabPanel>
+
+            {/* On-Site Tab */}
+            <TabPanel id="on-site">
+              <OnSiteSection domainId={domainId} />
+            </TabPanel>
+
+            {/* Content Gaps Tab */}
+            <TabPanel id="content-gaps">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-primary mb-1">Content Gap Analysis</h2>
+                  <p className="text-sm text-tertiary">
+                    Identify keyword opportunities where competitors rank but you don't
+                  </p>
+                </div>
+
+                {gapSummary && <GapSummaryCards summary={gapSummary} />}
+
+                <ContentGapsTable domainId={domainId} />
+              </div>
+            </TabPanel>
+
+            {/* Insights Tab */}
+            <TabPanel id="insights">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-primary mb-1">Insights & Anomalies</h2>
+                  <p className="text-sm text-tertiary">
+                    Statistical anomalies and forecasting for your rankings
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-secondary bg-primary p-6">
+                  <p className="text-sm text-tertiary text-center">
+                    Insights and anomaly detection coming soon. This feature will detect unusual ranking changes and provide predictive analytics.
+                  </p>
+                </div>
               </div>
             </TabPanel>
 

@@ -45,4 +45,18 @@ crons.daily(
   internal.scheduler.calculateDailyBacklinkVelocity
 );
 
+// Detect anomalies daily at 3 AM UTC (after backlink velocity calculation)
+crons.daily(
+  "detect-anomalies-daily",
+  { hourUTC: 3, minuteUTC: 0 },
+  internal.scheduler.detectAnomaliesDaily
+);
+
+// Analyze content gaps weekly on Sundays at 4 AM UTC
+crons.weekly(
+  "analyze-content-gaps-weekly",
+  { dayOfWeek: "sunday", hourUTC: 4, minuteUTC: 0 },
+  internal.scheduler.analyzeContentGapsWeekly
+);
+
 export default crons;
