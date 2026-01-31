@@ -10,6 +10,7 @@
 
 import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
+import type * as backlinkVelocity from "../backlinkVelocity.js";
 import type * as backlinks from "../backlinks.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
@@ -18,6 +19,8 @@ import type * as domains from "../domains.js";
 import type * as generatedReports from "../generatedReports.js";
 import type * as http from "../http.js";
 import type * as keywordCheckJobs from "../keywordCheckJobs.js";
+import type * as keywordGroups_mutations from "../keywordGroups_mutations.js";
+import type * as keywordGroups_queries from "../keywordGroups_queries.js";
 import type * as keywords from "../keywords.js";
 import type * as limits from "../limits.js";
 import type * as logs from "../logs.js";
@@ -44,6 +47,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   auth: typeof auth;
+  backlinkVelocity: typeof backlinkVelocity;
   backlinks: typeof backlinks;
   crons: typeof crons;
   dashboard: typeof dashboard;
@@ -52,6 +56,8 @@ declare const fullApi: ApiFromModules<{
   generatedReports: typeof generatedReports;
   http: typeof http;
   keywordCheckJobs: typeof keywordCheckJobs;
+  keywordGroups_mutations: typeof keywordGroups_mutations;
+  keywordGroups_queries: typeof keywordGroups_queries;
   keywords: typeof keywords;
   limits: typeof limits;
   logs: typeof logs;

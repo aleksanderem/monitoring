@@ -13,7 +13,7 @@ interface GroupPerformanceChartProps {
 }
 
 export function GroupPerformanceChart({ domainId, days = 30 }: GroupPerformanceChartProps) {
-  const groupsPerformance = useQuery(api.queries.keywordGroups.getAllGroupsPerformance, {
+  const groupsPerformance = useQuery(api.keywordGroups_queries.getAllGroupsPerformance, {
     domainId,
     days,
   });
@@ -33,8 +33,8 @@ export function GroupPerformanceChart({ domainId, days = 30 }: GroupPerformanceC
 
   // Combine all group histories into a single dataset
   const allDates = new Set<number>();
-  groupsPerformance.forEach((group) => {
-    group.history.forEach((point) => {
+  groupsPerformance.forEach((group: any) => {
+    group.history.forEach((point: any) => {
       allDates.add(point.date);
     });
   });
@@ -43,8 +43,8 @@ export function GroupPerformanceChart({ domainId, days = 30 }: GroupPerformanceC
     .sort((a, b) => a - b)
     .map((date) => {
       const dataPoint: any = { date };
-      groupsPerformance.forEach((group) => {
-        const point = group.history.find((p) => p.date === date);
+      groupsPerformance.forEach((group: any) => {
+        const point = group.history.find((p: any) => p.date === date);
         dataPoint[group.name] = point?.avgPosition || null;
       });
       return dataPoint;
@@ -52,7 +52,7 @@ export function GroupPerformanceChart({ domainId, days = 30 }: GroupPerformanceC
 
   // Chart config for ChartContainer
   const chartConfig: any = {};
-  groupsPerformance.forEach((group, index) => {
+  groupsPerformance.forEach((group: any, index: number) => {
     chartConfig[group.name] = {
       label: group.name,
       color: group.color,
@@ -83,7 +83,7 @@ export function GroupPerformanceChart({ domainId, days = 30 }: GroupPerformanceC
             />
             <ChartTooltip content={<ChartTooltipContent />} />
             <Legend />
-            {groupsPerformance.map((group) => (
+            {groupsPerformance.map((group: any) => (
               <Line
                 key={group.groupId}
                 type="monotone"

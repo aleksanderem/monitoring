@@ -122,3 +122,118 @@ All success criteria met:
 Task #39 marked as PASSING in tasks_progress.json
 
 ---
+
+=== SESSION S0011 CONTINUED === 2026-01-31T18:50:00Z
+Focus: Task #4 - Backlink Velocity Tracking
+Active tasks: #41 (backlink_velocity_tracking)
+
+---
+
+S0011. Task #4 Implementation - Complete:
+
+**Backend - Schema Updates:**
+- Added backlinkVelocityHistory table with fields:
+  * domainId (reference to domains)
+  * date (YYYY-MM-DD string for daily tracking)
+  * newBacklinks (count of backlinks gained this day)
+  * lostBacklinks (count of backlinks lost this day)
+  * netChange (calculated: newBacklinks - lostBacklinks)
+  * totalBacklinks (total backlinks on this day)
+  * createdAt (timestamp)
+- Indexes: by_domain, by_domain_date for efficient queries
+
+**Backend - Queries (convex/backlinkVelocity.ts):**
+Created 4 functions:
+1. getVelocityHistory(domainId, days=30) - Returns daily velocity data for specified period
+2. getVelocityStats(domainId, days=30) - Calculates statistics:
+   - avgNewPerDay, avgLostPerDay, avgNetChange
+   - totalNew, totalLost, netChange, daysTracked
+3. detectVelocityAnomalies(domainId, days=30) - Statistical anomaly detection:
+   - Calculates z-score for each day's net change
+   - Identifies spikes/drops >2 standard deviations
+   - Returns anomaly list with date, type (spike/drop), severity (high/medium/low)
+4. saveDailyVelocity - Internal mutation to store daily calculations
+
+**Backend - Cron Job (convex/scheduler.ts):**
+Added calculateDailyBacklinkVelocity function:
+- Runs daily at 2 AM UTC (scheduled in convex/crons.ts)
+- Processes all domains with backlink data
+- For each domain:
+  * Gets current backlinks summary
+  * Counts new backlinks (firstSeen == today OR isNew == true)
+  * Counts lost backlinks (isLost == true)
+  * Calculates net change
+  * Saves to backlinkVelocityHistory via internal mutation
+- Includes error handling per domain (continues on individual failures)
+- Logs progress and errors to console
+
+**Frontend - BacklinkVelocityChart:**
+- Composed chart using recharts ComposedChart component
+- Visual elements:
+  * Green bars for New Backlinks
+  * Red bars for Lost Backlinks
+  * Blue line for Net Change (overlaid on bars)
+- X-axis: dates formatted as "MMM DD"
+- Y-axis: backlink count
+- Hover tooltip shows all 3 values with full date
+- Summary in header: "X gained, Y lost (±Z net)"
+- Empty state with icon when no data
+- Loading skeleton during data fetch
+- Uses shadcn/ui ChartContainer for consistent styling
+
+**Frontend - VelocityMetricsCards:**
+4 metric cards displaying:
+1. Avg New/Day - average daily new backlinks (green, up arrow)
+2. Avg Lost/Day - average daily lost backlinks (red, down arrow)
+3. Net Growth - net change per day (color based on positive/negative)
+4. 7-Day Velocity - recent trend (uses 7-day query for freshness)
+
+Card features:
+- Icon with colored background (green/red/gray based on trend)
+- Large value display with color coding
+- "Last N days" caption
+- Responsive grid layout (2 cols mobile, 4 cols desktop)
+- Loading skeleton animation during fetch
+
+**Frontend - Integration:**
+Added to Backlinks tab:
+1. New queries:
+   - velocityHistory = getVelocityHistory(domainId, 30 days)
+   - velocityStats = getVelocityStats(domainId, 30 days)
+   - velocity7Day = getVelocityStats(domainId, 7 days)
+2. New section after BacklinksHistoryChart:
+   - Section header: "Backlink Velocity"
+   - VelocityMetricsCards component with stats
+   - BacklinkVelocityChart component with history data
+3. Graceful empty state handling (no data yet)
+
+**Files Created:**
+- convex/backlinkVelocity.ts (~150 lines)
+- src/components/domain/charts/BacklinkVelocityChart.tsx (~160 lines)
+- src/components/domain/cards/VelocityMetricsCards.tsx (~140 lines)
+
+**Files Modified:**
+- convex/schema.ts (added backlinkVelocityHistory table)
+- convex/scheduler.ts (added calculateDailyBacklinkVelocity + 3 helper queries)
+- convex/crons.ts (added daily cron schedule for velocity calculation)
+- src/app/(dashboard)/domains/[domainId]/page.tsx (added velocity queries and UI)
+
+**Implementation Status:**
+✅ Schema complete (backlinkVelocityHistory table)
+✅ Backend queries complete (4 functions in backlinkVelocity.ts)
+✅ Cron job complete (daily calculation at 2 AM UTC)
+✅ Chart component complete (ComposedChart with bars + line)
+✅ Metrics cards complete (4 cards with trend indicators)
+✅ Integration complete (added to Backlinks tab)
+⏳ Testing pending (schema deployed, UI needs browser verification)
+
+**Next Steps:**
+1. Test cron job manually: npx convex run scheduler:calculateDailyBacklinkVelocity
+2. Verify velocity data appears in browser
+3. Check for console errors
+4. Verify charts render correctly with data
+5. Mark task as PASSING once all tests complete
+
+Task #4 STATUS: In Progress (implementation complete, testing pending)
+
+---

@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import { mutation } from "../_generated/server";
-import { requirePermission, getContextFromDomain } from "../permissions";
+import { mutation } from "./_generated/server";
+import { requirePermission, getContextFromDomain } from "./permissions";
 
 // Create a new keyword group
 export const createGroup = mutation({

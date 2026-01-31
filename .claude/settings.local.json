@@ -10,7 +10,10 @@
       "Bash(ls:*)",
       "Bash(grep:*)",
       "Bash(wc:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx convex dev:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

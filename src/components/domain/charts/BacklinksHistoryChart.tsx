@@ -85,7 +85,7 @@ export function BacklinksHistoryChart({
     })) :
     filteredData;
 
-  const chartConfig = comparisonRange ? {
+  const chartConfig: ChartConfig = comparisonRange ? {
     backlinks: {
       label: "Current Period",
       color: chartColor,
@@ -94,12 +94,12 @@ export function BacklinksHistoryChart({
       label: "Comparison Period",
       color: comparisonColor,
     },
-  } satisfies ChartConfig : {
+  } : {
     backlinks: {
       label: "Backlinks",
       color: chartColor,
     },
-  } satisfies ChartConfig;
+  };
 
   const totalBacklinks = filteredData.reduce((sum, item) => sum + item.backlinks, 0);
   const totalComparisonBacklinks = comparisonData.reduce((sum, item) => sum + (item.comparison || 0), 0);

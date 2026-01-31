@@ -36,10 +36,10 @@ export function GroupManagementModal({
   isOpen,
   onOpenChange,
 }: GroupManagementModalProps) {
-  const groups = useQuery(api.queries.keywordGroups.getGroupsByDomain, { domainId });
-  const createGroup = useMutation(api.mutations.keywordGroups.createGroup);
-  const updateGroup = useMutation(api.mutations.keywordGroups.updateGroup);
-  const deleteGroup = useMutation(api.mutations.keywordGroups.deleteGroup);
+  const groups = useQuery(api.keywordGroups_queries.getGroupsByDomain, { domainId });
+  const createGroup = useMutation(api.keywordGroups_mutations.createGroup);
+  const updateGroup = useMutation(api.keywordGroups_mutations.updateGroup);
+  const deleteGroup = useMutation(api.keywordGroups_mutations.deleteGroup);
 
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState("");
@@ -144,14 +144,14 @@ export function GroupManagementModal({
                     size="md"
                     label="Group Name"
                     value={newGroupName}
-                    onChange={(e) => setNewGroupName(e.target.value)}
+                    onChange={(value: string) => setNewGroupName(value)}
                     placeholder="e.g., Brand Keywords"
                   />
                   <Input
                     size="md"
                     label="Description (Optional)"
                     value={newGroupDescription}
-                    onChange={(e) => setNewGroupDescription(e.target.value)}
+                    onChange={(value: string) => setNewGroupDescription(value)}
                     placeholder="e.g., Keywords containing brand name"
                   />
                   <div className="flex flex-col gap-2">
@@ -207,13 +207,13 @@ export function GroupManagementModal({
                             <Input
                               size="sm"
                               value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
+                              onChange={(value: string) => setEditName(value)}
                               placeholder="Group name"
                             />
                             <Input
                               size="sm"
                               value={editDescription}
-                              onChange={(e) => setEditDescription(e.target.value)}
+                              onChange={(value: string) => setEditDescription(value)}
                               placeholder="Description (optional)"
                             />
                             <div className="flex gap-2">

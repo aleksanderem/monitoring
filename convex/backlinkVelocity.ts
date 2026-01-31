@@ -1,5 +1,27 @@
 import { v } from "convex/values";
-import { query, internalMutation } from "./_generated/server";
+import { query, internalMutation, QueryCtx } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
+
+// Helper function to fetch velocity history
+async function fetchVelocityHistory(
+  ctx: QueryCtx,
+  domainId: Id<"domains">,
+  days: number = 30
+) {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  const cutoffDateStr = cutoffDate.toISOString().split("T")[0];
+
+  const history = await ctx.db
+    .query("backlinkVelocityHistory")
+    .withIndex("by_domain", (q) => q.eq("domainId", domainId))
+    .collect();
+
+  // Filter by date and sort
+  return history
+    .filter((h) => h.date >= cutoffDateStr)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
 
 // Get velocity history for a domain (last N days)
 export const getVelocityHistory = query({
@@ -9,19 +31,7 @@ export const getVelocityHistory = query({
   },
   handler: async (ctx, args) => {
     const days = args.days || 30;
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - days);
-    const cutoffDateStr = cutoffDate.toISOString().split("T")[0];
-
-    const history = await ctx.db
-      .query("backlinkVelocityHistory")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .collect();
-
-    // Filter by date and sort
-    return history
-      .filter((h) => h.date >= cutoffDateStr)
-      .sort((a, b) => a.date.localeCompare(b.date));
+    return fetchVelocityHistory(ctx, args.domainId, days);
   },
 });
 
@@ -33,10 +43,7 @@ export const getVelocityStats = query({
   },
   handler: async (ctx, args) => {
     const days = args.days || 30;
-    const history = await ctx.runQuery(ctx.functionName.split(":")[0] + ":getVelocityHistory", {
-      domainId: args.domainId,
-      days,
-    });
+    const history = await fetchVelocityHistory(ctx, args.domainId, days);
 
     if (history.length === 0) {
       return {
@@ -74,10 +81,7 @@ export const detectVelocityAnomalies = query({
   },
   handler: async (ctx, args) => {
     const days = args.days || 30;
-    const history = await ctx.runQuery(ctx.functionName.split(":")[0] + ":getVelocityHistory", {
-      domainId: args.domainId,
-      days,
-    });
+    const history = await fetchVelocityHistory(ctx, args.domainId, days);
 
     if (history.length < 3) {
       return []; // Need at least 3 data points to detect anomalies
@@ -85,9 +89,9 @@ export const detectVelocityAnomalies = query({
 
     // Calculate mean and standard deviation of net change
     const netChanges = history.map((h) => h.netChange);
-    const mean = netChanges.reduce((sum, val) => sum + val, 0) / netChanges.length;
+    const mean = netChanges.reduce((sum: number, val: number) => sum + val, 0) / netChanges.length;
     const variance =
-      netChanges.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) /
+      netChanges.reduce((sum: number, val: number) => sum + Math.pow(val - mean, 2), 0) /
       netChanges.length;
     const stdDev = Math.sqrt(variance);
 
@@ -116,7 +120,7 @@ export const detectVelocityAnomalies = query({
                 : ("low" as const),
         };
       })
-      .filter((a): a is NonNullable<typeof a> => a !== null);
+      .filter((a: any): a is NonNullable<typeof a> => a !== null);
 
     return anomalies;
   },

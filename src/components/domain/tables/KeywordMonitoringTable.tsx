@@ -114,11 +114,11 @@ function SortableHeader({ column, currentColumn, direction, onClick, children, c
 
 export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps) {
   const keywords = useQuery(api.keywords.getKeywordMonitoring, { domainId });
-  const groups = useQuery(api.queries.keywordGroups.getGroupsByDomain, { domainId });
+  const groups = useQuery(api.keywordGroups_queries.getGroupsByDomain, { domainId });
   const refreshPositions = useMutation(api.keywords.refreshKeywordPositions as any);
   const deleteKeywords = useMutation(api.keywords.deleteKeywords);
-  const addKeywordsToGroup = useMutation(api.mutations.keywordGroups.addKeywordsToGroup);
-  const bulkTagKeywords = useMutation(api.mutations.keywordGroups.bulkTagKeywords);
+  const addKeywordsToGroup = useMutation(api.keywordGroups_mutations.addKeywordsToGroup);
+  const bulkTagKeywords = useMutation(api.keywordGroups_mutations.bulkTagKeywords);
 
   const [sortColumn, setSortColumn] = useState<SortColumn>("currentPosition");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -378,18 +378,16 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
             {/* Add to Group */}
             {groups && groups.length > 0 && (
               <Dropdown.Root>
-                <Dropdown.Trigger>
-                  <Button size="sm" color="secondary" iconLeading={FolderClosed}>
-                    Dodaj do grupy
-                  </Button>
-                </Dropdown.Trigger>
+                <Button size="sm" color="secondary" iconLeading={FolderClosed}>
+                  Dodaj do grupy
+                </Button>
                 <Dropdown.Popover>
                   <Dropdown.Menu
                     selectionMode={undefined as any}
                     disallowEmptySelection={false}
                     onAction={(key) => handleBulkAddToGroup(key as Id<"keywordGroups">)}
                   >
-                    {groups.map((group) => (
+                    {groups.map((group: any) => (
                       <Dropdown.Item key={group._id} id={group._id} label={group.name} />
                     ))}
                   </Dropdown.Menu>
@@ -441,11 +439,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
         {/* Group Filter */}
         {groups && groups.length > 0 && (
           <Dropdown.Root>
-            <Dropdown.Trigger>
-              <Button size="sm" color="secondary" iconLeading={FolderClosed}>
-                {selectedGroupFilter === "all" ? "Wszystkie grupy" : groups.find(g => g._id === selectedGroupFilter)?.name || "Grupa"}
-              </Button>
-            </Dropdown.Trigger>
+            <Button size="sm" color="secondary" iconLeading={FolderClosed}>
+              {selectedGroupFilter === "all" ? "Wszystkie grupy" : groups.find((g: any) => g._id === selectedGroupFilter)?.name || "Grupa"}
+            </Button>
             <Dropdown.Popover>
               <Dropdown.Menu
                 selectionMode="single"
@@ -457,7 +453,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
               >
                 <Dropdown.Item id="all" label="Wszystkie grupy" />
                 <Dropdown.Separator />
-                {groups.map((group) => (
+                {groups.map((group: any) => (
                   <Dropdown.Item key={group._id} id={group._id} label={`${group.name} (${group.keywordCount})`} />
                 ))}
               </Dropdown.Menu>
@@ -966,7 +962,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     size="md"
                     label="Tagi (oddzielone przecinkami)"
                     value={bulkTags}
-                    onChange={(e) => setBulkTags(e.target.value)}
+                    onChange={(value: string) => setBulkTags(value)}
                     placeholder="np. high-priority, conversion, competitor"
                   />
                   <p className="mt-2 text-xs text-tertiary">

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { query } from "../_generated/server";
+import { query, QueryCtx } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 
 // Get all groups for a domain
 export const getGroupsByDomain = query({
@@ -140,6 +141,53 @@ export const getGroupsForKeyword = query({
 });
 
 // Get average position history for a group (for the performance chart)
+// Helper function to fetch group performance history
+async function fetchGroupPerformanceHistory(
+  ctx: QueryCtx,
+  groupId: Id<"keywordGroups">,
+  days: number = 30
+) {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  const cutoffDateStr = cutoffDate.toISOString().split("T")[0];
+
+  const memberships = await ctx.db
+    .query("keywordGroupMemberships")
+    .withIndex("by_group", (q) => q.eq("groupId", groupId))
+    .collect();
+
+  // Build a map of date -> average position
+  const datePositionsMap = new Map<string, number[]>();
+
+  for (const membership of memberships) {
+    const positions = await ctx.db
+      .query("keywordPositions")
+      .withIndex("by_keyword", (q) => q.eq("keywordId", membership.keywordId))
+      .filter((q) => q.gte(q.field("date"), cutoffDateStr))
+      .collect();
+
+    for (const position of positions) {
+      if (position.position === null) continue;
+
+      if (!datePositionsMap.has(position.date)) {
+        datePositionsMap.set(position.date, []);
+      }
+      datePositionsMap.get(position.date)!.push(position.position);
+    }
+  }
+
+  // Calculate average position for each date
+  const history = Array.from(datePositionsMap.entries())
+    .map(([date, positions]) => ({
+      date: new Date(date).getTime(),
+      avgPosition:
+        Math.round((positions.reduce((sum, p) => sum + p, 0) / positions.length) * 10) / 10,
+    }))
+    .sort((a, b) => a.date - b.date);
+
+  return history;
+}
+
 export const getGroupPerformanceHistory = query({
   args: {
     groupId: v.id("keywordGroups"),
@@ -147,45 +195,7 @@ export const getGroupPerformanceHistory = query({
   },
   handler: async (ctx, args) => {
     const daysToFetch = args.days || 30;
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysToFetch);
-    const cutoffDateStr = cutoffDate.toISOString().split("T")[0];
-
-    const memberships = await ctx.db
-      .query("keywordGroupMemberships")
-      .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
-      .collect();
-
-    // Build a map of date -> average position
-    const datePositionsMap = new Map<string, number[]>();
-
-    for (const membership of memberships) {
-      const positions = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", membership.keywordId))
-        .filter((q) => q.gte(q.field("date"), cutoffDateStr))
-        .collect();
-
-      for (const position of positions) {
-        if (position.position === null) continue;
-
-        if (!datePositionsMap.has(position.date)) {
-          datePositionsMap.set(position.date, []);
-        }
-        datePositionsMap.get(position.date)!.push(position.position);
-      }
-    }
-
-    // Calculate average position for each date
-    const history = Array.from(datePositionsMap.entries())
-      .map(([date, positions]) => ({
-        date: new Date(date).getTime(),
-        avgPosition:
-          Math.round((positions.reduce((sum, p) => sum + p, 0) / positions.length) * 10) / 10,
-      }))
-      .sort((a, b) => a.date - b.date);
-
-    return history;
+    return fetchGroupPerformanceHistory(ctx, args.groupId, daysToFetch);
   },
 });
 
@@ -205,10 +215,7 @@ export const getAllGroupsPerformance = query({
 
     const groupsPerformance = await Promise.all(
       groups.map(async (group) => {
-        const history = await getGroupPerformanceHistory(ctx, {
-          groupId: group._id,
-          days: daysToFetch,
-        });
+        const history = await fetchGroupPerformanceHistory(ctx, group._id, daysToFetch);
 
         return {
           groupId: group._id,

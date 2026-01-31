@@ -1,7 +1,7 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, ComposedChart } from "recharts";
-import { TrendingUp01 } from "@untitledui/icons";
+import { TrendUp01 } from "@untitledui/icons";
 import {
   ChartContainer,
   ChartLegend,
@@ -49,7 +49,7 @@ export function BacklinkVelocityChart({
           <p className="text-sm text-tertiary">Daily new and lost backlinks</p>
         </div>
         <div className="flex flex-col items-center justify-center py-12">
-          <TrendingUp01 className="h-10 w-10 text-fg-quaternary" />
+          <TrendUp01 className="h-10 w-10 text-fg-quaternary" />
           <p className="mt-2 text-sm text-tertiary">No velocity data available yet</p>
           <p className="mt-1 text-xs text-quaternary">
             Velocity tracking starts after the first backlink refresh

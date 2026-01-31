@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp01, TrendingDown01, ArrowsRight } from "@untitledui/icons";
+import { TrendUp01, TrendDown01, ArrowsRight } from "@untitledui/icons";
 
 interface VelocityStats {
   avgNewPerDay: number;
@@ -45,7 +45,7 @@ export function VelocityMetricsCards({
       title: "Avg New/Day",
       value: stats.avgNewPerDay.toFixed(1),
       trend: stats.avgNewPerDay > 0 ? "up" : "neutral",
-      icon: TrendingUp01,
+      icon: TrendUp01,
       color: "text-green-600",
       bgColor: "bg-green-50",
     },
@@ -53,7 +53,7 @@ export function VelocityMetricsCards({
       title: "Avg Lost/Day",
       value: stats.avgLostPerDay.toFixed(1),
       trend: stats.avgLostPerDay > 0 ? "down" : "neutral",
-      icon: TrendingDown01,
+      icon: TrendDown01,
       color: "text-red-600",
       bgColor: "bg-red-50",
     },
@@ -61,7 +61,7 @@ export function VelocityMetricsCards({
       title: "Net Growth",
       value: `${stats.avgNetChange >= 0 ? "+" : ""}${stats.avgNetChange.toFixed(1)}/day`,
       trend: stats.avgNetChange > 0 ? "up" : stats.avgNetChange < 0 ? "down" : "neutral",
-      icon: stats.avgNetChange > 0 ? TrendingUp01 : stats.avgNetChange < 0 ? TrendingDown01 : ArrowsRight,
+      icon: stats.avgNetChange > 0 ? TrendUp01 : stats.avgNetChange < 0 ? TrendDown01 : ArrowsRight,
       color: stats.avgNetChange > 0 ? "text-green-600" : stats.avgNetChange < 0 ? "text-red-600" : "text-gray-600",
       bgColor: stats.avgNetChange > 0 ? "bg-green-50" : stats.avgNetChange < 0 ? "bg-red-50" : "bg-gray-50",
     },
@@ -76,9 +76,9 @@ export function VelocityMetricsCards({
         ? "down"
         : "neutral",
       icon: (recentVelocity ?? stats.avgNetChange) > 0
-        ? TrendingUp01
+        ? TrendUp01
         : (recentVelocity ?? stats.avgNetChange) < 0
-        ? TrendingDown01
+        ? TrendDown01
         : ArrowsRight,
       color: (recentVelocity ?? stats.avgNetChange) > 0
         ? "text-green-600"
