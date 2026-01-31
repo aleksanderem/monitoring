@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { Hash01, ChevronUp, ChevronDown, ChevronSelectorVertical, RefreshCcw01, Trash01, Settings01, ArrowUp, ArrowDown, Eye, Edit05, Key01 } from "@untitledui/icons";
+import { Hash01, ChevronUp, ChevronDown, ChevronSelectorVertical, RefreshCcw01, Trash01, Settings01, ArrowUp, ArrowDown, Eye, Edit05, Key01, FolderClosed, Tag01, Plus } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { BadgeWithDot, BadgeWithIcon } from "@/components/base/badges/badges";
@@ -18,6 +18,7 @@ import { CloseButton } from "@/components/base/buttons/close-button";
 import { Input } from "@/components/base/input/input";
 import { cx } from "@/utils/cx";
 import { toast } from "sonner";
+import { GroupManagementModal } from "@/components/domain/modals/GroupManagementModal";
 
 interface KeywordMonitoringTableProps {
   domainId: Id<"domains">;
@@ -113,8 +114,11 @@ function SortableHeader({ column, currentColumn, direction, onClick, children, c
 
 export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps) {
   const keywords = useQuery(api.keywords.getKeywordMonitoring, { domainId });
+  const groups = useQuery(api.queries.keywordGroups.getGroupsByDomain, { domainId });
   const refreshPositions = useMutation(api.keywords.refreshKeywordPositions as any);
   const deleteKeywords = useMutation(api.keywords.deleteKeywords);
+  const addKeywordsToGroup = useMutation(api.mutations.keywordGroups.addKeywordsToGroup);
+  const bulkTagKeywords = useMutation(api.mutations.keywordGroups.bulkTagKeywords);
 
   const [sortColumn, setSortColumn] = useState<SortColumn>("currentPosition");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -128,6 +132,10 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedKeyword, setSelectedKeyword] = useState<NonNullable<typeof keywords>[number] | null>(null);
+  const [groupManagementOpen, setGroupManagementOpen] = useState(false);
+  const [selectedGroupFilter, setSelectedGroupFilter] = useState<Id<"keywordGroups"> | "all">("all");
+  const [bulkTagModalOpen, setBulkTagModalOpen] = useState(false);
+  const [bulkTags, setBulkTags] = useState("");
 
   // Handle column visibility toggle
   const toggleColumn = (columnId: ColumnId) => {
@@ -202,6 +210,43 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
     }
   };
 
+  // Handle bulk add to group
+  const handleBulkAddToGroup = async (groupId: Id<"keywordGroups">) => {
+    if (selectedRows.size === 0) return;
+
+    try {
+      const result = await addKeywordsToGroup({
+        groupId,
+        keywordIds: Array.from(selectedRows),
+      });
+      toast.success(`Dodano ${result.added} słów kluczowych do grupy`);
+      setSelectedRows(new Set());
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Nie udało się dodać do grupy";
+      toast.error(errorMessage);
+    }
+  };
+
+  // Handle bulk tag
+  const handleBulkTag = async () => {
+    if (selectedRows.size === 0 || !bulkTags.trim()) return;
+
+    try {
+      const tags = bulkTags.split(",").map((t) => t.trim()).filter((t) => t);
+      const result = await bulkTagKeywords({
+        keywordIds: Array.from(selectedRows),
+        tags,
+      });
+      toast.success(`Dodano tagi do ${result.updated} słów kluczowych`);
+      setBulkTagModalOpen(false);
+      setBulkTags("");
+      setSelectedRows(new Set());
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Nie udało się dodać tagów";
+      toast.error(errorMessage);
+    }
+  };
+
   // Check if any keywords are currently being refreshed
   const hasRefreshingKeywords = useMemo(() => {
     if (!keywords) return false;
@@ -219,6 +264,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((kw) => kw.phrase.toLowerCase().includes(query));
     }
+
+    // Apply group filter (Note: This requires keywords to have groups data, which we'll need to add)
+    // For now, we'll skip group filtering in the memo and handle it in the backend query later
 
     // Apply sorting
     const sorted = [...filtered].sort((a, b) => {
@@ -326,6 +374,39 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                 <span>{hasRefreshingKeywords ? "Odświeżanie..." : "Odśwież pozycję"}</span>
               </div>
             </Button>
+
+            {/* Add to Group */}
+            {groups && groups.length > 0 && (
+              <Dropdown.Root>
+                <Dropdown.Trigger>
+                  <Button size="sm" color="secondary" iconLeading={FolderClosed}>
+                    Dodaj do grupy
+                  </Button>
+                </Dropdown.Trigger>
+                <Dropdown.Popover>
+                  <Dropdown.Menu
+                    selectionMode={undefined as any}
+                    disallowEmptySelection={false}
+                    onAction={(key) => handleBulkAddToGroup(key as Id<"keywordGroups">)}
+                  >
+                    {groups.map((group) => (
+                      <Dropdown.Item key={group._id} id={group._id} label={group.name} />
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
+              </Dropdown.Root>
+            )}
+
+            {/* Bulk Tag */}
+            <Button
+              size="sm"
+              color="secondary"
+              iconLeading={Tag01}
+              onClick={() => setBulkTagModalOpen(true)}
+            >
+              Dodaj tagi
+            </Button>
+
             <DeleteConfirmationDialog
               title={`Usuń ${selectedRows.size} słów kluczowych?`}
               description="Ta akcja spowoduje trwałe usunięcie zaznaczonych słów kluczowych i wszystkich powiązanych danych o rankingach. Nie można tej operacji cofnąć."
@@ -344,7 +425,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
         </div>
       )}
 
-      {/* Search bar and column visibility */}
+      {/* Search bar, filters, and tools */}
       <div className="flex items-center gap-4">
         <input
           type="text"
@@ -356,6 +437,44 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
           }}
           className="flex-1 rounded-lg border border-secondary bg-primary px-4 py-2 text-sm text-primary placeholder:text-tertiary focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
         />
+
+        {/* Group Filter */}
+        {groups && groups.length > 0 && (
+          <Dropdown.Root>
+            <Dropdown.Trigger>
+              <Button size="sm" color="secondary" iconLeading={FolderClosed}>
+                {selectedGroupFilter === "all" ? "Wszystkie grupy" : groups.find(g => g._id === selectedGroupFilter)?.name || "Grupa"}
+              </Button>
+            </Dropdown.Trigger>
+            <Dropdown.Popover>
+              <Dropdown.Menu
+                selectionMode="single"
+                selectedKeys={[selectedGroupFilter]}
+                onAction={(key) => {
+                  setSelectedGroupFilter(key as Id<"keywordGroups"> | "all");
+                  setCurrentPage(1);
+                }}
+              >
+                <Dropdown.Item id="all" label="Wszystkie grupy" />
+                <Dropdown.Separator />
+                {groups.map((group) => (
+                  <Dropdown.Item key={group._id} id={group._id} label={`${group.name} (${group.keywordCount})`} />
+                ))}
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown.Root>
+        )}
+
+        {/* Manage Groups */}
+        <Button
+          size="sm"
+          color="secondary"
+          iconLeading={FolderClosed}
+          onClick={() => setGroupManagementOpen(true)}
+        >
+          Zarządzaj grupami
+        </Button>
+
         <DialogTrigger>
           <Button size="sm" color="secondary" iconLeading={Settings01}>
             Kolumny
@@ -829,6 +948,57 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
           </Modal>
         </ModalOverlay>
       </DialogTrigger>
+
+      {/* Bulk Tag Modal */}
+      <DialogTrigger isOpen={bulkTagModalOpen} onOpenChange={setBulkTagModalOpen}>
+        <ModalOverlay isDismissable>
+          <Modal>
+            <Dialog className="overflow-hidden">
+              <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-md">
+                <CloseButton onClick={() => setBulkTagModalOpen(false)} theme="light" size="lg" className="absolute top-3 right-3 z-10" />
+                <div className="flex flex-col gap-4 px-6 pt-6">
+                  <Heading slot="title" className="text-lg font-semibold text-primary">
+                    Dodaj tagi do {selectedRows.size} słów kluczowych
+                  </Heading>
+                </div>
+                <div className="px-6 py-4">
+                  <Input
+                    size="md"
+                    label="Tagi (oddzielone przecinkami)"
+                    value={bulkTags}
+                    onChange={(e) => setBulkTags(e.target.value)}
+                    placeholder="np. high-priority, conversion, competitor"
+                  />
+                  <p className="mt-2 text-xs text-tertiary">
+                    Możesz dodać wiele tagów oddzielając je przecinkami
+                  </p>
+                </div>
+                <div className="flex gap-3 px-6 py-4 border-t border-secondary">
+                  <Button size="md" color="secondary" onClick={() => setBulkTagModalOpen(false)} className="flex-1">
+                    Anuluj
+                  </Button>
+                  <Button
+                    size="md"
+                    color="primary"
+                    onClick={handleBulkTag}
+                    disabled={!bulkTags.trim()}
+                    className="flex-1"
+                  >
+                    Dodaj tagi
+                  </Button>
+                </div>
+              </div>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
+
+      {/* Group Management Modal */}
+      <GroupManagementModal
+        domainId={domainId}
+        isOpen={groupManagementOpen}
+        onOpenChange={setGroupManagementOpen}
+      />
     </div>
   );
 }

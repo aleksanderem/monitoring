@@ -87,8 +87,28 @@ export default defineSchema({
     checkJobId: v.optional(v.id("keywordCheckJobs")),
     searchVolume: v.optional(v.number()),
     difficulty: v.optional(v.number()),
+    tags: v.optional(v.array(v.string())), // Tags for keyword organization
   }).index("by_domain", ["domainId"])
     .index("by_check_job", ["checkJobId"]),
+
+  // Keyword groups for organizing keywords
+  keywordGroups: defineTable({
+    domainId: v.id("domains"),
+    name: v.string(),
+    description: v.optional(v.string()),
+    color: v.string(), // Hex color code
+    createdAt: v.number(),
+  }).index("by_domain", ["domainId"]),
+
+  // Many-to-many relationship between keywords and groups
+  keywordGroupMemberships: defineTable({
+    keywordId: v.id("keywords"),
+    groupId: v.id("keywordGroups"),
+    addedAt: v.number(),
+  })
+    .index("by_keyword", ["keywordId"])
+    .index("by_group", ["groupId"])
+    .index("by_keyword_group", ["keywordId", "groupId"]),
 
   // Background jobs for keyword position checking
   keywordCheckJobs: defineTable({
@@ -573,6 +593,19 @@ export default defineSchema({
     .index("by_domain", ["domainId"])
     .index("by_domain_urlFrom", ["domainId", "urlFrom"])
     .index("by_domain_rank", ["domainId", "rank"]),
+
+  // Backlink velocity history (daily tracking of new/lost backlinks)
+  backlinkVelocityHistory: defineTable({
+    domainId: v.id("domains"),
+    date: v.string(), // YYYY-MM-DD
+    newBacklinks: v.number(), // Count of backlinks gained this day
+    lostBacklinks: v.number(), // Count of backlinks lost this day
+    netChange: v.number(), // newBacklinks - lostBacklinks
+    totalBacklinks: v.number(), // Total backlinks on this day
+    createdAt: v.number(),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_domain_date", ["domainId", "date"]),
 
   // =================================================================
   // User Settings & Preferences
