@@ -150,3 +150,102 @@ export const triggerWeeklyReports = internalAction({
     return { sent: 0, failed: 0 };
   },
 });
+
+// =================================================================
+// Backlink Velocity Calculation
+// =================================================================
+
+/**
+ * Calculate daily backlink velocity for all domains
+ * Called by cron job daily at 2 AM UTC (after backlink refresh typically runs)
+ */
+export const calculateDailyBacklinkVelocity = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{ processed: number; errors: number }> => {
+    // Get all domains that have backlink data
+    const domains = await ctx.runQuery(internal.scheduler.getAllDomains);
+
+    console.log(`Calculating backlink velocity for ${domains.length} domains`);
+
+    let processed = 0;
+    let errors = 0;
+
+    for (const domain of domains) {
+      try {
+        // Get current and previous backlinks summary
+        const summary = await ctx.runQuery(internal.scheduler.getDomainBacklinkSummary, {
+          domainId: domain._id,
+        });
+
+        if (!summary) {
+          continue; // Skip domains without backlink data
+        }
+
+        // Get all backlinks for this domain to calculate new/lost
+        const backlinks = await ctx.runQuery(internal.scheduler.getDomainBacklinks, {
+          domainId: domain._id,
+        });
+
+        const today = new Date().toISOString().split("T")[0];
+
+        // Count new backlinks (firstSeen == today)
+        const newBacklinks = backlinks.filter(
+          (b) => b.firstSeen === today || (b.isNew === true)
+        ).length;
+
+        // Count lost backlinks (lastSeen < today and previously active)
+        const lostBacklinks = backlinks.filter(
+          (b) => b.isLost === true
+        ).length;
+
+        // Save velocity data
+        await ctx.runMutation(internal.backlinkVelocity.saveDailyVelocity, {
+          domainId: domain._id,
+          date: today,
+          newBacklinks,
+          lostBacklinks,
+          totalBacklinks: summary.totalBacklinks,
+        });
+
+        processed++;
+      } catch (error) {
+        console.error(`Failed to calculate velocity for domain ${domain.domain}:`, error);
+        errors++;
+      }
+    }
+
+    console.log(`Backlink velocity calculation complete: ${processed} processed, ${errors} errors`);
+
+    return { processed, errors };
+  },
+});
+
+// Helper query to get all domains
+export const getAllDomains = internalQuery({
+  args: {},
+  handler: async (ctx): Promise<Doc<"domains">[]> => {
+    return await ctx.db.query("domains").collect();
+  },
+});
+
+// Helper query to get domain backlink summary
+export const getDomainBacklinkSummary = internalQuery({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("domainBacklinksSummary")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .unique();
+  },
+});
+
+// Helper query to get domain backlinks
+export const getDomainBacklinks = internalQuery({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("domainBacklinks")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+  },
+});

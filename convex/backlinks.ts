@@ -331,3 +331,44 @@ export const getBacklinkDistributions = query({
     };
   },
 });
+
+// Get backlinks history grouped by month
+export const getBacklinksHistory = query({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const backlinks = await ctx.db
+      .query("domainBacklinks")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    // Group backlinks by month
+    const monthlyData = new Map<string, number>();
+
+    for (const backlink of backlinks) {
+      // Use firstSeen date, fallback to fetchedAt
+      const dateStr = backlink.firstSeen || new Date(backlink.fetchedAt).toISOString();
+
+      try {
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+          // Format as YYYY-MM
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          monthlyData.set(monthKey, (monthlyData.get(monthKey) || 0) + 1);
+        }
+      } catch (e) {
+        // Skip invalid dates
+        continue;
+      }
+    }
+
+    // Convert to array and sort by date
+    const result = Array.from(monthlyData.entries())
+      .map(([month, count]) => ({
+        date: month + "-01", // Add day for proper date formatting
+        backlinks: count,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return result;
+  },
+});

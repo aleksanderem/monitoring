@@ -47,12 +47,17 @@ import { LiveBadge } from "@/components/domain/badges/LiveBadge";
 import { Activity } from "@untitledui/icons";
 import { VisibilityStats } from "@/components/domain/sections/VisibilityStats";
 import { TopKeywordsTable } from "@/components/domain/tables/TopKeywordsTable";
+import { AllKeywordsTable } from "@/components/domain/tables/AllKeywordsTable";
+import { Top10KeywordsSection } from "@/components/domain/sections/Top10KeywordsSection";
 import { BacklinksSummaryStats } from "@/components/domain/sections/BacklinksSummaryStats";
-import { TLDDistributionChart } from "@/components/domain/charts/TLDDistributionChart";
 import { PlatformTypesChart } from "@/components/domain/charts/PlatformTypesChart";
-import { CountriesDistributionChart } from "@/components/domain/charts/CountriesDistributionChart";
 import { LinkAttributesChart } from "@/components/domain/charts/LinkAttributesChart";
+import { BacklinksHistoryChart } from "@/components/domain/charts/BacklinksHistoryChart";
+import { TLDDistributionTable } from "@/components/domain/tables/TLDDistributionTable";
+import { CountriesDistributionTable } from "@/components/domain/tables/CountriesDistributionTable";
 import { BacklinksTable } from "@/components/domain/tables/BacklinksTable";
+import { BacklinkVelocityChart } from "@/components/domain/charts/BacklinkVelocityChart";
+import { VelocityMetricsCards } from "@/components/domain/cards/VelocityMetricsCards";
 
 // Helper to format date
 function formatDate(timestamp: number) {
@@ -111,7 +116,13 @@ export default function DomainDetailPage() {
   const backlinksSummary = useQuery(api.backlinks.getBacklinkSummary, { domainId });
   const isBacklinkDataStale = useQuery(api.backlinks.isBacklinkDataStale, { domainId });
   const backlinksDistributions = useQuery(api.backlinks.getBacklinkDistributions, { domainId });
+  const backlinksHistory = useQuery(api.backlinks.getBacklinksHistory, { domainId });
   const fetchBacklinksAction = useAction(api.backlinks.fetchBacklinksFromAPI);
+
+  // Backlink velocity queries
+  const velocityHistory = useQuery(api.backlinkVelocity.getVelocityHistory, { domainId, days: 30 });
+  const velocityStats = useQuery(api.backlinkVelocity.getVelocityStats, { domainId, days: 30 });
+  const velocity7Day = useQuery(api.backlinkVelocity.getVelocityStats, { domainId, days: 7 });
 
   const [isFetchingBacklinks, setIsFetchingBacklinks] = useState(false);
   const [backlinksPage, setBacklinksPage] = useState(1);
@@ -391,21 +402,14 @@ export default function DomainDetailPage() {
                   isLoading={visibilityStats === undefined}
                 />
 
-                {/* Top Keywords Tables */}
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  <TopKeywordsTable
-                    keywords={top3Keywords || []}
-                    title="Top 3 Rankings"
-                    description="Keywords ranking in positions 1-3"
-                    isLoading={top3Keywords === undefined}
-                  />
-                  <TopKeywordsTable
-                    keywords={top10Keywords || []}
-                    title="Top 10 Rankings"
-                    description="Keywords ranking in positions 4-10"
-                    isLoading={top10Keywords === undefined}
-                  />
-                </div>
+                {/* All Keywords Table - Full Width */}
+                <AllKeywordsTable domainId={domainId} />
+
+                {/* Top 10 Keywords Section - Full Width */}
+                <Top10KeywordsSection
+                  keywords={top10Keywords || []}
+                  isLoading={top10Keywords === undefined}
+                />
 
                 {/* Position Distribution & Movement Trend */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -444,23 +448,62 @@ export default function DomainDetailPage() {
                   isLoading={backlinksSummary === undefined}
                 />
 
-                {/* Distribution Charts - 2x2 Grid */}
+                {/* Backlinks History Chart */}
+                {backlinksSummary && (
+                  <BacklinksHistoryChart
+                    data={backlinksHistory || []}
+                    isLoading={backlinksHistory === undefined}
+                  />
+                )}
+
+                {/* Backlink Velocity Section */}
+                <div className="flex flex-col gap-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-primary">Backlink Velocity</h3>
+                    <p className="text-sm text-tertiary">
+                      Track the rate of backlink acquisition and loss over time
+                    </p>
+                  </div>
+
+                  {/* Velocity Metrics Cards */}
+                  <VelocityMetricsCards
+                    stats={velocityStats || {
+                      avgNewPerDay: 0,
+                      avgLostPerDay: 0,
+                      avgNetChange: 0,
+                      totalNew: 0,
+                      totalLost: 0,
+                      netChange: 0,
+                      daysTracked: 0,
+                    }}
+                    isLoading={velocityStats === undefined}
+                    recentVelocity={velocity7Day?.avgNetChange}
+                  />
+
+                  {/* Velocity Chart */}
+                  <BacklinkVelocityChart
+                    data={velocityHistory || []}
+                    isLoading={velocityHistory === undefined}
+                  />
+                </div>
+
+                {/* Distribution Charts & Tables - 2x2 Grid */}
                 {backlinksSummary && backlinksDistributions && (
                   <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                    <TLDDistributionChart
+                    <TLDDistributionTable
                       data={backlinksDistributions.tldDistribution}
                       isLoading={backlinksDistributions === undefined}
                     />
-                    <PlatformTypesChart
-                      data={backlinksDistributions.platformTypes}
-                      isLoading={backlinksDistributions === undefined}
-                    />
-                    <CountriesDistributionChart
+                    <CountriesDistributionTable
                       data={backlinksDistributions.countries}
                       isLoading={backlinksDistributions === undefined}
                     />
                     <LinkAttributesChart
                       data={backlinksDistributions.linkAttributes}
+                      isLoading={backlinksDistributions === undefined}
+                    />
+                    <PlatformTypesChart
+                      data={backlinksDistributions.platformTypes}
                       isLoading={backlinksDistributions === undefined}
                     />
                   </div>
@@ -469,11 +512,19 @@ export default function DomainDetailPage() {
                 {/* Individual Backlinks Table */}
                 {backlinksSummary && (
                   <BacklinksTable
-                    backlinks={backlinksData || null}
+                    backlinks={
+                      backlinksData || {
+                        total: 0,
+                        items: [],
+                        stats: {
+                          totalDofollow: 0,
+                          totalNofollow: 0,
+                          avgRank: 0,
+                          avgSpamScore: 0,
+                        },
+                      }
+                    }
                     isLoading={backlinksData === undefined}
-                    currentPage={backlinksPage}
-                    pageSize={backlinksPageSize}
-                    onPageChange={setBacklinksPage}
                   />
                 )}
               </div>

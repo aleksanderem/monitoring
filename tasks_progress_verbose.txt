@@ -121,3 +121,38 @@ S0010. Next Actions:
 - Task 3 (Date Picker) can be done anytime, will benefit all charts
 
 ---
+
+S0010. User Request - On-Site SEO Reports:
+User requested: "w widoku domeny gdzie mamy różne raporty, chciałbym mieć też raporty on-site dotyczące witryny. Wszystko to możesz znaleźć w dataforseo"
+
+Translation: "in domain view where we have various reports, I would like to also have on-site reports about the website. You can find all of this in dataforseo"
+
+Response: Created Task #8 - Comprehensive On-Site SEO Reports
+Scope: Everything from DataForSEO On-Page API
+- Technical Health (issues, errors, warnings)
+- Pages Analysis (full inventory with metrics)
+- Core Web Vitals (LCP, FID, CLS, Performance Score)
+- Content Quality (word count, thin content, duplicates)
+- Schema & Structured Data (validation)
+
+Updated TASK_DEPENDENCIES.md:
+- Added Task #8 to dependency graph
+- Added to execution strategies
+- Added comprehensive testing protocol for on-site reports
+- Updated timeline: 35 days total (was 30)
+
+---
+
+S0010. Commit & Push:
+Git commit: 35f4f87
+Message: "S0010: Add comprehensive task planning and testing protocol"
+Files committed:
+- TASK_DEPENDENCIES.md (NEW - 2438 insertions)
+- session_state.json (updated)
+- tasks_progress.json (updated)
+- tasks_progress_verbose.txt (updated)
+
+Pushed to: origin/main
+Status: Successfully pushed
+
+---

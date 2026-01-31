@@ -1,24 +1,16 @@
 "use client";
 
-import { Bar, BarChart, XAxis, YAxis } from "recharts";
 import { Globe01 } from "@untitledui/icons";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
 
-interface CountriesDistributionChartProps {
+interface CountriesDistributionTableProps {
   data: Record<string, number>;
   isLoading?: boolean;
 }
 
-export function CountriesDistributionChart({
+export function CountriesDistributionTable({
   data,
   isLoading,
-}: CountriesDistributionChartProps) {
-  const barColor = "#10b981"; // Modern green
+}: CountriesDistributionTableProps) {
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
@@ -33,17 +25,22 @@ export function CountriesDistributionChart({
     );
   }
 
-  // Convert object to array, filter out empty strings, sort by value descending, take top 10
-  const chartData = Object.entries(data)
+  const tableData = Object.entries(data)
     .filter(([country]) => country && country.trim() !== "")
     .map(([country, count]) => ({
       country: country === "WW" ? "Worldwide" : country,
       count,
+      percentage: 0,
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
-  if (chartData.length === 0) {
+  const total = tableData.reduce((sum, item) => sum + item.count, 0);
+  tableData.forEach((item) => {
+    item.percentage = (item.count / total) * 100;
+  });
+
+  if (tableData.length === 0) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div>
@@ -58,13 +55,6 @@ export function CountriesDistributionChart({
     );
   }
 
-  const chartConfig = {
-    count: {
-      label: "Backlinks",
-      color: "var(--chart-2)",
-    },
-  } satisfies ChartConfig;
-
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
@@ -72,30 +62,32 @@ export function CountriesDistributionChart({
         <p className="text-sm text-tertiary">Top 10 countries by backlink count</p>
       </div>
 
-      <ChartContainer config={chartConfig} className="h-[300px] w-full">
-        <BarChart data={chartData} layout="vertical" margin={{ left: 30 }}>
-          <defs>
-            <linearGradient id="barGradientCountry" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor={barColor} stopOpacity={0.8} />
-              <stop offset="100%" stopColor={barColor} stopOpacity={1} />
-            </linearGradient>
-          </defs>
-          <XAxis type="number" dataKey="count" hide />
-          <YAxis
-            type="category"
-            dataKey="country"
-            tickLine={false}
-            axisLine={false}
-            width={80}
-          />
-          <ChartTooltip
-            content={<ChartTooltipContent />}
-            cursor={false}
-            wrapperStyle={{ zIndex: 1000 }}
-          />
-          <Bar dataKey="count" fill="url(#barGradientCountry)" radius={[0, 4, 4, 0]} />
-        </BarChart>
-      </ChartContainer>
+      <div className="overflow-hidden rounded-lg border border-secondary">
+        <table className="w-full">
+          <thead className="bg-secondary/50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">Country</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">
+                Backlinks
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">Share</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-secondary">
+            {tableData.map((item, index) => (
+              <tr key={item.country} className="hover:bg-secondary/30 transition-colors">
+                <td className="px-4 py-3 text-sm font-medium text-primary">{item.country}</td>
+                <td className="px-4 py-3 text-right text-sm text-primary">
+                  {item.count.toLocaleString()}
+                </td>
+                <td className="px-4 py-3 text-right text-sm text-tertiary">
+                  {item.percentage.toFixed(1)}%
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

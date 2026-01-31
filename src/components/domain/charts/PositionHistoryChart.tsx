@@ -10,20 +10,29 @@ import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/but
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { cx } from "@/utils/cx";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { DateRangePicker } from "@/components/common/DateRangePicker";
+import { useDateRange } from "@/hooks/useDateRange";
 
 interface PositionHistoryChartProps {
   domainId: Id<"domains">;
 }
 
-type DateRange = 30 | 90 | 180 | 365 | "all";
-
 export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
-  const [dateRange, setDateRange] = useState<DateRange>("all");
+  const { dateRange, setDateRange } = useDateRange({ initialPreset: "all" });
   const isDesktop = useBreakpoint("lg");
+
+  // Convert preset to days for API
+  const days = dateRange.preset === "all" ? undefined :
+    dateRange.preset === "7d" ? 7 :
+    dateRange.preset === "30d" ? 30 :
+    dateRange.preset === "3m" ? 90 :
+    dateRange.preset === "6m" ? 180 :
+    dateRange.preset === "1y" ? 365 :
+    undefined;
 
   const history = useQuery(
     api.domains.getVisibilityHistory,
-    { domainId, days: dateRange === "all" ? undefined : dateRange }
+    { domainId, days }
   );
 
   if (history === undefined) {
@@ -75,23 +84,10 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
     <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <h2 className="text-lg font-semibold text-primary">Position History</h2>
-        <ButtonGroup size="sm">
-          <ButtonGroupItem isSelected={dateRange === 30} onClick={() => setDateRange(30)}>
-            30d
-          </ButtonGroupItem>
-          <ButtonGroupItem isSelected={dateRange === 90} onClick={() => setDateRange(90)}>
-            90d
-          </ButtonGroupItem>
-          <ButtonGroupItem isSelected={dateRange === 180} onClick={() => setDateRange(180)}>
-            180d
-          </ButtonGroupItem>
-          <ButtonGroupItem isSelected={dateRange === 365} onClick={() => setDateRange(365)}>
-            1y
-          </ButtonGroupItem>
-          <ButtonGroupItem isSelected={dateRange === "all"} onClick={() => setDateRange("all")}>
-            All
-          </ButtonGroupItem>
-        </ButtonGroup>
+        <DateRangePicker
+          value={dateRange}
+          onChange={setDateRange}
+        />
       </div>
 
       <div className="h-80">

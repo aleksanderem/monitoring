@@ -1,80 +1,99 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { PolarAngleAxis, PolarGrid, Radar, RadarChart, PolarRadiusAxis } from "recharts";
+import { BarChart04 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { ChartTooltipContent } from "@/components/application/charts/charts-base";
-import { LoadingState } from "@/components/shared/LoadingState";
-import { cx } from "@/utils/cx";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 
 interface PositionDistributionChartProps {
   domainId: Id<"domains">;
 }
 
 export function PositionDistributionChart({ domainId }: PositionDistributionChartProps) {
+  const radarColor = "#f97316"; // orange
   const distribution = useQuery(api.keywords.getPositionDistribution, { domainId });
 
   if (distribution === undefined) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-        <h3 className="text-sm font-semibold text-primary">Current Position Distribution</h3>
-        <LoadingState type="card" />
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="h-5 w-48 animate-pulse rounded bg-gray-100" />
+            <div className="mt-1 h-4 w-64 animate-pulse rounded bg-gray-100" />
+          </div>
+        </div>
+        <div className="h-[300px] animate-pulse rounded bg-gray-50" />
       </div>
     );
   }
 
   const chartData = [
-    { range: "Top 3", count: distribution.top3, color: "text-utility-success-600" },
-    { range: "4-10", count: distribution.pos4_10, color: "text-utility-success-400" },
-    { range: "11-20", count: distribution.pos11_20, color: "text-utility-warning-500" },
-    { range: "21-50", count: distribution.pos21_50, color: "text-utility-gray-400" },
-    { range: "51-100", count: distribution.pos51_100, color: "text-utility-gray-300" },
-    { range: "100+", count: distribution.pos100plus, color: "text-utility-error-500" },
+    { range: "Top 3", keywords: distribution.top3 },
+    { range: "4-10", keywords: distribution.pos4_10 },
+    { range: "11-20", keywords: distribution.pos11_20 },
+    { range: "21-50", keywords: distribution.pos21_50 },
+    { range: "51-100", keywords: distribution.pos51_100 },
+    { range: "100+", keywords: distribution.pos100plus },
   ];
+
+  if (chartData.every((d) => d.keywords === 0)) {
+    return (
+      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <div>
+          <h3 className="text-md font-semibold text-primary">Current Position Distribution</h3>
+          <p className="text-sm text-tertiary">Keywords by ranking position</p>
+        </div>
+        <div className="flex flex-col items-center justify-center py-12">
+          <BarChart04 className="h-10 w-10 text-fg-quaternary" />
+          <p className="mt-2 text-sm text-tertiary">No position data available</p>
+        </div>
+      </div>
+    );
+  }
+
+  const chartConfig = {
+    keywords: {
+      label: "Keywords",
+      color: radarColor,
+    },
+  } satisfies ChartConfig;
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-      <h3 className="text-sm font-semibold text-primary">Current Position Distribution</h3>
-
-      <div className="h-80">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={chartData}
-            className="text-tertiary [&_.recharts-text]:text-xs"
-            margin={{ top: 12, bottom: 16, left: 0, right: 0 }}
-          >
-            <CartesianGrid vertical={false} stroke="currentColor" className="text-utility-gray-100" />
-
-            <XAxis
-              fill="currentColor"
-              axisLine={false}
-              tickLine={false}
-              dataKey="range"
-              padding={{ left: 10, right: 10 }}
-            />
-
-            <YAxis
-              fill="currentColor"
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={(value) => Number(value).toLocaleString()}
-            />
-
-            <Tooltip
-              content={<ChartTooltipContent />}
-              formatter={(value) => [Number(value).toLocaleString(), "Keywords"]}
-            />
-
-            <Bar
-              dataKey="count"
-              fill="currentColor"
-              className="fill-utility-brand-600"
-              radius={[4, 4, 0, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
+      <div>
+        <h3 className="text-md font-semibold text-primary">Current Position Distribution</h3>
+        <p className="text-sm text-tertiary">Keywords by ranking position</p>
       </div>
+
+      <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <RadarChart data={chartData}>
+          <PolarGrid strokeDasharray="3 3" opacity={0.3} />
+          <PolarAngleAxis dataKey="range" tick={{ fontSize: 12 }} />
+          <PolarRadiusAxis angle={90} domain={[0, "auto"]} tick={{ fontSize: 10 }} />
+          <ChartTooltip
+            content={<ChartTooltipContent />}
+            wrapperStyle={{ zIndex: 1000 }}
+          />
+          <Radar
+            name="Keywords"
+            dataKey="keywords"
+            stroke={radarColor}
+            fill={radarColor}
+            fillOpacity={0.3}
+            strokeWidth={2}
+          />
+          <ChartLegend content={<ChartLegendContent />} />
+        </RadarChart>
+      </ChartContainer>
     </div>
   );
 }

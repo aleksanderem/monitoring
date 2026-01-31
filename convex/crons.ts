@@ -38,4 +38,11 @@ crons.interval(
   internal.keywordCheckJobs.cleanupStuckJobs
 );
 
+// Calculate backlink velocity daily at 2 AM UTC (after backlink refresh)
+crons.daily(
+  "calculate-backlink-velocity",
+  { hourUTC: 2, minuteUTC: 0 },
+  internal.scheduler.calculateDailyBacklinkVelocity
+);
+
 export default crons;

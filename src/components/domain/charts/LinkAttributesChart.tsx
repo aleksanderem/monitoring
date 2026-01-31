@@ -1,6 +1,6 @@
 "use client";
 
-import { Pie, PieChart } from "recharts";
+import { PolarAngleAxis, PolarGrid, Radar, RadarChart, PolarRadiusAxis } from "recharts";
 import { Settings01 } from "@untitledui/icons";
 import {
   ChartContainer,
@@ -17,6 +17,7 @@ interface LinkAttributesChartProps {
 }
 
 export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProps) {
+  const radarColor = "#10b981"; // green
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
@@ -31,13 +32,12 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
     );
   }
 
-  // Convert object to array and sort
+  // Convert object to array for radar chart
   const chartData = data
     ? Object.entries(data)
         .map(([name, value]) => ({
           attribute: name.charAt(0).toUpperCase() + name.slice(1),
           links: value,
-          fill: `var(--color-${name})`,
         }))
         .sort((a, b) => b.links - a.links)
     : [];
@@ -57,17 +57,12 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
     );
   }
 
-  // Create chart config with colors using chart CSS variables
-  const chartConfig = data
-    ? Object.entries(data).reduce((acc, [key], index) => {
-        const colorVars = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
-        acc[key] = {
-          label: key.charAt(0).toUpperCase() + key.slice(1),
-          color: `var(--${colorVars[index % colorVars.length]})`,
-        };
-        return acc;
-      }, {} as ChartConfig)
-    : {};
+  const chartConfig = {
+    links: {
+      label: "Links",
+      color: radarColor,
+    },
+  } satisfies ChartConfig;
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
@@ -77,17 +72,24 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">
-        <PieChart>
-          <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-          <ChartLegend content={<ChartLegendContent />} />
-          <Pie
-            data={chartData}
-            dataKey="links"
-            nameKey="attribute"
-            innerRadius={60}
-            strokeWidth={5}
+        <RadarChart data={chartData}>
+          <PolarGrid strokeDasharray="3 3" opacity={0.3} />
+          <PolarAngleAxis dataKey="attribute" tick={{ fontSize: 12 }} />
+          <PolarRadiusAxis angle={90} domain={[0, "auto"]} tick={{ fontSize: 10 }} />
+          <ChartTooltip
+            content={<ChartTooltipContent />}
+            wrapperStyle={{ zIndex: 1000 }}
           />
-        </PieChart>
+          <Radar
+            name="Links"
+            dataKey="links"
+            stroke={radarColor}
+            fill={radarColor}
+            fillOpacity={0.3}
+            strokeWidth={2}
+          />
+          <ChartLegend content={<ChartLegendContent />} />
+        </RadarChart>
       </ChartContainer>
     </div>
   );
