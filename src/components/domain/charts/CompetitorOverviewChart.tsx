@@ -30,7 +30,7 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
     return <LoadingState type="card" />;
   }
 
-  if (!overview || overview.competitors.length === 0) {
+  if (!overview || !overview.competitors || overview.competitors.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-secondary bg-secondary/50 p-12">
         <p className="text-sm font-medium text-tertiary">No competitors added yet</p>
@@ -41,19 +41,35 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
     );
   }
 
+  // Filter out any undefined competitors
+  const validCompetitors = overview.competitors.filter((c) => c && c.id && c.name);
+
+  if (validCompetitors.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-secondary bg-secondary/50 p-12">
+        <p className="text-sm font-medium text-tertiary">No competitor data available</p>
+        <p className="mt-1 text-sm text-quaternary">
+          Check competitor positions to populate the chart
+        </p>
+      </div>
+    );
+  }
+
   // Transform data for chart
-  const chartData = overview.data.map((day) => {
+  const chartData = (overview.data || []).map((day) => {
     const dataPoint: any = {
       date: day.date,
       own: day.ownAvgPosition,
     };
 
-    day.competitors.forEach((comp) => {
-      const competitor = overview.competitors.find((c) => c.id === comp.competitorId);
-      if (competitor) {
-        dataPoint[competitor.name] = comp.avgPosition;
-      }
-    });
+    if (day.competitors) {
+      day.competitors.forEach((comp) => {
+        const competitor = validCompetitors.find((c) => c.id === comp.competitorId);
+        if (competitor && competitor.name) {
+          dataPoint[competitor.name] = comp.avgPosition;
+        }
+      });
+    }
 
     return dataPoint;
   });
@@ -66,11 +82,13 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
     },
   };
 
-  overview.competitors.forEach((competitor, index) => {
-    chartConfig[competitor.name] = {
-      label: competitor.name,
-      color: CHART_COLORS[index % CHART_COLORS.length],
-    };
+  validCompetitors.forEach((competitor, index) => {
+    if (competitor && competitor.name) {
+      chartConfig[competitor.name] = {
+        label: competitor.name,
+        color: CHART_COLORS[index % CHART_COLORS.length],
+      };
+    }
   });
 
   return (
@@ -125,12 +143,12 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
             />
 
             {/* Competitor lines */}
-            {overview.competitors.map((competitor, index) => (
+            {validCompetitors.map((competitor, index) => (
               <Line
                 key={competitor.id}
                 type="monotone"
                 dataKey={competitor.name}
-                stroke={chartConfig[competitor.name].color}
+                stroke={chartConfig[competitor.name]?.color || CHART_COLORS[index % CHART_COLORS.length]}
                 strokeWidth={2}
                 dot={{ r: 3 }}
                 connectNulls

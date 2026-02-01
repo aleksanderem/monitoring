@@ -71,10 +71,12 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
   };
 
   // Transform competitors to SelectItemType format
-  const competitorItems: SelectItemType[] = competitors?.map((competitor) => ({
-    id: competitor._id,
-    label: competitor.name || competitor.competitorDomain,
-  })) || [];
+  const competitorItems: SelectItemType[] = competitors
+    ?.filter((competitor) => competitor && competitor._id)
+    .map((competitor) => ({
+      id: competitor._id,
+      label: competitor.name || competitor.competitorDomain,
+    })) || [];
 
   const isLoadingCompetitors = competitors === undefined;
   const isLoadingGaps = selectedCompetitor !== null && gaps === undefined;
@@ -118,7 +120,7 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
             placeholder="Select competitor"
             size="md"
           >
-            {(item) => item.label}
+            {(item) => <Select.Item id={item.id} label={item.label} />}
           </Select>
         </div>
 

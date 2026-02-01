@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, action, internalAction, internalMutation } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
 // DataForSEO API configuration
