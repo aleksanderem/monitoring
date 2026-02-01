@@ -76,7 +76,10 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
     label: competitor.name || competitor.competitorDomain,
   })) || [];
 
-  if (competitors === undefined || gaps === undefined) {
+  const isLoadingCompetitors = competitors === undefined;
+  const isLoadingGaps = selectedCompetitor !== null && gaps === undefined;
+
+  if (isLoadingCompetitors) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-6">
         <div className="text-center py-8 text-tertiary">Loading...</div>
@@ -134,6 +137,8 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
         <div className="text-center py-12 border border-dashed border-secondary rounded-lg">
           <p className="text-tertiary">Select a competitor to view keyword gaps</p>
         </div>
+      ) : isLoadingGaps ? (
+        <div className="text-center py-8 text-tertiary">Loading keyword gaps...</div>
       ) : filteredGaps && filteredGaps.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-secondary rounded-lg">
           <p className="text-tertiary">
