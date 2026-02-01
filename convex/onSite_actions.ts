@@ -1000,11 +1000,10 @@ export const storeScanResults = internalMutation({
         recommendations++;
       }
 
-      // Store page
+      // Store page (analysisId will be set after analysis is created)
       await ctx.db.insert("domainOnsitePages", {
         domainId: args.domainId,
         scanId: args.scanId,
-        analysisId: args.scanId as any, // Will be updated after analysis created
         url: page.url || "",
         statusCode: page.status_code || 200,
         title: meta.title?.[0] || undefined,
@@ -1058,6 +1057,17 @@ export const storeScanResults = internalMutation({
     });
 
     console.log(`[STORE] Analysis created with ID: ${analysisId}`);
+
+    // Update all pages with the analysisId
+    const pagesToUpdate = await ctx.db
+      .query("domainOnsitePages")
+      .withIndex("by_scan", (q) => q.eq("scanId", args.scanId))
+      .collect();
+
+    for (const page of pagesToUpdate) {
+      await ctx.db.patch(page._id, { analysisId });
+    }
+    console.log(`[STORE] Updated ${pagesToUpdate.length} pages with analysisId`);
 
     // Update scan to complete
     console.log("[STORE] Updating scan status to complete");

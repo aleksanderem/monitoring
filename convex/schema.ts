@@ -728,7 +728,7 @@ export default defineSchema({
   domainOnsitePages: defineTable({
     domainId: v.id("domains"),
     scanId: v.id("onSiteScans"),
-    analysisId: v.id("domainOnsiteAnalysis"),
+    analysisId: v.optional(v.id("domainOnsiteAnalysis")),
     url: v.string(),
     statusCode: v.number(),
     title: v.optional(v.string()),
