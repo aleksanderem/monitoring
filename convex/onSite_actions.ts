@@ -387,6 +387,12 @@ export const fetchScanResults = internalAction({
       const pagesData = await pagesResponse.json();
       console.log(`[FETCH] Pages status_code: ${pagesData.status_code}, message: ${pagesData.status_message}`);
 
+      // Debug: Log response structure
+      if (pagesData.tasks?.[0]?.result) {
+        console.log(`[FETCH] DataForSEO returned ${pagesData.tasks[0].result.length} pages`);
+        console.log(`[FETCH] Total count: ${pagesData.tasks[0].result_count || 'unknown'}`);
+      }
+
       // Check for DataForSEO error
       if (pagesData.status_code !== 20000) {
         console.error(`[FETCH] DataForSEO pages error: ${pagesData.status_code} - ${pagesData.status_message}`);
