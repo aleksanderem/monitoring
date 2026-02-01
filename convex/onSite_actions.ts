@@ -365,33 +365,66 @@ export const fetchScanResults = internalAction({
       const summaryData = await summaryResponse.json();
       console.log(`[FETCH] Summary status_code: ${summaryData.status_code}`);
 
-      // Fetch pages
-      console.log(`[FETCH] Fetching pages from /on_page/pages (POST)`);
-      const pagesResponse = await fetch(
-        `${DATAFORSEO_API_URL}/on_page/pages`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Basic ${authHeader}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify([{
-            id: args.taskId,
-            limit: 1000,
-            fields: ["url", "meta", "checks", "page_timing", "content_encoding"],
-          }]),
+      // Fetch pages with pagination
+      console.log(`[FETCH] Fetching pages from /on_page/pages (POST) with pagination`);
+      let allPages: any[] = [];
+      let offset = 0;
+      const limit = 100; // Fetch 100 pages at a time
+      let hasMore = true;
+
+      while (hasMore && offset < 1000) { // Safety limit: max 1000 pages
+        console.log(`[FETCH] Fetching batch at offset=${offset}, limit=${limit}`);
+        const pagesResponse = await fetch(
+          `${DATAFORSEO_API_URL}/on_page/pages`,
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Basic ${authHeader}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify([{
+              id: args.taskId,
+              limit,
+              offset,
+              fields: ["url", "meta", "checks", "page_timing", "content_encoding"],
+            }]),
+          }
+        );
+
+        console.log(`[FETCH] Pages response status: ${pagesResponse.status}`);
+        const pagesData = await pagesResponse.json();
+        console.log(`[FETCH] Pages status_code: ${pagesData.status_code}, message: ${pagesData.status_message}`);
+
+        if (pagesData.status_code !== 20000) {
+          console.error(`[FETCH] DataForSEO pages error: ${pagesData.status_code} - ${pagesData.status_message}`);
+          break;
         }
-      );
 
-      console.log(`[FETCH] Pages response status: ${pagesResponse.status}`);
-      const pagesData = await pagesResponse.json();
-      console.log(`[FETCH] Pages status_code: ${pagesData.status_code}, message: ${pagesData.status_message}`);
+        const batchPages = pagesData.tasks?.[0]?.result || [];
+        console.log(`[FETCH] Received ${batchPages.length} pages in this batch`);
 
-      // Debug: Log response structure
-      if (pagesData.tasks?.[0]?.result) {
-        console.log(`[FETCH] DataForSEO returned ${pagesData.tasks[0].result.length} pages`);
-        console.log(`[FETCH] Total count: ${pagesData.tasks[0].result_count || 'unknown'}`);
+        if (batchPages.length === 0) {
+          hasMore = false;
+        } else {
+          allPages = allPages.concat(batchPages);
+          offset += batchPages.length;
+
+          // If we got fewer pages than requested, we've reached the end
+          if (batchPages.length < limit) {
+            hasMore = false;
+          }
+        }
       }
+
+      console.log(`[FETCH] Total pages fetched: ${allPages.length}`);
+
+      // Wrap in the expected format
+      const pagesData = {
+        status_code: 20000,
+        tasks: [{
+          result: allPages,
+        }],
+      };
 
       // Check for DataForSEO error
       if (pagesData.status_code !== 20000) {
