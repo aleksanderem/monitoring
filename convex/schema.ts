@@ -146,6 +146,26 @@ export default defineSchema({
     .index("by_keyword", ["keywordId"])
     .index("by_keyword_date", ["keywordId", "date"]),
 
+  // SERP Features tracking (featured snippet, PAA, image pack, etc.)
+  serpFeatureTracking: defineTable({
+    keywordId: v.id("keywords"),
+    date: v.string(), // YYYY-MM-DD
+    features: v.object({
+      featuredSnippet: v.optional(v.boolean()),
+      peopleAlsoAsk: v.optional(v.boolean()),
+      imagePack: v.optional(v.boolean()),
+      videoPack: v.optional(v.boolean()),
+      localPack: v.optional(v.boolean()),
+      knowledgeGraph: v.optional(v.boolean()),
+      sitelinks: v.optional(v.boolean()),
+      topStories: v.optional(v.boolean()),
+      relatedSearches: v.optional(v.boolean()),
+    }),
+    fetchedAt: v.number(),
+  })
+    .index("by_keyword", ["keywordId"])
+    .index("by_keyword_date", ["keywordId", "date"]),
+
   // Domain visibility history (aggregate metrics from Historical Rank Overview API)
   domainVisibilityHistory: defineTable({
     domainId: v.id("domains"),
@@ -647,9 +667,35 @@ export default defineSchema({
   // On-Site SEO Analysis (DataForSEO On-Page API)
   // =================================================================
 
+  // On-site scan jobs (tracking DataForSEO crawl progress)
+  onSiteScans: defineTable({
+    domainId: v.id("domains"),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("crawling"),
+      v.literal("processing"),
+      v.literal("complete"),
+      v.literal("failed")
+    ),
+    taskId: v.optional(v.string()), // DataForSEO task ID
+    crawlId: v.optional(v.string()), // DataForSEO crawl ID
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+    summary: v.optional(v.object({
+      totalPages: v.number(),
+      totalIssues: v.number(),
+      crawlTime: v.optional(v.number()), // seconds
+    })),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_status", ["status"])
+    .index("by_domain_status", ["domainId", "status"]),
+
   // Domain on-site analysis summary
   domainOnsiteAnalysis: defineTable({
     domainId: v.id("domains"),
+    scanId: v.id("onSiteScans"),
     healthScore: v.number(), // 0-100 overall health score
     totalPages: v.number(),
     criticalIssues: v.number(),
@@ -670,11 +716,14 @@ export default defineSchema({
       missingAltText: v.number(),
     }),
     fetchedAt: v.number(),
-  }).index("by_domain", ["domainId"]),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_scan", ["scanId"]),
 
   // Individual crawled pages
   domainOnsitePages: defineTable({
     domainId: v.id("domains"),
+    scanId: v.id("onSiteScans"),
     analysisId: v.id("domainOnsiteAnalysis"),
     url: v.string(),
     statusCode: v.number(),
@@ -683,6 +732,7 @@ export default defineSchema({
     h1: v.optional(v.string()),
     wordCount: v.number(),
     loadTime: v.optional(v.number()),
+    pageSize: v.optional(v.number()), // bytes
     issueCount: v.number(),
     issues: v.array(v.object({
       type: v.union(
@@ -695,5 +745,217 @@ export default defineSchema({
     })),
   })
     .index("by_domain", ["domainId"])
+    .index("by_scan", ["scanId"])
     .index("by_analysis", ["analysisId"]),
+
+  // Detailed on-site issues (for comprehensive issue tracking)
+  onSiteIssues: defineTable({
+    scanId: v.id("onSiteScans"),
+    domainId: v.id("domains"),
+    pageId: v.optional(v.id("domainOnsitePages")), // null for site-wide issues
+    severity: v.union(
+      v.literal("critical"),
+      v.literal("warning"),
+      v.literal("recommendation")
+    ),
+    category: v.union(
+      v.literal("meta_tags"),
+      v.literal("headings"),
+      v.literal("images"),
+      v.literal("links"),
+      v.literal("performance"),
+      v.literal("mobile"),
+      v.literal("indexability"),
+      v.literal("security"),
+      v.literal("content")
+    ),
+    title: v.string(),
+    description: v.string(),
+    affectedPages: v.number(), // count of pages with this issue
+    detectedAt: v.number(),
+  })
+    .index("by_scan", ["scanId"])
+    .index("by_domain", ["domainId"])
+    .index("by_severity", ["severity"])
+    .index("by_category", ["category"]),
+
+  // Core Web Vitals metrics (from PageSpeed Insights)
+  coreWebVitals: defineTable({
+    domainId: v.id("domains"),
+    scanId: v.optional(v.id("onSiteScans")),
+    date: v.string(), // YYYY-MM-DD
+    device: v.union(v.literal("mobile"), v.literal("desktop")),
+    // Core Web Vitals
+    lcp: v.optional(v.number()), // Largest Contentful Paint (seconds)
+    fid: v.optional(v.number()), // First Input Delay (milliseconds)
+    cls: v.optional(v.number()), // Cumulative Layout Shift
+    // Additional metrics
+    performanceScore: v.optional(v.number()), // 0-100
+    fcp: v.optional(v.number()), // First Contentful Paint (seconds)
+    ttfb: v.optional(v.number()), // Time to First Byte (milliseconds)
+    // Pass/fail status
+    lcpPass: v.optional(v.boolean()),
+    fidPass: v.optional(v.boolean()),
+    clsPass: v.optional(v.boolean()),
+    fetchedAt: v.number(),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_domain_date", ["domainId", "date"])
+    .index("by_domain_device", ["domainId", "device"]),
+
+  // Schema/structured data validation
+  schemaValidation: defineTable({
+    pageId: v.id("domainOnsitePages"),
+    domainId: v.id("domains"),
+    scanId: v.id("onSiteScans"),
+    schemaTypes: v.array(v.string()), // ["Article", "Organization", "Product"]
+    valid: v.boolean(),
+    errors: v.array(v.object({
+      path: v.string(),
+      message: v.string(),
+    })),
+    warnings: v.array(v.object({
+      path: v.string(),
+      message: v.string(),
+    })),
+    validatedAt: v.number(),
+  })
+    .index("by_page", ["pageId"])
+    .index("by_domain", ["domainId"])
+    .index("by_scan", ["scanId"]),
+
+  // =================================================================
+  // Competitor Tracking
+  // =================================================================
+
+  // Competitor domains for comparison
+  competitors: defineTable({
+    domainId: v.id("domains"), // The domain this competitor is tracked against
+    competitorDomain: v.string(), // The competitor's domain
+    name: v.string(), // Friendly name (defaults to domain if not provided)
+    status: v.union(
+      v.literal("active"),
+      v.literal("paused")
+    ),
+    createdAt: v.number(),
+    lastCheckedAt: v.optional(v.number()),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_domain_status", ["domainId", "status"])
+    .index("by_domain_competitor", ["domainId", "competitorDomain"]),
+
+  // Competitor keyword positions
+  competitorKeywordPositions: defineTable({
+    competitorId: v.id("competitors"),
+    keywordId: v.id("keywords"), // The keyword being tracked
+    date: v.string(), // YYYY-MM-DD
+    position: v.union(v.number(), v.null()),
+    url: v.union(v.string(), v.null()),
+    fetchedAt: v.number(),
+  })
+    .index("by_competitor", ["competitorId"])
+    .index("by_keyword", ["keywordId"])
+    .index("by_competitor_keyword", ["competitorId", "keywordId"])
+    .index("by_competitor_keyword_date", ["competitorId", "keywordId", "date"]),
+
+  // =================================================================
+  // Forecasting & Predictive Analytics
+  // =================================================================
+
+  // Statistical forecasts for keywords and domains
+  forecasts: defineTable({
+    entityType: v.union(v.literal("keyword"), v.literal("domain")),
+    entityId: v.string(), // ID reference (keyword or domain)
+    metric: v.string(), // "position", "traffic", "backlinks", "etv"
+    generatedAt: v.number(),
+    predictions: v.array(v.object({
+      date: v.string(), // YYYY-MM-DD
+      value: v.number(),
+      confidenceLower: v.number(),
+      confidenceUpper: v.number(),
+    })),
+    accuracy: v.object({
+      r2: v.number(), // R-squared (goodness of fit)
+      rmse: v.number(), // Root mean squared error
+      confidenceLevel: v.string(), // "high" | "medium" | "low"
+    }),
+  })
+    .index("by_entity", ["entityType", "entityId", "metric"]),
+
+  // Detected anomalies in metrics
+  anomalies: defineTable({
+    entityType: v.union(v.literal("keyword"), v.literal("domain")),
+    entityId: v.string(), // ID reference (keyword or domain)
+    metric: v.string(), // "position", "traffic", "backlinks", "etv"
+    detectedAt: v.number(),
+    date: v.string(), // YYYY-MM-DD - Date of anomaly
+    type: v.union(
+      v.literal("spike"),
+      v.literal("drop"),
+      v.literal("pattern_change")
+    ),
+    severity: v.union(
+      v.literal("high"),
+      v.literal("medium"),
+      v.literal("low")
+    ),
+    value: v.number(), // Actual value
+    expectedValue: v.number(), // Expected value from mean
+    zScore: v.number(), // Z-score magnitude
+    description: v.string(), // Human-readable description
+    resolved: v.boolean(), // Whether user marked as resolved
+  })
+    .index("by_entity", ["entityType", "entityId"])
+    .index("by_date", ["date"])
+    .index("by_severity", ["severity"])
+    .index("by_resolved", ["resolved"]),
+
+  // =================================================================
+  // Content Gap Analysis
+  // =================================================================
+
+  // Content gap opportunities identified from competitor analysis
+  contentGaps: defineTable({
+    domainId: v.id("domains"),
+    keywordId: v.id("keywords"),
+    competitorId: v.id("competitors"),
+    opportunityScore: v.number(), // 0-100, weighted by multiple factors
+    competitorPosition: v.number(),
+    yourPosition: v.union(v.number(), v.null()),
+    searchVolume: v.number(),
+    difficulty: v.number(),
+    competitorUrl: v.string(),
+    estimatedTrafficValue: v.number(),
+    priority: v.union(
+      v.literal("high"),
+      v.literal("medium"),
+      v.literal("low")
+    ),
+    status: v.union(
+      v.literal("identified"),
+      v.literal("monitoring"),
+      v.literal("ranking"),
+      v.literal("dismissed")
+    ),
+    identifiedAt: v.number(),
+    lastChecked: v.number(),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_priority", ["domainId", "priority"])
+    .index("by_score", ["domainId", "opportunityScore"])
+    .index("by_status", ["domainId", "status"])
+    .index("by_keyword", ["keywordId"])
+    .index("by_competitor", ["competitorId"]),
+
+  // Gap analysis reports (comprehensive summaries)
+  gapAnalysisReports: defineTable({
+    domainId: v.id("domains"),
+    generatedAt: v.number(),
+    totalGaps: v.number(),
+    highPriorityGaps: v.number(),
+    estimatedTotalValue: v.number(),
+    topOpportunities: v.array(v.id("contentGaps")),
+    competitorsAnalyzed: v.number(),
+    keywordsAnalyzed: v.number(),
+  }).index("by_domain_date", ["domainId", "generatedAt"]),
 });

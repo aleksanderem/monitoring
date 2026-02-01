@@ -19,6 +19,7 @@ import { Input } from "@/components/base/input/input";
 import { cx } from "@/utils/cx";
 import { toast } from "sonner";
 import { GroupManagementModal } from "@/components/domain/modals/GroupManagementModal";
+import { PredictionBadge } from "@/components/domain/badges/PredictionBadge";
 
 interface KeywordMonitoringTableProps {
   domainId: Id<"domains">;
@@ -691,9 +692,15 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   {/* Status */}
                   {visibleColumns.has("status") && (
                     <td className="px-6 py-4">
-                      <BadgeWithDot size="sm" color={statusBadge.color} type="modern">
-                        {statusBadge.label}
-                      </BadgeWithDot>
+                      <div className="flex items-center gap-2">
+                        <BadgeWithDot size="sm" color={statusBadge.color} type="modern">
+                          {statusBadge.label}
+                        </BadgeWithDot>
+                        <PredictionBadge
+                          keywordId={keyword.keywordId}
+                          currentPosition={keyword.currentPosition}
+                        />
+                      </div>
                     </td>
                   )}
 

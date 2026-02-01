@@ -249,3 +249,86 @@ export const getDomainBacklinks = internalQuery({
       .collect();
   },
 });
+
+// =================================================================
+// Forecasting & Anomaly Detection
+// =================================================================
+
+/**
+ * Detect anomalies daily for all active keywords
+ * Called by cron job daily at 3 AM UTC (after backlink velocity calculation)
+ */
+export const detectAnomaliesDaily = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{ processed: number; anomaliesDetected: number; errors: number }> => {
+    const domains = await ctx.runQuery(internal.scheduler.getAllDomains);
+
+    console.log(`Running daily anomaly detection for ${domains.length} domains`);
+
+    let processedKeywords = 0;
+    let totalAnomalies = 0;
+    let errors = 0;
+
+    for (const domain of domains) {
+      try {
+        const result = await ctx.runAction(internal.forecasts_actions.detectDomainAnomalies, {
+          domainId: domain._id,
+        });
+
+        processedKeywords += result.processedKeywords || 0;
+        totalAnomalies += result.totalAnomalies || 0;
+      } catch (error) {
+        console.error(`Failed to detect anomalies for domain ${domain.domain}:`, error);
+        errors++;
+      }
+    }
+
+    console.log(
+      `Anomaly detection complete: ${processedKeywords} keywords processed, ${totalAnomalies} anomalies detected, ${errors} errors`
+    );
+
+    return { processed: processedKeywords, anomaliesDetected: totalAnomalies, errors };
+  },
+});
+
+// =================================================================
+// Content Gap Analysis
+// =================================================================
+
+/**
+ * Analyze content gaps weekly for all active domains
+ * Called by cron job weekly on Sundays at 4 AM UTC
+ */
+export const analyzeContentGapsWeekly = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{ processed: number; errors: number }> => {
+    const domains = await ctx.runQuery(internal.scheduler.getAllDomains);
+
+    console.log(`Running weekly content gap analysis for ${domains.length} domains`);
+
+    let processed = 0;
+    let errors = 0;
+
+    for (const domain of domains) {
+      try {
+        const result = await ctx.runAction(internal.contentGaps_actions.generateGapReport, {
+          domainId: domain._id,
+        });
+
+        if (result.success) {
+          processed++;
+          console.log(`Gap analysis complete for ${domain.domain}: ${result.summary?.totalGaps || 0} gaps found`);
+        }
+      } catch (error) {
+        console.error(`Failed to analyze content gaps for domain ${domain.domain}:`, error);
+        errors++;
+      }
+    }
+
+    console.log(
+      `Content gap analysis complete: ${processed} domains processed, ${errors} errors`
+    );
+
+    return { processed, errors };
+  },
+});
