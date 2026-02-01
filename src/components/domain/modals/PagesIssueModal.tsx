@@ -21,8 +21,8 @@ interface PagesIssueModalProps {
 
 const ISSUE_TYPE_CONFIG = {
   brokenLinks: {
-    action: api.onSite_actions.getBrokenLinksDetails,
-    emptyMessage: "No pages with broken links",
+    action: api.onSite_actions.getBrokenResourcesDetails,
+    emptyMessage: "No broken resources found",
   },
   missingTitles: {
     action: api.onSite_actions.getMissingTitlesDetails,
@@ -71,7 +71,9 @@ export function PagesIssueModal({ scanId, isOpen, onClose, issueType, title, des
       if (result.error) {
         setError(result.error);
       } else {
-        setPages(result.pages || []);
+        // Handle both 'pages' (from database) and 'resources' (from DataForSEO API)
+        const data = (result as any).pages || (result as any).resources || [];
+        setPages(data);
         setLoaded(true);
       }
     } catch (err) {
