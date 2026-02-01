@@ -5,7 +5,8 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
+import { cx } from "@/utils/cx";
 
 interface CompetitorOverviewChartProps {
   domainId: Id<"domains">;
@@ -13,12 +14,14 @@ interface CompetitorOverviewChartProps {
 }
 
 const CHART_COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
+  { className: "text-utility-brand-600", color: "#2563eb" },      // blue
+  { className: "text-utility-success-500", color: "#10b981" },    // green
+  { className: "text-utility-warning-500", color: "#f59e0b" },    // orange
+  { className: "text-utility-error-500", color: "#ef4444" },      // red
+  { className: "text-utility-purple-500", color: "#a855f7" },     // purple
 ];
+
+const OWN_DOMAIN_COLOR = { className: "text-utility-gray-700", color: "#374151" };
 
 export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverviewChartProps) {
   const overview = useQuery(api.queries.competitors.getCompetitorOverview, {
@@ -74,19 +77,22 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
     return dataPoint;
   });
 
-  // Chart config for ChartContainer
+  // Chart config for ChartContainer with className-based colors
   const chartConfig: any = {
     own: {
       label: "Your Domain",
-      color: "hsl(var(--primary))",
+      className: OWN_DOMAIN_COLOR.className,
+      color: OWN_DOMAIN_COLOR.color,
     },
   };
 
   validCompetitors.forEach((competitor, index) => {
     if (competitor && competitor.name) {
+      const colorInfo = CHART_COLORS[index % CHART_COLORS.length];
       chartConfig[competitor.name] = {
         label: competitor.name,
-        color: CHART_COLORS[index % CHART_COLORS.length],
+        className: colorInfo.className,
+        color: colorInfo.color,
       };
     }
   });
@@ -102,8 +108,27 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
 
       <ChartContainer config={chartConfig} className="h-[350px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} className="text-tertiary [&_.recharts-text]:text-xs">
+          <AreaChart data={chartData} className="text-tertiary [&_.recharts-text]:text-xs">
+            <defs>
+              <linearGradient id="gradient-own" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={OWN_DOMAIN_COLOR.color} stopOpacity={0.4} />
+                <stop offset="95%" stopColor={OWN_DOMAIN_COLOR.color} stopOpacity={0} />
+              </linearGradient>
+              {validCompetitors.map((competitor, index) => {
+                const colorInfo = CHART_COLORS[index % CHART_COLORS.length];
+                return (
+                  <linearGradient key={competitor.id} id={`gradient-${competitor.id}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={colorInfo.color} stopOpacity={0.4} />
+                    <stop offset="95%" stopColor={colorInfo.color} stopOpacity={0} />
+                  </linearGradient>
+                );
+              })}
+            </defs>
+
             <CartesianGrid vertical={false} stroke="currentColor" className="text-utility-gray-100" />
+
+            <Legend />
+
             <XAxis
               dataKey="date"
               fill="currentColor"
@@ -123,36 +148,48 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
               tickLine={false}
             />
             <ChartTooltip
-              content={<ChartTooltipContent />}
+              content={
+                <ChartTooltipContent
+                  className="backdrop-blur-md bg-gray-900/90 border-white/20 shadow-2xl"
+                />
+              }
               cursor={{ className: "stroke-utility-brand-600 stroke-2" }}
             />
-            <Legend />
 
-            {/* Own domain line - bold and distinctive */}
-            <Line
-              type="monotone"
+            {/* Own domain area */}
+            <Area
+              isAnimationActive={false}
+              className={cx(chartConfig.own.className)}
               dataKey="own"
-              stroke={chartConfig.own.color}
-              strokeWidth={3}
-              dot={{ r: 4 }}
-              connectNulls
               name={chartConfig.own.label}
+              type="monotone"
+              stroke="currentColor"
+              strokeWidth={2}
+              fill="url(#gradient-own)"
+              fillOpacity={1}
+              connectNulls
             />
 
-            {/* Competitor lines */}
-            {validCompetitors.map((competitor, index) => (
-              <Line
-                key={competitor.id}
-                type="monotone"
-                dataKey={competitor.name}
-                stroke={chartConfig[competitor.name]?.color || CHART_COLORS[index % CHART_COLORS.length]}
-                strokeWidth={2}
-                dot={{ r: 3 }}
-                connectNulls
-                name={competitor.name}
-              />
-            ))}
-          </LineChart>
+            {/* Competitor areas */}
+            {validCompetitors.map((competitor, index) => {
+              const colorInfo = CHART_COLORS[index % CHART_COLORS.length];
+              return (
+                <Area
+                  key={competitor.id}
+                  isAnimationActive={false}
+                  className={cx(colorInfo.className)}
+                  dataKey={competitor.name}
+                  name={competitor.name}
+                  type="monotone"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  fill={`url(#gradient-${competitor.id})`}
+                  fillOpacity={1}
+                  connectNulls
+                />
+              );
+            })}
+          </AreaChart>
         </ResponsiveContainer>
       </ChartContainer>
     </div>

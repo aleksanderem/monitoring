@@ -1,10 +1,58 @@
 {
   "edges": [
     {
-      "from_file": "src/is-react-component.ts",
-      "from_func": "isReactComponent",
-      "to_file": "src/is-react-component.ts",
-      "to_func": "isForwardRefComponent"
+      "from_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
+      "from_func": "handleFetchBacklinks",
+      "to_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
+      "to_func": "fetchBacklinksAction"
+    },
+    {
+      "from_file": "src/components/domain/sections/OnSiteSection.tsx",
+      "from_func": "handleCancelScan",
+      "to_file": "src/components/domain/sections/OnSiteSection.tsx",
+      "to_func": "cancelScan"
+    },
+    {
+      "from_file": "src/hooks/useDateRange.ts",
+      "from_func": "useDateRange",
+      "to_file": "src/hooks/useDateRange.ts",
+      "to_func": "calculateDateRange"
+    },
+    {
+      "from_file": "src/components/application/carousel/carousel-base.tsx",
+      "from_func": "Trigger",
+      "to_file": "src/components/application/carousel/carousel-base.tsx",
+      "to_func": "scrollNext"
+    },
+    {
+      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
+      "from_func": "TextEditorBulletList",
+      "to_file": "src/components/base/text-editor/text-editor.tsx",
+      "to_func": "useEditorContext"
+    },
+    {
+      "from_file": "src/components/base/text-editor/text-editor.tsx",
+      "from_func": "TextEditorContent",
+      "to_file": "src/components/base/text-editor/text-editor.tsx",
+      "to_func": "useEditorContext"
+    },
+    {
+      "from_file": "src/components/base/text-editor/text-editor.tsx",
+      "from_func": "TextEditorHintText",
+      "to_file": "src/components/base/text-editor/text-editor.tsx",
+      "to_func": "useEditorContext"
+    },
+    {
+      "from_file": "src/components/application/carousel/carousel-base.tsx",
+      "from_func": "CarouselContent",
+      "to_file": "src/components/application/carousel/carousel-base.tsx",
+      "to_func": "useCarousel"
+    },
+    {
+      "from_file": "src/components/domain/sections/OnSiteSection.tsx",
+      "from_func": "handleStartScan",
+      "to_file": "src/components/domain/sections/OnSiteSection.tsx",
+      "to_func": "triggerScan"
     },
     {
       "from_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
@@ -13,16 +61,76 @@
       "to_func": "fetchBacklinksAction"
     },
     {
-      "from_file": "src/components/domain/modals/GroupManagementModal.tsx",
-      "from_func": "handleUpdateGroup",
-      "to_file": "src/components/domain/modals/GroupManagementModal.tsx",
-      "to_func": "updateGroup"
+      "from_file": "src/components/application/modals/base-components/generate-shades.ts",
+      "from_func": "generateRgbShades",
+      "to_file": "src/components/application/modals/base-components/generate-shades.ts",
+      "to_func": "hexToRgb"
     },
     {
-      "from_file": "convex/permissions.ts",
-      "from_func": "requirePermission",
-      "to_file": "convex/permissions.ts",
-      "to_func": "checkPermission"
+      "from_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
+      "from_func": "handleRefresh",
+      "to_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
+      "to_func": "refreshKeywords"
+    },
+    {
+      "from_file": "src/hooks/use-toast.ts",
+      "from_func": "reducer",
+      "to_file": "src/hooks/use-toast.ts",
+      "to_func": "addToRemoveQueue"
+    },
+    {
+      "from_file": "src/components/application/pagination/pagination-base.tsx",
+      "from_func": "PaginationRoot",
+      "to_file": "src/components/application/pagination/pagination-base.tsx",
+      "to_func": "createPaginationItems"
+    },
+    {
+      "from_file": "src/components/domain/tables/KeywordMonitoringTable.tsx",
+      "from_func": "handleBulkDelete",
+      "to_file": "src/components/domain/tables/KeywordMonitoringTable.tsx",
+      "to_func": "deleteKeywords"
+    },
+    {
+      "from_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
+      "from_func": "handleSaveEdit",
+      "to_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
+      "to_func": "updateCompetitor"
+    },
+    {
+      "from_file": "src/components/base/input/input-group.tsx",
+      "from_func": "InputGroup",
+      "to_file": "src/lib/utils/cx.ts",
+      "to_func": "sortCx"
+    },
+    {
+      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
+      "from_func": "TextEditorAlignJustify",
+      "to_file": "src/components/base/text-editor/text-editor.tsx",
+      "to_func": "useEditorContext"
+    },
+    {
+      "from_file": "src/components/domain/tables/ContentGapsTable.tsx",
+      "from_func": "ContentGapsTable",
+      "to_file": "src/components/domain/tables/ContentGapsTable.tsx",
+      "to_func": "addToMonitoring"
+    },
+    {
+      "from_file": "src/components/application/modals/base-components/generate-shades.ts",
+      "from_func": "generateRgbShades",
+      "to_file": "src/components/application/modals/base-components/generate-shades.ts",
+      "to_func": "rgbToHls"
+    },
+    {
+      "from_file": "src/hooks/useDateRange.ts",
+      "from_func": "useDateRange",
+      "to_file": "src/hooks/useDateRange.ts",
+      "to_func": "parseDateFromUrl"
+    },
+    {
+      "from_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
+      "from_func": "DomainDetailPage",
+      "to_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
+      "to_func": "deleteDomain"
     },
     {
       "from_file": "src/lib/utils/is-react-component.ts",
@@ -31,57 +139,45 @@
       "to_func": "isForwardRefComponent"
     },
     {
-      "from_file": "src/components/application/calendar/calendar.tsx",
-      "from_func": "PositionedEvent",
-      "to_file": "src/components/application/calendar/calendar.tsx",
-      "to_func": "formatTime"
+      "from_file": "src/components/common/DateRangePicker.tsx",
+      "from_func": "handlePresetClick",
+      "to_file": "src/hooks/useDateRange.ts",
+      "to_func": "calculateDateRange"
     },
     {
-      "from_file": "src/components/application/command-menus/command-menu.tsx",
-      "from_func": "CommandMenuRoot",
-      "to_file": "src/components/application/command-menus/parseHotkeys.ts",
-      "to_func": "parseHotkey"
+      "from_file": "convex/permissions.ts",
+      "from_func": "getContextFromKeyword",
+      "to_file": "convex/permissions.ts",
+      "to_func": "getContextFromDomain"
     },
     {
-      "from_file": "src/use-resize-observer.ts",
-      "from_func": "useResizeObserver",
-      "to_file": "src/use-resize-observer.ts",
-      "to_func": "hasResizeObserver"
-    },
-    {
-      "from_file": "src/utils/is-react-component.ts",
-      "from_func": "isReactComponent",
-      "to_file": "src/utils/is-react-component.ts",
-      "to_func": "isFunctionComponent"
-    },
-    {
-      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
-      "from_func": "TextEditorItalic",
-      "to_file": "src/components/base/text-editor/text-editor.tsx",
-      "to_func": "useEditorContext"
-    },
-    {
-      "from_file": "src/hooks/use-toast.ts",
-      "from_func": "dismiss",
-      "to_file": "src/hooks/use-toast.ts",
-      "to_func": "dispatch"
-    },
-    {
-      "from_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
-      "from_func": "handleRemove",
-      "to_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
-      "to_func": "removeCompetitor"
+      "from_file": "src/components/application/file-upload/file-upload-base.tsx",
+      "from_func": "handleDrop",
+      "to_file": "src/components/application/file-upload/file-upload-base.tsx",
+      "to_func": "handleDragOut"
     },
     {
       "from_file": "convex/limits.ts",
-      "from_func": "checkKeywordLimit",
+      "from_func": "countOrgKeywords",
       "to_file": "convex/limits.ts",
-      "to_func": "getDomainHierarchy"
+      "to_func": "countProjectKeywords"
     },
     {
       "from_file": "src/is-react-component.ts",
       "from_func": "isReactComponent",
       "to_file": "src/is-react-component.ts",
+      "to_func": "isForwardRefComponent"
+    },
+    {
+      "from_file": "src/utils/is-react-component.ts",
+      "from_func": "isReactComponent",
+      "to_file": "src/utils/is-react-component.ts",
+      "to_func": "isClassComponent"
+    },
+    {
+      "from_file": "src/utils/is-react-component.ts",
+      "from_func": "isReactComponent",
+      "to_file": "src/utils/is-react-component.ts",
       "to_func": "isFunctionComponent"
     },
     {
@@ -92,349 +188,13 @@
     },
     {
       "from_file": "src/components/application/file-upload/file-upload-base.tsx",
-      "from_func": "handleInputFileChange",
-      "to_file": "src/components/application/file-upload/file-upload-base.tsx",
-      "to_func": "processFiles"
-    },
-    {
-      "from_file": "src/lib/utils/is-react-component.ts",
-      "from_func": "isReactComponent",
-      "to_file": "src/lib/utils/is-react-component.ts",
-      "to_func": "isFunctionComponent"
-    },
-    {
-      "from_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
-      "from_func": "DomainDetailPage",
-      "to_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
-      "to_func": "refreshKeywords"
-    },
-    {
-      "from_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
-      "from_func": "handleAddCompetitor",
-      "to_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
-      "to_func": "addCompetitor"
-    },
-    {
-      "from_file": "src/components/domain/modals/GroupManagementModal.tsx",
-      "from_func": "handleCreateGroup",
-      "to_file": "src/components/domain/modals/GroupManagementModal.tsx",
-      "to_func": "createGroup"
-    },
-    {
-      "from_file": "src/components/base/text-editor/text-editor.tsx",
-      "from_func": "handleKeyDown",
-      "to_file": "src/components/base/text-editor/text-editor.tsx",
-      "to_func": "setLink"
-    },
-    {
-      "from_file": "src/hooks/use-toast.ts",
-      "from_func": "update",
-      "to_file": "src/hooks/use-toast.ts",
-      "to_func": "dispatch"
-    },
-    {
-      "from_file": "convex/permissions.ts",
-      "from_func": "checkPermission",
-      "to_file": "convex/permissions.ts",
-      "to_func": "getUserPermissions"
-    },
-    {
-      "from_file": "src/components/domain/modals/GroupManagementModal.tsx",
-      "from_func": "handleDeleteGroup",
-      "to_file": "src/components/domain/modals/GroupManagementModal.tsx",
-      "to_func": "deleteGroup"
-    },
-    {
-      "from_file": "src/hooks/use-toast.ts",
-      "from_func": "reducer",
-      "to_file": "src/hooks/use-toast.ts",
-      "to_func": "addToRemoveQueue"
-    },
-    {
-      "from_file": "src/app/(dashboard)/projects/page.tsx",
-      "from_func": "handleDelete",
-      "to_file": "src/app/(dashboard)/projects/page.tsx",
-      "to_func": "deleteProject"
-    },
-    {
-      "from_file": "src/components/common/DateRangePicker.tsx",
-      "from_func": "handlePresetClick",
-      "to_file": "src/hooks/useDateRange.ts",
-      "to_func": "calculateDateRange"
-    },
-    {
-      "from_file": "src/components/base/text-editor/text-editor-tooltip.tsx",
-      "from_func": "TextEditorTooltip",
-      "to_file": "src/components/base/text-editor/text-editor.tsx",
-      "to_func": "useEditorContext"
-    },
-    {
-      "from_file": "src/components/base/input/input-group.tsx",
-      "from_func": "InputGroup",
-      "to_file": "src/lib/utils/cx.ts",
-      "to_func": "sortCx"
-    },
-    {
-      "from_file": "src/components/application/file-upload/file-upload-base.tsx",
       "from_func": "processFiles",
       "to_file": "src/components/application/file-upload/file-upload-base.tsx",
       "to_func": "isFileTypeAccepted"
     },
     {
-      "from_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
-      "from_func": "handleRefresh",
-      "to_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
-      "to_func": "refreshKeywords"
-    },
-    {
-      "from_file": "src/utils/is-react-component.ts",
-      "from_func": "isReactComponent",
-      "to_file": "src/utils/is-react-component.ts",
-      "to_func": "isForwardRefComponent"
-    },
-    {
-      "from_file": "src/components/application/pagination/pagination-base.tsx",
-      "from_func": "PaginationRoot",
-      "to_file": "src/components/application/pagination/pagination-base.tsx",
-      "to_func": "createPaginationItems"
-    },
-    {
-      "from_file": "src/components/base/text-editor/text-editor.tsx",
-      "from_func": "TextEditorContent",
-      "to_file": "src/components/base/text-editor/text-editor.tsx",
-      "to_func": "useEditorContext"
-    },
-    {
-      "from_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
-      "from_func": "DomainDetailPage",
-      "to_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
-      "to_func": "deleteDomain"
-    },
-    {
-      "from_file": "src/components/application/file-upload/file-upload-base.tsx",
-      "from_func": "handleDrop",
-      "to_file": "src/components/application/file-upload/file-upload-base.tsx",
-      "to_func": "handleDragOut"
-    },
-    {
-      "from_file": "src/components/application/calendar/calendar.tsx",
-      "from_func": "getEventsForDay",
-      "to_file": "src/components/application/calendar/calendar.tsx",
-      "to_func": "getEndOfDay"
-    },
-    {
-      "from_file": "src/hooks/use-toast.ts",
-      "from_func": "toast",
-      "to_file": "src/hooks/use-toast.ts",
-      "to_func": "dismiss"
-    },
-    {
-      "from_file": "src/components/base/select/multi-select.tsx",
-      "from_func": "MultiSelectBase",
-      "to_file": "src/hooks/use-resize-observer.ts",
-      "to_func": "useResizeObserver"
-    },
-    {
-      "from_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
-      "from_func": "handleSaveEdit",
-      "to_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
-      "to_func": "updateCompetitor"
-    },
-    {
-      "from_file": "src/components/domain/tables/ContentGapsTable.tsx",
-      "from_func": "ContentGapsTable",
-      "to_file": "src/components/domain/tables/ContentGapsTable.tsx",
-      "to_func": "addToMonitoring"
-    },
-    {
-      "from_file": "src/components/domain/tables/KeywordMonitoringTable.tsx",
-      "from_func": "handleBulkTag",
-      "to_file": "src/components/domain/tables/KeywordMonitoringTable.tsx",
-      "to_func": "bulkTagKeywords"
-    },
-    {
-      "from_file": "src/components/application/calendar/calendar.tsx",
-      "from_func": "PositionedEvent",
-      "to_file": "src/components/application/calendar/calendar.tsx",
-      "to_func": "getEndOfDay"
-    },
-    {
-      "from_file": "src/components/application/app-navigation/base-components/featured-cards.tsx",
-      "from_func": "FeaturedCardReferralLink",
-      "to_file": "src/hooks/use-clipboard.ts",
-      "to_func": "useClipboard"
-    },
-    {
-      "from_file": "src/components/application/command-menus/utils.ts",
-      "from_func": "isDeepEqual",
-      "to_file": "src/components/application/command-menus/utils.ts",
-      "to_func": "isDeepEqual"
-    },
-    {
-      "from_file": "src/components/application/file-upload/file-upload-base.tsx",
-      "from_func": "handleDrop",
-      "to_file": "src/components/application/file-upload/file-upload-base.tsx",
-      "to_func": "processFiles"
-    },
-    {
-      "from_file": "src/components/domain/tables/ContentGapsTable.tsx",
-      "from_func": "handleBulkAddToMonitoring",
-      "to_file": "src/components/domain/tables/ContentGapsTable.tsx",
-      "to_func": "addToMonitoring"
-    },
-    {
-      "from_file": "convex/limits.ts",
-      "from_func": "countOrgKeywords",
-      "to_file": "convex/limits.ts",
-      "to_func": "countProjectKeywords"
-    },
-    {
       "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
-      "from_func": "TextEditorAlignCenter",
-      "to_file": "src/components/base/text-editor/text-editor.tsx",
-      "to_func": "useEditorContext"
-    },
-    {
-      "from_file": "convex/admin.ts",
-      "from_func": "requireSuperAdmin",
-      "to_file": "convex/admin.ts",
-      "to_func": "isSuperAdmin"
-    },
-    {
-      "from_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
-      "from_func": "handleDelete",
-      "to_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
-      "to_func": "deleteDomain"
-    },
-    {
-      "from_file": "src/components/application/modals/base-components/generate-shades.ts",
-      "from_func": "generateRgbShades",
-      "to_file": "src/components/application/modals/base-components/generate-shades.ts",
-      "to_func": "hexToRgb"
-    },
-    {
-      "from_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
-      "from_func": "handleToggleStatus",
-      "to_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
-      "to_func": "updateCompetitor"
-    },
-    {
-      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
-      "from_func": "TextEditorGenerate",
-      "to_file": "src/components/base/text-editor/text-editor.tsx",
-      "to_func": "useEditorContext"
-    },
-    {
-      "from_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
-      "from_func": "handleEditSubmit",
-      "to_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
-      "to_func": "updateDomain"
-    },
-    {
-      "from_file": "src/components/base/input/input-payment.tsx",
-      "from_func": "PaymentInput",
-      "to_file": "src/components/base/input/input-payment.tsx",
-      "to_func": "detectCardType"
-    },
-    {
-      "from_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
-      "from_func": "DomainDetailPage",
-      "to_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
-      "to_func": "updateDomain"
-    },
-    {
-      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
-      "from_func": "TextEditorImage",
-      "to_file": "src/components/base/text-editor/text-editor.tsx",
-      "to_func": "useEditorContext"
-    },
-    {
-      "from_file": "src/components/shared-assets/image-cropper/utils.ts",
-      "from_func": "cropToDownloadable",
-      "to_file": "src/components/shared-assets/image-cropper/utils.ts",
-      "to_func": "cropToFile"
-    },
-    {
-      "from_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
-      "from_func": "handleCheckPositions",
-      "to_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
-      "to_func": "checkPositions"
-    },
-    {
-      "from_file": "src/components/application/carousel/carousel-base.tsx",
-      "from_func": "CarouselIndicator",
-      "to_file": "src/components/application/carousel/carousel-base.tsx",
-      "to_func": "useCarousel"
-    },
-    {
-      "from_file": "src/hooks/use-clipboard.ts",
-      "from_func": "useClipboard",
-      "to_file": "src/hooks/use-clipboard.ts",
-      "to_func": "fallback"
-    },
-    {
-      "from_file": "src/hooks/use-toast.ts",
-      "from_func": "toast",
-      "to_file": "src/hooks/use-toast.ts",
-      "to_func": "genId"
-    },
-    {
-      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
-      "from_func": "TextEditorUnderline",
-      "to_file": "src/components/base/text-editor/text-editor.tsx",
-      "to_func": "useEditorContext"
-    },
-    {
-      "from_file": "src/components/domain/tables/ContentGapsTable.tsx",
-      "from_func": "handleBulkStatusUpdate",
-      "to_file": "src/components/domain/tables/ContentGapsTable.tsx",
-      "to_func": "bulkUpdateStatus"
-    },
-    {
-      "from_file": "src/components/domain/tables/KeywordMonitoringTable.tsx",
-      "from_func": "handleBulkAddToGroup",
-      "to_file": "src/components/domain/tables/KeywordMonitoringTable.tsx",
-      "to_func": "addKeywordsToGroup"
-    },
-    {
-      "from_file": "src/components/application/carousel/carousel-base.tsx",
-      "from_func": "CarouselIndicatorGroup",
-      "to_file": "src/components/application/carousel/carousel-base.tsx",
-      "to_func": "useCarousel"
-    },
-    {
-      "from_file": "src/components/application/modals/create-domain-dialog.tsx",
-      "from_func": "handleSubmit",
-      "to_file": "src/components/application/modals/create-domain-dialog.tsx",
-      "to_func": "createDomain"
-    },
-    {
-      "from_file": "convex/limits.ts",
-      "from_func": "checkKeywordLimit",
-      "to_file": "convex/limits.ts",
-      "to_func": "countDomainKeywords"
-    },
-    {
-      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
-      "from_func": "TextEditorAlignLeft",
-      "to_file": "src/components/base/text-editor/text-editor.tsx",
-      "to_func": "useEditorContext"
-    },
-    {
-      "from_file": "src/lib/utils/is-react-component.ts",
-      "from_func": "isReactComponent",
-      "to_file": "src/lib/utils/is-react-component.ts",
-      "to_func": "isClassComponent"
-    },
-    {
-      "from_file": "src/components/application/calendar/calendar.tsx",
-      "from_func": "getEventsForDay",
-      "to_file": "src/components/application/calendar/calendar.tsx",
-      "to_func": "getStartOfDay"
-    },
-    {
-      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
-      "from_func": "TextEditorBold",
+      "from_func": "TextEditorItalic",
       "to_file": "src/components/base/text-editor/text-editor.tsx",
       "to_func": "useEditorContext"
     },
@@ -446,135 +206,27 @@
     },
     {
       "from_file": "src/components/domain/tables/KeywordMonitoringTable.tsx",
-      "from_func": "handleBulkDelete",
+      "from_func": "handleBulkTag",
       "to_file": "src/components/domain/tables/KeywordMonitoringTable.tsx",
-      "to_func": "deleteKeywords"
-    },
-    {
-      "from_file": "src/components/application/pagination/pagination-base.tsx",
-      "from_func": "PaginationRoot",
-      "to_file": "src/components/application/pagination/pagination-base.tsx",
-      "to_func": "range"
-    },
-    {
-      "from_file": "src/components/domain/tables/ContentGapsTable.tsx",
-      "from_func": "ContentGapsTable",
-      "to_file": "src/components/domain/tables/ContentGapsTable.tsx",
-      "to_func": "bulkUpdateStatus"
-    },
-    {
-      "from_file": "src/components/base/text-editor/text-editor.tsx",
-      "from_func": "TextEditorLabel",
-      "to_file": "src/components/base/text-editor/text-editor.tsx",
-      "to_func": "useEditorContext"
-    },
-    {
-      "from_file": "src/components/application/command-menus/parseHotkeys.ts",
-      "from_func": "parseHotkey",
-      "to_file": "src/components/application/command-menus/parseHotkeys.ts",
-      "to_func": "mapCode"
-    },
-    {
-      "from_file": "src/components/application/slideout-menus/order-summary-menu.tsx",
-      "from_func": "OrderSummaryMenu",
-      "to_file": "src/hooks/use-clipboard.ts",
-      "to_func": "useClipboard"
-    },
-    {
-      "from_file": "src/components/base/video-player/video-player.tsx",
-      "from_func": "handleKeyDown",
-      "to_file": "src/components/base/video-player/video-player.tsx",
-      "to_func": "toggleFullscreen"
-    },
-    {
-      "from_file": "src/hooks/useDateRange.ts",
-      "from_func": "useDateRange",
-      "to_file": "src/hooks/useDateRange.ts",
-      "to_func": "formatDateForUrl"
-    },
-    {
-      "from_file": "src/hooks/useDateRange.ts",
-      "from_func": "useDateRange",
-      "to_file": "src/hooks/useDateRange.ts",
-      "to_func": "parseDateFromUrl"
-    },
-    {
-      "from_file": "src/components/application/command-menus/command-menu.tsx",
-      "from_func": "CommandMenuRoot",
-      "to_file": "src/components/application/command-menus/utils.ts",
-      "to_func": "isDeepEqual"
-    },
-    {
-      "from_file": "src/hooks/useDateRange.ts",
-      "from_func": "useDateRange",
-      "to_file": "src/hooks/useDateRange.ts",
-      "to_func": "calculateDateRange"
-    },
-    {
-      "from_file": "src/hooks/use-resize-observer.ts",
-      "from_func": "useResizeObserver",
-      "to_file": "src/hooks/use-resize-observer.ts",
-      "to_func": "hasResizeObserver"
-    },
-    {
-      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
-      "from_func": "TextEditorAlignRight",
-      "to_file": "src/components/base/text-editor/text-editor.tsx",
-      "to_func": "useEditorContext"
-    },
-    {
-      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
-      "from_func": "TextEditorLink",
-      "to_file": "src/components/base/text-editor/text-editor.tsx",
-      "to_func": "useEditorContext"
-    },
-    {
-      "from_file": "src/components/application/carousel/carousel.demo.tsx",
-      "from_func": "CarouselIndicator",
-      "to_file": "src/components/application/carousel/carousel-base.tsx",
-      "to_func": "useCarousel"
-    },
-    {
-      "from_file": "src/components/domain/sections/OnSiteSection.tsx",
-      "from_func": "handleStartScan",
-      "to_file": "src/components/domain/sections/OnSiteSection.tsx",
-      "to_func": "triggerScan"
-    },
-    {
-      "from_file": "src/components/ui/badge.tsx",
-      "from_func": "Badge",
-      "to_file": "src/components/ui/badge.tsx",
-      "to_func": "badgeVariants"
+      "to_func": "bulkTagKeywords"
     },
     {
       "from_file": "src/utils/is-react-component.ts",
       "from_func": "isReactComponent",
       "to_file": "src/utils/is-react-component.ts",
-      "to_func": "isClassComponent"
+      "to_func": "isForwardRefComponent"
     },
     {
-      "from_file": "src/components/application/slideout-menus/notifications-menu.tsx",
-      "from_func": "NotificationsMenu",
-      "to_file": "src/components/application/slideout-menus/notifications-menu.tsx",
-      "to_func": "useModalState"
+      "from_file": "src/components/domain/tables/KeywordMonitoringTable.tsx",
+      "from_func": "handleBulkRefresh",
+      "to_file": "src/components/domain/tables/KeywordMonitoringTable.tsx",
+      "to_func": "refreshPositions"
     },
     {
-      "from_file": "src/components/base/video-player/video-player.tsx",
-      "from_func": "handleKeyDown",
-      "to_file": "src/components/base/video-player/video-player.tsx",
-      "to_func": "toggleMute"
-    },
-    {
-      "from_file": "src/components/domain/tables/ContentGapsTable.tsx",
-      "from_func": "ContentGapsTable",
-      "to_file": "src/components/domain/tables/ContentGapsTable.tsx",
-      "to_func": "bulkUpdatePriority"
-    },
-    {
-      "from_file": "convex/limits.ts",
-      "from_func": "countOrgDomains",
-      "to_file": "convex/limits.ts",
-      "to_func": "countProjectDomains"
+      "from_file": "src/components/application/carousel/carousel-base.tsx",
+      "from_func": "CarouselIndicator",
+      "to_file": "src/components/application/carousel/carousel-base.tsx",
+      "to_func": "useCarousel"
     },
     {
       "from_file": "src/components/application/modals/create-project-dialog.tsx",
@@ -583,10 +235,130 @@
       "to_func": "createProject"
     },
     {
+      "from_file": "src/components/shared-assets/image-cropper/utils.ts",
+      "from_func": "cropToDownloadable",
+      "to_file": "src/components/shared-assets/image-cropper/utils.ts",
+      "to_func": "cropToFile"
+    },
+    {
+      "from_file": "src/hooks/use-toast.ts",
+      "from_func": "toast",
+      "to_file": "src/hooks/use-toast.ts",
+      "to_func": "dispatch"
+    },
+    {
+      "from_file": "src/components/application/carousel/carousel-base.tsx",
+      "from_func": "CarouselIndicatorGroup",
+      "to_file": "src/components/application/carousel/carousel-base.tsx",
+      "to_func": "useCarousel"
+    },
+    {
+      "from_file": "src/hooks/use-toast.ts",
+      "from_func": "toast",
+      "to_file": "src/hooks/use-toast.ts",
+      "to_func": "dismiss"
+    },
+    {
+      "from_file": "src/hooks/use-toast.ts",
+      "from_func": "toast",
+      "to_file": "src/hooks/use-toast.ts",
+      "to_func": "genId"
+    },
+    {
+      "from_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
+      "from_func": "handleCheckPositions",
+      "to_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
+      "to_func": "checkPositions"
+    },
+    {
+      "from_file": "convex/permissions.ts",
+      "from_func": "checkPermission",
+      "to_file": "convex/permissions.ts",
+      "to_func": "getUserPermissions"
+    },
+    {
+      "from_file": "src/hooks/useDateRange.ts",
+      "from_func": "useDateRange",
+      "to_file": "src/hooks/useDateRange.ts",
+      "to_func": "formatDateForUrl"
+    },
+    {
+      "from_file": "src/components/base/select/multi-select.tsx",
+      "from_func": "MultiSelectBase",
+      "to_file": "src/hooks/use-resize-observer.ts",
+      "to_func": "useResizeObserver"
+    },
+    {
+      "from_file": "src/components/domain/modals/BrokenResourcesModal.tsx",
+      "from_func": "handleOpen",
+      "to_file": "src/components/domain/modals/BrokenResourcesModal.tsx",
+      "to_func": "fetchBrokenResources"
+    },
+    {
       "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
-      "from_func": "TextEditorBulletList",
+      "from_func": "TextEditorBold",
       "to_file": "src/components/base/text-editor/text-editor.tsx",
       "to_func": "useEditorContext"
+    },
+    {
+      "from_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
+      "from_func": "handleEditSubmit",
+      "to_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
+      "to_func": "updateDomain"
+    },
+    {
+      "from_file": "src/hooks/use-toast.ts",
+      "from_func": "dispatch",
+      "to_file": "src/hooks/use-toast.ts",
+      "to_func": "reducer"
+    },
+    {
+      "from_file": "src/lib/utils/is-react-component.ts",
+      "from_func": "isReactComponent",
+      "to_file": "src/lib/utils/is-react-component.ts",
+      "to_func": "isClassComponent"
+    },
+    {
+      "from_file": "src/lib/utils/is-react-component.ts",
+      "from_func": "isReactComponent",
+      "to_file": "src/lib/utils/is-react-component.ts",
+      "to_func": "isFunctionComponent"
+    },
+    {
+      "from_file": "src/components/application/modals/create-project-dialog.tsx",
+      "from_func": "handleSubmit",
+      "to_file": "src/components/application/modals/create-project-dialog.tsx",
+      "to_func": "createProject"
+    },
+    {
+      "from_file": "src/components/application/command-menus/utils.ts",
+      "from_func": "isDeepEqual",
+      "to_file": "src/components/application/command-menus/utils.ts",
+      "to_func": "isDeepEqual"
+    },
+    {
+      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
+      "from_func": "TextEditorAlignLeft",
+      "to_file": "src/components/base/text-editor/text-editor.tsx",
+      "to_func": "useEditorContext"
+    },
+    {
+      "from_file": "src/components/domain/tables/ContentGapsTable.tsx",
+      "from_func": "ContentGapsTable",
+      "to_file": "src/components/domain/tables/ContentGapsTable.tsx",
+      "to_func": "bulkUpdateStatus"
+    },
+    {
+      "from_file": "src/app/(dashboard)/projects/page.tsx",
+      "from_func": "handleDelete",
+      "to_file": "src/app/(dashboard)/projects/page.tsx",
+      "to_func": "deleteProject"
+    },
+    {
+      "from_file": "src/is-react-component.ts",
+      "from_func": "isReactComponent",
+      "to_file": "src/is-react-component.ts",
+      "to_func": "isClassComponent"
     },
     {
       "from_file": "src/components/application/carousel/carousel-base.tsx",
@@ -598,121 +370,121 @@
       "from_file": "src/is-react-component.ts",
       "from_func": "isReactComponent",
       "to_file": "src/is-react-component.ts",
-      "to_func": "isClassComponent"
+      "to_func": "isFunctionComponent"
     },
     {
-      "from_file": "src/components/foundations/featured-icon/featured-icon.tsx",
-      "from_func": "FeaturedIcon",
-      "to_file": "src/lib/utils/is-react-component.ts",
-      "to_func": "isReactComponent"
+      "from_file": "convex/limits.ts",
+      "from_func": "checkKeywordLimit",
+      "to_file": "convex/limits.ts",
+      "to_func": "countDomainKeywords"
     },
     {
-      "from_file": "src/components/common/DateRangePicker.tsx",
-      "from_func": "toggleComparison",
-      "to_file": "src/hooks/useDateRange.ts",
-      "to_func": "calculatePreviousPeriod"
+      "from_file": "src/components/application/command-menus/command-menu.tsx",
+      "from_func": "CommandMenuRoot",
+      "to_file": "src/components/application/command-menus/utils.ts",
+      "to_func": "isDeepEqual"
     },
     {
-      "from_file": "src/components/base/text-editor/text-editor.tsx",
-      "from_func": "TextEditorHintText",
-      "to_file": "src/components/base/text-editor/text-editor.tsx",
-      "to_func": "useEditorContext"
+      "from_file": "src/components/base/video-player/video-player.tsx",
+      "from_func": "handleKeyDown",
+      "to_file": "src/components/base/video-player/video-player.tsx",
+      "to_func": "toggleMute"
     },
     {
-      "from_file": "src/use-clipboard.ts",
-      "from_func": "useClipboard",
-      "to_file": "src/use-clipboard.ts",
-      "to_func": "fallback"
-    },
-    {
-      "from_file": "src/hooks/use-toast.ts",
-      "from_func": "toast",
-      "to_file": "src/hooks/use-toast.ts",
-      "to_func": "dispatch"
-    },
-    {
-      "from_file": "src/components/application/command-menus/command-palette.tsx",
-      "from_func": "CommandPalette",
-      "to_file": "src/components/application/command-menus/command-palette.tsx",
-      "to_func": "navigate"
-    },
-    {
-      "from_file": "src/components/application/modals/create-project-dialog.tsx",
-      "from_func": "handleSubmit",
-      "to_file": "src/components/application/modals/create-project-dialog.tsx",
-      "to_func": "createProject"
-    },
-    {
-      "from_file": "convex/permissions.ts",
-      "from_func": "getContextFromKeyword",
-      "to_file": "convex/permissions.ts",
-      "to_func": "getContextFromDomain"
-    },
-    {
-      "from_file": "src/components/domain/tables/KeywordMonitoringTable.tsx",
-      "from_func": "handleBulkRefresh",
-      "to_file": "src/components/domain/tables/KeywordMonitoringTable.tsx",
-      "to_func": "refreshPositions"
-    },
-    {
-      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
-      "from_func": "TextEditorAlignJustify",
-      "to_file": "src/components/base/text-editor/text-editor.tsx",
-      "to_func": "useEditorContext"
-    },
-    {
-      "from_file": "src/components/application/slideout-menus/order-summary-menu.tsx",
-      "from_func": "OrderSummaryMenu",
-      "to_file": "src/components/application/slideout-menus/order-summary-menu.tsx",
+      "from_file": "src/components/application/slideout-menus/notifications-menu.tsx",
+      "from_func": "NotificationsMenu",
+      "to_file": "src/components/application/slideout-menus/notifications-menu.tsx",
       "to_func": "useModalState"
     },
     {
-      "from_file": "src/components/application/carousel/carousel-base.tsx",
-      "from_func": "Trigger",
-      "to_file": "src/components/application/carousel/carousel-base.tsx",
-      "to_func": "scrollPrev"
-    },
-    {
-      "from_file": "src/hooks/use-toast.ts",
-      "from_func": "dispatch",
-      "to_file": "src/hooks/use-toast.ts",
-      "to_func": "reducer"
-    },
-    {
-      "from_file": "src/components/application/carousel/carousel-base.tsx",
-      "from_func": "Trigger",
-      "to_file": "src/components/application/carousel/carousel-base.tsx",
-      "to_func": "scrollNext"
-    },
-    {
-      "from_file": "src/components/application/modals/base-components/generate-shades.ts",
-      "from_func": "generateRgbShades",
-      "to_file": "src/components/application/modals/base-components/generate-shades.ts",
-      "to_func": "hlsToRgb"
-    },
-    {
-      "from_file": "src/components/application/modals/base-components/generate-shades.ts",
-      "from_func": "generateRgbShades",
-      "to_file": "src/components/application/modals/base-components/generate-shades.ts",
-      "to_func": "rgbToHls"
-    },
-    {
-      "from_file": "src/components/application/carousel/carousel-base.tsx",
-      "from_func": "CarouselContent",
-      "to_file": "src/components/application/carousel/carousel-base.tsx",
-      "to_func": "useCarousel"
-    },
-    {
       "from_file": "src/components/domain/tables/ContentGapsTable.tsx",
-      "from_func": "handleBulkPriorityUpdate",
+      "from_func": "handleBulkAddToMonitoring",
       "to_file": "src/components/domain/tables/ContentGapsTable.tsx",
-      "to_func": "bulkUpdatePriority"
+      "to_func": "addToMonitoring"
+    },
+    {
+      "from_file": "src/components/application/calendar/calendar.tsx",
+      "from_func": "getEventsForDay",
+      "to_file": "src/components/application/calendar/calendar.tsx",
+      "to_func": "getStartOfDay"
+    },
+    {
+      "from_file": "src/use-resize-observer.ts",
+      "from_func": "useResizeObserver",
+      "to_file": "src/use-resize-observer.ts",
+      "to_func": "hasResizeObserver"
+    },
+    {
+      "from_file": "src/components/application/pagination/pagination-base.tsx",
+      "from_func": "PaginationRoot",
+      "to_file": "src/components/application/pagination/pagination-base.tsx",
+      "to_func": "range"
+    },
+    {
+      "from_file": "src/components/application/command-menus/command-menu.tsx",
+      "from_func": "CommandMenuRoot",
+      "to_file": "src/components/application/command-menus/parseHotkeys.ts",
+      "to_func": "parseHotkey"
+    },
+    {
+      "from_file": "src/components/application/file-upload/file-upload-base.tsx",
+      "from_func": "handleInputFileChange",
+      "to_file": "src/components/application/file-upload/file-upload-base.tsx",
+      "to_func": "processFiles"
+    },
+    {
+      "from_file": "src/components/domain/modals/GroupManagementModal.tsx",
+      "from_func": "handleUpdateGroup",
+      "to_file": "src/components/domain/modals/GroupManagementModal.tsx",
+      "to_func": "updateGroup"
+    },
+    {
+      "from_file": "src/components/application/command-menus/parseHotkeys.ts",
+      "from_func": "parseHotkey",
+      "to_file": "src/components/application/command-menus/parseHotkeys.ts",
+      "to_func": "mapCode"
+    },
+    {
+      "from_file": "src/hooks/use-resize-observer.ts",
+      "from_func": "useResizeObserver",
+      "to_file": "src/hooks/use-resize-observer.ts",
+      "to_func": "hasResizeObserver"
+    },
+    {
+      "from_file": "src/components/domain/modals/PagesIssueModal.tsx",
+      "from_func": "handleOpen",
+      "to_file": "src/components/domain/modals/PagesIssueModal.tsx",
+      "to_func": "fetchDetails"
+    },
+    {
+      "from_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
+      "from_func": "handleAddCompetitor",
+      "to_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
+      "to_func": "addCompetitor"
+    },
+    {
+      "from_file": "src/components/base/input/input-payment.tsx",
+      "from_func": "PaymentInput",
+      "to_file": "src/components/base/input/input-payment.tsx",
+      "to_func": "detectCardType"
     },
     {
       "from_file": "src/components/base/video-player/video-player.tsx",
       "from_func": "handleKeyDown",
       "to_file": "src/components/base/video-player/video-player.tsx",
       "to_func": "togglePlay"
+    },
+    {
+      "from_file": "src/components/domain/modals/GroupManagementModal.tsx",
+      "from_func": "handleCreateGroup",
+      "to_file": "src/components/domain/modals/GroupManagementModal.tsx",
+      "to_func": "createGroup"
+    },
+    {
+      "from_file": "src/components/application/carousel/carousel.demo.tsx",
+      "from_func": "CarouselIndicator",
+      "to_file": "src/components/application/carousel/carousel-base.tsx",
+      "to_func": "useCarousel"
     },
     {
       "from_file": "convex/limits.ts",
@@ -722,15 +494,189 @@
     },
     {
       "from_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
-      "from_func": "handleFetchBacklinks",
+      "from_func": "handleDelete",
       "to_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
-      "to_func": "fetchBacklinksAction"
+      "to_func": "deleteDomain"
+    },
+    {
+      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
+      "from_func": "TextEditorImage",
+      "to_file": "src/components/base/text-editor/text-editor.tsx",
+      "to_func": "useEditorContext"
+    },
+    {
+      "from_file": "src/components/ui/badge.tsx",
+      "from_func": "Badge",
+      "to_file": "src/components/ui/badge.tsx",
+      "to_func": "badgeVariants"
+    },
+    {
+      "from_file": "src/components/base/video-player/video-player.tsx",
+      "from_func": "handleKeyDown",
+      "to_file": "src/components/base/video-player/video-player.tsx",
+      "to_func": "toggleFullscreen"
+    },
+    {
+      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
+      "from_func": "TextEditorGenerate",
+      "to_file": "src/components/base/text-editor/text-editor.tsx",
+      "to_func": "useEditorContext"
+    },
+    {
+      "from_file": "src/components/application/calendar/calendar.tsx",
+      "from_func": "getEventsForDay",
+      "to_file": "src/components/application/calendar/calendar.tsx",
+      "to_func": "getEndOfDay"
+    },
+    {
+      "from_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
+      "from_func": "handleToggleStatus",
+      "to_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
+      "to_func": "updateCompetitor"
+    },
+    {
+      "from_file": "src/app/(dashboard)/domains/page.tsx",
+      "from_func": "handleDelete",
+      "to_file": "src/app/(dashboard)/domains/page.tsx",
+      "to_func": "deleteDomain"
+    },
+    {
+      "from_file": "src/components/application/calendar/calendar.tsx",
+      "from_func": "PositionedEvent",
+      "to_file": "src/components/application/calendar/calendar.tsx",
+      "to_func": "getEndOfDay"
+    },
+    {
+      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
+      "from_func": "TextEditorUnderline",
+      "to_file": "src/components/base/text-editor/text-editor.tsx",
+      "to_func": "useEditorContext"
+    },
+    {
+      "from_file": "src/components/domain/modals/GroupManagementModal.tsx",
+      "from_func": "handleDeleteGroup",
+      "to_file": "src/components/domain/modals/GroupManagementModal.tsx",
+      "to_func": "deleteGroup"
+    },
+    {
+      "from_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
+      "from_func": "DomainDetailPage",
+      "to_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
+      "to_func": "refreshKeywords"
     },
     {
       "from_file": "src/hooks/use-toast.ts",
-      "from_func": "useToast",
+      "from_func": "dismiss",
       "to_file": "src/hooks/use-toast.ts",
       "to_func": "dispatch"
+    },
+    {
+      "from_file": "src/components/domain/tables/KeywordMonitoringTable.tsx",
+      "from_func": "handleBulkAddToGroup",
+      "to_file": "src/components/domain/tables/KeywordMonitoringTable.tsx",
+      "to_func": "addKeywordsToGroup"
+    },
+    {
+      "from_file": "src/components/application/modals/create-domain-dialog.tsx",
+      "from_func": "handleSubmit",
+      "to_file": "src/components/application/modals/create-domain-dialog.tsx",
+      "to_func": "createDomain"
+    },
+    {
+      "from_file": "src/components/domain/tables/ContentGapsTable.tsx",
+      "from_func": "handleBulkPriorityUpdate",
+      "to_file": "src/components/domain/tables/ContentGapsTable.tsx",
+      "to_func": "bulkUpdatePriority"
+    },
+    {
+      "from_file": "src/components/common/DateRangePicker.tsx",
+      "from_func": "toggleComparison",
+      "to_file": "src/hooks/useDateRange.ts",
+      "to_func": "calculatePreviousPeriod"
+    },
+    {
+      "from_file": "src/components/application/app-navigation/base-components/featured-cards.tsx",
+      "from_func": "FeaturedCardReferralLink",
+      "to_file": "src/hooks/use-clipboard.ts",
+      "to_func": "useClipboard"
+    },
+    {
+      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
+      "from_func": "TextEditorAlignCenter",
+      "to_file": "src/components/base/text-editor/text-editor.tsx",
+      "to_func": "useEditorContext"
+    },
+    {
+      "from_file": "src/components/domain/tables/ContentGapsTable.tsx",
+      "from_func": "ContentGapsTable",
+      "to_file": "src/components/domain/tables/ContentGapsTable.tsx",
+      "to_func": "bulkUpdatePriority"
+    },
+    {
+      "from_file": "src/use-clipboard.ts",
+      "from_func": "useClipboard",
+      "to_file": "src/use-clipboard.ts",
+      "to_func": "fallback"
+    },
+    {
+      "from_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
+      "from_func": "handleRemove",
+      "to_file": "src/components/domain/sections/CompetitorManagementSection.tsx",
+      "to_func": "removeCompetitor"
+    },
+    {
+      "from_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
+      "from_func": "DomainDetailPage",
+      "to_file": "src/app/(dashboard)/domains/[domainId]/page.tsx",
+      "to_func": "updateDomain"
+    },
+    {
+      "from_file": "src/components/application/modals/base-components/generate-shades.ts",
+      "from_func": "generateRgbShades",
+      "to_file": "src/components/application/modals/base-components/generate-shades.ts",
+      "to_func": "hlsToRgb"
+    },
+    {
+      "from_file": "src/hooks/use-clipboard.ts",
+      "from_func": "useClipboard",
+      "to_file": "src/hooks/use-clipboard.ts",
+      "to_func": "fallback"
+    },
+    {
+      "from_file": "src/components/application/command-menus/command-palette.tsx",
+      "from_func": "CommandPalette",
+      "to_file": "src/components/application/command-menus/command-palette.tsx",
+      "to_func": "navigate"
+    },
+    {
+      "from_file": "src/components/base/text-editor/text-editor-tooltip.tsx",
+      "from_func": "TextEditorTooltip",
+      "to_file": "src/components/base/text-editor/text-editor.tsx",
+      "to_func": "useEditorContext"
+    },
+    {
+      "from_file": "src/components/foundations/featured-icon/featured-icon.tsx",
+      "from_func": "FeaturedIcon",
+      "to_file": "src/lib/utils/is-react-component.ts",
+      "to_func": "isReactComponent"
+    },
+    {
+      "from_file": "src/components/base/text-editor/text-editor.tsx",
+      "from_func": "TextEditorLabel",
+      "to_file": "src/components/base/text-editor/text-editor.tsx",
+      "to_func": "useEditorContext"
+    },
+    {
+      "from_file": "convex/limits.ts",
+      "from_func": "countOrgDomains",
+      "to_file": "convex/limits.ts",
+      "to_func": "countProjectDomains"
+    },
+    {
+      "from_file": "src/components/application/calendar/calendar.tsx",
+      "from_func": "PositionedEvent",
+      "to_file": "src/components/application/calendar/calendar.tsx",
+      "to_func": "formatTime"
     },
     {
       "from_file": "src/components/domain/tables/AllKeywordsTable.tsx",
@@ -739,15 +685,87 @@
       "to_func": "isAlreadyMonitored"
     },
     {
-      "from_file": "src/app/(dashboard)/domains/page.tsx",
-      "from_func": "handleDelete",
-      "to_file": "src/app/(dashboard)/domains/page.tsx",
-      "to_func": "deleteDomain"
+      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
+      "from_func": "TextEditorAlignRight",
+      "to_file": "src/components/base/text-editor/text-editor.tsx",
+      "to_func": "useEditorContext"
+    },
+    {
+      "from_file": "src/components/domain/tables/ContentGapsTable.tsx",
+      "from_func": "handleBulkStatusUpdate",
+      "to_file": "src/components/domain/tables/ContentGapsTable.tsx",
+      "to_func": "bulkUpdateStatus"
+    },
+    {
+      "from_file": "src/hooks/use-toast.ts",
+      "from_func": "useToast",
+      "to_file": "src/hooks/use-toast.ts",
+      "to_func": "dispatch"
+    },
+    {
+      "from_file": "src/components/application/slideout-menus/order-summary-menu.tsx",
+      "from_func": "OrderSummaryMenu",
+      "to_file": "src/components/application/slideout-menus/order-summary-menu.tsx",
+      "to_func": "useModalState"
+    },
+    {
+      "from_file": "src/components/application/file-upload/file-upload-base.tsx",
+      "from_func": "handleDrop",
+      "to_file": "src/components/application/file-upload/file-upload-base.tsx",
+      "to_func": "processFiles"
+    },
+    {
+      "from_file": "src/components/base/text-editor/text-editor.tsx",
+      "from_func": "handleKeyDown",
+      "to_file": "src/components/base/text-editor/text-editor.tsx",
+      "to_func": "setLink"
+    },
+    {
+      "from_file": "convex/limits.ts",
+      "from_func": "checkKeywordLimit",
+      "to_file": "convex/limits.ts",
+      "to_func": "getDomainHierarchy"
+    },
+    {
+      "from_file": "convex/permissions.ts",
+      "from_func": "requirePermission",
+      "to_file": "convex/permissions.ts",
+      "to_func": "checkPermission"
+    },
+    {
+      "from_file": "src/components/application/slideout-menus/order-summary-menu.tsx",
+      "from_func": "OrderSummaryMenu",
+      "to_file": "src/hooks/use-clipboard.ts",
+      "to_func": "useClipboard"
+    },
+    {
+      "from_file": "src/components/base/text-editor/text-editor-extensions.tsx",
+      "from_func": "TextEditorLink",
+      "to_file": "src/components/base/text-editor/text-editor.tsx",
+      "to_func": "useEditorContext"
+    },
+    {
+      "from_file": "convex/admin.ts",
+      "from_func": "requireSuperAdmin",
+      "to_file": "convex/admin.ts",
+      "to_func": "isSuperAdmin"
+    },
+    {
+      "from_file": "src/components/application/carousel/carousel-base.tsx",
+      "from_func": "Trigger",
+      "to_file": "src/components/application/carousel/carousel-base.tsx",
+      "to_func": "scrollPrev"
+    },
+    {
+      "from_file": "src/hooks/use-toast.ts",
+      "from_func": "update",
+      "to_file": "src/hooks/use-toast.ts",
+      "to_func": "dispatch"
     }
   ],
   "languages": [
     "javascript",
     "typescript"
   ],
-  "timestamp": 1769970738.831558
+  "timestamp": 1769974292.101912
 }
