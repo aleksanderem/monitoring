@@ -731,12 +731,105 @@ export default defineSchema({
     analysisId: v.optional(v.id("domainOnsiteAnalysis")),
     url: v.string(),
     statusCode: v.number(),
+
+    // Basic meta
     title: v.optional(v.string()),
     metaDescription: v.optional(v.string()),
     h1: v.optional(v.string()),
+    canonical: v.optional(v.string()),
+
+    // Content metrics
     wordCount: v.number(),
+    plainTextSize: v.optional(v.number()),
+    plainTextRate: v.optional(v.number()),
+
+    // Readability scores
+    readabilityScores: v.optional(v.object({
+      automatedReadabilityIndex: v.number(),
+      colemanLiauIndex: v.number(),
+      daleChallIndex: v.number(),
+      fleschKincaidIndex: v.number(),
+      smogIndex: v.number(),
+    })),
+
+    // Content consistency
+    contentConsistency: v.optional(v.object({
+      titleToContent: v.number(),
+      descriptionToContent: v.number(),
+    })),
+
+    // Heading structure
+    htags: v.optional(v.object({
+      h1: v.array(v.string()),
+      h2: v.array(v.string()),
+      h3: v.optional(v.array(v.string())),
+      h4: v.optional(v.array(v.string())),
+    })),
+
+    // Links analysis
+    internalLinksCount: v.optional(v.number()),
+    externalLinksCount: v.optional(v.number()),
+    inboundLinksCount: v.optional(v.number()),
+
+    // Images
+    imagesCount: v.optional(v.number()),
+
+    // Performance timing
     loadTime: v.optional(v.number()),
     pageSize: v.optional(v.number()), // bytes
+    totalDomSize: v.optional(v.number()),
+
+    // Core Web Vitals
+    coreWebVitals: v.optional(v.object({
+      largestContentfulPaint: v.number(),
+      firstInputDelay: v.number(),
+      timeToInteractive: v.number(),
+      domComplete: v.number(),
+      cumulativeLayoutShift: v.optional(v.number()),
+    })),
+
+    // Technical
+    scriptsCount: v.optional(v.number()),
+    renderBlockingScriptsCount: v.optional(v.number()),
+    cacheControl: v.optional(v.object({
+      cachable: v.boolean(),
+      ttl: v.number(),
+    })),
+
+    // Social media tags
+    hasSocialTags: v.optional(v.boolean()),
+    socialMediaTags: v.optional(v.object({
+      hasOgTags: v.boolean(),
+      hasTwitterCard: v.boolean(),
+    })),
+
+    // Lighthouse scores
+    lighthouseScores: v.optional(v.object({
+      performance: v.number(),
+      accessibility: v.number(),
+      bestPractices: v.number(),
+      seo: v.number(),
+    })),
+
+    // OnPage score from DataForSEO
+    onpageScore: v.optional(v.number()),
+
+    // Resource errors
+    resourceErrors: v.optional(v.object({
+      hasErrors: v.boolean(),
+      hasWarnings: v.boolean(),
+      errorCount: v.number(),
+      warningCount: v.number(),
+    })),
+
+    // Flags
+    brokenResources: v.optional(v.boolean()),
+    brokenLinks: v.optional(v.boolean()),
+    duplicateTitle: v.optional(v.boolean()),
+    duplicateDescription: v.optional(v.boolean()),
+    duplicateContent: v.optional(v.boolean()),
+
+    // Issues (existing)
     issueCount: v.number(),
     issues: v.array(v.object({
       type: v.union(
@@ -747,6 +840,9 @@ export default defineSchema({
       category: v.string(),
       message: v.string(),
     })),
+
+    // Checks from Instant Pages (store as object for flexibility)
+    checks: v.optional(v.any()),
   })
     .index("by_domain", ["domainId"])
     .index("by_scan", ["scanId"])

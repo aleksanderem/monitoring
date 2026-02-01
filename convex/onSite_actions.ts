@@ -1215,3 +1215,338 @@ export const completeMockScan = internalMutation({
     });
   },
 });
+
+/**
+ * ============================================================================
+ * NEW INSTANT PAGES + LIGHTHOUSE FLOW
+ * ============================================================================
+ */
+
+/**
+ * Step 1: Fetch available URLs from sitemap
+ */
+export const fetchAvailableUrls = action({
+  args: {
+    domainId: v.id("domains"),
+    sitemapUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ urls: string[]; source: string; error?: string }> => {
+    const domain = await ctx.runQuery(api.queries.domains.getDomain, {
+      domainId: args.domainId,
+    });
+
+    if (!domain) {
+      throw new Error("Domain not found");
+    }
+
+    // Try sitemap URL if provided, otherwise try default
+    const sitemapUrl = args.sitemapUrl || `https://${domain.domain}/sitemap.xml`;
+
+    try {
+      console.log(`[SITEMAP] Fetching from ${sitemapUrl}`);
+      const response = await fetch(sitemapUrl, { timeout: 30000 });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const xmlText = await response.text();
+
+      // Parse XML sitemap
+      const urlMatches = xmlText.match(/<loc>(.*?)<\/loc>/g);
+      if (!urlMatches) {
+        throw new Error("No URLs found in sitemap");
+      }
+
+      const urls = urlMatches.map((match) =>
+        match.replace(/<\/?loc>/g, "").trim()
+      );
+
+      console.log(`[SITEMAP] Found ${urls.length} URLs`);
+
+      return {
+        urls,
+        source: args.sitemapUrl ? "custom_sitemap" : "auto_sitemap",
+      };
+    } catch (error) {
+      console.error("[SITEMAP] Error fetching sitemap:", error);
+      return {
+        urls: [],
+        source: "error",
+        error: error instanceof Error ? error.message : "Failed to fetch sitemap",
+      };
+    }
+  },
+});
+
+/**
+ * Step 2: Scan selected URLs with Instant Pages + Lighthouse
+ */
+export const scanSelectedUrls = action({
+  args: {
+    domainId: v.id("domains"),
+    scanId: v.id("onSiteScans"),
+    urls: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    console.log(`[INSTANT] Starting scan for ${args.urls.length} URLs`);
+
+    const login = process.env.DATAFORSEO_LOGIN;
+    const password = process.env.DATAFORSEO_PASSWORD;
+
+    if (!login || !password) {
+      throw new Error("DataForSEO credentials not configured");
+    }
+
+    const authHeader = btoa(`${login}:${password}`);
+
+    try {
+      // Batch URLs (max 20 per request for Instant Pages)
+      const batchSize = 20;
+      const batches: string[][] = [];
+      for (let i = 0; i < args.urls.length; i += batchSize) {
+        batches.push(args.urls.slice(i, i + batchSize));
+      }
+
+      const allResults: any[] = [];
+
+      for (const batch of batches) {
+        console.log(`[INSTANT] Processing batch of ${batch.length} URLs`);
+
+        // 1. Fetch Instant Pages
+        const instantPagesResponse = await fetch(
+          `${DATAFORSEO_API_URL}/on_page/instant_pages`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Basic ${authHeader}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(
+              batch.map((url) => ({
+                url,
+                enable_javascript: true,
+                load_resources: true,
+              }))
+            ),
+          }
+        );
+
+        const instantData = await instantPagesResponse.json();
+        console.log(`[INSTANT] Response status: ${instantData.status_code}`);
+
+        if (instantData.status_code !== 20000) {
+          throw new Error(`Instant Pages error: ${instantData.status_message}`);
+        }
+
+        // 2. Fetch Lighthouse for each URL
+        const lighthouseResponse = await fetch(
+          `${DATAFORSEO_API_URL}/on_page/lighthouse/audits`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Basic ${authHeader}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(
+              batch.map((url) => ({
+                url,
+                audits: ["performance", "accessibility", "best-practices", "seo"],
+              }))
+            ),
+          }
+        );
+
+        const lighthouseData = await lighthouseResponse.json();
+        console.log(`[LIGHTHOUSE] Response status: ${lighthouseData.status_code}`);
+
+        // 3. Merge results
+        const instantPages = instantData.tasks[0]?.result?.[0]?.items || [];
+        const lighthouseResults = lighthouseData.tasks || [];
+
+        instantPages.forEach((page: any, index: number) => {
+          const lighthouseResult = lighthouseResults[index]?.result?.[0]?.items?.[0];
+
+          allResults.push({
+            instantPages: page,
+            lighthouse: lighthouseResult,
+          });
+        });
+      }
+
+      console.log(`[INSTANT] Total results: ${allResults.length}`);
+
+      // Store results
+      await ctx.runMutation(internal.onSite_actions.storeInstantPagesResults, {
+        domainId: args.domainId,
+        scanId: args.scanId,
+        results: allResults,
+      });
+
+      return {
+        success: true,
+        scannedUrls: allResults.length,
+      };
+    } catch (error) {
+      console.error("[INSTANT] Error:", error);
+      throw error;
+    }
+  },
+});
+
+/**
+ * Store Instant Pages + Lighthouse results
+ */
+export const storeInstantPagesResults = internalMutation({
+  args: {
+    domainId: v.id("domains"),
+    scanId: v.id("onSiteScans"),
+    results: v.any(),
+  },
+  handler: async (ctx, args) => {
+    console.log(`[STORE] Storing ${args.results.length} instant pages`);
+
+    for (const result of args.results) {
+      const page = result.instantPages;
+      const lighthouse = result.lighthouse;
+
+      // Parse issues from checks
+      const issues: any[] = [];
+      const checks = page.checks || {};
+
+      // Critical issues
+      if (checks.no_title) issues.push({ type: "critical", category: "meta_tags", message: "Missing title tag" });
+      if (checks.no_h1_tag) issues.push({ type: "critical", category: "headings", message: "Missing H1 tag" });
+      if (checks.is_broken) issues.push({ type: "critical", category: "technical", message: "Broken page" });
+      if (checks.is_4xx_code) issues.push({ type: "critical", category: "technical", message: "4xx status code" });
+      if (checks.is_5xx_code) issues.push({ type: "critical", category: "technical", message: "5xx status code" });
+
+      // Warnings
+      if (checks.no_description) issues.push({ type: "warning", category: "meta_tags", message: "Missing meta description" });
+      if (checks.title_too_long) issues.push({ type: "warning", category: "meta_tags", message: "Title too long" });
+      if (checks.title_too_short) issues.push({ type: "warning", category: "meta_tags", message: "Title too short" });
+      if (checks.high_loading_time) issues.push({ type: "warning", category: "performance", message: "High loading time" });
+      if (page.broken_links) issues.push({ type: "warning", category: "links", message: "Broken links found" });
+
+      // Recommendations
+      if (checks.low_content_rate) issues.push({ type: "recommendation", category: "content", message: "Low content rate" });
+      if (checks.no_image_alt) issues.push({ type: "recommendation", category: "images", message: "Images missing alt text" });
+      if (checks.irrelevant_description) issues.push({ type: "recommendation", category: "meta_tags", message: "Irrelevant description" });
+      if (checks.irrelevant_title) issues.push({ type: "recommendation", category: "meta_tags", message: "Irrelevant title" });
+
+      // Insert page
+      await ctx.db.insert("domainOnsitePages", {
+        domainId: args.domainId,
+        scanId: args.scanId,
+        url: page.url,
+        statusCode: page.status_code || 200,
+
+        // Basic meta
+        title: page.meta?.title || undefined,
+        metaDescription: page.meta?.description || undefined,
+        h1: page.meta?.htags?.h1?.[0] || undefined,
+        canonical: page.meta?.canonical || undefined,
+
+        // Content metrics
+        wordCount: page.meta?.content?.plain_text_word_count || 0,
+        plainTextSize: page.meta?.content?.plain_text_size || undefined,
+        plainTextRate: page.meta?.content?.plain_text_rate || undefined,
+
+        // Readability scores
+        readabilityScores: page.meta?.content ? {
+          automatedReadabilityIndex: page.meta.content.automated_readability_index,
+          colemanLiauIndex: page.meta.content.coleman_liau_readability_index,
+          daleChallIndex: page.meta.content.dale_chall_readability_index,
+          fleschKincaidIndex: page.meta.content.flesch_kincaid_readability_index,
+          smogIndex: page.meta.content.smog_readability_index,
+        } : undefined,
+
+        // Content consistency
+        contentConsistency: page.meta?.content ? {
+          titleToContent: page.meta.content.title_to_content_consistency || 0,
+          descriptionToContent: page.meta.content.description_to_content_consistency || 0,
+        } : undefined,
+
+        // Heading structure
+        htags: page.meta?.htags ? {
+          h1: page.meta.htags.h1 || [],
+          h2: page.meta.htags.h2 || [],
+          h3: page.meta.htags.h3 || undefined,
+          h4: page.meta.htags.h4 || undefined,
+        } : undefined,
+
+        // Links
+        internalLinksCount: page.meta?.internal_links_count || undefined,
+        externalLinksCount: page.meta?.external_links_count || undefined,
+        inboundLinksCount: page.meta?.inbound_links_count || undefined,
+
+        // Images
+        imagesCount: page.meta?.images_count || undefined,
+
+        // Performance
+        loadTime: page.page_timing?.time_to_interactive || undefined,
+        pageSize: page.size || undefined,
+        totalDomSize: page.total_dom_size || undefined,
+
+        // Core Web Vitals
+        coreWebVitals: page.page_timing ? {
+          largestContentfulPaint: page.page_timing.largest_contentful_paint || 0,
+          firstInputDelay: page.page_timing.first_input_delay || 0,
+          timeToInteractive: page.page_timing.time_to_interactive || 0,
+          domComplete: page.page_timing.dom_complete || 0,
+          cumulativeLayoutShift: page.meta?.cumulative_layout_shift || undefined,
+        } : undefined,
+
+        // Technical
+        scriptsCount: page.meta?.scripts_count || undefined,
+        renderBlockingScriptsCount: page.meta?.render_blocking_scripts_count || undefined,
+        cacheControl: page.cache_control ? {
+          cachable: page.cache_control.cachable || false,
+          ttl: page.cache_control.ttl || 0,
+        } : undefined,
+
+        // Social media
+        hasSocialTags: !!page.meta?.social_media_tags,
+        socialMediaTags: page.meta?.social_media_tags ? {
+          hasOgTags: !!(page.meta.social_media_tags["og:title"]),
+          hasTwitterCard: !!(page.meta.social_media_tags["twitter:card"]),
+        } : undefined,
+
+        // Lighthouse scores
+        lighthouseScores: lighthouse ? {
+          performance: lighthouse.performance || 0,
+          accessibility: lighthouse.accessibility || 0,
+          bestPractices: lighthouse.best_practices || 0,
+          seo: lighthouse.seo || 0,
+        } : undefined,
+
+        // OnPage score
+        onpageScore: page.onpage_score || undefined,
+
+        // Resource errors
+        resourceErrors: page.resource_errors ? {
+          hasErrors: !!(page.resource_errors.errors?.length),
+          hasWarnings: !!(page.resource_errors.warnings?.length),
+          errorCount: page.resource_errors.errors?.length || 0,
+          warningCount: page.resource_errors.warnings?.length || 0,
+        } : undefined,
+
+        // Flags
+        brokenResources: page.broken_resources || false,
+        brokenLinks: page.broken_links || false,
+        duplicateTitle: page.duplicate_title || false,
+        duplicateDescription: page.duplicate_description || false,
+        duplicateContent: page.duplicate_content || false,
+
+        // Issues
+        issueCount: issues.length,
+        issues,
+
+        // Store all checks for flexibility
+        checks: page.checks || {},
+      });
+    }
+
+    console.log(`[STORE] Stored ${args.results.length} pages`);
+  },
+});
