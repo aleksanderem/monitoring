@@ -89,10 +89,10 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
         <div className="bg-primary-50 rounded-full p-4 mb-4">
           <AlertCircle className="w-8 h-8 text-primary-600" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        <h3 className="text-lg font-semibold text-primary mb-2">
           No On-Site Scan Data
         </h3>
-        <p className="text-sm text-gray-600 mb-6 text-center max-w-md">
+        <p className="text-sm text-tertiary mb-6 text-center max-w-md">
           Run your first on-site SEO audit to analyze technical health, page
           performance, and identify optimization opportunities.
         </p>
@@ -105,7 +105,7 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
         >
           {isScanning ? "Starting Scan..." : "Run On-Site Scan"}
         </Button>
-        <p className="text-xs text-gray-500 mt-3">
+        <p className="text-xs text-quaternary mt-3">
           Scan typically takes 5-30 minutes depending on site size
         </p>
       </div>
@@ -124,10 +124,10 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
         <div className="bg-warning-50 rounded-full p-4 mb-4 animate-pulse">
           <Play className="w-8 h-8 text-warning-600" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        <h3 className="text-lg font-semibold text-primary mb-2">
           {isMockMode ? "Development Scan In Progress" : "On-Site Audit In Progress"}
         </h3>
-        <p className="text-sm text-gray-600 mb-2 text-center max-w-md">
+        <p className="text-sm text-tertiary mb-2 text-center max-w-md">
           {latestScan.status === "queued" && "Your scan is queued and will start shortly."}
           {latestScan.status === "crawling" && (
             isMockMode
@@ -138,23 +138,23 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
         </p>
 
         {/* Scan Details */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 w-full max-w-md space-y-2">
+        <div className="bg-secondary rounded-lg p-4 mb-6 w-full max-w-md space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Status:</span>
-            <span className="font-medium text-gray-900 capitalize">
+            <span className="text-tertiary">Status:</span>
+            <span className="font-medium text-primary capitalize">
               {latestScan.status}
             </span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Elapsed Time:</span>
-            <span className="font-medium text-gray-900">
+            <span className="text-tertiary">Elapsed Time:</span>
+            <span className="font-medium text-primary">
               {elapsedMinutes}m {elapsedSeconds}s
             </span>
           </div>
           {latestScan.pagesScanned !== undefined && (
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Pages Crawled:</span>
-              <span className="font-medium text-gray-900">
+              <span className="text-tertiary">Pages Crawled:</span>
+              <span className="font-medium text-primary">
                 {latestScan.pagesScanned}
                 {latestScan.totalPagesToScan && ` / ${latestScan.totalPagesToScan}`}
               </span>
@@ -162,24 +162,24 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
           )}
           {latestScan.lastProgressUpdate && (
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Last Update:</span>
-              <span className="font-medium text-gray-900">
+              <span className="text-tertiary">Last Update:</span>
+              <span className="font-medium text-primary">
                 {Math.floor((Date.now() - latestScan.lastProgressUpdate) / 1000)}s ago
               </span>
             </div>
           )}
           {latestScan.taskId && (
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Task ID:</span>
-              <span className="font-mono text-xs text-gray-700">
+              <span className="text-tertiary">Task ID:</span>
+              <span className="font-mono text-xs text-secondary">
                 {latestScan.taskId}
               </span>
             </div>
           )}
           {latestScan.summary?.totalPages && (
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Pages Found:</span>
-              <span className="font-medium text-gray-900">
+              <span className="text-tertiary">Pages Found:</span>
+              <span className="font-medium text-primary">
                 {latestScan.summary.totalPages}
               </span>
             </div>
@@ -192,7 +192,7 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
         </div>
 
         <div className="w-full max-w-md mb-6">
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-2 bg-tertiary rounded-full overflow-hidden">
             <div className="h-full bg-primary-600 rounded-full animate-pulse w-1/2" />
           </div>
         </div>
@@ -215,7 +215,7 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
             {isCancelling ? "Cancelling..." : "Cancel Scan"}
           </Button>
         </div>
-        <p className="text-xs text-gray-500 mt-3">
+        <p className="text-xs text-quaternary mt-3">
           This page will update automatically when the scan completes
         </p>
       </div>
@@ -229,13 +229,13 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
         <div className="bg-error-50 rounded-full p-4 mb-4">
           <AlertCircle className="w-8 h-8 text-error-600" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        <h3 className="text-lg font-semibold text-primary mb-2">
           Scan Failed
         </h3>
-        <p className="text-sm text-gray-600 mb-2 text-center max-w-md">
+        <p className="text-sm text-tertiary mb-2 text-center max-w-md">
           {latestScan.error || "The scan encountered an error"}
         </p>
-        <p className="text-xs text-gray-500 mb-6">
+        <p className="text-xs text-quaternary mb-6">
           Completed at: {new Date(latestScan.completedAt!).toLocaleString()}
         </p>
         <Button
@@ -256,10 +256,10 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
       {/* Header with scan action */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="text-lg font-semibold text-primary">
             On-Site SEO Analysis
           </h2>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-tertiary">
             Last scanned:{" "}
             {latestAnalysis
               ? new Date(latestAnalysis.fetchedAt).toLocaleDateString()
@@ -295,8 +295,8 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
           />
 
           {/* Pages Table */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-md font-semibold text-gray-900 mb-4">
+          <div className="bg-primary rounded-lg border border-secondary p-6">
+            <h3 className="text-md font-semibold text-primary mb-4">
               Analyzed Pages
             </h3>
             <OnSitePagesTable

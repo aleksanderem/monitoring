@@ -45,10 +45,10 @@ export function IssuesSummaryCards({ analysis }: IssuesSummaryCardsProps) {
         return (
           <div
             key={card.label}
-            className="bg-white rounded-lg border border-gray-200 p-6"
+            className="bg-primary rounded-lg border border-secondary p-6"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-gray-600">
+              <h3 className="text-sm font-medium text-tertiary">
                 {card.label}
               </h3>
               <div className={`${card.bgColor} rounded-full p-2`}>
@@ -61,7 +61,7 @@ export function IssuesSummaryCards({ analysis }: IssuesSummaryCardsProps) {
                 <span className={`text-3xl font-bold ${card.valueColor}`}>
                   {card.value}
                 </span>
-                <span className="text-sm text-gray-600">issues</span>
+                <span className="text-sm text-tertiary">issues</span>
               </div>
             </div>
           </div>

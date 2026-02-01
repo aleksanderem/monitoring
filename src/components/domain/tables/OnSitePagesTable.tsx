@@ -56,7 +56,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
       );
     }
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary">
         {statusCode}
       </span>
     );
@@ -72,7 +72,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
   };
 
   const getLoadTimeColor = (loadTime?: number) => {
-    if (!loadTime) return "text-gray-600";
+    if (!loadTime) return "text-tertiary";
     if (loadTime < 2) return "text-success-600";
     if (loadTime < 4) return "text-warning-600";
     return "text-error-600";
@@ -90,7 +90,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
             setSearchQuery(e.target.value);
             setCurrentPage(1);
           }}
-          className="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          className="flex-1 min-w-[200px] px-3 py-2 border border-secondary rounded-lg text-sm"
         />
 
         <select
@@ -99,7 +99,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
             setStatusFilter(e.target.value ? Number(e.target.value) : undefined);
             setCurrentPage(1);
           }}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          className="px-3 py-2 border border-secondary rounded-lg text-sm"
         >
           <option value="">All Status Codes</option>
           <option value="200">200 OK</option>
@@ -118,7 +118,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
             }
             setCurrentPage(1);
           }}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          className="px-3 py-2 border border-secondary rounded-lg text-sm"
         >
           <option value="">All Pages</option>
           <option value="yes">Has Issues</option>
@@ -128,36 +128,36 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-secondary">
+          <thead className="bg-secondary">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase tracking-wider">
                 URL
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase tracking-wider">
                 Title
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase tracking-wider">
                 H1
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase tracking-wider">
                 Load Time
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase tracking-wider">
                 Words
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase tracking-wider">
                 Issues
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-primary divide-y divide-secondary">
             {pages.map((page) => (
-              <tr key={page._id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">
+              <tr key={page._id} className="hover:bg-secondary">
+                <td className="px-4 py-3 text-sm text-primary max-w-xs truncate">
                   <a
                     href={page.url}
                     target="_blank"
@@ -179,7 +179,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
                     </span>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600">
+                <td className="px-4 py-3 text-sm text-tertiary">
                   {page.h1 ? (
                     <span className="flex items-center gap-1">
                       <CheckCircle className="w-3 h-3 text-success-600" />
@@ -197,7 +197,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
                     {page.loadTime ? `${page.loadTime.toFixed(2)}s` : "—"}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600">
+                <td className="px-4 py-3 text-sm text-tertiary">
                   {page.wordCount.toLocaleString()}
                 </td>
                 <td className="px-4 py-3 text-sm">
@@ -206,7 +206,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
                       {page.issueCount}
                     </span>
                   ) : (
-                    <span className="text-gray-400">—</span>
+                    <span className="text-quaternary">—</span>
                   )}
                 </td>
               </tr>
@@ -219,10 +219,10 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
             <div className="bg-primary-50 rounded-full p-4 mb-4 inline-block">
               <AlertCircle className="w-8 h-8 text-primary-600" />
             </div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">
+            <h3 className="text-sm font-semibold text-primary mb-2">
               Summary View Only
             </h3>
-            <p className="text-sm text-gray-600 max-w-md mx-auto">
+            <p className="text-sm text-tertiary max-w-md mx-auto">
               Individual page data is not available. DataForSEO provides aggregated metrics in the summary above.
               Run a new scan to capture page-level details.
             </p>
@@ -233,7 +233,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-4">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-tertiary">
             Showing {(currentPage - 1) * pageSize + 1} to{" "}
             {Math.min(currentPage * pageSize, total)} of {total} pages
           </div>
@@ -241,17 +241,17 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              className="px-3 py-1 border border-secondary rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary"
             >
               Previous
             </button>
-            <span className="px-3 py-1 text-sm text-gray-600">
+            <span className="px-3 py-1 text-sm text-tertiary">
               Page {currentPage} of {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              className="px-3 py-1 border border-secondary rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary"
             >
               Next
             </button>

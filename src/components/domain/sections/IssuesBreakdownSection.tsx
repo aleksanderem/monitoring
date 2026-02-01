@@ -137,15 +137,15 @@ export function IssuesBreakdownSection({ issues, scanId }: IssuesBreakdownSectio
 
   if (issuesList.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-primary rounded-lg border border-secondary p-6">
         <div className="text-center py-8">
           <div className="bg-success-50 rounded-full p-4 mb-4 inline-block">
             <AlertCircle className="w-8 h-8 text-success-600" />
           </div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">
+          <h3 className="text-sm font-semibold text-primary mb-2">
             No Issues Found
           </h3>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-tertiary">
             Your website has no detected SEO issues!
           </p>
         </div>
@@ -154,8 +154,8 @@ export function IssuesBreakdownSection({ issues, scanId }: IssuesBreakdownSectio
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
-      <h3 className="text-md font-semibold text-gray-900 mb-4">
+    <div className="bg-primary rounded-lg border border-secondary p-6">
+      <h3 className="text-md font-semibold text-primary mb-4">
         Issues Breakdown
       </h3>
       <div className="space-y-3">
@@ -169,14 +169,14 @@ export function IssuesBreakdownSection({ issues, scanId }: IssuesBreakdownSectio
           return (
             <div
               key={issue.label}
-              className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+              className="flex items-start gap-3 p-3 rounded-lg border border-secondary hover:bg-secondary transition-colors"
             >
               <div className={`${colors.bg} rounded-full p-2 flex-shrink-0`}>
                 <IssueIcon className={`w-4 h-4 ${colors.text}`} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-1">
-                  <h4 className="text-sm font-medium text-gray-900">
+                  <h4 className="text-sm font-medium text-primary">
                     {issue.label}
                   </h4>
                   <div className="flex items-center gap-2">
@@ -195,7 +195,7 @@ export function IssuesBreakdownSection({ issues, scanId }: IssuesBreakdownSectio
                     )}
                   </div>
                 </div>
-                <p className="text-xs text-gray-600">{issue.description}</p>
+                <p className="text-xs text-tertiary">{issue.description}</p>
               </div>
             </div>
           );

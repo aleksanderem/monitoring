@@ -55,9 +55,9 @@ export function OnSiteHealthCard({ analysis }: OnSiteHealthCardProps) {
   const Icon = icon;
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
+    <div className="bg-primary rounded-lg border border-secondary p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-gray-600">Overall Health</h3>
+        <h3 className="text-sm font-medium text-tertiary">Overall Health</h3>
         <div className={`${bgColor} rounded-full p-2`}>
           <Icon className={`w-4 h-4 ${textColor}`} />
         </div>
@@ -65,10 +65,10 @@ export function OnSiteHealthCard({ analysis }: OnSiteHealthCardProps) {
 
       <div className="space-y-2">
         <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-gray-900">
+          <span className="text-3xl font-bold text-primary">
             {healthScore}
           </span>
-          <span className="text-sm text-gray-600">/ 100</span>
+          <span className="text-sm text-tertiary">/ 100</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -77,8 +77,8 @@ export function OnSiteHealthCard({ analysis }: OnSiteHealthCardProps) {
           </span>
         </div>
 
-        <div className="pt-4 border-t border-gray-200">
-          <span className="text-xs text-gray-600">
+        <div className="pt-4 border-t border-secondary">
+          <span className="text-xs text-tertiary">
             {totalPages} pages analyzed
           </span>
         </div>
