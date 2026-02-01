@@ -366,14 +366,20 @@ export const fetchScanResults = internalAction({
       console.log(`[FETCH] Summary status_code: ${summaryData.status_code}`);
 
       // Fetch pages
-      console.log(`[FETCH] Fetching pages from /on_page/pages/${args.taskId}`);
+      console.log(`[FETCH] Fetching pages from /on_page/pages (POST)`);
       const pagesResponse = await fetch(
-        `${DATAFORSEO_API_URL}/on_page/pages/${args.taskId}`,
+        `${DATAFORSEO_API_URL}/on_page/pages`,
         {
-          method: "GET",
+          method: "POST",
           headers: {
             "Authorization": `Basic ${authHeader}`,
+            "Content-Type": "application/json",
           },
+          body: JSON.stringify([{
+            id: args.taskId,
+            limit: 1000,
+            fields: ["url", "meta", "checks", "page_timing", "content_encoding"],
+          }]),
         }
       );
 
