@@ -217,13 +217,15 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Badge color="error" size="sm">+{gap.gap}</Badge>
+                      <Badge color="error" size="sm">
+                        +{!isNaN(gap.gap) ? Math.round(gap.gap) : "—"}
+                      </Badge>
                     </td>
                     <td className="px-4 py-3 text-center text-sm text-primary">
                       {gap.searchVolume?.toLocaleString() || "—"}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      {gap.difficulty !== undefined ? (
+                      {gap.difficulty !== undefined && !isNaN(gap.difficulty) ? (
                         <Badge
                           color={
                             gap.difficulty > 70
@@ -234,7 +236,7 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
                           }
                           size="sm"
                         >
-                          {gap.difficulty}
+                          {Math.round(gap.difficulty)}
                         </Badge>
                       ) : (
                         <span className="text-sm text-tertiary">—</span>
@@ -242,7 +244,7 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
                     </td>
                     <td className="px-4 py-3 text-center">
                       <Badge color={getScoreBadgeColor(gap.gapScore)} size="sm">
-                        {gap.gapScore}
+                        {!isNaN(gap.gapScore) ? Math.round(gap.gapScore * 10) / 10 : "—"}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">

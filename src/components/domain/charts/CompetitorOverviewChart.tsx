@@ -102,32 +102,29 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
 
       <ChartContainer config={chartConfig} className="h-[350px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+          <LineChart data={chartData} className="text-tertiary [&_.recharts-text]:text-xs">
+            <CartesianGrid vertical={false} stroke="currentColor" className="text-utility-gray-100" />
             <XAxis
               dataKey="date"
+              fill="currentColor"
+              axisLine={false}
+              tickLine={false}
               tickFormatter={(value) => {
                 const date = new Date(value);
                 return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
               }}
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
+              padding={{ left: 10, right: 10 }}
             />
             <YAxis
               reversed
               domain={[1, "auto"]}
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
-              label={{
-                value: "Position (lower is better)",
-                angle: -90,
-                position: "insideLeft",
-                style: { fontSize: 12, fill: "hsl(var(--muted-foreground))" },
-              }}
+              fill="currentColor"
+              axisLine={false}
+              tickLine={false}
             />
             <ChartTooltip
               content={<ChartTooltipContent />}
-              cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }}
+              cursor={{ className: "stroke-utility-brand-600 stroke-2" }}
             />
             <Legend />
 
