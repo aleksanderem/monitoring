@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/base/buttons/button";
@@ -9,7 +9,7 @@ import { Dialog, Modal, ModalOverlay, DialogTrigger } from "@/components/applica
 import { CloseButton } from "@/components/base/buttons/close-button";
 import { Input } from "@/components/base/input/input";
 import { Badge } from "@/components/base/badges/badges";
-import { Plus, Trash01, PauseCircle, PlayCircle } from "@untitledui/icons";
+import { Plus, Trash01, PauseCircle, PlayCircle, Edit05, RefreshCcw01, InfoCircle } from "@untitledui/icons";
 import { toast } from "sonner";
 import { Heading } from "react-aria-components";
 
@@ -21,11 +21,15 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [competitorDomain, setCompetitorDomain] = useState("");
   const [competitorName, setCompetitorName] = useState("");
+  const [editingCompetitor, setEditingCompetitor] = useState<{ id: Id<"competitors">; name: string } | null>(null);
+  const [editName, setEditName] = useState("");
+  const [checkingPositions, setCheckingPositions] = useState<Set<string>>(new Set());
 
   const competitors = useQuery(api.queries.competitors.getCompetitorsByDomain, { domainId });
   const addCompetitor = useMutation(api.mutations.competitors.addCompetitor);
   const updateCompetitor = useMutation(api.mutations.competitors.updateCompetitor);
   const removeCompetitor = useMutation(api.mutations.competitors.removeCompetitor);
+  const checkPositions = useAction(api.competitors_actions.checkCompetitorPositions);
 
   const handleAddCompetitor = async () => {
     if (!competitorDomain.trim()) {
@@ -76,6 +80,49 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
     }
   };
 
+  const handleCheckPositions = async (competitorId: Id<"competitors">, competitorName: string) => {
+    setCheckingPositions((prev) => new Set(prev).add(competitorId));
+    toast.info(`Checking positions for ${competitorName}...`);
+
+    try {
+      const result = await checkPositions({ competitorId });
+      if (result.processedCount === 0 && result.errors.length === 0) {
+        toast.info("No keywords to check. Add keywords to your domain first.");
+      } else {
+        toast.success(`Checked ${result.processedCount} of ${result.totalKeywords} keywords`);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to check positions");
+    } finally {
+      setCheckingPositions((prev) => {
+        const next = new Set(prev);
+        next.delete(competitorId);
+        return next;
+      });
+    }
+  };
+
+  const handleEditCompetitor = (competitorId: Id<"competitors">, currentName: string) => {
+    setEditingCompetitor({ id: competitorId, name: currentName });
+    setEditName(currentName);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingCompetitor || !editName.trim()) return;
+
+    try {
+      await updateCompetitor({
+        competitorId: editingCompetitor.id,
+        name: editName.trim(),
+      });
+      toast.success("Competitor updated");
+      setEditingCompetitor(null);
+      setEditName("");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update competitor");
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -88,6 +135,15 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
         <Button onClick={() => setShowAddDialog(true)} size="sm" color="primary" iconLeading={Plus}>
           Add Competitor
         </Button>
+      </div>
+
+      <div className="flex items-start gap-2 rounded-lg border border-brand-subtle bg-brand-subtle/10 p-3">
+        <InfoCircle className="h-4 w-4 text-brand-secondary mt-0.5 shrink-0" />
+        <p className="text-xs text-tertiary">
+          Competitors are tracked against all keywords in your domain. After adding a competitor,
+          click &quot;Check Positions&quot; to fetch their current rankings. Position data will
+          populate the charts and gap analysis below.
+        </p>
       </div>
 
       {competitors === undefined ? (
@@ -131,6 +187,23 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
 
               <div className="flex items-center gap-2">
                 <Button
+                  color="secondary"
+                  size="sm"
+                  onClick={() => handleCheckPositions(competitor._id, competitor.name || competitor.competitorDomain)}
+                  isDisabled={checkingPositions.has(competitor._id) || competitor.status !== "active"}
+                  title={competitor.status !== "active" ? "Activate competitor to check positions" : "Check keyword positions"}
+                  iconLeading={RefreshCcw01}
+                >
+                  {checkingPositions.has(competitor._id) ? "Checking..." : "Check Positions"}
+                </Button>
+                <Button
+                  color="tertiary"
+                  size="sm"
+                  onClick={() => handleEditCompetitor(competitor._id, competitor.name || competitor.competitorDomain)}
+                  title="Edit competitor"
+                  iconLeading={Edit05}
+                />
+                <Button
                   color="tertiary"
                   size="sm"
                   onClick={() => handleToggleStatus(competitor._id, competitor.status)}
@@ -150,6 +223,7 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
         </div>
       )}
 
+      {/* Add Competitor Dialog */}
       <DialogTrigger isOpen={showAddDialog} onOpenChange={setShowAddDialog}>
         <ModalOverlay isDismissable>
           <Modal>
@@ -200,6 +274,56 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
                   </Button>
                   <Button color="primary" size="md" onClick={handleAddCompetitor}>
                     Add Competitor
+                  </Button>
+                </div>
+              </div>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
+
+      {/* Edit Competitor Dialog */}
+      <DialogTrigger isOpen={editingCompetitor !== null} onOpenChange={(open) => { if (!open) setEditingCompetitor(null); }}>
+        <ModalOverlay isDismissable>
+          <Modal>
+            <Dialog className="overflow-hidden">
+              <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-lg">
+                <CloseButton
+                  onClick={() => setEditingCompetitor(null)}
+                  theme="light"
+                  size="lg"
+                  className="absolute top-3 right-3 z-10"
+                />
+
+                {/* Header */}
+                <div className="border-b border-secondary px-6 py-4">
+                  <Heading slot="title" className="text-lg font-semibold text-primary">
+                    Edit Competitor
+                  </Heading>
+                  <p className="mt-1 text-sm text-tertiary">
+                    Update the competitor display name
+                  </p>
+                </div>
+
+                {/* Content */}
+                <div className="space-y-4 px-6 py-4">
+                  <Input
+                    size="md"
+                    label="Display Name"
+                    placeholder="Competitor name"
+                    value={editName}
+                    onChange={(value: string) => setEditName(value)}
+                    isRequired
+                  />
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-end gap-3 border-t border-secondary px-6 py-4">
+                  <Button color="secondary" size="md" onClick={() => setEditingCompetitor(null)}>
+                    Cancel
+                  </Button>
+                  <Button color="primary" size="md" onClick={handleSaveEdit}>
+                    Save Changes
                   </Button>
                 </div>
               </div>

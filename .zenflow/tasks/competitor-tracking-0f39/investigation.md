@@ -120,3 +120,33 @@ Add a small info/help text in the CompetitorManagementSection explaining that co
 - What if DataForSEO credentials are not configured? The action falls back to mock data in dev mode. This is fine for testing.
 - What if a position check is already in progress? Currently no guard against concurrent checks. Consider adding a loading state per competitor.
 - The `removeCompetitor` mutation deletes all position data. The existing `confirm()` dialog warns about this, which is adequate.
+
+## Implementation Notes (S0019)
+
+### Changes Made
+
+1. `convex/queries/competitors.ts:46` — Fixed `b.addedAt - a.addedAt` to `b.createdAt - a.createdAt`. The `addedAt` field does not exist in the schema; the correct field is `createdAt`.
+
+2. `src/components/domain/sections/CompetitorManagementSection.tsx` — Major updates:
+   - Added `useAction` import and `checkCompetitorPositions` action hook
+   - Added "Check Positions" button per competitor with loading state (`checkingPositions` Set tracks which competitors are being checked)
+   - Added edit competitor dialog with `editingCompetitor` state and `editName` for renaming
+   - Added info banner explaining how keyword tracking works (competitors are tracked against all domain keywords automatically)
+   - New icons imported: `Edit05`, `RefreshCcw01`, `InfoCircle`
+   - Edge case: disabled check button when competitor is paused or check is in progress
+   - Edge case: handles zero keywords with a user-friendly message
+
+3. `src/app/(dashboard)/domains/[domainId]/page.tsx` — Integrated two existing but unused components:
+   - `CompetitorOverviewChart` — position comparison line chart
+   - `CompetitorKeywordGapTable` — keyword gap analysis table with competitor selector
+   - Both rendered below `CompetitorManagementSection` in the Competitors tab
+
+4. `CompetitorOverviewChart` imports — Investigation flagged these as wrong (shadcn/ui instead of Untitled UI), but the codebase uses shadcn/ui `@/components/ui/chart` for chart wrappers alongside Untitled UI for general components. No fix needed.
+
+### Files Modified
+- `convex/queries/competitors.ts` (1 line)
+- `src/components/domain/sections/CompetitorManagementSection.tsx` (rewritten)
+- `src/app/(dashboard)/domains/[domainId]/page.tsx` (4 lines added)
+
+### TypeScript Verification
+All errors in modified files are pre-existing environment issues (missing type declarations for convex, recharts, react). No new errors introduced.

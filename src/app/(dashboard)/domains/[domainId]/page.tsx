@@ -66,6 +66,8 @@ import { OnSiteSection } from "@/components/domain/sections/OnSiteSection";
 import { GapSummaryCards } from "@/components/domain/cards/GapSummaryCards";
 import { ContentGapsTable } from "@/components/domain/tables/ContentGapsTable";
 import { CompetitorManagementSection } from "@/components/domain/sections/CompetitorManagementSection";
+import { CompetitorOverviewChart } from "@/components/domain/charts/CompetitorOverviewChart";
+import { CompetitorKeywordGapTable } from "@/components/domain/tables/CompetitorKeywordGapTable";
 import { ForecastSummaryCard } from "@/components/domain/cards/ForecastSummaryCard";
 
 // Helper to format date
@@ -560,6 +562,10 @@ export default function DomainDetailPage() {
                 </div>
 
                 <CompetitorManagementSection domainId={domainId} />
+
+                <CompetitorOverviewChart domainId={domainId} />
+
+                <CompetitorKeywordGapTable domainId={domainId} />
               </div>
             </TabPanel>
 

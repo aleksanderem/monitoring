@@ -43,7 +43,7 @@ export const getCompetitorsByDomain = query({
       })
     );
 
-    return competitorsWithStats.sort((a, b) => b.addedAt - a.addedAt);
+    return competitorsWithStats.sort((a, b) => b.createdAt - a.createdAt);
   },
 });
 
