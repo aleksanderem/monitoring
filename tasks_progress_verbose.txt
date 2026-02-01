@@ -323,3 +323,178 @@ Integration work complete. Components are live in UI, pending data population fr
 
 ---
 
+
+=== SESSION S0017 CONTINUED === 2026-01-31T22:00:00Z
+Focus: Task #42 - Refactor Competitor Tracking Components to Use Untitled UI
+Active tasks: #42 (competitor_tracking_foundation)
+
+---
+
+S0017. Task #42 - Refactor Competitor Tracking to Untitled UI - COMPLETE:
+
+**Context:**
+User explicitly stated: "Zapisz sobie też gdzie znajduja sie fkatyczne komponenty untitled ui!! w @src/components/ masz całą strukturę gotową. NIe możesz wymyślać sobie nowej."
+
+Task #5 (Competitor Tracking) was completed in previous sessions but used shadcn/ui components instead of Untitled UI components from src/components/base/*. This session refactors all three competitor tracking components to use the correct component library.
+
+**Files Refactored:**
+
+1. CompetitorManagementSection.tsx - Complete refactor:
+   - Button: @/components/ui/button → @/components/base/buttons/button
+   - Dialog: @/components/ui/dialog → @/components/application/modals/modal
+   - Input: @/components/ui/input → @/components/base/input/input  
+   - Badge: @/components/ui/badge → @/components/base/badges/badges
+   - Icons: lucide-react → @untitledui/icons
+   - Toast: useToast hook → sonner library
+
+2. CompetitorOverviewChart.tsx - Minimal refactor:
+   - Updated color classes to Untitled UI semantic tokens
+   - Chart components kept as-is (project standard)
+
+3. CompetitorKeywordGapTable.tsx - Complete refactor:
+   - All components switched to Untitled UI equivalents
+   - Table: shadcn Table → native HTML table (project standard)
+   - Select: Complete rewrite to use Untitled UI Select with SelectItemType[]
+   - All icons, badges, buttons refactored
+
+**TypeScript Verification:**
+✅ Zero component-specific errors
+⚠️ Only general dataModel path errors (project-wide)
+
+**Status:** REFACTORING COMPLETE ✅
+Ready for browser testing.
+
+---
+=== SESSION S0018 START === 2026-01-31T19:19:15Z
+Focus: Refactor On-Site Scan to Use Background Jobs Pattern
+Active tasks: #46 (refactor_onsite_scan_background_jobs)
+
+---
+
+S0018. Task #46 Implementation Progress:
+
+**Analysis Complete:**
+- Current implementation uses synchronous action pattern (blocks UI)
+- triggerOnSiteScan is an action that does all work inline
+- Already has polling mechanism (pollScanStatus) but initiated from action
+- Schema already supports status tracking (queued, crawling, processing, complete, failed)
+- Reference pattern: keywords.ts refreshKeywordPositions (lines 812-872)
+
+**Refactoring Steps Completed:**
+
+1. ✅ Converted triggerOnSiteScan from action to mutation
+   - Changed import from 'action' to 'mutation'
+   - Removed synchronous API call logic
+   - Creates scan record with status "queued"
+   - Schedules background processing via ctx.scheduler.runAfter(0, ...)
+   - Returns scanId immediately (non-blocking)
+   - Checks for existing active scans before creating new one
+
+2. ✅ Created processOnSiteScanInternal internalAction
+   - New internal action for background processing
+   - Gets scan and domain records
+   - Handles mock mode (no API credentials)
+   - Updates status to "crawling" before API call
+   - Makes DataForSEO API request
+   - Updates scan with taskId
+   - Schedules pollScanStatus for completion check
+   - Proper error handling with failScan mutation
+
+3. ✅ Created updateScanStatus helper mutation
+   - Simple mutation to update scan status
+   - Used by background job to track progress
+   - Status values: queued, crawling, processing, complete, failed
+
+4. ✅ Added getScanById internal query
+   - Required by processOnSiteScanInternal to get scan details
+   - Added to onSite_queries.ts
+
+5. ✅ Updated OnSiteSection.tsx UI component
+   - Changed from useAction to useMutation
+   - Updated handleStartScan to handle new return type (scanId)
+   - Simplified toast message (no more success/error/mock flags)
+   - Better error handling with error.message
+
+**Files Modified:**
+- convex/onSite_actions.ts (~150 lines refactored)
+- convex/onSite_queries.ts (~10 lines added)
+- src/components/domain/sections/OnSiteSection.tsx (~15 lines modified)
+
+**Status Lifecycle (Background Job):**
+1. User clicks "Run Scan" → triggerOnSiteScan mutation called
+2. Mutation creates scan with status "queued" → returns scanId immediately
+3. Mutation schedules processOnSiteScanInternal via ctx.scheduler
+4. Background job starts → updates status to "crawling"
+5. API request sent → taskId received → status stays "crawling"
+6. Polling scheduled → pollScanStatus checks completion every 30s
+7. When ready → fetchScanResults → storeScanResults → status "complete"
+
+**Mock Mode Preserved:**
+- If no DATAFORSEO_LOGIN/PASSWORD env vars
+- processOnSiteScanInternal detects mock mode
+- Updates status to "processing"
+- Calls completeMockScan mutation
+- Generates mock data (15 pages, issues, analysis)
+- Status updated to "complete"
+
+---
+
+
+S0018. Task #46 Bug Fixes:
+
+**TypeScript Errors Fixed:**
+- OnSiteSection.tsx: Fixed Button component prop names
+  * Changed hierarchy → color
+  * Changed disabled → isDisabled
+  * Changed inline icons → iconLeading prop
+  * Removed unused CheckCircle import
+- All 3 Button instances updated (lines 74, 133, 164)
+- Zero TypeScript errors in modified files ✅
+
+**Files Modified Summary:**
+1. convex/onSite_actions.ts
+   - Converted triggerOnSiteScan from action to mutation
+   - Created processOnSiteScanInternal internalAction
+   - Added updateScanStatus helper mutation
+   - Preserved all existing functions (pollScanStatus, fetchScanResults, etc.)
+
+2. convex/onSite_queries.ts
+   - Added getScanById internal query
+
+3. src/components/domain/sections/OnSiteSection.tsx
+   - Changed from useAction to useMutation
+   - Fixed Button component props (color, isDisabled, iconLeading)
+   - Updated handleStartScan logic for new return type
+   - Improved toast messages
+
+**Testing Checklist:**
+✅ TypeScript compilation passes for modified files
+⏸ Runtime testing needed:
+  - Trigger scan with no API credentials (mock mode)
+  - Trigger scan with API credentials (real mode)
+  - Verify UI shows queued → crawling → processing → complete states
+  - Verify OnSiteSection auto-updates when scan completes
+  - Verify error handling (fail scenarios)
+
+**Implementation Complete:**
+All code changes done. Background job pattern successfully implemented following refreshKeywordPositions model. Ready for manual testing.
+
+---
+
+
+=== SESSION S0018 HANDOFF === 2026-01-31T23:30:00Z
+Status: completed
+Current state: Task #46 (refactor_onsite_scan_background_jobs) fully implemented
+Immediate next action: Manual testing in browser
+Open questions: None - implementation complete
+Warnings: Pre-existing TypeScript errors in onSite_queries.ts (lines 107, 109) not related to refactoring
+Files modified: 
+  - convex/onSite_actions.ts (refactored ~150 lines)
+  - convex/onSite_queries.ts (added getScanById query)
+  - src/components/domain/sections/OnSiteSection.tsx (updated to use mutation)
+
+Task #46 complete and ready for browser testing.
+All background job pattern requirements satisfied.
+
+---
+

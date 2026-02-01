@@ -215,8 +215,17 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
         </table>
 
         {pages.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No pages found
+          <div className="text-center py-12 px-4">
+            <div className="bg-primary-50 rounded-full p-4 mb-4 inline-block">
+              <AlertCircle className="w-8 h-8 text-primary-600" />
+            </div>
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">
+              Summary View Only
+            </h3>
+            <p className="text-sm text-gray-600 max-w-md mx-auto">
+              Individual page data is not available. DataForSEO provides aggregated metrics in the summary above.
+              Run a new scan to capture page-level details.
+            </p>
           </div>
         )}
       </div>

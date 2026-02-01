@@ -153,7 +153,7 @@ export function BacklinkVelocityChart({
               r: 3,
             }}
           />
-          <ChartLegend content={<ChartLegendContent />} />
+          <ChartLegend content={<ChartLegendContent payload={[]} />} />
         </ComposedChart>
       </ChartContainer>
     </div>

@@ -64,7 +64,7 @@ import { BacklinkVelocityChart } from "@/components/domain/charts/BacklinkVeloci
 import { VelocityMetricsCards } from "@/components/domain/cards/VelocityMetricsCards";
 import { OnSiteSection } from "@/components/domain/sections/OnSiteSection";
 import { GapSummaryCards } from "@/components/domain/cards/GapSummaryCards";
-import { ContentGapsTable } from "@/components/domain/tables/ContentGapsTable";
+// import { ContentGapsTable } from "@/components/domain/tables/ContentGapsTable";
 import { CompetitorManagementSection } from "@/components/domain/sections/CompetitorManagementSection";
 import { CompetitorOverviewChart } from "@/components/domain/charts/CompetitorOverviewChart";
 import { CompetitorKeywordGapTable } from "@/components/domain/tables/CompetitorKeywordGapTable";
@@ -455,6 +455,7 @@ export default function DomainDetailPage() {
                   </div>
                   <Button
                     size="md"
+                    color="primary"
                     iconLeading={RefreshCcw01}
                     onClick={handleFetchBacklinks}
                     disabled={isFetchingBacklinks}
@@ -586,7 +587,8 @@ export default function DomainDetailPage() {
 
                 {gapSummary && <GapSummaryCards summary={gapSummary} />}
 
-                <ContentGapsTable domainId={domainId} />
+                {/* <ContentGapsTable domainId={domainId} /> */}
+                <p className="text-gray-500 text-center py-8">Content gaps table temporarily disabled</p>
               </div>
             </TabPanel>
 

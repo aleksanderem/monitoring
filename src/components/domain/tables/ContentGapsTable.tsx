@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import {
   Table,
   TableBody,
@@ -11,37 +11,31 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+} from "@/components/application/table/table";
+import { Badge } from "@/components/base/badges/badges";
+import { Button } from "@/components/base/buttons/button";
 import {
   Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+  SelectButton,
+  SelectPopover,
+  SelectListBox,
+  SelectListItem,
+  Label
+} from "react-aria-components";
+import { Input } from "@/components/base/input/input";
+import { Checkbox } from "@/components/base/checkbox/checkbox";
 import {
   Plus,
-  ArrowUpDown,
-  Search,
-  Download,
+  ChevronUpDown,
+  SearchMd,
+  Download01,
   Eye,
   EyeOff,
-  Target,
-  Trash2,
-  MoreHorizontal
-} from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Target04,
+  Trash01,
+  DotsVertical
+} from "@untitledui/icons";
+import { Menu, MenuTrigger, MenuItem, MenuPopover } from "react-aria-components";
 import { toast } from "sonner";
 
 interface ContentGapsTableProps {

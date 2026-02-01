@@ -6,7 +6,7 @@ import { api } from "../../../../../../convex/_generated/api";
 import type { Id } from "../../../../../../convex/_generated/dataModel";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { useState } from "react";
-import { Select } from "@/components/base/select/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +45,7 @@ export default function InsightsPage({ params }: PageProps) {
             Statistical anomalies detected in your ranking data
           </p>
         </div>
-        <LoadingState type="page" />
+        <LoadingState type="list" />
       </div>
     );
   }
@@ -65,7 +65,7 @@ export default function InsightsPage({ params }: PageProps) {
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-tertiary">Total Anomalies</span>
-            <Badge variant="gray">{summary.total}</Badge>
+            <Badge variant="secondary">{summary.total}</Badge>
           </div>
           <p className="mt-2 text-2xl font-semibold text-primary">{summary.total}</p>
         </Card>
@@ -81,7 +81,7 @@ export default function InsightsPage({ params }: PageProps) {
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-tertiary">Medium Severity</span>
-            <Badge variant="warning">{summary.medium}</Badge>
+            <Badge variant="destructive">{summary.medium}</Badge>
           </div>
           <p className="mt-2 text-2xl font-semibold text-utility-warning-600">{summary.medium}</p>
         </Card>
@@ -89,7 +89,7 @@ export default function InsightsPage({ params }: PageProps) {
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-tertiary">Low Severity</span>
-            <Badge variant="gray">{summary.low}</Badge>
+            <Badge variant="secondary">{summary.low}</Badge>
           </div>
           <p className="mt-2 text-2xl font-semibold text-utility-gray-600">{summary.low}</p>
         </Card>
@@ -102,29 +102,29 @@ export default function InsightsPage({ params }: PageProps) {
             value={severityFilter}
             onValueChange={(value) => setSeverityFilter(value as any)}
           >
-            <Select.Trigger className="w-40">
-              <Select.Value placeholder="All Severities" />
-            </Select.Trigger>
-            <Select.Content>
-              <Select.Item value="all">All Severities</Select.Item>
-              <Select.Item value="high">High</Select.Item>
-              <Select.Item value="medium">Medium</Select.Item>
-              <Select.Item value="low">Low</Select.Item>
-            </Select.Content>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All Severities" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Severities</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
           </Select>
 
           <Select
             value={statusFilter}
             onValueChange={(value) => setStatusFilter(value as any)}
           >
-            <Select.Trigger className="w-40">
-              <Select.Value placeholder="All Status" />
-            </Select.Trigger>
-            <Select.Content>
-              <Select.Item value="all">All Status</Select.Item>
-              <Select.Item value="unresolved">Unresolved</Select.Item>
-              <Select.Item value="resolved">Resolved</Select.Item>
-            </Select.Content>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="unresolved">Unresolved</SelectItem>
+              <SelectItem value="resolved">Resolved</SelectItem>
+            </SelectContent>
           </Select>
         </div>
       </div>
@@ -157,13 +157,13 @@ function AnomalyCard({ anomaly }: { anomaly: any }) {
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case "high":
-        return "destructive";
+        return "destructive" as const;
       case "medium":
-        return "warning";
+        return "outline" as const;
       case "low":
-        return "gray";
+        return "secondary" as const;
       default:
-        return "gray";
+        return "secondary" as const;
     }
   };
 
@@ -189,12 +189,12 @@ function AnomalyCard({ anomaly }: { anomaly: any }) {
             <Badge variant={getSeverityColor(anomaly.severity)}>
               {anomaly.severity}
             </Badge>
-            <Badge variant="gray">{getTypeLabel(anomaly.type)}</Badge>
+            <Badge variant="secondary">{getTypeLabel(anomaly.type)}</Badge>
             <span className="text-xs text-tertiary">
               {new Date(anomaly.detectedAt).toLocaleDateString()}
             </span>
             {anomaly.resolved && (
-              <Badge variant="success">Resolved</Badge>
+              <Badge variant="default">Resolved</Badge>
             )}
           </div>
 

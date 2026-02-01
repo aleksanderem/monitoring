@@ -682,6 +682,10 @@ export default defineSchema({
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
     error: v.optional(v.string()),
+    // Progress tracking
+    pagesScanned: v.optional(v.number()),
+    totalPagesToScan: v.optional(v.number()),
+    lastProgressUpdate: v.optional(v.number()),
     summary: v.optional(v.object({
       totalPages: v.number(),
       totalIssues: v.number(),

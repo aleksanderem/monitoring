@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { Button } from "@/components/base/buttons/button";
 import { Dialog, Modal, ModalOverlay, DialogTrigger } from "@/components/application/modals/modal";
 import { CloseButton } from "@/components/base/buttons/close-button";

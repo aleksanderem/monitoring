@@ -1,9 +1,9 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
-import { Card } from "@/components/base/cards/card";
+import { api } from "../../../../convex/_generated/api";
+import type { Id } from "../../../../convex/_generated/dataModel";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/base/badges/badges";
 import { ArrowUp, ArrowDown } from "@untitledui/icons";
 
@@ -67,7 +67,7 @@ export function SERPFeaturesSection({
     .map(([feature, percentage]) => ({
       feature,
       percentage,
-      count: summary.featureCounts[feature as keyof typeof summary.featureCounts],
+      count: summary.featureCounts?.[feature as keyof typeof summary.featureCounts] || 0,
     }))
     .sort((a, b) => b.percentage - a.percentage);
 
@@ -126,10 +126,7 @@ export function SERPFeaturesSection({
                   {FEATURE_LABELS[feature]}
                 </p>
                 <div className="mt-1 flex items-center gap-2">
-                  <Badge
-                    color={isHigh ? "green" : isMedium ? "blue" : "gray"}
-                    size="sm"
-                  >
+                  <Badge size="sm">
                     {Math.round(percentage)}%
                   </Badge>
                   <span className="text-xs text-gray-500">{count} keywords</span>

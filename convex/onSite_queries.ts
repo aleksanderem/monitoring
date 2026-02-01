@@ -2,6 +2,31 @@ import { v } from "convex/values";
 import { query, internalQuery } from "./_generated/server";
 
 /**
+ * List all scans with domain info (for debugging/cleanup)
+ */
+export const listAllScans = query({
+  args: {},
+  handler: async (ctx) => {
+    const scans = await ctx.db
+      .query("onSiteScans")
+      .order("desc")
+      .take(50);
+
+    const scansWithDomain = await Promise.all(
+      scans.map(async (scan) => {
+        const domain = await ctx.db.get(scan.domainId);
+        return {
+          ...scan,
+          domainName: domain?.domain || "Unknown",
+        };
+      })
+    );
+
+    return scansWithDomain;
+  },
+});
+
+/**
  * Get the latest on-site scan for a domain
  */
 export const getLatestScan = query({
@@ -14,6 +39,16 @@ export const getLatestScan = query({
       .take(1);
 
     return scans[0] || null;
+  },
+});
+
+/**
+ * Get scan by ID (internal)
+ */
+export const getScanById = internalQuery({
+  args: { scanId: v.id("onSiteScans") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.scanId);
   },
 });
 
@@ -90,33 +125,35 @@ export const getPagesList = query({
     offset: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db.query("domainOnsitePages");
-
     // Filter by scan or domain
-    if (args.scanId) {
-      query = query.withIndex("by_scan", (q) => q.eq("scanId", args.scanId));
-    } else {
-      query = query.withIndex("by_domain", (q) => q.eq("domainId", args.domainId));
-    }
+    const pages = args.scanId
+      ? await ctx.db
+          .query("domainOnsitePages")
+          .withIndex("by_scan", (q) => q.eq("scanId", args.scanId!))
+          .collect()
+      : await ctx.db
+          .query("domainOnsitePages")
+          .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+          .collect();
 
-    let pages = await query.collect();
+    let filteredPages = pages;
 
     // Apply filters
     if (args.statusCode !== undefined) {
-      pages = pages.filter((p) => p.statusCode === args.statusCode);
+      filteredPages = filteredPages.filter((p) => p.statusCode === args.statusCode);
     }
 
     if (args.hasIssues !== undefined) {
       if (args.hasIssues) {
-        pages = pages.filter((p) => p.issueCount > 0);
+        filteredPages = filteredPages.filter((p) => p.issueCount > 0);
       } else {
-        pages = pages.filter((p) => p.issueCount === 0);
+        filteredPages = filteredPages.filter((p) => p.issueCount === 0);
       }
     }
 
     if (args.searchQuery) {
       const query = args.searchQuery.toLowerCase();
-      pages = pages.filter(
+      filteredPages = filteredPages.filter(
         (p) =>
           p.url.toLowerCase().includes(query) ||
           p.title?.toLowerCase().includes(query)
@@ -124,17 +161,17 @@ export const getPagesList = query({
     }
 
     // Sort by URL
-    pages.sort((a, b) => a.url.localeCompare(b.url));
+    filteredPages.sort((a, b) => a.url.localeCompare(b.url));
 
     // Pagination
     const offset = args.offset || 0;
     const limit = args.limit || 25;
-    const paginatedPages = pages.slice(offset, offset + limit);
+    const paginatedPages = filteredPages.slice(offset, offset + limit);
 
     return {
       pages: paginatedPages,
-      total: pages.length,
-      hasMore: offset + limit < pages.length,
+      total: filteredPages.length,
+      hasMore: offset + limit < filteredPages.length,
     };
   },
 });
@@ -351,5 +388,118 @@ export const isOnsiteDataStale = query({
 
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     return analysis.fetchedAt < sevenDaysAgo;
+  },
+});
+
+/**
+ * Get pages with missing titles from database
+ */
+export const getPagesWithMissingTitles = query({
+  args: { scanId: v.id("onSiteScans") },
+  handler: async (ctx, args) => {
+    const pages = await ctx.db
+      .query("domainOnsitePages")
+      .withIndex("by_scan", (q) => q.eq("scanId", args.scanId))
+      .collect();
+
+    return pages.filter(page => !page.title || page.title.length === 0);
+  },
+});
+
+/**
+ * Get pages with missing meta descriptions from database
+ */
+export const getPagesWithMissingMetaDescriptions = query({
+  args: { scanId: v.id("onSiteScans") },
+  handler: async (ctx, args) => {
+    const pages = await ctx.db
+      .query("domainOnsitePages")
+      .withIndex("by_scan", (q) => q.eq("scanId", args.scanId))
+      .collect();
+
+    return pages.filter(page => !page.metaDescription || page.metaDescription.length === 0);
+  },
+});
+
+/**
+ * Get pages with missing H1 tags from database
+ */
+export const getPagesWithMissingH1 = query({
+  args: { scanId: v.id("onSiteScans") },
+  handler: async (ctx, args) => {
+    const pages = await ctx.db
+      .query("domainOnsitePages")
+      .withIndex("by_scan", (q) => q.eq("scanId", args.scanId))
+      .collect();
+
+    return pages.filter(page => !page.h1 || page.h1.length === 0);
+  },
+});
+
+/**
+ * Get slow pages (load time > 3s) from database
+ */
+export const getSlowPages = query({
+  args: { scanId: v.id("onSiteScans") },
+  handler: async (ctx, args) => {
+    const pages = await ctx.db
+      .query("domainOnsitePages")
+      .withIndex("by_scan", (q) => q.eq("scanId", args.scanId))
+      .collect();
+
+    return pages.filter(page => page.loadTime && page.loadTime > 3000);
+  },
+});
+
+/**
+ * Get pages with thin content (< 300 words) from database
+ */
+export const getPagesWithThinContent = query({
+  args: { scanId: v.id("onSiteScans") },
+  handler: async (ctx, args) => {
+    const pages = await ctx.db
+      .query("domainOnsitePages")
+      .withIndex("by_scan", (q) => q.eq("scanId", args.scanId))
+      .collect();
+
+    return pages.filter(page => page.wordCount < 300);
+  },
+});
+
+/**
+ * Get pages with broken links from database
+ */
+export const getPagesWithBrokenLinks = query({
+  args: { scanId: v.id("onSiteScans") },
+  handler: async (ctx, args) => {
+    const pages = await ctx.db
+      .query("domainOnsitePages")
+      .withIndex("by_scan", (q) => q.eq("scanId", args.scanId))
+      .collect();
+
+    return pages.filter(page =>
+      page.issues.some(issue =>
+        issue.category === "links" && issue.message.toLowerCase().includes("broken")
+      )
+    );
+  },
+});
+
+/**
+ * Get pages with duplicate content from database
+ */
+export const getPagesWithDuplicateContent = query({
+  args: { scanId: v.id("onSiteScans") },
+  handler: async (ctx, args) => {
+    const pages = await ctx.db
+      .query("domainOnsitePages")
+      .withIndex("by_scan", (q) => q.eq("scanId", args.scanId))
+      .collect();
+
+    return pages.filter(page =>
+      page.issues.some(issue =>
+        issue.category === "content" && issue.message.toLowerCase().includes("duplicate")
+      )
+    );
   },
 });

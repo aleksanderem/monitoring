@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
+import { api } from "../../../../convex/_generated/api";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import {
   Bar,
   BarChart,
@@ -169,7 +169,7 @@ export function SERPFeaturesChart({
       </ChartContainer>
 
       <div className="grid grid-cols-3 gap-3 pt-2">
-        {Object.entries(summary.featureCounts)
+        {Object.entries(summary.featureCounts || {})
           .sort(([, a], [, b]) => b - a)
           .slice(0, 6)
           .map(([feature, count]) => (

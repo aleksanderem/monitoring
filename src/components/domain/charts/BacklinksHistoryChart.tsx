@@ -188,7 +188,7 @@ export function BacklinksHistoryChart({
             stroke={chartColor}
             strokeWidth={2}
           />
-          <ChartLegend content={<ChartLegendContent />} />
+          <ChartLegend content={<ChartLegendContent payload={[]} />} />
         </AreaChart>
       </ChartContainer>
     </div>

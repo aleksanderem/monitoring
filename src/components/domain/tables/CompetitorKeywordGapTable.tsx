@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Select } from "@/components/base/select/select";

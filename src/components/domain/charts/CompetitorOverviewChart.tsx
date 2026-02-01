@@ -2,7 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";

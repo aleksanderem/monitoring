@@ -87,7 +87,7 @@ export function PlatformTypesChart({ data, isLoading }: PlatformTypesChartProps)
             fillOpacity={0.3}
             strokeWidth={2}
           />
-          <ChartLegend content={<ChartLegendContent />} />
+          <ChartLegend content={<ChartLegendContent payload={[]} />} />
         </RadarChart>
       </ChartContainer>
     </div>

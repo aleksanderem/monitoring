@@ -220,7 +220,7 @@ export const getKeywordOverlap = query({
     if (args.competitorId) {
       const competitorPositions = await ctx.db
         .query("competitorKeywordPositions")
-        .withIndex("by_competitor", (q) => q.eq("competitorId", args.competitorId))
+        .withIndex("by_competitor", (q) => q.eq("competitorId", args.competitorId!))
         .collect();
 
       const latestCompetitorPositions = new Map<Id<"keywords">, typeof competitorPositions[0]>();

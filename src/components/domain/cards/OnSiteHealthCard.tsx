@@ -13,28 +13,32 @@ interface OnSiteHealthCardProps {
 }
 
 export function OnSiteHealthCard({ analysis }: OnSiteHealthCardProps) {
-  const { healthScore, totalPages } = analysis;
+  const { healthScore, totalPages, criticalIssues } = analysis;
 
-  // Determine color and status based on health score
+  // Determine color and status based on health score AND critical issues
   let status: string;
   let statusColor: string;
   let bgColor: string;
   let textColor: string;
   let icon: React.ComponentType<{ className?: string }>;
 
-  if (healthScore >= 80) {
+  // If there are many critical issues, downgrade the status
+  const criticalIssueRatio = totalPages > 0 ? criticalIssues / totalPages : 0;
+  const hasManyIssues = criticalIssues > 50 || criticalIssueRatio > 0.5;
+
+  if (healthScore >= 90 && !hasManyIssues) {
     status = "Excellent";
     statusColor = "text-success-700";
     bgColor = "bg-success-50";
     textColor = "text-success-600";
     icon = CheckCircle;
-  } else if (healthScore >= 60) {
+  } else if (healthScore >= 70 && criticalIssues < 20) {
     status = "Good";
-    statusColor = "text-warning-700";
-    bgColor = "bg-warning-50";
-    textColor = "text-warning-600";
-    icon = AlertTriangle;
-  } else if (healthScore >= 40) {
+    statusColor = "text-success-700";
+    bgColor = "bg-success-50";
+    textColor = "text-success-600";
+    icon = CheckCircle;
+  } else if (healthScore >= 50 || (healthScore >= 40 && criticalIssues < 10)) {
     status = "Needs Work";
     statusColor = "text-warning-700";
     bgColor = "bg-warning-50";
