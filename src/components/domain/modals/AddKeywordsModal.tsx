@@ -6,7 +6,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { Button } from "@/components/base/buttons/button";
 import { toast } from "sonner";
-import { X, Plus, Sparkles } from "@untitledui/icons";
+import { X, Plus, Stars01 } from "@untitledui/icons";
 
 interface AddKeywordsModalProps {
   domainId: Id<"domains">;
@@ -115,7 +115,7 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
               <Button
                 size="sm"
                 color="secondary"
-                iconLeading={Sparkles}
+                iconLeading={Stars01}
                 onClick={handleSuggestKeywords}
                 disabled={isLoadingSuggestions || !discoveredKeywords}
               >
