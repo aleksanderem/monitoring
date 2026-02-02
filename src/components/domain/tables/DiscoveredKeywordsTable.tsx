@@ -278,6 +278,22 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
           </div>
         </div>
 
+        {/* Info banner */}
+        {keywords && keywords.length > 0 && (
+          <div className="rounded-lg border border-utility-blue-200 bg-utility-blue-50 p-3">
+            <div className="flex items-start gap-2">
+              <svg className="h-5 w-5 text-utility-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="text-xs text-utility-blue-900">
+                <p className="font-medium mb-1">Data Sources:</p>
+                <p>Keywords with <strong>Position</strong> and <strong>Difficulty</strong> data come from the Ranked Keywords API (your domain ranks for these in top 100).</p>
+                <p className="mt-1">Keywords showing "No rank" or "N/A" are suggestions from Google Ads API (high search volume keywords relevant to your domain, but you don't rank for them yet).</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Filters panel */}
         {showFilters && (
           <div className="flex flex-wrap items-center gap-4 rounded-lg border border-secondary bg-secondary/30 p-4">
@@ -455,13 +471,22 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                       )}
                       {columnVisibility.position && (
                         <td className="px-4 py-3 text-center">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPositionBadgeClass(
-                              keyword.bestPosition
-                            )}`}
-                          >
-                            {keyword.bestPosition && keyword.bestPosition !== 999 ? keyword.bestPosition : "—"}
-                          </span>
+                          {keyword.bestPosition && keyword.bestPosition !== 999 ? (
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPositionBadgeClass(
+                                keyword.bestPosition
+                              )}`}
+                            >
+                              {keyword.bestPosition}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs text-tertiary" title="No ranking data - keyword suggestion from Google Ads">
+                              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              No rank
+                            </span>
+                          )}
                         </td>
                       )}
                       {columnVisibility.volume && (
@@ -482,7 +507,12 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                               {keyword.difficulty}
                             </span>
                           ) : (
-                            <span className="text-sm text-tertiary">—</span>
+                            <span className="inline-flex items-center gap-1 text-xs text-tertiary" title="Difficulty data not available from Google Ads API">
+                              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              N/A
+                            </span>
                           )}
                         </td>
                       )}
