@@ -748,3 +748,65 @@ Result: Charts render correctly with proper shadcn/ui components and recharts
 Build status: Passing, 0 TypeScript errors
 Files modified: src/components/domain/cards/CoreWebVitalsCard.tsx
 Next steps: None - task complete
+
+=== SESSION S0022 START === 2026-02-02T22:00:00Z
+Focus: Fix on-site audit zombie polling job
+Issue: User reported "job z on-site audit bo jest queued i nie chce sie ruszyc" (on-site audit job is queued and won't move)
+
+---
+
+S0022. Investigation Phase:
+- Checked Convex logs: Found error "Update on nonexistent document ID rd75tgnc97jcwyasd69q6k2kf98081fd"
+- Queried database: Found scan ID does NOT exist
+- Found real queued scan: rd796vrwjqbjgq8edfv9c7hgj180cpew (started 15:41:14)
+- Root cause identified: ZOMBIE SCHEDULED JOB trying to update deleted scan
+
+Problem Analysis:
+1. Previous scan (rd75tgnc97jcwyasd69q6k2kf98081fd) was deleted
+2. Scheduled pollScanStatus jobs were already queued (run every 30s)
+3. Each job failed trying to update nonexistent scan
+4. Error handler scheduled retry → infinite loop
+5. Error logs every 30 seconds
+
+---
+
+S0022. Fix Implementation:
+Added 3 defensive checks to stop zombie polling:
+
+1. pollScanStatus start (line 253):
+   - Check if scan exists before processing
+   - Return early if deleted (stops retry chain)
+
+2. updateScanProgress (line 531):
+   - Check if scan exists before patch
+   - Silently skip if deleted (prevents error)
+
+3. pollScanStatus error handler (line 369):
+   - Check if scan exists before scheduling retry
+   - Don't retry if deleted (stops retry chain)
+
+Files modified:
+- convex/onSite_actions.ts
+
+---
+
+S0022. Verification:
+- Deployed fix at 16:53:18
+- Next zombie poll at 16:53:21 detected deleted scan
+- Log: "[POLL] Scan rd75tgnc97jcwyasd69q6k2kf98081fd no longer exists - stopping polling"
+- Waited 35+ seconds - NO MORE RETRIES
+- Zombie polling STOPPED successfully
+
+---
+
+=== SESSION S0022 HANDOFF === 2026-02-02T22:15:00Z
+Status: completed
+Current state: Zombie polling fixed and stopped
+Issue resolution: 
+  - The "queued" scan (rd796vrwjqbjgq8edfv9c7hgj180cpew) is NOT stuck
+  - It's an Instant Pages scan waiting for manual trigger via scanSelectedUrls
+  - The real issue was zombie polling creating error logs
+  - Both issues now understood and first issue fixed
+Next actions: User can now trigger the queued Instant Pages scan if needed
+Warnings: Instant Pages scans don't auto-process - they need scanSelectedUrls call
+Files modified: convex/onSite_actions.ts (added defensive checks)

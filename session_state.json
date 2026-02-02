@@ -1,18 +1,18 @@
 {
-  "session_id": "S0021",
-  "started_at": "2026-02-02T19:00:00Z",
-  "last_updated": "2026-02-02T20:30:00Z",
+  "session_id": "S0022",
+  "started_at": "2026-02-02T22:00:00Z",
+  "last_updated": "2026-02-02T22:15:00Z",
   "status": "completed",
-  "focus": "Fix Core Web Vitals radial charts - implement proper shadcn/ui radial charts with recharts",
+  "focus": "Fix on-site audit zombie polling job and add defensive error handling",
   "tasks_snapshot": {
-    "total": 1,
+    "total": 2,
     "not_started": 0,
     "in_progress": 0,
-    "passing": 1,
+    "passing": 2,
     "failing": 0,
     "blocked": 0
   },
   "active_task_ids": [],
   "blockers": [],
-  "notes": "Successfully fixed Core Web Vitals radial charts. Replaced custom SVG with shadcn/ui RadialBarChart components using recharts. Added ResponsiveContainer wrapper and explicit dimensions (h-[140px] w-[140px]). Charts now render correctly with circular gauge rings, centered values, and proper colors. Build passes with 0 TypeScript errors. Verified working in browser."
+  "notes": "Successfully fixed zombie polling job issue. Added defensive checks in pollScanStatus and updateScanProgress to gracefully handle deleted scans. Verified fix working - polling stopped at 16:53:21 with no retries."
 }

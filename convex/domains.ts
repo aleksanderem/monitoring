@@ -733,6 +733,14 @@ export const getDomainsInternal = internalQuery({
   },
 });
 
+// Internal query to get single domain by ID (for actions)
+export const getDomainInternal = internalQuery({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.domainId);
+  },
+});
+
 // List all domains for current user (across all projects)
 export const list = query({
   args: {},

@@ -147,8 +147,8 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
 
             <Tooltip
               content={<ChartTooltipContent />}
-              formatter={(value) => Number(value).toLocaleString()}
-              labelFormatter={(value) => value.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+              formatter={(value: any) => Number(value).toLocaleString()}
+              labelFormatter={(value: any) => value.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
               cursor={{
                 className: "stroke-utility-brand-600 stroke-2",
               }}

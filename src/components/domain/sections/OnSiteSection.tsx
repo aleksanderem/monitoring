@@ -5,12 +5,14 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { Button } from "@/components/base/buttons/button";
-import { Play, AlertCircle, XCircle, RefreshCw05 } from "@untitledui/icons";
+import { Play, AlertCircle, XCircle, RefreshCw05, Zap } from "@untitledui/icons";
 import { toast } from "sonner";
 import { OnSiteHealthCard } from "../cards/OnSiteHealthCard";
 import { OnSitePagesTable } from "../tables/OnSitePagesTable";
 import { IssuesSummaryCards } from "../cards/IssuesSummaryCards";
 import { IssuesBreakdownSection } from "./IssuesBreakdownSection";
+import { UrlSelectionModal } from "../modals/UrlSelectionModal";
+import { InstantPagesMetrics } from "./InstantPagesMetrics";
 
 interface OnSiteSectionProps {
   domainId: Id<"domains">;
@@ -19,6 +21,7 @@ interface OnSiteSectionProps {
 export function OnSiteSection({ domainId }: OnSiteSectionProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [showUrlSelection, setShowUrlSelection] = useState(false);
 
   // Queries
   const latestScan = useQuery(api.onSite_queries.getLatestScan, { domainId });
@@ -76,6 +79,16 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
     // Convex queries auto-refresh, this just provides user feedback
   };
 
+  const handleStartInstantPagesScan = () => {
+    // Just open the modal - the scan will be created when user confirms URL selection
+    console.log("[OnSiteSection] Opening URL selection modal");
+    setShowUrlSelection(true);
+  };
+
+  const handleUrlSelectionClose = () => {
+    setShowUrlSelection(false);
+  };
+
   // Show scan in progress state
   const isScanInProgress =
     latestScan?.status === "queued" ||
@@ -114,10 +127,36 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
 
   // Show scan in progress state
   if (isScanInProgress) {
-    const isMockMode = !latestScan.taskId;
+    // Don't show mock mode warning - if scan exists, credentials are configured
+    const isMockMode = false;
     const elapsedTime = Math.floor((Date.now() - latestScan.startedAt) / 1000);
     const elapsedMinutes = Math.floor(elapsedTime / 60);
     const elapsedSeconds = elapsedTime % 60;
+
+    // Calculate progress percentage
+    const progressPercentage =
+      latestScan.pagesScanned !== undefined && latestScan.totalPagesToScan
+        ? Math.round((latestScan.pagesScanned / latestScan.totalPagesToScan) * 100)
+        : latestScan.status === "queued"
+          ? 5
+          : latestScan.status === "crawling"
+            ? 50
+            : 90;
+
+    // Determine current stage
+    const currentStage =
+      latestScan.status === "queued"
+        ? "1/3"
+        : latestScan.status === "crawling"
+          ? "2/3"
+          : "3/3";
+
+    const stageDescription =
+      latestScan.status === "queued"
+        ? "Queued - Waiting to start"
+        : latestScan.status === "crawling"
+          ? "Crawling - Analyzing pages"
+          : "Processing - Calculating scores";
 
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -127,6 +166,14 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
         <h3 className="text-lg font-semibold text-primary mb-2">
           {isMockMode ? "Development Scan In Progress" : "On-Site Audit In Progress"}
         </h3>
+
+        {/* Stage indicator */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-sm font-semibold text-brand-600">Stage {currentStage}</span>
+          <span className="text-sm text-tertiary">•</span>
+          <span className="text-sm text-secondary">{stageDescription}</span>
+        </div>
+
         <p className="text-sm text-tertiary mb-2 text-center max-w-md">
           {latestScan.status === "queued" && "Your scan is queued and will start shortly."}
           {latestScan.status === "crawling" && (
@@ -191,10 +238,32 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
           )}
         </div>
 
-        <div className="w-full max-w-md mb-6">
-          <div className="h-2 bg-tertiary rounded-full overflow-hidden">
-            <div className="h-full bg-primary-600 rounded-full animate-pulse w-1/2" />
+        {/* Progress bar with actual percentage */}
+        <div className="w-full max-w-md mb-4">
+          <div className="flex items-center justify-between text-xs text-tertiary mb-2">
+            <span>Progress</span>
+            <span className="font-semibold text-brand-600">{progressPercentage}%</span>
           </div>
+          <div className="h-2 bg-tertiary rounded-full overflow-hidden">
+            <div
+              className="h-full bg-brand-600 rounded-full transition-all duration-500"
+              style={{ width: `${progressPercentage}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Page counter - ALWAYS VISIBLE */}
+        <div className="text-lg font-semibold text-primary mb-6">
+          <span className="text-brand-600">
+            {latestScan.pagesScanned ?? latestScan.summary?.totalPages ?? 0}
+          </span>
+          {latestScan.totalPagesToScan && (
+            <>
+              <span className="text-tertiary mx-2">/</span>
+              <span className="text-secondary">{latestScan.totalPagesToScan}</span>
+            </>
+          )}
+          <span className="text-sm text-tertiary ml-2">pages scanned</span>
         </div>
         <div className="flex gap-3">
           <Button
@@ -222,38 +291,81 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
     );
   }
 
-  // Show scan failed state
-  if (latestScan?.status === "failed") {
+  // Show failed scan banner (but don't block the UI if we have previous data)
+  const showFailedBanner = latestScan?.status === "failed" && latestAnalysis;
+  const showFailedEmptyState = latestScan?.status === "failed" && !latestAnalysis;
+
+  // Show empty failed state only if no previous data
+  if (showFailedEmptyState) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
         <div className="bg-error-50 rounded-full p-4 mb-4">
           <AlertCircle className="w-8 h-8 text-error-600" />
         </div>
         <h3 className="text-lg font-semibold text-primary mb-2">
-          Scan Failed
+          Last Scan Failed
         </h3>
         <p className="text-sm text-tertiary mb-2 text-center max-w-md">
           {latestScan.error || "The scan encountered an error"}
         </p>
         <p className="text-xs text-quaternary mb-6">
-          Completed at: {new Date(latestScan.completedAt!).toLocaleString()}
+          Failed at: {new Date(latestScan.completedAt!).toLocaleString()}
         </p>
-        <Button
-          size="md"
-          color="primary"
-          iconLeading={Play}
-          onClick={handleStartScan}
-          isDisabled={isScanning}
-        >
-          Retry Scan
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="md"
+            color="primary"
+            iconLeading={Zap}
+            onClick={handleStartInstantPagesScan}
+            isDisabled={isScanning}
+          >
+            Scan Selected Pages
+          </Button>
+          <Button
+            size="md"
+            color="secondary"
+            iconLeading={Play}
+            onClick={handleStartScan}
+            isDisabled={isScanning}
+          >
+            Full Site Scan
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header with scan action */}
+      {/* Failed scan banner */}
+      {showFailedBanner && (
+        <div className="bg-error-50 border border-error-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-error-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-error-900 mb-1">
+                Last scan failed
+              </h4>
+              <p className="text-sm text-error-700">
+                {latestScan.error || "The scan encountered an error"}
+              </p>
+              <p className="text-xs text-error-600 mt-1">
+                Failed at: {new Date(latestScan.completedAt!).toLocaleString()}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              color="secondary"
+              onClick={handleStartScan}
+              isDisabled={isScanning}
+            >
+              Retry
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Header with scan actions */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-primary">
@@ -269,16 +381,40 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
             )}
           </p>
         </div>
-        <Button
-          size="sm"
-          color="secondary"
-          iconLeading={Play}
-          onClick={handleStartScan}
-          isDisabled={isScanning || isScanInProgress}
-        >
-          {isScanning ? "Starting..." : "Run New Scan"}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            color="primary"
+            iconLeading={Zap}
+            onClick={handleStartInstantPagesScan}
+            isDisabled={isScanning || isScanInProgress}
+          >
+            {isScanning ? "Initializing..." : "Scan Selected Pages"}
+          </Button>
+          <Button
+            size="sm"
+            color="secondary"
+            iconLeading={Play}
+            onClick={handleStartScan}
+            isDisabled={isScanning || isScanInProgress}
+          >
+            Full Site Scan
+          </Button>
+        </div>
       </div>
+
+      {/* URL Selection Modal */}
+      {showUrlSelection && (
+        <UrlSelectionModal
+          domainId={domainId}
+          isOpen={showUrlSelection}
+          onClose={handleUrlSelectionClose}
+          onScanStarted={() => {
+            setShowUrlSelection(false);
+          }}
+        />
+      )}
+
 
       {/* Health Score and Issue Summary */}
       {latestAnalysis && (
@@ -287,6 +423,9 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
             <OnSiteHealthCard analysis={latestAnalysis} />
             <IssuesSummaryCards analysis={latestAnalysis} />
           </div>
+
+          {/* Lighthouse Scores and Core Web Vitals (Average from scanned pages) */}
+          <InstantPagesMetrics domainId={domainId} scanId={latestScan?._id} />
 
           {/* Issues Breakdown */}
           <IssuesBreakdownSection

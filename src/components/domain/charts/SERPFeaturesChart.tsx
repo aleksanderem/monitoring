@@ -152,8 +152,8 @@ export function SERPFeaturesChart({
             <ChartTooltip
               content={
                 <ChartTooltipContent
-                  formatter={(value) => `${value}%`}
-                  labelFormatter={(label) => `${label}`}
+                  formatter={(value: any) => `${value}%`}
+                  labelFormatter={(label: any) => `${label}`}
                 />
               }
             />

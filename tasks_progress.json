@@ -1,122 +1,33 @@
 {
-  "session_id": "S0018",
-  "date": "2026-01-31",
+  "session_id": "S0022",
+  "date": "2026-02-02",
   "tasks": [
     {
-      "id": 38,
-      "name": "serp_features_schema_and_tracking",
+      "id": 49,
+      "name": "fix_zombie_polling_job",
       "status": "passing",
-      "created_session": "S0010",
-      "last_updated_session": "S0016"
+      "created_session": "S0022",
+      "last_updated_session": "S0022"
     },
     {
-      "id": 39,
-      "name": "keyword_grouping_system",
+      "id": 50,
+      "name": "add_defensive_error_handling",
       "status": "passing",
-      "created_session": "S0010",
-      "last_updated_session": "S0012"
-    },
-    {
-      "id": 40,
-      "name": "enhanced_date_range_picker",
-      "status": "in_progress",
-      "created_session": "S0010",
-      "last_updated_session": "S0014"
-    },
-    {
-      "id": 41,
-      "name": "backlink_velocity_tracking",
-      "status": "passing",
-      "created_session": "S0010",
-      "last_updated_session": "S0012"
-    },
-    {
-      "id": 42,
-      "name": "competitor_tracking_foundation",
-      "status": "in_progress",
-      "created_session": "S0010",
-      "last_updated_session": "S0013"
-    },
-    {
-      "id": 43,
-      "name": "content_gap_analysis",
-      "status": "not_started",
-      "created_session": "S0010",
-      "last_updated_session": "S0010"
-    },
-    {
-      "id": 44,
-      "name": "forecasting_predictions",
-      "status": "passing",
-      "created_session": "S0010",
-      "last_updated_session": "S0015"
-    },
-    {
-      "id": 45,
-      "name": "comprehensive_onsite_seo_reports",
-      "status": "not_started",
-      "created_session": "S0014",
-      "last_updated_session": "S0014"
-    },
-    {
-      "id": 46,
-      "name": "refactor_onsite_scan_background_jobs",
-      "status": "passing",
-      "created_session": "S0018",
-      "last_updated_session": "S0018"
+      "created_session": "S0022",
+      "last_updated_session": "S0022"
     }
   ],
-  "reason": "Task #46 COMPLETE: Successfully refactored On-Site Scan to use background job pattern. triggerOnSiteScan now returns immediately, background processing via ctx.scheduler, progressive status updates, mock mode preserved.",
-  "thinking_process": "Followed refreshKeywordPositions pattern from keywords.ts. Converted action to mutation, created processOnSiteScanInternal internalAction, added updateScanStatus mutation, added getScanById query. Updated OnSiteSection.tsx to use useMutation with correct Button props. Zero TypeScript errors in modified files. See tasks_progress_verbose.txt for full implementation details.",
-  "connected_tasks": [45, 46],
+  "reason": "FIXED: Added defensive checks in pollScanStatus and updateScanProgress to detect deleted scans. Zombie polling job stopped successfully. No more infinite retry loops.",
+  "thinking_process": "Added 3 defensive checks: (1) Check scan exists at start of pollScanStatus, (2) Check scan exists in updateScanProgress before patch, (3) Check scan exists in error handler before scheduling retry. Verified fix works - zombie polling stopped at 16:53:21 with message 'Scan no longer exists - stopping polling'.",
+  "connected_tasks": [49, 50],
   "how_to_test": [
     {
       "id": 1,
-      "name": "Verify mutation creates scan record with queued status",
-      "status": "not_started",
-      "is_ok": null,
-      "data_for_next_step": ["Call triggerOnSiteScan mutation", "Check scan record status is 'queued'"],
-      "session_id": "S0018"
-    },
-    {
-      "id": 2,
-      "name": "Verify mutation returns scanId immediately",
-      "status": "not_started",
-      "is_ok": null,
-      "data_for_next_step": ["Mutation should not block", "Should return Id<onSiteScans>"],
-      "session_id": "S0018"
-    },
-    {
-      "id": 3,
-      "name": "Verify background job processes scan",
-      "status": "not_started",
-      "is_ok": null,
-      "data_for_next_step": ["Check processOnSiteScanInternal runs", "Monitor Convex logs"],
-      "session_id": "S0018"
-    },
-    {
-      "id": 4,
-      "name": "Verify status updates through lifecycle (queued → crawling → processing → complete)",
-      "status": "not_started",
-      "is_ok": null,
-      "data_for_next_step": ["Watch scan record status field", "Should progress through all states"],
-      "session_id": "S0018"
-    },
-    {
-      "id": 5,
-      "name": "Verify mock mode still works",
-      "status": "not_started",
-      "is_ok": null,
-      "data_for_next_step": ["Run without API credentials", "Should complete with mock data"],
-      "session_id": "S0018"
-    },
-    {
-      "id": 6,
-      "name": "Verify OnSiteSection.tsx still works with refactored implementation",
-      "status": "not_started",
-      "is_ok": null,
-      "data_for_next_step": ["Test UI button click", "Verify toast messages", "Check auto-update on completion"],
-      "session_id": "S0018"
+      "name": "Verify polling stops retrying on nonexistent scan",
+      "status": "done",
+      "is_ok": "true",
+      "data_for_next_step": ["Verified: Last zombie poll at 16:53:21", "No retries after defensive check deployed", "Log shows: 'Scan no longer exists - stopping polling'"],
+      "session_id": "S0022"
     }
   ]
 }

@@ -50,6 +50,45 @@ export const triggerOnSiteScan = mutation({
 });
 
 /**
+ * Trigger an Instant Pages only scan (no full site crawl)
+ * This creates a scan record WITHOUT scheduling the full site crawl
+ * Use this for "Scan Selected Pages" feature
+ */
+export const triggerInstantPagesScan = mutation({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    // Check if there's already a scan in progress
+    const existingScan = await ctx.db
+      .query("onSiteScans")
+      .withIndex("by_domain_status", (q) =>
+        q.eq("domainId", args.domainId)
+      )
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("status"), "queued"),
+          q.eq(q.field("status"), "crawling"),
+          q.eq(q.field("status"), "processing")
+        )
+      )
+      .first();
+
+    if (existingScan) {
+      throw new Error("A scan is already in progress for this domain");
+    }
+
+    // Create scan record with status "queued"
+    // NO background processing scheduled - scanSelectedUrls will handle it
+    const scanId = await ctx.db.insert("onSiteScans", {
+      domainId: args.domainId,
+      status: "queued",
+      startedAt: Date.now(),
+    });
+
+    return scanId;
+  },
+});
+
+/**
  * Internal action that processes the on-site scan in the background
  * This does all the actual API work
  */
@@ -213,6 +252,16 @@ export const pollScanStatus = internalAction({
   handler: async (ctx, args) => {
     console.log(`[POLL] Checking scan status for scanId=${args.scanId}, taskId=${args.taskId}`);
 
+    // DEFENSIVE: Check if scan still exists before proceeding
+    const scan = await ctx.runQuery(internal.onSite_queries.getScanById, {
+      scanId: args.scanId,
+    });
+
+    if (!scan) {
+      console.log(`[POLL] Scan ${args.scanId} no longer exists - stopping polling`);
+      return; // Stop polling, don't schedule retry
+    }
+
     const login = process.env.DATAFORSEO_LOGIN;
     const password = process.env.DATAFORSEO_PASSWORD;
 
@@ -315,6 +364,17 @@ export const pollScanStatus = internalAction({
 
     } catch (error) {
       console.error("[POLL] Error polling scan status:", error);
+
+      // DEFENSIVE: Check if scan still exists before retrying
+      const scan = await ctx.runQuery(internal.onSite_queries.getScanById, {
+        scanId: args.scanId,
+      });
+
+      if (!scan) {
+        console.log(`[POLL] Scan ${args.scanId} no longer exists - not scheduling retry`);
+        return; // Stop polling if scan was deleted
+      }
+
       // Retry polling
       console.log("[POLL] Scheduling retry in 30s");
       await ctx.scheduler.runAfter(30000, internal.onSite_actions.pollScanStatus, {
@@ -426,15 +486,7 @@ export const fetchScanResults = internalAction({
         }],
       };
 
-      // Check for DataForSEO error
-      if (pagesData.status_code !== 20000) {
-        console.error(`[FETCH] DataForSEO pages error: ${pagesData.status_code} - ${pagesData.status_message}`);
-        // Try to continue with summary data only
-        console.log("[FETCH] Continuing with summary data only (no pages)");
-      }
-
-      const pagesCount = pagesData?.tasks?.[0]?.result?.length || 0;
-      console.log(`[FETCH] Received ${pagesCount} pages from API`);
+      console.log(`[FETCH] Successfully fetched ${allPages.length} pages total`);
 
       // Process and store results
       console.log(`[FETCH] Calling storeScanResults mutation`);
@@ -497,6 +549,13 @@ export const updateScanProgress = internalMutation({
     totalPagesToScan: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    // DEFENSIVE: Check if scan exists before updating
+    const scan = await ctx.db.get(args.scanId);
+    if (!scan) {
+      console.log(`[UPDATE] Scan ${args.scanId} no longer exists - skipping update`);
+      return; // Silently skip update if scan was deleted
+    }
+
     await ctx.db.patch(args.scanId, {
       pagesScanned: args.pagesScanned,
       totalPagesToScan: args.totalPagesToScan,
@@ -1231,20 +1290,21 @@ export const fetchAvailableUrls = action({
     sitemapUrl: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ urls: string[]; source: string; error?: string }> => {
-    const domain = await ctx.runQuery(api.queries.domains.getDomain, {
+    // Get domain info
+    const domainDoc = await ctx.runQuery(internal.domains.getDomainInternal, {
       domainId: args.domainId,
     });
 
-    if (!domain) {
+    if (!domainDoc) {
       throw new Error("Domain not found");
     }
 
     // Try sitemap URL if provided, otherwise try default
-    const sitemapUrl = args.sitemapUrl || `https://${domain.domain}/sitemap.xml`;
+    const sitemapUrl = args.sitemapUrl || `https://${domainDoc.domain}/sitemap.xml`;
 
     try {
       console.log(`[SITEMAP] Fetching from ${sitemapUrl}`);
-      const response = await fetch(sitemapUrl, { timeout: 30000 });
+      const response = await fetch(sitemapUrl);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -1252,20 +1312,97 @@ export const fetchAvailableUrls = action({
 
       const xmlText = await response.text();
 
-      // Parse XML sitemap
-      const urlMatches = xmlText.match(/<loc>(.*?)<\/loc>/g);
-      if (!urlMatches) {
-        throw new Error("No URLs found in sitemap");
+      // Check if this is a sitemap index (contains other sitemaps)
+      const isSitemapIndex = xmlText.includes("<sitemapindex") || xmlText.includes("<sitemap>");
+
+      let allPageUrls: string[] = [];
+
+      if (isSitemapIndex) {
+        console.log(`[SITEMAP] Detected sitemap INDEX - fetching child sitemaps`);
+
+        // Extract child sitemap URLs
+        const sitemapMatches = xmlText.match(/<loc>(.*?)<\/loc>/g);
+        if (!sitemapMatches) {
+          throw new Error("No sitemaps found in sitemap index");
+        }
+
+        const childSitemaps = sitemapMatches.map((match) =>
+          match.replace(/<\/?loc>/g, "").trim()
+        );
+
+        console.log(`[SITEMAP] Found ${childSitemaps.length} child sitemaps`);
+
+        // Fetch all child sitemaps (limit to first 10 to avoid timeout)
+        const sitemapsToFetch = childSitemaps.slice(0, 10);
+
+        for (const childUrl of sitemapsToFetch) {
+          try {
+            console.log(`[SITEMAP] Fetching child sitemap: ${childUrl}`);
+            const childResponse = await fetch(childUrl);
+
+            if (!childResponse.ok) {
+              console.log(`[SITEMAP] Skipping ${childUrl} - HTTP ${childResponse.status}`);
+              continue;
+            }
+
+            const childXml = await childResponse.text();
+            const urlMatches = childXml.match(/<loc>(.*?)<\/loc>/g);
+
+            if (urlMatches) {
+              const urls = urlMatches.map((match) =>
+                match.replace(/<\/?loc>/g, "").trim()
+              ).filter((url) => {
+                const lower = url.toLowerCase();
+                return (
+                  !lower.endsWith('.xml') &&
+                  !lower.includes('sitemap') &&
+                  !lower.includes('/feed/') &&
+                  !lower.includes('/rss')
+                );
+              });
+
+              allPageUrls.push(...urls);
+              console.log(`[SITEMAP] Got ${urls.length} page URLs from ${childUrl}`);
+            }
+          } catch (err) {
+            console.log(`[SITEMAP] Error fetching ${childUrl}:`, err);
+            // Continue with other sitemaps
+          }
+        }
+      } else {
+        // Regular sitemap - extract URLs directly
+        console.log(`[SITEMAP] Regular sitemap - extracting URLs`);
+        const urlMatches = xmlText.match(/<loc>(.*?)<\/loc>/g);
+
+        if (!urlMatches) {
+          throw new Error("No URLs found in sitemap");
+        }
+
+        allPageUrls = urlMatches.map((match) =>
+          match.replace(/<\/?loc>/g, "").trim()
+        ).filter((url) => {
+          const lower = url.toLowerCase();
+          return (
+            !lower.endsWith('.xml') &&
+            !lower.includes('sitemap') &&
+            !lower.includes('/feed/') &&
+            !lower.includes('/rss')
+          );
+        });
       }
 
-      const urls = urlMatches.map((match) =>
-        match.replace(/<\/?loc>/g, "").trim()
-      );
+      console.log(`[SITEMAP] Total page URLs found: ${allPageUrls.length}`);
 
-      console.log(`[SITEMAP] Found ${urls.length} URLs`);
+      if (allPageUrls.length === 0) {
+        throw new Error("No page URLs found in sitemap");
+      }
+
+      // Remove duplicates
+      const uniqueUrls = Array.from(new Set(allPageUrls));
+      console.log(`[SITEMAP] Unique page URLs: ${uniqueUrls.length}`);
 
       return {
-        urls,
+        urls: uniqueUrls,
         source: args.sitemapUrl ? "custom_sitemap" : "auto_sitemap",
       };
     } catch (error) {

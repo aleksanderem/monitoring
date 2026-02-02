@@ -69,8 +69,8 @@ export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
 
             <Tooltip
               content={<ChartTooltipContent />}
-              formatter={(value) => Number(value).toLocaleString()}
-              labelFormatter={(value) => value.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              formatter={(value: any) => Number(value).toLocaleString()}
+              labelFormatter={(value: any) => value.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
             />
 
             <Line
