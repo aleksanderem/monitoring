@@ -338,6 +338,13 @@ export const getKeywordMonitoring = query({
         position: p.position,
       }));
 
+      // Try to find rich data from discoveredKeywords table
+      const discoveredKeyword = await ctx.db
+        .query("discoveredKeywords")
+        .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+        .filter((q) => q.eq(q.field("keyword"), keyword.phrase))
+        .first();
+
       results.push({
         keywordId: keyword._id,
         phrase: keyword.phrase,
@@ -345,13 +352,26 @@ export const getKeywordMonitoring = query({
         previousPosition,
         change,
         status,
-        searchVolume: latestPosition?.searchVolume || null,
-        difficulty: latestPosition?.difficulty || null,
+        searchVolume: discoveredKeyword?.searchVolume || latestPosition?.searchVolume || null,
+        difficulty: discoveredKeyword?.difficulty || latestPosition?.difficulty || null,
         url: latestPosition?.url || null,
         positionHistory,
         lastUpdated: latestPosition?._creationTime || keyword._creationTime,
         potential,
         checkingStatus: keyword.checkingStatus,
+
+        // Rich data from discoveredKeywords
+        cpc: discoveredKeyword?.cpc || null,
+        etv: discoveredKeyword?.etv || null,
+        competition: discoveredKeyword?.competition || null,
+        competitionLevel: discoveredKeyword?.competitionLevel || null,
+        intent: discoveredKeyword?.intent || null,
+        serpFeatures: discoveredKeyword?.serpFeatures || null,
+        estimatedPaidTrafficCost: discoveredKeyword?.estimatedPaidTrafficCost || null,
+        monthlySearches: discoveredKeyword?.monthlySearches || null,
+        isNew: discoveredKeyword?.isNew || null,
+        isUp: discoveredKeyword?.isUp || null,
+        isDown: discoveredKeyword?.isDown || null,
       });
     }
 
