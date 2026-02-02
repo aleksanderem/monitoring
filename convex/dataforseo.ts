@@ -1970,45 +1970,45 @@ export const fetchDomainVisibilityInternal = internalAction({
                     keyword,
                     position,
                     url: pageUrl,
-                    searchVolume: keywordInfo?.search_volume ?? null,
+                    searchVolume: keywordInfo?.search_volume ?? undefined,
                     date: dateTo,
 
-                    // SEO metrics
-                    competition: keywordInfo?.competition,
-                    competitionLevel: keywordInfo?.competition_level,
-                    cpc: keywordInfo?.cpc,
-                    difficulty: keywordProps?.keyword_difficulty,
+                    // SEO metrics - convert null to undefined for Convex
+                    competition: keywordInfo?.competition ?? undefined,
+                    competitionLevel: keywordInfo?.competition_level ?? undefined,
+                    cpc: keywordInfo?.cpc ?? undefined,
+                    difficulty: keywordProps?.keyword_difficulty ?? undefined,
 
                     // Search intent
-                    intent: searchIntent?.main_intent,
+                    intent: searchIntent?.main_intent ?? undefined,
 
                     // SERP features
-                    serpFeatures: serpInfo?.serp_item_types,
+                    serpFeatures: serpInfo?.serp_item_types ?? undefined,
 
                     // Traffic value
-                    etv: serp_item?.etv,
-                    estimatedPaidTrafficCost: serp_item?.estimated_paid_traffic_cost,
+                    etv: serp_item?.etv ?? undefined,
+                    estimatedPaidTrafficCost: serp_item?.estimated_paid_traffic_cost ?? undefined,
 
                     // Rank changes
-                    previousRankAbsolute: rankChanges?.previous_rank_absolute,
-                    isNew: rankChanges?.is_new,
-                    isUp: rankChanges?.is_up,
-                    isDown: rankChanges?.is_down,
+                    previousRankAbsolute: rankChanges?.previous_rank_absolute ?? undefined,
+                    isNew: rankChanges?.is_new ?? undefined,
+                    isUp: rankChanges?.is_up ?? undefined,
+                    isDown: rankChanges?.is_down ?? undefined,
 
                     // Monthly search volumes
-                    monthlySearches: keywordInfo?.monthly_searches,
+                    monthlySearches: keywordInfo?.monthly_searches ?? undefined,
 
                     // Backlinks info
                     backlinksInfo: serp_item?.backlinks_info ? {
-                      referringDomains: serp_item.backlinks_info.referring_domains,
-                      referringPages: serp_item.backlinks_info.referring_pages,
-                      dofollow: serp_item.backlinks_info.dofollow,
-                      backlinks: serp_item.backlinks_info.backlinks,
+                      referringDomains: serp_item.backlinks_info.referring_domains ?? undefined,
+                      referringPages: serp_item.backlinks_info.referring_pages ?? undefined,
+                      dofollow: serp_item.backlinks_info.dofollow ?? undefined,
+                      backlinks: serp_item.backlinks_info.backlinks ?? undefined,
                     } : undefined,
 
                     // SERP details
-                    title: serp_item?.title,
-                    description: serp_item?.description,
+                    title: serp_item?.title ?? undefined,
+                    description: serp_item?.description ?? undefined,
                     rating: serp_item?.rating ? {
                       value: serp_item.rating.value,
                       votesCount: serp_item.rating.votes_count,
@@ -2016,8 +2016,8 @@ export const fetchDomainVisibilityInternal = internalAction({
                     } : undefined,
 
                     // Page/domain rank
-                    pageRank: serp_item?.rank_info?.page_rank,
-                    mainDomainRank: serp_item?.rank_info?.main_domain_rank,
+                    pageRank: serp_item?.rank_info?.page_rank ?? undefined,
+                    mainDomainRank: serp_item?.rank_info?.main_domain_rank ?? undefined,
                   });
                   break; // Only take best position for this keyword
                 }
@@ -2074,14 +2074,15 @@ export const fetchDomainVisibilityInternal = internalAction({
 
                 // Extract rich data from Google Ads API
                 // Note: Google Ads has different field names than Ranked Keywords
+                // IMPORTANT: Convert null to undefined for Convex optional fields
                 competition: item.competition_index ? item.competition_index / 100 : undefined, // 0-100 to 0-1
-                competitionLevel: item.competition, // "LOW", "MEDIUM", "HIGH"
-                cpc: item.cpc,
+                competitionLevel: item.competition ?? undefined, // "LOW", "MEDIUM", "HIGH"
+                cpc: item.cpc ?? undefined,
                 difficulty: undefined, // Google Ads doesn't have keyword_difficulty
                 intent: undefined, // Google Ads doesn't have search_intent
 
                 // Monthly searches
-                monthlySearches: item.monthly_searches,
+                monthlySearches: item.monthly_searches ?? undefined,
               }));
           } else {
             console.log("[GOOGLE ADS API] ⚠️ No keyword suggestions found");
