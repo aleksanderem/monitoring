@@ -122,7 +122,7 @@ export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
         </a>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-6">
         {metrics.map((metric) => {
           const { score, status, chartKey } = getMetricScore(metric.key, metric.value);
           const displayValue = metric.key === "cls"
@@ -160,7 +160,7 @@ export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
             <div key={metric.key} className="flex flex-col items-center">
               <ChartContainer
                 config={chartConfig}
-                className="mx-auto h-[140px] w-[140px]"
+                className="mx-auto h-[120px] w-[120px]"
               >
                 <RadialBarChart
                   data={chartData}
@@ -212,10 +212,10 @@ export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
 
               <div className="mt-3 flex items-center gap-1.5">
                 {getStatusIcon(status)}
-                <span className="text-xs font-medium text-secondary">{metric.name}</span>
+                <span className="text-xs font-medium text-foreground">{metric.name}</span>
               </div>
-              <p className="text-xs text-quaternary text-center mt-1">{metric.description}</p>
-              <p className="text-xs text-tertiary mt-1">Target: {metric.goodThreshold}</p>
+              <p className="text-xs text-muted-foreground text-center mt-1">{metric.description}</p>
+              <p className="text-xs text-muted-foreground mt-1">Target: {metric.goodThreshold}</p>
             </div>
           );
         })}
