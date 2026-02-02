@@ -1272,6 +1272,56 @@ interface DomainVisibilityKeyword {
   url: string;
   searchVolume?: number;
   date: string;
+
+  // SEO metrics (from Ranked Keywords API)
+  competition?: number; // 0-1 scale
+  competitionLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+  cpc?: number;
+  difficulty?: number; // 0-100
+
+  // Search intent
+  intent?: 'commercial' | 'informational' | 'navigational' | 'transactional';
+
+  // SERP features
+  serpFeatures?: string[]; // e.g., ['organic', 'people_also_ask', 'related_searches']
+
+  // Traffic value
+  etv?: number; // Estimated Traffic Value
+  estimatedPaidTrafficCost?: number;
+
+  // Rank changes
+  previousRankAbsolute?: number;
+  isNew?: boolean;
+  isUp?: boolean;
+  isDown?: boolean;
+
+  // Monthly search volumes (last 12 months)
+  monthlySearches?: Array<{
+    year: number;
+    month: number;
+    search_volume: number;
+  }>;
+
+  // Backlinks info
+  backlinksInfo?: {
+    referringDomains?: number;
+    referringPages?: number;
+    dofollow?: number;
+    backlinks?: number;
+  };
+
+  // SERP details
+  title?: string;
+  description?: string;
+  rating?: {
+    value: number;
+    votesCount: number;
+    ratingMax: number;
+  };
+
+  // Page/domain rank
+  pageRank?: number;
+  mainDomainRank?: number;
 }
 
 interface HistoricalRankItem {
@@ -1532,14 +1582,61 @@ export const storeDiscoveredKeywords = internalMutation({
     domainId: v.id("domains"),
     keywords: v.array(v.object({
       keyword: v.string(),
-      position: v.optional(v.number()), // null for keyword suggestions without ranking
-      previousPosition: v.optional(v.number()), // Previous position from SE Ranking
+      position: v.optional(v.number()),
+      previousPosition: v.optional(v.number()),
       url: v.string(),
       searchVolume: v.optional(v.number()),
       cpc: v.optional(v.number()),
       difficulty: v.optional(v.number()),
       traffic: v.optional(v.number()),
       date: v.string(),
+
+      // Extended SEO metrics
+      competition: v.optional(v.number()),
+      competitionLevel: v.optional(v.union(v.literal("LOW"), v.literal("MEDIUM"), v.literal("HIGH"))),
+      intent: v.optional(v.union(
+        v.literal("commercial"),
+        v.literal("informational"),
+        v.literal("navigational"),
+        v.literal("transactional")
+      )),
+      serpFeatures: v.optional(v.array(v.string())),
+      etv: v.optional(v.number()),
+      estimatedPaidTrafficCost: v.optional(v.number()),
+
+      // Rank changes
+      previousRankAbsolute: v.optional(v.number()),
+      isNew: v.optional(v.boolean()),
+      isUp: v.optional(v.boolean()),
+      isDown: v.optional(v.boolean()),
+
+      // Monthly searches
+      monthlySearches: v.optional(v.array(v.object({
+        year: v.number(),
+        month: v.number(),
+        search_volume: v.number(),
+      }))),
+
+      // Backlinks
+      backlinksInfo: v.optional(v.object({
+        referringDomains: v.optional(v.number()),
+        referringPages: v.optional(v.number()),
+        dofollow: v.optional(v.number()),
+        backlinks: v.optional(v.number()),
+      })),
+
+      // SERP details
+      title: v.optional(v.string()),
+      description: v.optional(v.string()),
+      rating: v.optional(v.object({
+        value: v.number(),
+        votesCount: v.number(),
+        ratingMax: v.number(),
+      })),
+
+      // Ranks
+      pageRank: v.optional(v.number()),
+      mainDomainRank: v.optional(v.number()),
     })),
   },
   handler: async (ctx, args) => {
@@ -1563,6 +1660,35 @@ export const storeDiscoveredKeywords = internalMutation({
           difficulty: kw.difficulty,
           traffic: kw.traffic,
           lastSeenDate: kw.date,
+
+          // Extended SEO metrics
+          competition: kw.competition,
+          competitionLevel: kw.competitionLevel,
+          intent: kw.intent,
+          serpFeatures: kw.serpFeatures,
+          etv: kw.etv,
+          estimatedPaidTrafficCost: kw.estimatedPaidTrafficCost,
+
+          // Rank changes
+          previousRankAbsolute: kw.previousRankAbsolute,
+          isNew: kw.isNew,
+          isUp: kw.isUp,
+          isDown: kw.isDown,
+
+          // Monthly searches
+          monthlySearches: kw.monthlySearches,
+
+          // Backlinks
+          backlinksInfo: kw.backlinksInfo,
+
+          // SERP details
+          title: kw.title,
+          description: kw.description,
+          rating: kw.rating,
+
+          // Ranks
+          pageRank: kw.pageRank,
+          mainDomainRank: kw.mainDomainRank,
         };
 
         // Only update bestPosition if we have position data (not keyword suggestions)
@@ -1575,7 +1701,7 @@ export const storeDiscoveredKeywords = internalMutation({
         await ctx.db.insert("discoveredKeywords", {
           domainId: args.domainId,
           keyword: kw.keyword,
-          bestPosition: kw.position ?? 999, // 999 = no ranking data yet (keyword suggestion)
+          bestPosition: kw.position ?? 999,
           previousPosition: kw.previousPosition,
           url: kw.url,
           searchVolume: kw.searchVolume,
@@ -1583,8 +1709,37 @@ export const storeDiscoveredKeywords = internalMutation({
           difficulty: kw.difficulty,
           traffic: kw.traffic,
           lastSeenDate: kw.date,
-          status: "discovered", // not yet monitored
+          status: "discovered",
           createdAt: Date.now(),
+
+          // Extended SEO metrics
+          competition: kw.competition,
+          competitionLevel: kw.competitionLevel,
+          intent: kw.intent,
+          serpFeatures: kw.serpFeatures,
+          etv: kw.etv,
+          estimatedPaidTrafficCost: kw.estimatedPaidTrafficCost,
+
+          // Rank changes
+          previousRankAbsolute: kw.previousRankAbsolute,
+          isNew: kw.isNew,
+          isUp: kw.isUp,
+          isDown: kw.isDown,
+
+          // Monthly searches
+          monthlySearches: kw.monthlySearches,
+
+          // Backlinks
+          backlinksInfo: kw.backlinksInfo,
+
+          // SERP details
+          title: kw.title,
+          description: kw.description,
+          rating: kw.rating,
+
+          // Ranks
+          pageRank: kw.pageRank,
+          mainDomainRank: kw.mainDomainRank,
         });
       }
     }
@@ -1779,15 +1934,67 @@ export const fetchDomainVisibilityInternal = internalAction({
 
                 const position = serp_item?.rank_absolute ?? serp_item?.rank_group ?? null;
                 const pageUrl = serp_item?.url || `https://${normalizedDomain}`;
-                const search_volume = item?.keyword_data?.keyword_info?.search_volume ?? null;
+
+                // Extract rich data from API response
+                const keywordInfo = item?.keyword_data?.keyword_info;
+                const keywordProps = item?.keyword_data?.keyword_properties;
+                const searchIntent = item?.keyword_data?.search_intent_info;
+                const serpInfo = item?.keyword_data?.serp_info;
+                const rankChanges = serp_item?.rank_changes;
 
                 if (position && position > 0 && position <= 100) {
                   rankedKeywords.push({
                     keyword,
                     position,
                     url: pageUrl,
-                    searchVolume: search_volume,
+                    searchVolume: keywordInfo?.search_volume ?? null,
                     date: dateTo,
+
+                    // SEO metrics
+                    competition: keywordInfo?.competition,
+                    competitionLevel: keywordInfo?.competition_level,
+                    cpc: keywordInfo?.cpc,
+                    difficulty: keywordProps?.keyword_difficulty,
+
+                    // Search intent
+                    intent: searchIntent?.main_intent,
+
+                    // SERP features
+                    serpFeatures: serpInfo?.serp_item_types,
+
+                    // Traffic value
+                    etv: serp_item?.etv,
+                    estimatedPaidTrafficCost: serp_item?.estimated_paid_traffic_cost,
+
+                    // Rank changes
+                    previousRankAbsolute: rankChanges?.previous_rank_absolute,
+                    isNew: rankChanges?.is_new,
+                    isUp: rankChanges?.is_up,
+                    isDown: rankChanges?.is_down,
+
+                    // Monthly search volumes
+                    monthlySearches: keywordInfo?.monthly_searches,
+
+                    // Backlinks info
+                    backlinksInfo: serp_item?.backlinks_info ? {
+                      referringDomains: serp_item.backlinks_info.referring_domains,
+                      referringPages: serp_item.backlinks_info.referring_pages,
+                      dofollow: serp_item.backlinks_info.dofollow,
+                      backlinks: serp_item.backlinks_info.backlinks,
+                    } : undefined,
+
+                    // SERP details
+                    title: serp_item?.title,
+                    description: serp_item?.description,
+                    rating: serp_item?.rating ? {
+                      value: serp_item.rating.value,
+                      votesCount: serp_item.rating.votes_count,
+                      ratingMax: serp_item.rating.rating_max,
+                    } : undefined,
+
+                    // Page/domain rank
+                    pageRank: serp_item?.rank_info?.page_rank,
+                    mainDomainRank: serp_item?.rank_info?.main_domain_rank,
                   });
                   break; // Only take best position for this keyword
                 }

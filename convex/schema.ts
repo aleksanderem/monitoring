@@ -203,7 +203,7 @@ export default defineSchema({
     domainId: v.id("domains"),
     keyword: v.string(),
     bestPosition: v.number(),
-    previousPosition: v.optional(v.number()), // Previous position from SE Ranking
+    previousPosition: v.optional(v.number()),
     url: v.string(),
     searchVolume: v.optional(v.number()),
     cpc: v.optional(v.number()),
@@ -211,11 +211,45 @@ export default defineSchema({
     traffic: v.optional(v.number()),
     lastSeenDate: v.string(),
     status: v.union(
-      v.literal("discovered"), // Found but not yet added to monitoring
-      v.literal("monitoring"), // Added to active monitoring
-      v.literal("ignored") // User explicitly ignored this keyword
+      v.literal("discovered"),
+      v.literal("monitoring"),
+      v.literal("ignored")
     ),
     createdAt: v.number(),
+
+    // Extended SEO metrics (from Ranked Keywords API)
+    competition: v.optional(v.number()),
+    competitionLevel: v.optional(v.union(v.literal("LOW"), v.literal("MEDIUM"), v.literal("HIGH"))),
+    intent: v.optional(v.union(
+      v.literal("commercial"),
+      v.literal("informational"),
+      v.literal("navigational"),
+      v.literal("transactional")
+    )),
+    serpFeatures: v.optional(v.array(v.string())),
+    etv: v.optional(v.number()),
+    estimatedPaidTrafficCost: v.optional(v.number()),
+
+    // Rank changes
+    previousRankAbsolute: v.optional(v.number()),
+    isNew: v.optional(v.boolean()),
+    isUp: v.optional(v.boolean()),
+    isDown: v.optional(v.boolean()),
+
+    // Monthly search volumes
+    monthlySearches: v.optional(v.any()), // Array of {year, month, search_volume}
+
+    // Backlinks info
+    backlinksInfo: v.optional(v.any()), // {referringDomains, referringPages, dofollow, backlinks}
+
+    // SERP details
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    rating: v.optional(v.any()), // {value, votesCount, ratingMax}
+
+    // Page/domain rank
+    pageRank: v.optional(v.number()),
+    mainDomainRank: v.optional(v.number()),
   })
     .index("by_domain", ["domainId"])
     .index("by_domain_keyword", ["domainId", "keyword"])
