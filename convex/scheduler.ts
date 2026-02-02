@@ -190,12 +190,12 @@ export const calculateDailyBacklinkVelocity = internalAction({
 
         // Count new backlinks (firstSeen == today)
         const newBacklinks = backlinks.filter(
-          (b) => b.firstSeen === today || (b.isNew === true)
+          (b: any) => b.firstSeen === today || (b.isNew === true)
         ).length;
 
         // Count lost backlinks (lastSeen < today and previously active)
         const lostBacklinks = backlinks.filter(
-          (b) => b.isLost === true
+          (b: any) => b.isLost === true
         ).length;
 
         // Save velocity data

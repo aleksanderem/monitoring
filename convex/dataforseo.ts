@@ -1268,7 +1268,7 @@ export const fetchHistoricalPositions = action({
 
 interface DomainVisibilityKeyword {
   keyword: string;
-  position: number;
+  position: number | null; // null for keyword suggestions without ranking data
   url: string;
   searchVolume?: number;
   date: string;
@@ -1427,7 +1427,7 @@ export const fetchDomainVisibility = action({
             const existing = keywordMap.get(keyword);
             const position = kwData.position || kwData.rank_absolute || 0;
 
-            if (!existing || position < existing.position) {
+            if (!existing || (existing.position !== null && position < existing.position)) {
               keywordMap.set(keyword, {
                 keyword,
                 position,
@@ -1501,7 +1501,12 @@ export const fetchDomainVisibility = action({
       }
 
       const keywords = Array.from(keywordMap.values())
-        .sort((a, b) => a.position - b.position)
+        .sort((a, b) => {
+          // Sort by position, nulls at the end
+          if (a.position === null) return 1;
+          if (b.position === null) return -1;
+          return a.position - b.position;
+        })
         .slice(0, limit);
 
       console.log(`Found ${keywords.length} keywords with positions`);
@@ -1527,7 +1532,7 @@ export const storeDiscoveredKeywords = internalMutation({
     domainId: v.id("domains"),
     keywords: v.array(v.object({
       keyword: v.string(),
-      position: v.number(),
+      position: v.optional(v.number()), // null for keyword suggestions without ranking
       previousPosition: v.optional(v.number()), // Previous position from SE Ranking
       url: v.string(),
       searchVolume: v.optional(v.number()),
@@ -1549,9 +1554,8 @@ export const storeDiscoveredKeywords = internalMutation({
         .unique();
 
       if (existing) {
-        // Always update with latest data from SE Ranking
-        await ctx.db.patch(existing._id, {
-          bestPosition: Math.min(kw.position, existing.bestPosition),
+        // Always update with latest data
+        const updateData: any = {
           previousPosition: kw.previousPosition,
           url: kw.url,
           searchVolume: kw.searchVolume,
@@ -1559,12 +1563,19 @@ export const storeDiscoveredKeywords = internalMutation({
           difficulty: kw.difficulty,
           traffic: kw.traffic,
           lastSeenDate: kw.date,
-        });
+        };
+
+        // Only update bestPosition if we have position data (not keyword suggestions)
+        if (kw.position !== null && kw.position !== undefined) {
+          updateData.bestPosition = Math.min(kw.position, existing.bestPosition || 999);
+        }
+
+        await ctx.db.patch(existing._id, updateData);
       } else {
         await ctx.db.insert("discoveredKeywords", {
           domainId: args.domainId,
           keyword: kw.keyword,
-          bestPosition: kw.position,
+          bestPosition: kw.position ?? 999, // 999 = no ranking data yet (keyword suggestion)
           previousPosition: kw.previousPosition,
           url: kw.url,
           searchVolume: kw.searchVolume,
@@ -1625,10 +1636,13 @@ export const fetchAndStoreVisibility = action({
 
     console.log(`Storing ${result.keywords.length} discovered keywords`);
 
-    // Store discovered keywords
+    // Store discovered keywords (convert null to undefined for Convex schema)
     await ctx.runMutation(internal.dataforseo.storeDiscoveredKeywords, {
       domainId: args.domainId,
-      keywords: result.keywords,
+      keywords: result.keywords.map(kw => ({
+        ...kw,
+        position: kw.position ?? undefined, // Convert null to undefined for optional fields
+      })),
     });
 
     return { success: true, count: result.keywords.length };

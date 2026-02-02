@@ -463,7 +463,7 @@ export default function DomainDetailPage() {
                   <div>
                     <h2 className="text-lg font-semibold text-primary">Domain Visibility</h2>
                     <p className="text-sm text-tertiary">
-                      Track keyword rankings and visibility metrics
+                      Track keyword rankings, discover new opportunities, and monitor visibility history
                     </p>
                   </div>
                   <Button
@@ -472,8 +472,9 @@ export default function DomainDetailPage() {
                     iconLeading={RefreshCcw01}
                     onClick={handleFetchVisibility}
                     disabled={isFetchingVisibility || !domain}
+                    title="Fetch current rankings and discover new keyword opportunities"
                   >
-                    {isFetchingVisibility ? "Fetching..." : "Refresh Visibility"}
+                    {isFetchingVisibility ? "Fetching..." : "Refresh Keywords"}
                   </Button>
                 </div>
 

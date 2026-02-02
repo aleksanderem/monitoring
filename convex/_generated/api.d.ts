@@ -57,6 +57,9 @@ import type * as seranking from "../seranking.js";
 import type * as serpFeatures_mutations from "../serpFeatures_mutations.js";
 import type * as serpFeatures_queries from "../serpFeatures_queries.js";
 import type * as teams from "../teams.js";
+import type * as test_alternative from "../test_alternative.js";
+import type * as test_detoksvip from "../test_detoksvip.js";
+import type * as test_google_ads_api from "../test_google_ads_api.js";
 import type * as userSettings from "../userSettings.js";
 import type * as users from "../users.js";
 
@@ -116,6 +119,9 @@ declare const fullApi: ApiFromModules<{
   serpFeatures_mutations: typeof serpFeatures_mutations;
   serpFeatures_queries: typeof serpFeatures_queries;
   teams: typeof teams;
+  test_alternative: typeof test_alternative;
+  test_detoksvip: typeof test_detoksvip;
+  test_google_ads_api: typeof test_google_ads_api;
   userSettings: typeof userSettings;
   users: typeof users;
 }>;

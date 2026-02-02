@@ -168,7 +168,6 @@ export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
                   endAngle={0}
                   innerRadius={50}
                   outerRadius={70}
-                  domain={[0, 100]}
                 >
                   <PolarRadiusAxis tick={false} tickLine={false} axisLine={false} domain={[0, 100]}>
                     <Label

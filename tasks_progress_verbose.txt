@@ -881,3 +881,35 @@ Deployed: 17:09:37 - Convex functions ready
 Committed: 2632765
 
 Now correctly uses DataForSEO for domain initialization!
+
+---
+
+S0022. Task #52 - Add manual refresh buttons for visibility
+
+User requested: "mozesz dorobic przyciski do tego?" (can you add buttons for this?)
+
+Implementation:
+1. Added button to Visibility tab header (similar to Backlinks tab pattern)
+2. Created handleFetchVisibility handler that:
+   - Fetches both discovered keywords AND visibility history in parallel
+   - Shows toast notifications for progress/success/errors
+   - Uses domain settings (location, language) from domain object
+3. Added state management: isFetchingVisibility
+4. Added action hooks: fetchVisibilityAction, fetchVisibilityHistoryAction
+
+UI Pattern:
+- Header section with title, description, and "Refresh Visibility" button
+- Button shows "Fetching..." state when loading
+- Disabled when already fetching or domain not loaded
+- Success toast shows: "Fetched X discovered keywords, Y months history"
+
+Files modified:
+- src/app/(dashboard)/domains/[domainId]/page.tsx
+
+Benefits:
+- Users can manually refresh visibility data on demand
+- No need to wait for automatic refresh
+- Works alongside automatic initialization
+- Clear feedback with toast notifications
+
+Committed: 898673f
