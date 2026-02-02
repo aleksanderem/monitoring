@@ -1049,7 +1049,7 @@ export const getTopKeywords = query({
 
 /**
  * Internal action that runs automatically after domain creation
- * Fetches initial keyword suggestions and visibility history from SE Ranking
+ * Fetches initial keyword suggestions and visibility history from DataForSEO
  */
 export const initializeDomainData = internalAction({
   args: {
@@ -1061,43 +1061,44 @@ export const initializeDomainData = internalAction({
     console.log(`[INIT] Starting automatic initialization for domain: ${args.domain}`);
 
     try {
-      // 1. Fetch discovered keywords (top 100 by traffic)
-      console.log(`[INIT] Fetching discovered keywords...`);
-      const keywordsResult = await ctx.runAction(api.seranking.fetchDomainKeywords, {
+      // 1. Fetch domain visibility (discovered keywords the domain ranks for)
+      console.log(`[INIT] Fetching domain visibility and discovered keywords...`);
+      const visibilityResult = await ctx.runAction(api.dataforseo.fetchAndStoreVisibility, {
         domainId: args.domainId,
         domain: args.domain,
         location: args.location,
-        limit: 100,
-      });
-
-      if (keywordsResult.success) {
-        console.log(`[INIT] ✓ Successfully fetched ${keywordsResult.totalFound || 0} discovered keywords`);
-      } else {
-        console.error(`[INIT] ✗ Failed to fetch keywords: ${keywordsResult.error}`);
-      }
-
-      // 2. Fetch visibility history (historical position distribution)
-      console.log(`[INIT] Fetching visibility history...`);
-      const visibilityResult = await ctx.runAction(api.seranking.fetchVisibilityHistory, {
-        domainId: args.domainId,
-        domain: args.domain,
-        location: args.location,
+        language: "pl", // TODO: use domain language setting
       });
 
       if (visibilityResult.success) {
-        console.log(`[INIT] ✓ Successfully fetched ${visibilityResult.datesStored || 0} visibility history entries`);
+        console.log(`[INIT] ✓ Successfully fetched ${visibilityResult.count || 0} discovered keywords`);
       } else {
         console.error(`[INIT] ✗ Failed to fetch visibility: ${visibilityResult.error}`);
       }
 
+      // 2. Fetch visibility history (12 months of position distribution)
+      console.log(`[INIT] Fetching 12 months of visibility history...`);
+      const historyResult = await ctx.runAction(api.dataforseo.fetchAndStoreVisibilityHistory, {
+        domainId: args.domainId,
+        domain: args.domain,
+        location: args.location,
+        language: "pl", // TODO: use domain language setting
+      });
+
+      if (historyResult.success) {
+        console.log(`[INIT] ✓ Successfully fetched ${historyResult.datesStored || 0} months of visibility history`);
+      } else {
+        console.error(`[INIT] ✗ Failed to fetch history: ${historyResult.error}`);
+      }
+
       // 3. Log completion
-      const successCount = (keywordsResult.success ? 1 : 0) + (visibilityResult.success ? 1 : 0);
+      const successCount = (visibilityResult.success ? 1 : 0) + (historyResult.success ? 1 : 0);
       console.log(`[INIT] Initialization complete: ${successCount}/2 tasks successful`);
 
       // Log to system logs
       await ctx.runMutation(internal.logs.logSystemMessage, {
         level: successCount === 2 ? "info" : "warning",
-        message: `Domain initialization for ${args.domain}: ${successCount}/2 tasks successful`,
+        message: `Domain initialization for ${args.domain}: ${successCount}/2 tasks successful (discovered ${visibilityResult.count || 0} keywords, ${historyResult.datesStored || 0} months history)`,
         eventType: "domain_initialization",
       });
 
