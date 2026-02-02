@@ -863,3 +863,21 @@ Warnings: SE Ranking API key must be configured (SERANKING_API_KEY env var)
 Files modified: 
   - convex/onSite_actions.ts (zombie polling fix)
   - convex/domains.ts (auto-initialization)
+
+---
+
+S0022. CRITICAL FIX - Wrong API used!
+
+User caught the mistake: "kurna przecież my mamy DataForSeo Damnit!!!"
+I implemented auto-initialization using SE Ranking, but the project uses DataForSEO!
+
+Fix applied:
+- Changed from api.seranking.* to api.dataforseo.*
+- fetchDomainKeywords → fetchAndStoreVisibility
+- fetchVisibilityHistory → fetchAndStoreVisibilityHistory
+- Fixed return type properties: count (not keywordCount), datesStored (not monthsStored)
+
+Deployed: 17:09:37 - Convex functions ready
+Committed: 2632765
+
+Now correctly uses DataForSEO for domain initialization!

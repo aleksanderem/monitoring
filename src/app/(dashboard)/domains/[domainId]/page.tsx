@@ -142,7 +142,12 @@ export default function DomainDetailPage() {
   // Content gaps queries
   const gapSummary = useQuery(api.contentGaps_queries.getGapSummary, { domainId });
 
+  // Visibility data fetching actions
+  const fetchVisibilityAction = useAction(api.dataforseo.fetchAndStoreVisibility);
+  const fetchVisibilityHistoryAction = useAction(api.dataforseo.fetchAndStoreVisibilityHistory);
+
   const [isFetchingBacklinks, setIsFetchingBacklinks] = useState(false);
+  const [isFetchingVisibility, setIsFetchingVisibility] = useState(false);
   const [backlinksPage, setBacklinksPage] = useState(1);
   const backlinksPageSize = 50;
 
@@ -163,6 +168,50 @@ export default function DomainDetailPage() {
       console.error(error);
     } finally {
       setIsFetchingBacklinks(false);
+    }
+  };
+
+  const handleFetchVisibility = async () => {
+    if (!domain) return;
+
+    try {
+      setIsFetchingVisibility(true);
+      toast.info("Fetching visibility data...");
+
+      // Fetch both discovered keywords and visibility history in parallel
+      const [visibilityResult, historyResult] = await Promise.all([
+        fetchVisibilityAction({
+          domainId,
+          domain: domain.domain,
+          location: domain.settings.location,
+          language: domain.settings.language,
+        }),
+        fetchVisibilityHistoryAction({
+          domainId,
+          domain: domain.domain,
+          location: domain.settings.location,
+          language: domain.settings.language,
+        }),
+      ]);
+
+      const messages: string[] = [];
+      if (visibilityResult.success) {
+        messages.push(`${visibilityResult.count || 0} discovered keywords`);
+      }
+      if (historyResult.success) {
+        messages.push(`${historyResult.datesStored || 0} months history`);
+      }
+
+      if (messages.length > 0) {
+        toast.success(`Fetched ${messages.join(", ")}`);
+      } else {
+        toast.error("Failed to fetch visibility data");
+      }
+    } catch (error) {
+      toast.error("Failed to fetch visibility data");
+      console.error(error);
+    } finally {
+      setIsFetchingVisibility(false);
     }
   };
 
@@ -409,6 +458,25 @@ export default function DomainDetailPage() {
             {/* Visibility Tab */}
             <TabPanel id="visibility">
               <div className="flex flex-col gap-6">
+                {/* Header with Fetch Button */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-primary">Domain Visibility</h2>
+                    <p className="text-sm text-tertiary">
+                      Track keyword rankings and visibility metrics
+                    </p>
+                  </div>
+                  <Button
+                    size="md"
+                    color="primary"
+                    iconLeading={RefreshCcw01}
+                    onClick={handleFetchVisibility}
+                    disabled={isFetchingVisibility || !domain}
+                  >
+                    {isFetchingVisibility ? "Fetching..." : "Refresh Visibility"}
+                  </Button>
+                </div>
+
                 {/* Visibility Statistics */}
                 <VisibilityStats
                   stats={visibilityStats || {
