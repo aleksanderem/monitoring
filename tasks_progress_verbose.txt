@@ -810,3 +810,56 @@ Issue resolution:
 Next actions: User can now trigger the queued Instant Pages scan if needed
 Warnings: Instant Pages scans don't auto-process - they need scanSelectedUrls call
 Files modified: convex/onSite_actions.ts (added defensive checks)
+
+---
+
+S0022. Task #51 Implementation - Auto-fetch keywords/visibility:
+
+Problem: User reported that after adding a domain, there's no automatic fetching of:
+- Keywords/phrases (discovered keywords from SE Ranking)
+- Visibility data (historical position distribution)
+
+Solution Implemented:
+1. Created new internal action: initializeDomainData
+   - Located at end of domains.ts
+   - Schedules automatically after domain creation (runAfter 0ms)
+   - Fetches 2 types of data in parallel:
+     a) Discovered keywords (top 100 by traffic) via SE Ranking
+     b) Visibility history (monthly snapshots) via SE Ranking
+
+2. Modified domain creation mutations:
+   - createDomain (line 103): Added scheduler call after insert
+   - create (line 837): Added scheduler call after insert
+   - Both pass domainId, domain name, and location to initialization action
+
+3. Logging:
+   - Console logs with [INIT] prefix for debugging
+   - System logs for success/failure tracking
+   - Reports X/2 tasks successful
+
+Files modified:
+- convex/domains.ts (added initializeDomainData action, modified 2 mutations)
+
+Deployed: 16:59:22 - Convex functions ready
+
+---
+
+=== SESSION S0022 HANDOFF === 2026-02-02T22:45:00Z
+Status: completed
+Current state: All 3 tasks passing
+Tasks completed:
+  1. Fix zombie polling job - added defensive checks in pollScanStatus
+  2. Add defensive error handling - checks scan exists before updating
+  3. Auto-fetch keywords/visibility - schedules initializeDomainData after domain creation
+
+How to test new feature:
+  1. Create a new domain in UI
+  2. Check Convex logs for [INIT] messages
+  3. Verify "Discovered Keywords" section populates automatically
+  4. Verify visibility chart shows historical data
+
+Next actions: User can now add domains and they'll auto-populate with data
+Warnings: SE Ranking API key must be configured (SERANKING_API_KEY env var)
+Files modified: 
+  - convex/onSite_actions.ts (zombie polling fix)
+  - convex/domains.ts (auto-initialization)

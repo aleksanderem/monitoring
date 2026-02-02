@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query, action, internalQuery, internalMutation } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { mutation, query, action, internalQuery, internalMutation, internalAction } from "./_generated/server";
+import { api, internal } from "./_generated/api";
 import { auth } from "./auth";
 import { checkKeywordLimit } from "./limits";
 import type { Id } from "./_generated/dataModel";
@@ -100,12 +100,21 @@ export const createDomain = mutation({
       projectId: args.projectId,
     });
 
-    return await ctx.db.insert("domains", {
+    const domainId = await ctx.db.insert("domains", {
       projectId: args.projectId,
       domain: args.domain,
       settings: args.settings,
       createdAt: Date.now(),
     });
+
+    // Schedule automatic initial data fetch (keywords + visibility)
+    await ctx.scheduler.runAfter(0, internal.domains.initializeDomainData, {
+      domainId,
+      domain: args.domain,
+      location: args.settings.location,
+    });
+
+    return domainId;
   },
 });
 
@@ -836,6 +845,13 @@ export const create = mutation({
       createdAt: Date.now(),
     });
 
+    // Schedule automatic initial data fetch (keywords + visibility)
+    await ctx.scheduler.runAfter(0, internal.domains.initializeDomainData, {
+      domainId,
+      domain: args.domain,
+      location: "Poland",
+    });
+
     return domainId;
   },
 });
@@ -965,7 +981,7 @@ export const getVisibilityStats = query({
 
 // Get top keywords by position ranges
 export const getTopKeywords = query({
-  args: { 
+  args: {
     domainId: v.id("domains"),
     limit: v.optional(v.number()),
     positionRange: v.optional(v.object({
@@ -994,8 +1010,8 @@ export const getTopKeywords = query({
 
         const latestPosition = positions[0]?.position || null;
         const previousPosition = positions[1]?.position || null;
-        const change = latestPosition && previousPosition 
-          ? previousPosition - latestPosition 
+        const change = latestPosition && previousPosition
+          ? previousPosition - latestPosition
           : null;
 
         return {
@@ -1013,9 +1029,9 @@ export const getTopKeywords = query({
     // Filter by position range if provided
     let filtered = keywordsWithPositions.filter(k => k.position !== null);
     if (args.positionRange) {
-      filtered = filtered.filter(k => 
-        k.position !== null && 
-        k.position >= args.positionRange!.min && 
+      filtered = filtered.filter(k =>
+        k.position !== null &&
+        k.position >= args.positionRange!.min &&
         k.position <= args.positionRange!.max
       );
     }
@@ -1024,5 +1040,76 @@ export const getTopKeywords = query({
     return filtered
       .sort((a, b) => (a.position || 999) - (b.position || 999))
       .slice(0, limit);
+  },
+});
+
+// =================================================================
+// Automatic Domain Initialization (Keywords + Visibility)
+// =================================================================
+
+/**
+ * Internal action that runs automatically after domain creation
+ * Fetches initial keyword suggestions and visibility history from SE Ranking
+ */
+export const initializeDomainData = internalAction({
+  args: {
+    domainId: v.id("domains"),
+    domain: v.string(),
+    location: v.string(),
+  },
+  handler: async (ctx, args) => {
+    console.log(`[INIT] Starting automatic initialization for domain: ${args.domain}`);
+
+    try {
+      // 1. Fetch discovered keywords (top 100 by traffic)
+      console.log(`[INIT] Fetching discovered keywords...`);
+      const keywordsResult = await ctx.runAction(api.seranking.fetchDomainKeywords, {
+        domainId: args.domainId,
+        domain: args.domain,
+        location: args.location,
+        limit: 100,
+      });
+
+      if (keywordsResult.success) {
+        console.log(`[INIT] ✓ Successfully fetched ${keywordsResult.totalFound || 0} discovered keywords`);
+      } else {
+        console.error(`[INIT] ✗ Failed to fetch keywords: ${keywordsResult.error}`);
+      }
+
+      // 2. Fetch visibility history (historical position distribution)
+      console.log(`[INIT] Fetching visibility history...`);
+      const visibilityResult = await ctx.runAction(api.seranking.fetchVisibilityHistory, {
+        domainId: args.domainId,
+        domain: args.domain,
+        location: args.location,
+      });
+
+      if (visibilityResult.success) {
+        console.log(`[INIT] ✓ Successfully fetched ${visibilityResult.datesStored || 0} visibility history entries`);
+      } else {
+        console.error(`[INIT] ✗ Failed to fetch visibility: ${visibilityResult.error}`);
+      }
+
+      // 3. Log completion
+      const successCount = (keywordsResult.success ? 1 : 0) + (visibilityResult.success ? 1 : 0);
+      console.log(`[INIT] Initialization complete: ${successCount}/2 tasks successful`);
+
+      // Log to system logs
+      await ctx.runMutation(internal.logs.logSystemMessage, {
+        level: successCount === 2 ? "info" : "warning",
+        message: `Domain initialization for ${args.domain}: ${successCount}/2 tasks successful`,
+        eventType: "domain_initialization",
+      });
+
+    } catch (error) {
+      console.error(`[INIT] Error during domain initialization:`, error);
+
+      // Log error to system logs
+      await ctx.runMutation(internal.logs.logSystemMessage, {
+        level: "error",
+        message: `Domain initialization failed for ${args.domain}: ${error instanceof Error ? error.message : "Unknown error"}`,
+        eventType: "domain_initialization_error",
+      });
+    }
   },
 });

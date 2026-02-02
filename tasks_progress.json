@@ -15,18 +15,25 @@
       "status": "passing",
       "created_session": "S0022",
       "last_updated_session": "S0022"
+    },
+    {
+      "id": 51,
+      "name": "auto_fetch_keywords_visibility_on_domain_creation",
+      "status": "passing",
+      "created_session": "S0022",
+      "last_updated_session": "S0022"
     }
   ],
-  "reason": "FIXED: Added defensive checks in pollScanStatus and updateScanProgress to detect deleted scans. Zombie polling job stopped successfully. No more infinite retry loops.",
-  "thinking_process": "Added 3 defensive checks: (1) Check scan exists at start of pollScanStatus, (2) Check scan exists in updateScanProgress before patch, (3) Check scan exists in error handler before scheduling retry. Verified fix works - zombie polling stopped at 16:53:21 with message 'Scan no longer exists - stopping polling'.",
-  "connected_tasks": [49, 50],
+  "reason": "COMPLETED: Added automatic domain initialization. Modified createDomain and create mutations to schedule initializeDomainData action that fetches keywords and visibility from SE Ranking immediately after domain creation.",
+  "thinking_process": "Implementation: (1) Added internalAction import, (2) Created initializeDomainData internal action, (3) Scheduled it in both domain creation mutations using ctx.scheduler.runAfter(0, ...), (4) Action fetches top 100 keywords by traffic and full visibility history, (5) Logs results to console and system logs. Deployed successfully at 16:59:22.",
+  "connected_tasks": [49, 50, 51],
   "how_to_test": [
     {
       "id": 1,
-      "name": "Verify polling stops retrying on nonexistent scan",
-      "status": "done",
-      "is_ok": "true",
-      "data_for_next_step": ["Verified: Last zombie poll at 16:53:21", "No retries after defensive check deployed", "Log shows: 'Scan no longer exists - stopping polling'"],
+      "name": "Test auto-initialization on domain creation",
+      "status": "not_started",
+      "is_ok": null,
+      "data_for_next_step": ["Create new domain in UI", "Check Convex logs for [INIT] messages", "Verify discovered keywords appear in domain", "Verify visibility history chart has data"],
       "session_id": "S0022"
     }
   ]
