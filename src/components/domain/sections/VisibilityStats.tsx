@@ -114,7 +114,11 @@ export function VisibilityStats({ stats, isLoading }: VisibilityStatsProps) {
         value={stats.top3Count}
         icon={TrendUp02}
         iconColor="green"
-        secondaryText={`${((stats.top3Count / stats.totalKeywords) * 100).toFixed(1)}% of keywords`}
+        secondaryText={
+          stats.totalKeywords > 0
+            ? `${((stats.top3Count / stats.totalKeywords) * 100).toFixed(1)}% of keywords`
+            : "0% of keywords"
+        }
       />
 
       <StatCard
@@ -122,7 +126,11 @@ export function VisibilityStats({ stats, isLoading }: VisibilityStatsProps) {
         value={stats.top10Count}
         icon={Hash01}
         iconColor="blue"
-        secondaryText={`${((stats.top10Count / stats.totalKeywords) * 100).toFixed(1)}% of keywords`}
+        secondaryText={
+          stats.totalKeywords > 0
+            ? `${((stats.top10Count / stats.totalKeywords) * 100).toFixed(1)}% of keywords`
+            : "0% of keywords"
+        }
       />
     </div>
   );
