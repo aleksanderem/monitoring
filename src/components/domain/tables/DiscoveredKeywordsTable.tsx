@@ -409,9 +409,8 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                 const isExpanded = expandedRows.has(keyword._id);
 
                 return (
-                  <>
+                  <React.Fragment key={keyword._id}>
                     <tr
-                      key={keyword._id}
                       className="transition-colors hover:bg-secondary/30 cursor-pointer"
                       onMouseEnter={(e) => handleMouseEnter(keyword, e)}
                       onMouseLeave={handleMouseLeave}

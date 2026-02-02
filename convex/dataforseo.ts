@@ -1952,6 +1952,19 @@ export const fetchDomainVisibilityInternal = internalAction({
                 const serpInfo = item?.keyword_data?.serp_info;
                 const rankChanges = serp_item?.rank_changes;
 
+                // DEBUG: Log first keyword's rich data structure
+                if (rankedKeywords.length === 0) {
+                  console.log("=== FIRST KEYWORD DEBUG ===");
+                  console.log("keyword:", keyword);
+                  console.log("keywordInfo:", JSON.stringify(keywordInfo));
+                  console.log("keywordProps:", JSON.stringify(keywordProps));
+                  console.log("searchIntent:", JSON.stringify(searchIntent));
+                  console.log("serpInfo:", JSON.stringify(serpInfo));
+                  console.log("serp_item:", JSON.stringify(serp_item));
+                  console.log("rankChanges:", JSON.stringify(rankChanges));
+                  console.log("========================");
+                }
+
                 if (position && position > 0 && position <= 100) {
                   rankedKeywords.push({
                     keyword,
@@ -2058,6 +2071,16 @@ export const fetchDomainVisibilityInternal = internalAction({
                 url: `https://${normalizedDomain}`,
                 searchVolume: item.search_volume ?? 0,
                 date: dateTo,
+
+                // Extract ALL rich data from Google Ads API
+                competition: item.competition,
+                competitionLevel: item.competition_level,
+                cpc: item.cpc,
+                difficulty: item.keyword_difficulty,
+                intent: item.search_intent,
+
+                // Monthly searches
+                monthlySearches: item.monthly_searches,
               }));
           } else {
             console.log("[GOOGLE ADS API] ⚠️ No keyword suggestions found");
