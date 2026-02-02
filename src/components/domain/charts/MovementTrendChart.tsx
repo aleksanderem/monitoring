@@ -19,7 +19,7 @@ export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
   if (trend === undefined) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-        <h3 className="text-sm font-semibold text-primary">Position Movement Trend (30d)</h3>
+        <h3 className="text-sm font-semibold text-primary">Position Movement Trend (6 months)</h3>
         <LoadingState type="card" />
       </div>
     );
@@ -29,7 +29,7 @@ export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
   if (trend.length === 0) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-        <h3 className="text-sm font-semibold text-primary">Position Movement Trend (30d)</h3>
+        <h3 className="text-sm font-semibold text-primary">Position Movement Trend (6 months)</h3>
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <svg className="h-12 w-12 text-tertiary mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
@@ -49,7 +49,7 @@ export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-      <h3 className="text-sm font-semibold text-primary">Position Movement Trend (30d)</h3>
+      <h3 className="text-sm font-semibold text-primary">Position Movement Trend (6 months)</h3>
 
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">

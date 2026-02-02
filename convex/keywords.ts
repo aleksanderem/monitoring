@@ -156,9 +156,11 @@ export const getMovementTrend = query({
     days: v.optional(v.number())
   },
   handler: async (ctx, args) => {
-    const daysToFetch = args.days || 30;
+    // Note: domainVisibilityHistory stores MONTHLY data (first day of each month)
+    // So we need to fetch more months to have enough data points for the trend
+    const monthsToFetch = 6; // Get last 6 months of data
     const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysToFetch);
+    cutoffDate.setMonth(cutoffDate.getMonth() - monthsToFetch);
     const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
 
     // Get visibility history from domainVisibilityHistory table
