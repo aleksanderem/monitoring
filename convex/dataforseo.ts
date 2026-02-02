@@ -1654,13 +1654,37 @@ export const fetchDomainVisibilityInternal = internalAction({
     const login = process.env.DATAFORSEO_LOGIN;
     const password = process.env.DATAFORSEO_PASSWORD;
 
+    // Normalize domain - remove protocol and trailing slash
+    let normalizedDomain = args.domain
+      .replace(/^https?:\/\//, '')  // Remove http:// or https://
+      .replace(/^www\./, '')         // Remove www.
+      .replace(/\/$/, '');           // Remove trailing slash
+
     const now = new Date();
     const dateTo = args.dateTo || now.toISOString().split("T")[0];
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
     const dateFrom = args.dateFrom || sixMonthsAgo.toISOString().split("T")[0];
     const limit = args.limit || 100;
 
-    console.log(`=== fetchDomainVisibilityInternal: ${args.domain} ===`);
+    // Map common location names to DataForSEO location codes for more reliable API calls
+    const locationCodeMap: Record<string, number> = {
+      "Poland": 2616,
+      "United States": 2840,
+      "United Kingdom": 2826,
+      "Germany": 2276,
+      "France": 2250,
+      "Spain": 2724,
+      "Italy": 2380,
+      "Netherlands": 2528,
+    };
+
+    // Use location code if available, otherwise use location name
+    const locationParam = locationCodeMap[args.location]
+      ? { location_code: locationCodeMap[args.location] }
+      : { location_name: args.location };
+
+    console.log(`=== fetchDomainVisibilityInternal: ${normalizedDomain} (was: ${args.domain}) ===`);
+    console.log(`Location param:`, locationParam);
 
     if (!login || !password) {
       // Mock data
@@ -1672,7 +1696,7 @@ export const fetchDomainVisibilityInternal = internalAction({
       ].map((kw) => ({
         keyword: kw,
         position: Math.floor(Math.random() * 30) + 1,
-        url: `https://${args.domain}/${kw.replace(/\s+/g, '-')}`,
+        url: `https://${normalizedDomain}/${kw.replace(/\s+/g, '-')}`,
         searchVolume: Math.floor(Math.random() * 5000) + 100,
         date: dateTo,
       }));
@@ -1682,88 +1706,161 @@ export const fetchDomainVisibilityInternal = internalAction({
 
     try {
       const authHeader = btoa(`${login}:${password}`);
+      const now = new Date();
+      const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
 
-      // Use Ranked Keywords API - returns keywords a domain ranks for
-      const response = await fetch(`${DATAFORSEO_API_URL}/dataforseo_labs/google/ranked_keywords/live`, {
+      // STRATEGY: Try both APIs and merge results
+      // 1. Ranked Keywords API (has positions) - for domains with rankings
+      // 2. Google Ads API (has suggestions) - for all domains, especially new ones
+
+      console.log(`[HYBRID API] Fetching keywords for ${normalizedDomain}`);
+
+      // Step 1: Try Ranked Keywords API first (has position data)
+      const rankedPayload = {
+        target: normalizedDomain,
+        ...locationParam,
+        language_code: args.language,
+        historical_serp_mode: "all",
+        ignore_synonyms: true,
+        include_clickstream_data: true,
+        item_types: ["organic"],
+        load_rank_absolute: true,
+        limit: limit,
+      };
+
+      console.log("[RANKED API] Requesting ranked keywords...");
+      const rankedResponse = await fetch(`${DATAFORSEO_API_URL}/dataforseo_labs/google/ranked_keywords/live`, {
         method: "POST",
         headers: {
           "Authorization": `Basic ${authHeader}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify([{
-          target: args.domain,
-          location_name: args.location,
-          language_code: args.language,
-          limit: limit,
-          order_by: ["keyword_data.keyword_info.search_volume,desc"],
-        }]),
+        body: JSON.stringify([rankedPayload]),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Ranked Keywords API error:", response.status, errorText);
-        return { success: false, error: `API error: ${response.status}` };
+      let rankedKeywords: DomainVisibilityKeyword[] = [];
+      if (rankedResponse.ok) {
+        const rankedData = await rankedResponse.json();
+        const rankedTask = rankedData?.tasks?.[0];
+
+        if (rankedTask?.status_code === 20000) {
+          const rankedItems = rankedTask?.result?.[0]?.items;
+
+          if (Array.isArray(rankedItems) && rankedItems.length > 0) {
+            console.log(`[RANKED API] ✅ Found ${rankedItems.length} keywords with positions`);
+
+            // Process ranked keywords (have positions!)
+            for (const item of rankedItems) {
+              const keyword = item?.keyword_data?.keyword || item?.keyword;
+              if (!keyword) continue;
+
+              const rse = item.ranked_serp_element ?? item.ranked_serp_elements;
+              if (!rse) continue;
+
+              const elements = Array.isArray(rse) ? rse : [rse];
+
+              for (const el of elements) {
+                const serp_item = el?.serp_item ?? el;
+                if (!serp_item) continue;
+
+                const position = serp_item?.rank_absolute ?? serp_item?.rank_group ?? null;
+                const pageUrl = serp_item?.url || `https://${normalizedDomain}`;
+                const search_volume = item?.keyword_data?.keyword_info?.search_volume ?? null;
+
+                if (position && position > 0 && position <= 100) {
+                  rankedKeywords.push({
+                    keyword,
+                    position,
+                    url: pageUrl,
+                    searchVolume: search_volume,
+                    date: dateTo,
+                  });
+                  break; // Only take best position for this keyword
+                }
+              }
+            }
+            console.log(`[RANKED API] Processed ${rankedKeywords.length} keywords with valid positions`);
+          } else {
+            console.log("[RANKED API] ⚠️ No ranked keywords found (domain might be new or not ranking)");
+          }
+        }
       }
 
-      const data = await response.json();
-      console.log("Ranked Keywords response:", JSON.stringify({
-        status_code: data.status_code,
-        items_count: data.tasks?.[0]?.result?.[0]?.items?.length,
-      }));
+      // Step 2: Fetch Google Ads suggestions (always, as fallback and supplement)
+      const googleAdsPayload = {
+        target: normalizedDomain,
+        ...locationParam,
+        language_code: args.language,
+        date_from: oneYearAgo.toISOString().split("T")[0],
+        date_to: now.toISOString().split("T")[0],
+        search_partners: true,
+        sort_by: "search_volume",
+        include_adult_keywords: true,
+      };
 
-      if (data.status_code !== 20000 || !data.tasks?.[0]?.result?.[0]?.items) {
-        // Fallback to Keywords for Site
-        console.log("Trying Keywords for Site API as fallback");
+      console.log("[GOOGLE ADS API] Requesting keyword suggestions...");
+      const googleAdsResponse = await fetch(`${DATAFORSEO_API_URL}/keywords_data/google_ads/keywords_for_site/live`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Basic ${authHeader}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify([googleAdsPayload]),
+      });
 
-        const kwResponse = await fetch(`${DATAFORSEO_API_URL}/dataforseo_labs/google/keywords_for_site/live`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Basic ${authHeader}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify([{
-            target: args.domain,
-            location_name: args.location,
-            language_code: args.language,
-            limit: limit,
-          }]),
-        });
+      let googleAdsKeywords: DomainVisibilityKeyword[] = [];
+      if (googleAdsResponse.ok) {
+        const googleAdsData = await googleAdsResponse.json();
+        const googleAdsTask = googleAdsData?.tasks?.[0];
 
-        if (!kwResponse.ok) {
-          return { success: false, error: "Both APIs failed" };
+        if (googleAdsTask?.status_code === 20000) {
+          const googleAdsItems = googleAdsTask?.result;
+
+          if (Array.isArray(googleAdsItems) && googleAdsItems.length > 0) {
+            console.log(`[GOOGLE ADS API] ✅ Found ${googleAdsItems.length} keyword suggestions`);
+
+            googleAdsKeywords = googleAdsItems
+              .filter((item: any) => item?.keyword)
+              .map((item: any) => ({
+                keyword: item.keyword,
+                position: null, // Google Ads doesn't have position data
+                url: `https://${normalizedDomain}`,
+                searchVolume: item.search_volume ?? 0,
+                date: dateTo,
+              }));
+          } else {
+            console.log("[GOOGLE ADS API] ⚠️ No keyword suggestions found");
+          }
         }
-
-        const kwData = await kwResponse.json();
-        if (kwData.status_code !== 20000) {
-          return { success: false, error: kwData.status_message };
-        }
-
-        const items = kwData.tasks?.[0]?.result?.[0]?.items || [];
-        const keywords: DomainVisibilityKeyword[] = items.map((item: any) => ({
-          keyword: item.keyword,
-          position: item.keyword_info?.competition_level === "HIGH" ? 10 : 20, // Estimate
-          url: `https://${args.domain}`,
-          searchVolume: item.keyword_info?.search_volume,
-          date: dateTo,
-        }));
-
-        return { success: true, keywords, totalFound: keywords.length };
       }
 
-      // Process Ranked Keywords results
-      const items = data.tasks[0].result[0].items as HistoricalRankItem[];
-      const keywords: DomainVisibilityKeyword[] = items
-        .filter((item) => item.keyword_data?.keyword) // Filter out items without keyword
-        .map((item) => ({
-          keyword: item.keyword_data!.keyword, // Keyword is in keyword_data, not at top level
-          position: item.ranked_serp_element?.serp_item?.rank_absolute || 0,
-          url: item.ranked_serp_element?.serp_item?.url || `https://${args.domain}`,
-          searchVolume: item.keyword_data?.keyword_info?.search_volume,
-          date: dateTo,
-        }))
-        .filter(k => k.position > 0 && k.position <= 100);
+      // Step 3: Merge results - prefer ranked keywords (have positions), supplement with Google Ads suggestions
+      const keywordsMap = new Map<string, DomainVisibilityKeyword>();
 
-      return { success: true, keywords, totalFound: keywords.length };
+      // First, add all ranked keywords (priority - they have positions!)
+      for (const kw of rankedKeywords) {
+        keywordsMap.set(kw.keyword.toLowerCase(), kw);
+      }
+
+      // Then, add Google Ads keywords that aren't already in the map
+      for (const kw of googleAdsKeywords) {
+        const key = kw.keyword.toLowerCase();
+        if (!keywordsMap.has(key)) {
+          keywordsMap.set(key, kw);
+        }
+      }
+
+      const mergedKeywords = Array.from(keywordsMap.values())
+        .sort((a, b) => (b.searchVolume || 0) - (a.searchVolume || 0)) // Sort by search volume
+        .slice(0, limit); // Respect limit
+
+      console.log(`[HYBRID API] Final result: ${mergedKeywords.length} keywords (${rankedKeywords.length} with positions, ${googleAdsKeywords.length - (mergedKeywords.length - rankedKeywords.length)} suggestions)`);
+
+      if (mergedKeywords.length === 0) {
+        return { success: false, error: "No keywords found from either API" };
+      }
+
+      return { success: true, keywords: mergedKeywords, totalFound: mergedKeywords.length };
     } catch (error) {
       console.error("Error:", error);
       return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
@@ -1881,12 +1978,36 @@ export const fetchAndStoreVisibilityHistory = action({
     const login = process.env.DATAFORSEO_LOGIN;
     const password = process.env.DATAFORSEO_PASSWORD;
 
+    // Normalize domain - remove protocol and trailing slash
+    let normalizedDomain = args.domain
+      .replace(/^https?:\/\//, '')  // Remove http:// or https://
+      .replace(/^www\./, '')         // Remove www.
+      .replace(/\/$/, '');           // Remove trailing slash
+
     const now = new Date();
     const dateTo = now.toISOString().split("T")[0];
     const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1);
     const dateFrom = twelveMonthsAgo.toISOString().split("T")[0];
 
-    console.log(`=== fetchAndStoreVisibilityHistory: ${args.domain} (${dateFrom} to ${dateTo}) ===`);
+    // Map common location names to DataForSEO location codes
+    const locationCodeMap: Record<string, number> = {
+      "Poland": 2616,
+      "United States": 2840,
+      "United Kingdom": 2826,
+      "Germany": 2276,
+      "France": 2250,
+      "Spain": 2724,
+      "Italy": 2380,
+      "Netherlands": 2528,
+    };
+
+    // Use location code if available, otherwise use location name
+    const locationParam = locationCodeMap[args.location]
+      ? { location_code: locationCodeMap[args.location] }
+      : { location_name: args.location };
+
+    console.log(`=== fetchAndStoreVisibilityHistory: ${normalizedDomain} (was: ${args.domain}) (${dateFrom} to ${dateTo}) ===`);
+    console.log(`Location param:`, locationParam);
 
     if (!login || !password) {
       // Generate mock historical data for dev mode
@@ -1931,6 +2052,15 @@ export const fetchAndStoreVisibilityHistory = action({
     try {
       const authHeader = btoa(`${login}:${password}`);
 
+      const historyPayload = {
+        target: normalizedDomain,
+        ...locationParam,
+        language_code: args.language,
+        date_from: dateFrom,
+        date_to: dateTo,
+      };
+      console.log("Historical Rank Overview API REQUEST:", JSON.stringify(historyPayload, null, 2));
+
       // Use Historical Rank Overview API for aggregate visibility metrics
       const response = await fetch(`${DATAFORSEO_API_URL}/dataforseo_labs/google/historical_rank_overview/live`, {
         method: "POST",
@@ -1938,13 +2068,7 @@ export const fetchAndStoreVisibilityHistory = action({
           "Authorization": `Basic ${authHeader}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify([{
-          target: args.domain,
-          location_name: args.location,
-          language_code: args.language,
-          date_from: dateFrom,
-          date_to: dateTo,
-        }]),
+        body: JSON.stringify([historyPayload]),
       });
 
       if (!response.ok) {
@@ -1954,16 +2078,37 @@ export const fetchAndStoreVisibilityHistory = action({
       }
 
       const data = await response.json();
-      console.log("Historical Rank Overview response:", JSON.stringify({
-        status_code: data.status_code,
-        items_count: data.tasks?.[0]?.result?.[0]?.items?.length,
-      }));
+      console.log("Historical Rank Overview FULL RESPONSE:", JSON.stringify(data, null, 2));
 
-      if (data.status_code !== 20000 || !data.tasks?.[0]?.result?.[0]?.items) {
-        return { success: false, error: data.status_message || "No historical data found" };
+      // Handle both response structures
+      let items: any[] = [];
+      let responseStructure = 'unknown';
+
+      if (Array.isArray(data)) {
+        items = data[0]?.items ?? [];
+        responseStructure = 'labs_array';
+      } else if (data?.items) {
+        items = data.items;
+        responseStructure = 'direct_items';
+      } else if (data?.tasks?.[0]?.result?.[0]?.items) {
+        items = data.tasks[0].result[0].items;
+        responseStructure = 'tasks';
       }
 
-      const items = data.tasks[0].result[0].items;
+      // Handle null
+      if (!items || items === null) {
+        items = [];
+      }
+
+      console.log("Historical Rank Overview response summary:", JSON.stringify({
+        response_structure: responseStructure,
+        items_count: items.length,
+        has_items: items.length > 0,
+      }));
+
+      if (items.length === 0) {
+        return { success: false, error: "No historical data found" };
+      }
       // Historical Rank Overview returns year/month fields, not date
       const history: HistoricalVisibilityItem[] = items
         .filter((item: any) => item.year && item.month)
