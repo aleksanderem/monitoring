@@ -63,24 +63,29 @@ export function MonthlySearchTrendChart({ monthlySearches }: MonthlySearchTrendC
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border-secondary))" />
             <XAxis
               dataKey="displayLabel"
-              stroke="hsl(var(--text-tertiary))"
+              stroke="#9CA3AF"
+              tick={{ fill: '#9CA3AF' }}
               fontSize={12}
               tickLine={false}
             />
             <YAxis
-              stroke="hsl(var(--text-tertiary))"
+              stroke="#9CA3AF"
+              tick={{ fill: '#9CA3AF' }}
               fontSize={12}
               tickLine={false}
               tickFormatter={(value) => value.toLocaleString()}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: 'hsl(var(--background-primary))',
-                border: '1px solid hsl(var(--border-secondary))',
+                backgroundColor: '#1F2937',
+                border: '1px solid #374151',
                 borderRadius: '8px',
-                fontSize: '12px'
+                fontSize: '12px',
+                color: '#F9FAFB',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
               }}
-              labelStyle={{ color: 'hsl(var(--text-primary))', fontWeight: 600 }}
+              labelStyle={{ color: '#F9FAFB', fontWeight: 600, marginBottom: '4px' }}
+              itemStyle={{ color: '#E5E7EB' }}
               formatter={(value: number | undefined) => [value ? value.toLocaleString() : '0', 'Search Volume']}
             />
             <Line
