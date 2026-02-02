@@ -151,13 +151,16 @@ export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
             },
           } satisfies ChartConfig;
 
-          const chartData = [{ value: score }];
+          // Structure data to show value out of 100 max
+          const chartData = [
+            { name: metric.key, value: score, fill: gaugeColor }
+          ];
 
           return (
             <div key={metric.key} className="flex flex-col items-center">
               <ChartContainer
                 config={chartConfig}
-                className="mx-auto aspect-square w-full max-w-[140px]"
+                className="mx-auto h-[140px] w-[140px]"
               >
                 <RadialBarChart
                   data={chartData}
@@ -165,8 +168,9 @@ export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
                   endAngle={0}
                   innerRadius={50}
                   outerRadius={70}
+                  domain={[0, 100]}
                 >
-                  <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
+                  <PolarRadiusAxis tick={false} tickLine={false} axisLine={false} domain={[0, 100]}>
                     <Label
                       content={({ viewBox }) => {
                         if (viewBox && "cx" in viewBox && "cy" in viewBox) {
