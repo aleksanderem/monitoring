@@ -12,7 +12,7 @@ export function KeywordTooltip({ keyword, position }: KeywordTooltipProps) {
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        transform: 'translate(10px, -50%)',
+        transform: 'translate(-100%, -50%) translateX(-10px)',
       }}
     >
       <div className="rounded-lg border border-secondary bg-primary shadow-xl p-3 min-w-[280px] max-w-[320px]">

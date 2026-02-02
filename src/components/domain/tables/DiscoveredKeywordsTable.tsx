@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
+import { toast } from "sonner";
 import {
   ChevronUp,
   ChevronDown,
@@ -84,6 +85,19 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
   const [difficultyFilter, setDifficultyFilter] = useState<string>("all");
 
   const keywords = useQuery(api.dataforseo.getDiscoveredKeywords, { domainId });
+  const addKeywordMutation = useMutation(api.keywords.addKeyword);
+
+  const handleAddToMonitor = async (keyword: any) => {
+    try {
+      await addKeywordMutation({
+        domainId,
+        phrase: keyword.keyword,
+      });
+      toast.success(`Added "${keyword.keyword}" to monitoring`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add keyword");
+    }
+  };
 
   const toggleColumn = (column: keyof ColumnVisibility) => {
     setColumnVisibility((prev) => ({ ...prev, [column]: !prev[column] }));
@@ -105,7 +119,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
     const rect = event.currentTarget.getBoundingClientRect();
     setHoveredKeyword({
       keyword,
-      position: { x: rect.right, y: rect.top + rect.height / 2 },
+      position: { x: rect.left, y: rect.top + rect.height / 2 },
     });
   };
 
@@ -531,7 +545,10 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                           <Button
                             size="sm"
                             color="secondary"
-                            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                            onClick={(e: React.MouseEvent) => {
+                              e.stopPropagation();
+                              handleAddToMonitor(keyword);
+                            }}
                           >
                             Add to Monitor
                           </Button>
