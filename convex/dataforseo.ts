@@ -2072,12 +2072,13 @@ export const fetchDomainVisibilityInternal = internalAction({
                 searchVolume: item.search_volume ?? 0,
                 date: dateTo,
 
-                // Extract ALL rich data from Google Ads API
-                competition: item.competition,
-                competitionLevel: item.competition_level,
+                // Extract rich data from Google Ads API
+                // Note: Google Ads has different field names than Ranked Keywords
+                competition: item.competition_index ? item.competition_index / 100 : undefined, // 0-100 to 0-1
+                competitionLevel: item.competition, // "LOW", "MEDIUM", "HIGH"
                 cpc: item.cpc,
-                difficulty: item.keyword_difficulty,
-                intent: item.search_intent,
+                difficulty: undefined, // Google Ads doesn't have keyword_difficulty
+                intent: undefined, // Google Ads doesn't have search_intent
 
                 // Monthly searches
                 monthlySearches: item.monthly_searches,
