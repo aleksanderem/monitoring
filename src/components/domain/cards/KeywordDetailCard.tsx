@@ -122,10 +122,10 @@ export function KeywordDetailCard({ keyword }: KeywordDetailCardProps) {
               <dd className="text-sm font-semibold text-primary">#{keyword.position || keyword.bestPosition}</dd>
             </div>
           )}
-          {keyword.previousRankAbsolute && (
+          {(keyword.previousRankAbsolute || keyword.previousPosition) && (
             <div className="flex justify-between items-center">
               <dt className="text-xs text-tertiary">Previous Position</dt>
-              <dd className="text-sm text-tertiary">#{keyword.previousRankAbsolute}</dd>
+              <dd className="text-sm text-tertiary">#{keyword.previousRankAbsolute || keyword.previousPosition}</dd>
             </div>
           )}
           {keyword.pageRank && (
