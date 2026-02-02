@@ -67,6 +67,7 @@ import { OnSiteSection } from "@/components/domain/sections/OnSiteSection";
 import { GapSummaryCards } from "@/components/domain/cards/GapSummaryCards";
 // import { ContentGapsTable } from "@/components/domain/tables/ContentGapsTable";
 import { CompetitorManagementSection } from "@/components/domain/sections/CompetitorManagementSection";
+import { AddKeywordsModal } from "@/components/domain/modals/AddKeywordsModal";
 import { CompetitorOverviewChart } from "@/components/domain/charts/CompetitorOverviewChart";
 import { CompetitorKeywordGapTable } from "@/components/domain/tables/CompetitorKeywordGapTable";
 import { ForecastSummaryCard } from "@/components/domain/cards/ForecastSummaryCard";
@@ -149,6 +150,7 @@ export default function DomainDetailPage() {
 
   const [isFetchingBacklinks, setIsFetchingBacklinks] = useState(false);
   const [isFetchingVisibility, setIsFetchingVisibility] = useState(false);
+  const [isAddKeywordsModalOpen, setIsAddKeywordsModalOpen] = useState(false);
   const [backlinksPage, setBacklinksPage] = useState(1);
   const backlinksPageSize = 50;
 
@@ -436,10 +438,20 @@ export default function DomainDetailPage() {
             {/* Monitoring Tab */}
             <TabPanel id="monitoring">
               <div className="flex flex-col gap-8">
-                {/* Page Title with Live Badge */}
-                <div className="flex items-center gap-3">
-                  <h2 className="text-lg font-semibold text-primary">Keyword Monitoring</h2>
-                  <LiveBadge size="md" />
+                {/* Header with Add Keywords Button */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-lg font-semibold text-primary">Keyword Monitoring</h2>
+                    <LiveBadge size="md" />
+                  </div>
+                  <Button
+                    size="md"
+                    color="primary"
+                    iconLeading={Plus}
+                    onClick={() => setIsAddKeywordsModalOpen(true)}
+                  >
+                    Add Keywords
+                  </Button>
                 </div>
 
                 {/* Charts Section */}
@@ -859,6 +871,13 @@ export default function DomainDetailPage() {
           </Dialog>
         </Modal>
       </ModalOverlay>
+
+      {/* Add Keywords Modal */}
+      <AddKeywordsModal
+        domainId={domainId}
+        isOpen={isAddKeywordsModalOpen}
+        onClose={() => setIsAddKeywordsModalOpen(false)}
+      />
     </main>
   );
 }
