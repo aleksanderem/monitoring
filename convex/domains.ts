@@ -986,42 +986,32 @@ export const getTopKeywords = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 10;
 
-    // Get all keywords for this domain
-    const keywords = await ctx.db
-      .query("keywords")
+    // Get all discovered keywords with actual rankings (bestPosition !== 999)
+    const discoveredKeywords = await ctx.db
+      .query("discoveredKeywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .filter((q) => q.eq(q.field("status"), "active"))
+      .filter((q) => q.neq(q.field("bestPosition"), 999))
       .collect();
 
-    // Get latest position for each keyword
-    const keywordsWithPositions = await Promise.all(
-      keywords.map(async (keyword) => {
-        const positions = await ctx.db
-          .query("keywordPositions")
-          .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-          .order("desc")
-          .take(2);
+    // Map to expected format
+    const keywordsWithPositions = discoveredKeywords.map((keyword) => {
+      const change = keyword.previousPosition && keyword.bestPosition
+        ? keyword.previousPosition - keyword.bestPosition
+        : null;
 
-        const latestPosition = positions[0]?.position || null;
-        const previousPosition = positions[1]?.position || null;
-        const change = latestPosition && previousPosition
-          ? previousPosition - latestPosition
-          : null;
-
-        return {
-          _id: keyword._id,
-          phrase: keyword.phrase,
-          position: latestPosition,
-          previousPosition,
-          change,
-          volume: 0, // TODO: Add volume to keywords schema
-          difficulty: 0, // TODO: Add difficulty to keywords schema
-        };
-      })
-    );
+      return {
+        _id: keyword._id,
+        phrase: keyword.keyword,
+        position: keyword.bestPosition,
+        previousPosition: keyword.previousPosition || null,
+        change,
+        volume: keyword.searchVolume || 0,
+        difficulty: keyword.difficulty || 0,
+      };
+    });
 
     // Filter by position range if provided
-    let filtered = keywordsWithPositions.filter(k => k.position !== null);
+    let filtered = keywordsWithPositions.filter(k => k.position !== null && k.position > 0 && k.position <= 100);
     if (args.positionRange) {
       filtered = filtered.filter(k =>
         k.position !== null &&

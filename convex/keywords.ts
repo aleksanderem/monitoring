@@ -117,9 +117,11 @@ export const getKeywordWithHistory = query({
 export const getPositionDistribution = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
-    const keywords = await ctx.db
-      .query("keywords")
+    // Get all discovered keywords with actual rankings (bestPosition !== 999)
+    const discoveredKeywords = await ctx.db
+      .query("discoveredKeywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .filter((q) => q.neq(q.field("bestPosition"), 999))
       .collect();
 
     const distribution = {
@@ -131,23 +133,16 @@ export const getPositionDistribution = query({
       pos100plus: 0,
     };
 
-    for (const keyword of keywords) {
-      // Get latest position for this keyword
-      const latestPosition = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .order("desc")
-        .first();
+    for (const keyword of discoveredKeywords) {
+      const pos = keyword.bestPosition;
 
-      if (!latestPosition?.position) continue;
-
-      const pos = latestPosition.position;
-      if (pos <= 3) distribution.top3++;
-      else if (pos <= 10) distribution.pos4_10++;
-      else if (pos <= 20) distribution.pos11_20++;
-      else if (pos <= 50) distribution.pos21_50++;
-      else if (pos <= 100) distribution.pos51_100++;
-      else distribution.pos100plus++;
+      // Only process valid positions
+      if (pos > 0 && pos <= 3) distribution.top3++;
+      else if (pos > 3 && pos <= 10) distribution.pos4_10++;
+      else if (pos > 10 && pos <= 20) distribution.pos11_20++;
+      else if (pos > 20 && pos <= 50) distribution.pos21_50++;
+      else if (pos > 50 && pos <= 100) distribution.pos51_100++;
+      else if (pos > 100) distribution.pos100plus++;
     }
 
     return distribution;
@@ -161,59 +156,15 @@ export const getMovementTrend = query({
     days: v.optional(v.number())
   },
   handler: async (ctx, args) => {
-    const daysToFetch = args.days || 30;
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysToFetch);
-    const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
+    // TODO: Implement historical tracking for discovered keywords
+    // Currently discoveredKeywords only stores current position + previousPosition
+    // For daily trend we would need to store historical snapshots
 
-    const keywords = await ctx.db
-      .query("keywords")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .collect();
-
-    // Build a map of date -> {gainers, losers}
-    const trendMap = new Map<string, { gainers: number; losers: number }>();
-
-    for (const keyword of keywords) {
-      const positions = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .filter((q) => q.gte(q.field("date"), cutoffDateStr))
-        .collect();
-
-      // Sort by date to compare consecutive positions
-      positions.sort((a, b) => a.date.localeCompare(b.date));
-
-      for (let i = 1; i < positions.length; i++) {
-        const prev = positions[i - 1];
-        const curr = positions[i];
-        const dateKey = curr.date;
-
-        if (!trendMap.has(dateKey)) {
-          trendMap.set(dateKey, { gainers: 0, losers: 0 });
-        }
-
-        const trend = trendMap.get(dateKey)!;
-
-        // Only count if both positions are valid numbers
-        if (curr.position !== null && prev.position !== null) {
-          if (curr.position < prev.position) {
-            trend.gainers++;
-          } else if (curr.position > prev.position) {
-            trend.losers++;
-          }
-        }
-      }
-    }
-
-    // Convert map to array sorted by date
-    return Array.from(trendMap.entries())
-      .map(([date, data]) => ({
-        date: new Date(date).getTime(),
-        gainers: data.gainers,
-        losers: data.losers,
-      }))
-      .sort((a, b) => a.date - b.date);
+    // For now, return empty array
+    // This can be implemented later by:
+    // 1. Storing daily snapshots in domainVisibilityHistory
+    // 2. Or tracking position changes in a separate table
+    return [];
   },
 });
 
