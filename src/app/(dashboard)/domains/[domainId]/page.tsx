@@ -52,6 +52,7 @@ import { Activity } from "@untitledui/icons";
 import { VisibilityStats } from "@/components/domain/sections/VisibilityStats";
 import { TopKeywordsTable } from "@/components/domain/tables/TopKeywordsTable";
 import { AllKeywordsTable } from "@/components/domain/tables/AllKeywordsTable";
+import { DiscoveredKeywordsTable } from "@/components/domain/tables/DiscoveredKeywordsTable";
 import { Top10KeywordsSection } from "@/components/domain/sections/Top10KeywordsSection";
 import { BacklinksSummaryStats } from "@/components/domain/sections/BacklinksSummaryStats";
 import { PlatformTypesChart } from "@/components/domain/charts/PlatformTypesChart";
@@ -492,8 +493,8 @@ export default function DomainDetailPage() {
                   isLoading={visibilityStats === undefined}
                 />
 
-                {/* All Keywords Table - Full Width */}
-                <AllKeywordsTable domainId={domainId} />
+                {/* Discovered Keywords Table with Rich Data - Full Width */}
+                <DiscoveredKeywordsTable domainId={domainId} />
 
                 {/* Top 10 Keywords Section - Full Width */}
                 <Top10KeywordsSection

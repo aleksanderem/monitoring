@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, internalAction, internalMutation, internalQuery } from "./_generated/server";
+import { action, internalAction, internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
@@ -1747,22 +1747,29 @@ export const storeDiscoveredKeywords = internalMutation({
 });
 
 // Get discovered keywords for a domain (not yet being monitored)
-export const getDiscoveredKeywords = internalQuery({
+export const getDiscoveredKeywords = query({
   args: {
     domainId: v.id("domains"),
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db
+    let queryBuilder = ctx.db
       .query("discoveredKeywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId));
 
-    const keywords = await query.collect();
+    const keywords = await queryBuilder.collect();
 
+    let filtered = keywords;
     if (args.status) {
-      return keywords.filter(k => k.status === args.status);
+      filtered = keywords.filter(k => k.status === args.status);
     }
-    return keywords;
+
+    // Sort by position (null/999 at the end)
+    return filtered.sort((a, b) => {
+      const aPos = a.bestPosition ?? 999;
+      const bPos = b.bestPosition ?? 999;
+      return aPos - bPos;
+    });
   },
 });
 
