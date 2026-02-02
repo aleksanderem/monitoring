@@ -1902,6 +1902,9 @@ export const fetchDomainVisibilityInternal = internalAction({
         item_types: ["organic"],
         load_rank_absolute: true,
         limit: limit,
+        // Request rich keyword data
+        include_serp_info: true,
+        calculate_rectangles: true,
       };
 
       console.log("[RANKED API] Requesting ranked keywords...");

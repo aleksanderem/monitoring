@@ -116,10 +116,10 @@ export function KeywordDetailCard({ keyword }: KeywordDetailCardProps) {
           <h4 className="text-sm font-semibold text-primary">Ranking Info</h4>
         </div>
         <dl className="space-y-2">
-          {keyword.position && (
+          {(keyword.position || keyword.bestPosition) && (
             <div className="flex justify-between items-center">
               <dt className="text-xs text-tertiary">Current Position</dt>
-              <dd className="text-sm font-semibold text-primary">#{keyword.position}</dd>
+              <dd className="text-sm font-semibold text-primary">#{keyword.position || keyword.bestPosition}</dd>
             </div>
           )}
           {keyword.previousRankAbsolute && (
