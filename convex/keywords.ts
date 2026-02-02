@@ -156,15 +156,26 @@ export const getMovementTrend = query({
     days: v.optional(v.number())
   },
   handler: async (ctx, args) => {
-    // TODO: Implement historical tracking for discovered keywords
-    // Currently discoveredKeywords only stores current position + previousPosition
-    // For daily trend we would need to store historical snapshots
+    const daysToFetch = args.days || 30;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysToFetch);
+    const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
 
-    // For now, return empty array
-    // This can be implemented later by:
-    // 1. Storing daily snapshots in domainVisibilityHistory
-    // 2. Or tracking position changes in a separate table
-    return [];
+    // Get visibility history from domainVisibilityHistory table
+    const history = await ctx.db
+      .query("domainVisibilityHistory")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .filter((q) => q.gte(q.field("date"), cutoffDateStr))
+      .collect();
+
+    // Map to chart format
+    return history
+      .map((entry) => ({
+        date: new Date(entry.date).getTime(),
+        gainers: entry.metrics.is_up || 0,
+        losers: entry.metrics.is_down || 0,
+      }))
+      .sort((a, b) => a.date - b.date);
   },
 });
 
