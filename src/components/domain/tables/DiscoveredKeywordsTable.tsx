@@ -528,7 +528,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 );
               })}
             </tbody>
