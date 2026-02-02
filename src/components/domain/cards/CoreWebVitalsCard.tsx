@@ -183,14 +183,16 @@ export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
                               <tspan
                                 x={viewBox.cx}
                                 y={(viewBox.cy || 0) - 8}
-                                className="fill-foreground text-2xl font-bold"
+                                className="text-2xl font-bold"
+                                fill="#ffffff"
                               >
                                 {displayValue}
                               </tspan>
                               <tspan
                                 x={viewBox.cx}
                                 y={(viewBox.cy || 0) + 12}
-                                className="fill-muted-foreground text-xs"
+                                className="text-xs"
+                                fill="#a1a1aa"
                               >
                                 {metric.abbreviation}
                               </tspan>
