@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle, AlertCircle, XCircle } from "@untitledui/icons";
-import { RadialBarChart, RadialBar, Label, PolarGrid, ResponsiveContainer } from "recharts";
+import { RadialBarChart, RadialBar, Label, PolarRadiusAxis } from "recharts";
 import { ChartContainer, ChartConfig } from "@/components/ui/chart";
 
 interface CoreWebVitalsCardProps {
@@ -131,37 +131,42 @@ export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
             ? `${(metric.value / 1000).toFixed(2)}s`
             : `${metric.value.toFixed(0)}ms`;
 
+          // Use direct colors to test - convert from oklch to hex
+          // Dark mode chart colors from globals.css:
+          // chart-1: oklch(0.488 0.243 264.376) -> purple/red for poor
+          // chart-2: oklch(0.696 0.17 162.48) -> cyan/green for good
+          // chart-4: oklch(0.627 0.265 303.9) -> magenta for needs improvement
+          const colorMap = {
+            "chart-1": "#8b5cf6", // Purple for poor
+            "chart-2": "#22d3ee", // Cyan for good
+            "chart-4": "#e879f9", // Magenta for needs improvement
+          };
+
+          const gaugeColor = colorMap[chartKey as keyof typeof colorMap];
+
           const chartConfig = {
             value: {
               label: metric.abbreviation,
-              color: `hsl(var(--${chartKey}))`,
+              color: gaugeColor,
             },
           } satisfies ChartConfig;
 
-          const chartData = [{ value: score, fill: `var(--color-value)` }];
+          const chartData = [{ value: score }];
 
           return (
             <div key={metric.key} className="flex flex-col items-center">
               <ChartContainer
                 config={chartConfig}
-                className="mx-auto aspect-square h-[140px] w-[140px]"
+                className="mx-auto aspect-square w-full max-w-[140px]"
               >
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadialBarChart
-                    data={chartData}
-                    startAngle={90}
-                    endAngle={450}
-                    innerRadius={55}
-                    outerRadius={70}
-                  >
-                    <PolarGrid
-                      gridType="circle"
-                      radialLines={false}
-                      stroke="none"
-                      className="first:fill-muted last:fill-background"
-                      polarRadius={[58, 52]}
-                    />
-                    <RadialBar dataKey="value" background cornerRadius={10} />
+                <RadialBarChart
+                  data={chartData}
+                  startAngle={180}
+                  endAngle={0}
+                  innerRadius={50}
+                  outerRadius={70}
+                >
+                  <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
                     <Label
                       content={({ viewBox }) => {
                         if (viewBox && "cx" in viewBox && "cy" in viewBox) {
@@ -170,18 +175,17 @@ export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
                               x={viewBox.cx}
                               y={viewBox.cy}
                               textAnchor="middle"
-                              dominantBaseline="middle"
                             >
                               <tspan
                                 x={viewBox.cx}
-                                y={viewBox.cy}
+                                y={(viewBox.cy || 0) - 8}
                                 className="fill-foreground text-2xl font-bold"
                               >
                                 {displayValue}
                               </tspan>
                               <tspan
                                 x={viewBox.cx}
-                                y={(viewBox.cy || 0) + 20}
+                                y={(viewBox.cy || 0) + 12}
                                 className="fill-muted-foreground text-xs"
                               >
                                 {metric.abbreviation}
@@ -191,8 +195,15 @@ export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
                         }
                       }}
                     />
-                  </RadialBarChart>
-                </ResponsiveContainer>
+                  </PolarRadiusAxis>
+                  <RadialBar
+                    dataKey="value"
+                    background
+                    cornerRadius={10}
+                    fill="var(--color-value)"
+                    className="stroke-transparent stroke-2"
+                  />
+                </RadialBarChart>
               </ChartContainer>
 
               <div className="mt-3 flex items-center gap-1.5">
