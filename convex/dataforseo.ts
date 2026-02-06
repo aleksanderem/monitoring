@@ -3374,3 +3374,422 @@ export const storeOnsiteAnalysisInternal = internalMutation({
     }
   },
 });
+
+/**
+ * Internal mutation to store SERP results for a keyword
+ */
+export const storeSerpResultsInternal = internalMutation({
+  args: {
+    keywordId: v.id("keywords"),
+    domainId: v.id("domains"),
+    yourDomain: v.string(),
+    results: v.array(
+      v.object({
+        // Ranking info
+        position: v.number(),
+        rankGroup: v.optional(v.number()),
+        rankAbsolute: v.optional(v.number()),
+
+        // Basic info
+        domain: v.string(),
+        url: v.string(),
+        title: v.optional(v.string()),
+        description: v.optional(v.string()),
+        breadcrumb: v.optional(v.string()),
+        websiteName: v.optional(v.string()),
+        relativeUrl: v.optional(v.string()),
+        mainDomain: v.optional(v.string()),
+
+        // Highlighted text
+        highlighted: v.optional(v.array(v.string())),
+
+        // Sitelinks
+        sitelinks: v.optional(
+          v.array(
+            v.object({
+              title: v.optional(v.string()),
+              description: v.optional(v.string()),
+              url: v.optional(v.string()),
+            })
+          )
+        ),
+
+        // Traffic & Value
+        etv: v.optional(v.number()),
+        estimatedPaidTrafficCost: v.optional(v.number()),
+
+        // SERP Features
+        isFeaturedSnippet: v.optional(v.boolean()),
+        isMalicious: v.optional(v.boolean()),
+        isWebStory: v.optional(v.boolean()),
+        ampVersion: v.optional(v.boolean()),
+
+        // Rating
+        rating: v.optional(
+          v.object({
+            ratingType: v.optional(v.string()),
+            value: v.optional(v.number()),
+            votesCount: v.optional(v.number()),
+            ratingMax: v.optional(v.number()),
+          })
+        ),
+
+        // Price
+        price: v.optional(
+          v.object({
+            current: v.optional(v.number()),
+            regular: v.optional(v.number()),
+            maxValue: v.optional(v.number()),
+            currency: v.optional(v.string()),
+            isPriceRange: v.optional(v.boolean()),
+            displayedPrice: v.optional(v.string()),
+          })
+        ),
+
+        // Timestamps
+        timestamp: v.optional(v.string()),
+
+        // About this result
+        aboutThisResult: v.optional(
+          v.object({
+            url: v.optional(v.string()),
+            source: v.optional(v.string()),
+            sourceInfo: v.optional(v.string()),
+            sourceUrl: v.optional(v.string()),
+          })
+        ),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const today = new Date(now).toISOString().split("T")[0];
+
+    // Delete old results for this keyword from today
+    const existingResults = await ctx.db
+      .query("keywordSerpResults")
+      .withIndex("by_keyword_date", (q) =>
+        q.eq("keywordId", args.keywordId).eq("date", today)
+      )
+      .collect();
+
+    for (const result of existingResults) {
+      await ctx.db.delete(result._id);
+    }
+
+    // Insert new results with all fields
+    for (const result of args.results) {
+      const isYourDomain = result.domain === args.yourDomain;
+
+      await ctx.db.insert("keywordSerpResults", {
+        keywordId: args.keywordId,
+        domainId: args.domainId,
+        date: today,
+
+        // Ranking info
+        position: result.position,
+        rankGroup: result.rankGroup,
+        rankAbsolute: result.rankAbsolute,
+
+        // Basic info
+        domain: result.domain,
+        url: result.url,
+        title: result.title,
+        description: result.description,
+        breadcrumb: result.breadcrumb,
+        websiteName: result.websiteName,
+        relativeUrl: result.relativeUrl,
+        mainDomain: result.mainDomain,
+
+        // Highlighted text
+        highlighted: result.highlighted,
+
+        // Sitelinks
+        sitelinks: result.sitelinks,
+
+        // Traffic & Value
+        etv: result.etv,
+        estimatedPaidTrafficCost: result.estimatedPaidTrafficCost,
+
+        // SERP Features
+        isFeaturedSnippet: result.isFeaturedSnippet,
+        isMalicious: result.isMalicious,
+        isWebStory: result.isWebStory,
+        ampVersion: result.ampVersion,
+
+        // Rating
+        rating: result.rating,
+
+        // Price
+        price: result.price,
+
+        // Timestamps
+        timestamp: result.timestamp,
+
+        // About this result
+        aboutThisResult: result.aboutThisResult,
+
+        // Your domain flag
+        isYourDomain,
+
+        fetchedAt: now,
+      });
+    }
+  },
+});
+
+/**
+ * Bulk fetch SERP results for monitored keywords
+ */
+export const bulkFetchSerpResults = action({
+  args: {
+    domainId: v.id("domains"),
+    keywordIds: v.optional(v.array(v.id("keywords"))),
+  },
+  handler: async (ctx, args) => {
+    // Get domain info
+    const domain = await ctx.runQuery(internal.domains.getDomainInternal, {
+      domainId: args.domainId,
+    });
+
+    if (!domain) {
+      throw new Error("Domain not found");
+    }
+
+    // Get keywords to fetch SERP data for
+    let keywords: Array<{ _id: Id<"keywords">; phrase: string }>;
+
+    if (args.keywordIds && args.keywordIds.length > 0) {
+      // Fetch specific keywords
+      keywords = [];
+      for (const keywordId of args.keywordIds) {
+        const keyword = await ctx.runQuery(
+          internal.keywords.getKeywordInternal,
+          { keywordId }
+        );
+        if (keyword) {
+          keywords.push({ _id: keyword._id, phrase: keyword.phrase });
+        }
+      }
+    } else {
+      // Fetch all monitored keywords for this domain
+      keywords = await ctx.runQuery(
+        internal.keywords.getMonitoredKeywordsInternal,
+        { domainId: args.domainId }
+      );
+    }
+
+    if (keywords.length === 0) {
+      throw new Error("No keywords to fetch SERP data for");
+    }
+
+    // Get API credentials from environment
+    const login = process.env.DATAFORSEO_LOGIN;
+    const password = process.env.DATAFORSEO_PASSWORD;
+
+    if (!login || !password) {
+      throw new Error(
+        "DataForSEO credentials not configured. Please set DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD environment variables."
+      );
+    }
+
+    const auth = btoa(`${login}:${password}`);
+
+    // Process keywords in batches of 10
+    const batchSize = 10;
+    const batches: Array<Array<{ _id: Id<"keywords">; phrase: string }>> = [];
+
+    for (let i = 0; i < keywords.length; i += batchSize) {
+      batches.push(keywords.slice(i, i + batchSize));
+    }
+
+    let totalProcessed = 0;
+    let totalErrors = 0;
+
+    for (const batch of batches) {
+      // Process each keyword individually (live/advanced only accepts 1 task per request)
+      for (const keyword of batch) {
+        try {
+          // Single task request
+          const task = {
+            keyword: keyword.phrase,
+            location_code: 2840, // USA - can be made configurable later
+            language_code: "en", // English - can be made configurable later
+            device: "desktop",
+            os: "windows",
+            depth: 100, // Get top 100 results
+          };
+
+          const response = await fetch(
+            "https://api.dataforseo.com/v3/serp/google/organic/live/advanced",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Basic ${auth}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify([task]), // Array with single task
+            }
+          );
+
+          if (!response.ok) {
+            console.error(
+              `DataForSEO SERP API error for "${keyword.phrase}": ${response.status} ${response.statusText}`
+            );
+            totalErrors++;
+            continue;
+          }
+
+          const data = await response.json();
+
+          if (data.status_code !== 20000) {
+            console.error(
+              `DataForSEO SERP API returned error status for "${keyword.phrase}": ${data.status_code}`
+            );
+            totalErrors++;
+            continue;
+          }
+
+          const taskResult = data.tasks?.[0];
+
+          if (!taskResult) {
+            console.error(
+              `No task result for keyword: ${keyword.phrase}`
+            );
+            totalErrors++;
+            continue;
+          }
+
+          if (taskResult.status_code !== 20000) {
+            console.error(
+              `SERP API error for keyword "${keyword.phrase}": status ${taskResult.status_code}, message: ${taskResult.status_message || 'unknown'}`
+            );
+            totalErrors++;
+            continue;
+          }
+
+          if (!taskResult.result?.[0]?.items) {
+            console.error(
+              `No SERP items returned for keyword: ${keyword.phrase}`
+            );
+            totalErrors++;
+            continue;
+          }
+
+          // Extract organic results with all available fields
+          const items = taskResult.result[0].items;
+          const organicResults = items
+            .filter((item: any) => item.type === "organic")
+            .slice(0, 100) // Take top 100
+            .map((item: any) => ({
+              // Ranking info
+              position: item.rank_absolute || item.rank_group || 0,
+              rankGroup: item.rank_group,
+              rankAbsolute: item.rank_absolute,
+
+              // Basic info
+              domain: item.domain || (item.url ? new URL(item.url).hostname : ""),
+              url: item.url || "",
+              title: item.title,
+              description: item.description,
+              breadcrumb: item.breadcrumb,
+              websiteName: item.website_name,
+              relativeUrl: item.relative_url,
+              mainDomain: item.main_domain,
+
+              // Highlighted text
+              highlighted: item.highlighted,
+
+              // Sitelinks
+              sitelinks: item.links
+                ?.filter((link: any) => link.type === "sitelink")
+                ?.map((link: any) => ({
+                  title: link.title,
+                  description: link.description,
+                  url: link.url,
+                })),
+
+              // Traffic & Value
+              etv: item.etv,
+              estimatedPaidTrafficCost: item.estimated_paid_traffic_cost,
+
+              // SERP Features
+              isFeaturedSnippet: item.is_featured_snippet,
+              isMalicious: item.is_malicious,
+              isWebStory: item.is_web_story,
+              ampVersion: item.amp_version,
+
+              // Rating
+              rating: item.rating
+                ? {
+                    ratingType: item.rating.rating_type,
+                    value: item.rating.value,
+                    votesCount: item.rating.votes_count,
+                    ratingMax: item.rating.rating_max,
+                  }
+                : undefined,
+
+              // Price
+              price: item.price
+                ? {
+                    current: item.price.current,
+                    regular: item.price.regular,
+                    maxValue: item.price.max_value,
+                    currency: item.price.currency,
+                    isPriceRange: item.price.is_price_range,
+                    displayedPrice: item.price.displayed_price,
+                  }
+                : undefined,
+
+              // Timestamps
+              timestamp: item.timestamp,
+
+              // About this result
+              aboutThisResult: item.about_this_result
+                ? {
+                    url: item.about_this_result.url,
+                    source: item.about_this_result.source,
+                    sourceInfo: item.about_this_result.source_info,
+                    sourceUrl: item.about_this_result.source_url,
+                  }
+                : undefined,
+            }));
+
+          // Store results
+          try {
+            await ctx.runMutation(internal.dataforseo.storeSerpResultsInternal, {
+              keywordId: keyword._id,
+              domainId: args.domainId,
+              yourDomain: domain.domain,
+              results: organicResults,
+            });
+            totalProcessed++;
+          } catch (error) {
+            console.error(
+              `Failed to store SERP results for keyword ${keyword.phrase}:`,
+              error
+            );
+            totalErrors++;
+          }
+        } catch (error) {
+          console.error(
+            `Error fetching SERP data for keyword "${keyword.phrase}":`,
+            error
+          );
+          totalErrors++;
+        }
+      }
+
+      // Add delay between batches to avoid rate limiting
+      if (batches.indexOf(batch) < batches.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+
+    return {
+      totalKeywords: keywords.length,
+      processed: totalProcessed,
+      errors: totalErrors,
+    };
+  },
+});

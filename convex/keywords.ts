@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { checkKeywordLimit } from "./limits";
 import { requirePermission, getContextFromDomain, getContextFromKeyword } from "./permissions";
@@ -272,12 +272,12 @@ export const getMonitoringStats = query({
 
 // Get keyword monitoring data with sparklines and status
 export const getKeywordMonitoring = query({
-  args: { domainId: v.id("domains") },
+  args: { domainId: v.id("domains"), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .collect();
+      .take(args.limit ?? 100);
 
     const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
     const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
@@ -285,12 +285,20 @@ export const getKeywordMonitoring = query({
     const results = [];
 
     for (const keyword of keywords) {
-      // Get positions for the last 30 days for sparkline
+      // Try to find rich data from discoveredKeywords table FIRST
+      const discoveredKeyword = await ctx.db
+        .query("discoveredKeywords")
+        .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+        .filter((q) => q.eq(q.field("keyword"), keyword.phrase))
+        .first();
+
+      // Get only LAST 7 days for mini sparkline (not 30!)
       const positions = await ctx.db
         .query("keywordPositions")
         .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .filter((q) => q.gte(q.field("date"), new Date(thirtyDaysAgo).toISOString().split('T')[0]))
-        .collect();
+        .filter((q) => q.gte(q.field("date"), new Date(sevenDaysAgo).toISOString().split('T')[0]))
+        .order("desc")
+        .take(7);
 
       positions.sort((a, b) => a.date.localeCompare(b.date));
 
@@ -301,7 +309,11 @@ export const getKeywordMonitoring = query({
         .order("desc")
         .first();
 
-      const currentPosition = latestPosition?.position || null;
+      // Use monitoring position if available, otherwise fall back to discoveredKeywords bestPosition
+      const currentPosition = latestPosition?.position ||
+        (discoveredKeyword?.bestPosition && discoveredKeyword.bestPosition !== 999
+          ? discoveredKeyword.bestPosition
+          : null);
 
       // Get previous position (second most recent)
       const allPositionsDesc = await ctx.db
@@ -310,16 +322,34 @@ export const getKeywordMonitoring = query({
         .order("desc")
         .take(2);
 
-      const previousPosition = allPositionsDesc.length >= 2
-        ? allPositionsDesc[1].position
-        : null;
-      const change = currentPosition && previousPosition
-        ? previousPosition - currentPosition // Negative means dropped
-        : null;
+      // Use monitoring previous position if available, otherwise fall back to discoveredKeywords
+      let previousPosition: number | null = null;
+      if (allPositionsDesc.length >= 2) {
+        previousPosition = allPositionsDesc[1].position;
+      } else if (discoveredKeyword?.previousPosition !== undefined &&
+                 discoveredKeyword.previousPosition !== null &&
+                 discoveredKeyword.previousPosition !== 999) {
+        previousPosition = discoveredKeyword.previousPosition;
+      } else if (discoveredKeyword?.previousRankAbsolute !== undefined &&
+                 discoveredKeyword.previousRankAbsolute !== null &&
+                 discoveredKeyword.previousRankAbsolute !== 999) {
+        previousPosition = discoveredKeyword.previousRankAbsolute;
+      }
+
+      // Calculate change - use monitoring data first, then fall back to discoveredKeywords change
+      let change: number | null = null;
+      if (currentPosition && previousPosition) {
+        change = previousPosition - currentPosition; // Negative means dropped
+      } else if (discoveredKeyword?.isUp) {
+        // If we don't have exact change but know it went up, estimate based on isUp/isDown
+        change = 1; // Positive = improved
+      } else if (discoveredKeyword?.isDown) {
+        change = -1; // Negative = dropped
+      }
 
       // Determine status
       let status: "rising" | "stable" | "falling" | "new" = "stable";
-      if (previousPosition === null && currentPosition !== null) {
+      if (discoveredKeyword?.isNew || (!latestPosition && discoveredKeyword)) {
         status = "new";
       } else if (change && change > 0) {
         status = "rising"; // Improved (lower position number)
@@ -338,15 +368,9 @@ export const getKeywordMonitoring = query({
         position: p.position,
       }));
 
-      // Try to find rich data from discoveredKeywords table
-      const discoveredKeyword = await ctx.db
-        .query("discoveredKeywords")
-        .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-        .filter((q) => q.eq(q.field("keyword"), keyword.phrase))
-        .first();
-
       results.push({
         keywordId: keyword._id,
+        domainId: keyword.domainId,
         phrase: keyword.phrase,
         currentPosition,
         previousPosition,
@@ -354,14 +378,14 @@ export const getKeywordMonitoring = query({
         status,
         searchVolume: discoveredKeyword?.searchVolume || latestPosition?.searchVolume || null,
         difficulty: discoveredKeyword?.difficulty || latestPosition?.difficulty || null,
-        url: latestPosition?.url || null,
+        url: latestPosition?.url || discoveredKeyword?.url || null,
         positionHistory,
         lastUpdated: latestPosition?._creationTime || keyword._creationTime,
         potential,
         checkingStatus: keyword.checkingStatus,
 
         // Rich data from discoveredKeywords
-        cpc: discoveredKeyword?.cpc || null,
+        cpc: discoveredKeyword?.cpc || latestPosition?.cpc || null,
         etv: discoveredKeyword?.etv || null,
         competition: discoveredKeyword?.competition || null,
         competitionLevel: discoveredKeyword?.competitionLevel || null,
@@ -965,5 +989,166 @@ export const importKeywords = mutation({
     }
 
     return results;
+  },
+});
+
+/**
+ * Internal query to get a keyword by ID
+ */
+export const getKeywordInternal = internalQuery({
+  args: {
+    keywordId: v.id("keywords"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.keywordId);
+  },
+});
+
+/**
+ * Internal query to get all monitored keywords for a domain
+ */
+export const getMonitoredKeywordsInternal = internalQuery({
+  args: {
+    domainId: v.id("domains"),
+  },
+  handler: async (ctx, args) => {
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    return keywords.map((kw) => ({
+      _id: kw._id,
+      phrase: kw.phrase,
+    }));
+  },
+});
+
+/**
+ * Internal query to get keyword by phrase
+ */
+export const getKeywordByPhraseInternal = internalQuery({
+  args: {
+    domainId: v.id("domains"),
+    phrase: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const keyword = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .filter((q) => q.eq(q.field("phrase"), args.phrase))
+      .first();
+
+    return keyword;
+  },
+});
+
+/**
+ * Internal mutation to create a keyword
+ */
+export const createKeywordInternal = internalMutation({
+  args: {
+    domainId: v.id("domains"),
+    phrase: v.string(),
+    status: v.union(v.literal("active"), v.literal("paused"), v.literal("pending_approval")),
+    searchVolume: v.optional(v.number()),
+    difficulty: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const keywordId = await ctx.db.insert("keywords", {
+      domainId: args.domainId,
+      phrase: args.phrase,
+      status: args.status,
+      createdAt: Date.now(),
+      searchVolume: args.searchVolume,
+      difficulty: args.difficulty,
+    });
+
+    return keywordId;
+  },
+});
+
+/**
+ * Query to get SERP results for a keyword
+ */
+export const getSerpResultsForKeyword = query({
+  args: {
+    keywordId: v.id("keywords"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 10;
+
+    // Get the most recent SERP results for this keyword
+    const results = await ctx.db
+      .query("keywordSerpResults")
+      .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
+      .order("desc")
+      .take(100); // Get up to 100 results
+
+    if (results.length === 0) {
+      return null;
+    }
+
+    // Group by date and get the most recent date
+    const latestDate = results[0].date;
+    const latestResults = results.filter((r) => r.date === latestDate);
+
+    // Sort by position and take top N
+    const topResults = latestResults
+      .sort((a, b) => a.position - b.position)
+      .slice(0, limit);
+
+    return {
+      date: latestDate,
+      fetchedAt: results[0].fetchedAt,
+      results: topResults.map((r) => ({
+        // Ranking info
+        position: r.position,
+        rankGroup: r.rankGroup,
+        rankAbsolute: r.rankAbsolute,
+
+        // Basic info
+        domain: r.domain,
+        url: r.url,
+        title: r.title,
+        description: r.description,
+        breadcrumb: r.breadcrumb,
+        websiteName: r.websiteName,
+        relativeUrl: r.relativeUrl,
+        mainDomain: r.mainDomain,
+
+        // Highlighted text
+        highlighted: r.highlighted,
+
+        // Sitelinks
+        sitelinks: r.sitelinks,
+
+        // Traffic & Value
+        etv: r.etv,
+        estimatedPaidTrafficCost: r.estimatedPaidTrafficCost,
+
+        // SERP Features
+        isFeaturedSnippet: r.isFeaturedSnippet,
+        isMalicious: r.isMalicious,
+        isWebStory: r.isWebStory,
+        ampVersion: r.ampVersion,
+
+        // Rating
+        rating: r.rating,
+
+        // Price
+        price: r.price,
+
+        // Timestamps
+        timestamp: r.timestamp,
+
+        // About this result
+        aboutThisResult: r.aboutThisResult,
+
+        // Your domain flag
+        isYourDomain: r.isYourDomain,
+      })),
+    };
   },
 });

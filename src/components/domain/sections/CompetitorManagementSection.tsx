@@ -9,7 +9,7 @@ import { Dialog, Modal, ModalOverlay, DialogTrigger } from "@/components/applica
 import { CloseButton } from "@/components/base/buttons/close-button";
 import { Input } from "@/components/base/input/input";
 import { Badge } from "@/components/base/badges/badges";
-import { Plus, Trash01, PauseCircle, PlayCircle, Edit05, RefreshCcw01, InfoCircle } from "@untitledui/icons";
+import { Plus, Trash01, PauseCircle, PlayCircle, Edit05, InfoCircle, Target04, Link03 } from "@untitledui/icons";
 import { toast } from "sonner";
 import { Heading } from "react-aria-components";
 
@@ -23,13 +23,18 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
   const [competitorName, setCompetitorName] = useState("");
   const [editingCompetitor, setEditingCompetitor] = useState<{ id: Id<"competitors">; name: string } | null>(null);
   const [editName, setEditName] = useState("");
-  const [checkingPositions, setCheckingPositions] = useState<Set<string>>(new Set());
+  const [selectedCompetitors, setSelectedCompetitors] = useState<Set<Id<"competitors">>>(new Set());
 
-  const competitors = useQuery(api.queries.competitors.getCompetitorsByDomain, { domainId });
-  const addCompetitor = useMutation(api.mutations.competitors.addCompetitor);
-  const updateCompetitor = useMutation(api.mutations.competitors.updateCompetitor);
-  const removeCompetitor = useMutation(api.mutations.competitors.removeCompetitor);
-  const checkPositions = useAction(api.competitors_actions.checkCompetitorPositions);
+  const competitors = useQuery(api.competitors.getCompetitors, { domainId });
+  const addCompetitor = useMutation(api.competitors.addCompetitor);
+  const updateCompetitor = useMutation(api.competitors.updateCompetitor);
+  const removeCompetitor = useMutation(api.competitors.removeCompetitor);
+  const createContentGapJob = useMutation(api.competitorContentGapJobs.createContentGapJob);
+  const createBacklinksJob = useMutation(api.competitorBacklinksJobs.createBacklinksJob);
+
+  // Get all active jobs for this domain (called at top level, not in loop)
+  const contentGapJobs = useQuery(api.competitorContentGapJobs.getActiveJobsForDomain, { domainId });
+  const backlinksJobs = useQuery(api.competitorBacklinksJobs.getActiveJobsForDomain, { domainId });
 
   const handleAddCompetitor = async () => {
     if (!competitorDomain.trim()) {
@@ -80,28 +85,6 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
     }
   };
 
-  const handleCheckPositions = async (competitorId: Id<"competitors">, competitorName: string) => {
-    setCheckingPositions((prev) => new Set(prev).add(competitorId));
-    toast.info(`Checking positions for ${competitorName}...`);
-
-    try {
-      const result = await checkPositions({ competitorId });
-      if (result.processedCount === 0 && result.errors.length === 0) {
-        toast.info("No keywords to check. Add keywords to your domain first.");
-      } else {
-        toast.success(`Checked ${result.processedCount} of ${result.totalKeywords} keywords`);
-      }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to check positions");
-    } finally {
-      setCheckingPositions((prev) => {
-        const next = new Set(prev);
-        next.delete(competitorId);
-        return next;
-      });
-    }
-  };
-
   const handleEditCompetitor = (competitorId: Id<"competitors">, currentName: string) => {
     setEditingCompetitor({ id: competitorId, name: currentName });
     setEditName(currentName);
@@ -123,6 +106,90 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
     }
   };
 
+  const handleAnalyzeContentGap = async (competitorId: Id<"competitors">, competitorName: string) => {
+    try {
+      await createContentGapJob({ domainId, competitorId });
+      toast.success(`Content gap analysis job started for ${competitorName}`);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to start content gap analysis");
+    }
+  };
+
+  const handleFetchBacklinks = async (competitorId: Id<"competitors">, competitorName: string) => {
+    try {
+      await createBacklinksJob({ domainId, competitorId });
+      toast.success(`Backlinks fetch job started for ${competitorName}`);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to start backlinks fetch");
+    }
+  };
+
+  const handleToggleSelectAll = () => {
+    if (!competitors) return;
+
+    if (selectedCompetitors.size === competitors.length) {
+      setSelectedCompetitors(new Set());
+    } else {
+      setSelectedCompetitors(new Set(competitors.map(c => c._id)));
+    }
+  };
+
+  const handleToggleSelect = (competitorId: Id<"competitors">) => {
+    const newSelected = new Set(selectedCompetitors);
+    if (newSelected.has(competitorId)) {
+      newSelected.delete(competitorId);
+    } else {
+      newSelected.add(competitorId);
+    }
+    setSelectedCompetitors(newSelected);
+  };
+
+  const handleBulkPause = async () => {
+    if (selectedCompetitors.size === 0) return;
+
+    try {
+      for (const competitorId of selectedCompetitors) {
+        await updateCompetitor({ competitorId, status: "paused" });
+      }
+      toast.success(`Paused ${selectedCompetitors.size} competitor(s)`);
+      setSelectedCompetitors(new Set());
+    } catch (error: any) {
+      toast.error(error.message || "Failed to pause competitors");
+    }
+  };
+
+  const handleBulkResume = async () => {
+    if (selectedCompetitors.size === 0) return;
+
+    try {
+      for (const competitorId of selectedCompetitors) {
+        await updateCompetitor({ competitorId, status: "active" });
+      }
+      toast.success(`Resumed ${selectedCompetitors.size} competitor(s)`);
+      setSelectedCompetitors(new Set());
+    } catch (error: any) {
+      toast.error(error.message || "Failed to resume competitors");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedCompetitors.size === 0) return;
+
+    if (!confirm(`Are you sure you want to remove ${selectedCompetitors.size} competitor(s)? All historical data will be deleted.`)) {
+      return;
+    }
+
+    try {
+      for (const competitorId of selectedCompetitors) {
+        await removeCompetitor({ competitorId });
+      }
+      toast.success(`Removed ${selectedCompetitors.size} competitor(s)`);
+      setSelectedCompetitors(new Set());
+    } catch (error: any) {
+      toast.error(error.message || "Failed to remove competitors");
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -132,17 +199,32 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
             Monitor competitor rankings and discover keyword opportunities
           </p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)} size="sm" color="primary" iconLeading={Plus}>
-          Add Competitor
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedCompetitors.size > 0 && (
+            <>
+              <Button onClick={handleBulkResume} size="sm" color="secondary" iconLeading={PlayCircle}>
+                Resume ({selectedCompetitors.size})
+              </Button>
+              <Button onClick={handleBulkPause} size="sm" color="secondary" iconLeading={PauseCircle}>
+                Pause ({selectedCompetitors.size})
+              </Button>
+              <Button onClick={handleBulkDelete} size="sm" color="tertiary-destructive" iconLeading={Trash01}>
+                Delete ({selectedCompetitors.size})
+              </Button>
+            </>
+          )}
+          <Button onClick={() => setShowAddDialog(true)} size="sm" color="primary" iconLeading={Plus}>
+            Add Competitor
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-start gap-2 rounded-lg border border-brand-subtle bg-brand-subtle/10 p-3">
         <InfoCircle className="h-4 w-4 text-brand-secondary mt-0.5 shrink-0" />
         <p className="text-xs text-tertiary">
-          Competitors are tracked against all keywords in your domain. After adding a competitor,
-          click &quot;Check Positions&quot; to fetch their current rankings. Position data will
-          populate the charts and gap analysis below.
+          New competitors are paused by default. Click the play icon to activate tracking,
+          then use &quot;Content Gap&quot; and &quot;Backlinks&quot; buttons to analyze them.
+          Only active competitors can be analyzed.
         </p>
       </div>
 
@@ -157,44 +239,113 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
         </div>
       ) : (
         <div className="space-y-2">
-          {competitors.map((competitor) => (
+          {/* Select All Header */}
+          <div className="flex items-center gap-3 px-4 py-2 border border-secondary rounded-lg bg-secondary/30">
+            <input
+              type="checkbox"
+              checked={competitors.length > 0 && selectedCompetitors.size === competitors.length}
+              onChange={handleToggleSelectAll}
+              className="w-4 h-4 rounded border-utility-gray-300 text-brand-600 focus:ring-brand-500"
+            />
+            <span className="text-sm font-medium text-tertiary">
+              Select All ({competitors.length})
+            </span>
+          </div>
+
+          {/* Competitor List */}
+          {competitors.map((competitor) => {
+            // Find active jobs for this competitor
+            const contentGapJob = contentGapJobs?.find(job => job.competitorId === competitor._id);
+            const backlinksJob = backlinksJobs?.find(job => job.competitorId === competitor._id);
+
+            return (
             <div
               key={competitor._id}
               className="flex items-center justify-between p-4 border border-secondary rounded-lg hover:bg-secondary/50 transition-colors"
             >
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-medium text-primary">
-                    {competitor.name || competitor.competitorDomain}
-                  </h4>
-                  <Badge color={competitor.status === "active" ? "brand" : "gray"} size="sm">
-                    {competitor.status}
-                  </Badge>
-                </div>
+              <div className="flex items-center gap-3 flex-1">
+                <input
+                  type="checkbox"
+                  checked={selectedCompetitors.has(competitor._id)}
+                  onChange={() => handleToggleSelect(competitor._id)}
+                  className="w-4 h-4 rounded border-utility-gray-300 text-brand-600 focus:ring-brand-500"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-medium text-primary">
+                      {competitor.name || competitor.competitorDomain}
+                    </h4>
+                    <Badge color={competitor.status === "active" ? "brand" : "gray"} size="sm">
+                      {competitor.status}
+                    </Badge>
+                  </div>
                 <p className="text-sm text-tertiary">{competitor.competitorDomain}</p>
-                <div className="flex items-center gap-4 mt-2 text-xs text-tertiary">
-                  <span>{competitor.keywordCount} keywords tracked</span>
-                  {competitor.avgPosition && (
-                    <span>Avg position: {competitor.avgPosition}</span>
-                  )}
-                  {competitor.lastChecked && (
+                {competitor.lastCheckedAt && (
+                  <div className="flex items-center gap-4 mt-2 text-xs text-tertiary">
                     <span>
-                      Last checked: {new Date(competitor.lastChecked).toLocaleDateString()}
+                      Last checked: {new Date(competitor.lastCheckedAt).toLocaleDateString()}
                     </span>
-                  )}
-                </div>
+                  </div>
+                )}
+
+                {/* Job Progress Indicators */}
+                {(contentGapJob || backlinksJob) && (
+                  <div className="mt-2 space-y-1">
+                    {contentGapJob && (
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-brand-primary transition-all duration-300"
+                            style={{ width: contentGapJob.status === "completed" ? "100%" : "50%" }}
+                          />
+                        </div>
+                        <span className="text-xs text-tertiary min-w-[100px]">
+                          {contentGapJob.status === "processing" && "Analyzing gaps..."}
+                          {contentGapJob.status === "completed" && `${contentGapJob.opportunitiesFound || 0} opportunities`}
+                          {contentGapJob.status === "failed" && "Analysis failed"}
+                        </span>
+                      </div>
+                    )}
+                    {backlinksJob && (
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-utility-blue-600 transition-all duration-300"
+                            style={{ width: backlinksJob.status === "completed" ? "100%" : "50%" }}
+                          />
+                        </div>
+                        <span className="text-xs text-tertiary min-w-[100px]">
+                          {backlinksJob.status === "processing" && "Fetching backlinks..."}
+                          {backlinksJob.status === "completed" && `${backlinksJob.backlinksFound || 0} backlinks`}
+                          {backlinksJob.status === "failed" && "Fetch failed"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               </div>
 
               <div className="flex items-center gap-2">
                 <Button
                   color="secondary"
                   size="sm"
-                  onClick={() => handleCheckPositions(competitor._id, competitor.name || competitor.competitorDomain)}
-                  isDisabled={checkingPositions.has(competitor._id) || competitor.status !== "active"}
-                  title={competitor.status !== "active" ? "Activate competitor to check positions" : "Check keyword positions"}
-                  iconLeading={RefreshCcw01}
+                  onClick={() => handleAnalyzeContentGap(competitor._id, competitor.name || competitor.competitorDomain)}
+                  isDisabled={!!contentGapJob || competitor.status !== "active"}
+                  title="Analyze content gaps"
+                  iconLeading={Target04}
                 >
-                  {checkingPositions.has(competitor._id) ? "Checking..." : "Check Positions"}
+                  Content Gap
+                </Button>
+                <Button
+                  color="secondary"
+                  size="sm"
+                  onClick={() => handleFetchBacklinks(competitor._id, competitor.name || competitor.competitorDomain)}
+                  isDisabled={!!backlinksJob || competitor.status !== "active"}
+                  title="Fetch backlinks"
+                  iconLeading={Link03}
+                >
+                  Backlinks
                 </Button>
                 <Button
                   color="tertiary"
@@ -219,7 +370,8 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
                 />
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
       )}
 

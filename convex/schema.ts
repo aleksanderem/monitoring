@@ -132,6 +132,28 @@ export default defineSchema({
   }).index("by_domain", ["domainId"])
     .index("by_status", ["status"]),
 
+  // SERP fetching jobs (for bulk competitor analysis)
+  keywordSerpJobs: defineTable({
+    domainId: v.id("domains"),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed"),
+      v.literal("cancelled")
+    ),
+    totalKeywords: v.number(),
+    processedKeywords: v.number(),
+    failedKeywords: v.number(),
+    keywordIds: v.array(v.id("keywords")),
+    currentKeywordId: v.optional(v.id("keywords")),
+    createdAt: v.number(),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+  }).index("by_domain", ["domainId"])
+    .index("by_status", ["status"]),
+
   // Historical keyword positions
   keywordPositions: defineTable({
     keywordId: v.id("keywords"),
@@ -165,6 +187,86 @@ export default defineSchema({
   })
     .index("by_keyword", ["keywordId"])
     .index("by_keyword_date", ["keywordId", "date"]),
+
+  // SERP Results (top 100 organic results for each keyword)
+  keywordSerpResults: defineTable({
+    keywordId: v.id("keywords"),
+    domainId: v.id("domains"),
+    date: v.string(), // YYYY-MM-DD
+
+    // Ranking info
+    position: v.number(),
+    rankGroup: v.optional(v.number()),
+    rankAbsolute: v.optional(v.number()),
+
+    // Basic info
+    domain: v.string(),
+    url: v.string(),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    breadcrumb: v.optional(v.string()),
+    websiteName: v.optional(v.string()),
+    relativeUrl: v.optional(v.string()),
+    mainDomain: v.optional(v.string()),
+
+    // Highlighted text
+    highlighted: v.optional(v.array(v.string())),
+
+    // Sitelinks
+    sitelinks: v.optional(v.array(v.object({
+      title: v.optional(v.string()),
+      description: v.optional(v.string()),
+      url: v.optional(v.string()),
+    }))),
+
+    // Traffic & Value
+    etv: v.optional(v.number()),
+    estimatedPaidTrafficCost: v.optional(v.number()),
+
+    // SERP Features
+    isFeaturedSnippet: v.optional(v.boolean()),
+    isMalicious: v.optional(v.boolean()),
+    isWebStory: v.optional(v.boolean()),
+    ampVersion: v.optional(v.boolean()),
+
+    // Rating
+    rating: v.optional(v.object({
+      ratingType: v.optional(v.string()),
+      value: v.optional(v.number()),
+      votesCount: v.optional(v.number()),
+      ratingMax: v.optional(v.number()),
+    })),
+
+    // Price (for products)
+    price: v.optional(v.object({
+      current: v.optional(v.number()),
+      regular: v.optional(v.number()),
+      maxValue: v.optional(v.number()),
+      currency: v.optional(v.string()),
+      isPriceRange: v.optional(v.boolean()),
+      displayedPrice: v.optional(v.string()),
+    })),
+
+    // Timestamps
+    timestamp: v.optional(v.string()),
+
+    // About this result
+    aboutThisResult: v.optional(v.object({
+      url: v.optional(v.string()),
+      source: v.optional(v.string()),
+      sourceInfo: v.optional(v.string()),
+      sourceUrl: v.optional(v.string()),
+    })),
+
+    // Your domain flag
+    isYourDomain: v.boolean(),
+
+    fetchedAt: v.number(),
+  })
+    .index("by_keyword", ["keywordId"])
+    .index("by_keyword_date", ["keywordId", "date"])
+    .index("by_domain", ["domainId"])
+    .index("by_featured_snippet", ["keywordId", "isFeaturedSnippet"]),
 
   // Domain visibility history (aggregate metrics from Historical Rank Overview API)
   domainVisibilityHistory: defineTable({
@@ -991,6 +1093,251 @@ export default defineSchema({
     .index("by_keyword", ["keywordId"])
     .index("by_competitor_keyword", ["competitorId", "keywordId"])
     .index("by_competitor_keyword_date", ["competitorId", "keywordId", "date"]),
+
+  // =================================================================
+  // Competitor Backlinks
+  // =================================================================
+
+  // Competitor backlinks summary (aggregated stats)
+  competitorBacklinksSummary: defineTable({
+    competitorId: v.id("competitors"),
+    totalBacklinks: v.number(),
+    totalDomains: v.number(),
+    totalIps: v.number(),
+    totalSubnets: v.number(),
+    dofollow: v.number(),
+    nofollow: v.number(),
+    newBacklinks: v.optional(v.number()),
+    lostBacklinks: v.optional(v.number()),
+    avgInlinkRank: v.optional(v.number()),
+    fetchedAt: v.number(),
+  }).index("by_competitor", ["competitorId"]),
+
+  // Competitor backlinks distributions (TLD, platforms, countries, etc.)
+  competitorBacklinksDistributions: defineTable({
+    competitorId: v.id("competitors"),
+    tldDistribution: v.any(),
+    platformTypes: v.any(),
+    countries: v.any(),
+    linkTypes: v.any(),
+    linkAttributes: v.any(),
+    semanticLocations: v.any(),
+    fetchedAt: v.number(),
+  }).index("by_competitor", ["competitorId"]),
+
+  // Individual competitor backlinks
+  competitorBacklinks: defineTable({
+    competitorId: v.id("competitors"),
+    domainFrom: v.optional(v.string()),
+    urlFrom: v.string(),
+    urlTo: v.string(),
+    tldFrom: v.optional(v.string()),
+    anchor: v.optional(v.string()),
+    textPre: v.optional(v.string()),
+    textPost: v.optional(v.string()),
+    dofollow: v.optional(v.boolean()),
+    itemType: v.optional(v.string()),
+    rank: v.optional(v.number()),
+    pageFromRank: v.optional(v.number()),
+    domainFromRank: v.optional(v.number()),
+    backlink_spam_score: v.optional(v.number()),
+    firstSeen: v.optional(v.string()),
+    lastSeen: v.optional(v.string()),
+    isNew: v.optional(v.boolean()),
+    isLost: v.optional(v.boolean()),
+    pageFromTitle: v.optional(v.string()),
+    semanticLocation: v.optional(v.string()),
+    domainFromCountry: v.optional(v.string()),
+    fetchedAt: v.number(),
+  })
+    .index("by_competitor", ["competitorId"])
+    .index("by_competitor_urlFrom", ["competitorId", "urlFrom"])
+    .index("by_competitor_rank", ["competitorId", "rank"]),
+
+  // =================================================================
+  // Competitor Content Analysis (On-Page)
+  // =================================================================
+
+  // Competitor page analysis (on-page SEO analysis of competitor pages)
+  competitorPageAnalysis: defineTable({
+    competitorId: v.optional(v.id("competitors")), // Optional for keyword-specific reports
+    keywordId: v.id("keywords"), // The keyword this page ranks for
+    url: v.string(),
+    position: v.number(), // SERP position for this keyword
+
+    // Basic meta
+    title: v.optional(v.string()),
+    metaDescription: v.optional(v.string()),
+    h1: v.optional(v.string()),
+    canonical: v.optional(v.string()),
+
+    // Content metrics
+    wordCount: v.number(),
+    plainTextSize: v.optional(v.number()),
+    plainTextRate: v.optional(v.number()),
+
+    // Heading structure
+    htags: v.optional(v.object({
+      h1: v.array(v.string()),
+      h2: v.array(v.string()),
+      h3: v.optional(v.array(v.string())),
+      h4: v.optional(v.array(v.string())),
+    })),
+
+    // Links analysis
+    internalLinksCount: v.optional(v.number()),
+    externalLinksCount: v.optional(v.number()),
+
+    // Images
+    imagesCount: v.optional(v.number()),
+
+    // Performance
+    loadTime: v.optional(v.number()),
+    pageSize: v.optional(v.number()),
+
+    // Core Web Vitals
+    coreWebVitals: v.optional(v.object({
+      largestContentfulPaint: v.number(),
+      firstInputDelay: v.number(),
+      timeToInteractive: v.number(),
+      cumulativeLayoutShift: v.optional(v.number()),
+    })),
+
+    // OnPage score from DataForSEO
+    onpageScore: v.optional(v.number()),
+
+    // Readability
+    readabilityScores: v.optional(v.object({
+      automatedReadabilityIndex: v.number(),
+      fleschKincaidIndex: v.number(),
+    })),
+
+    // Schema/structured data
+    schemaTypes: v.optional(v.array(v.string())),
+
+    fetchedAt: v.number(),
+  })
+    .index("by_competitor", ["competitorId"])
+    .index("by_keyword", ["keywordId"])
+    .index("by_competitor_keyword", ["competitorId", "keywordId"]),
+
+  // =================================================================
+  // Competitor Analysis Reports (Keyword-Specific)
+  // =================================================================
+
+  // Competitor analysis reports - keyword-specific deep-dive
+  competitorAnalysisReports: defineTable({
+    domainId: v.id("domains"),
+    keywordId: v.id("keywords"),
+    keyword: v.string(), // Denormalized for easy display
+
+    // Analyzed competitor pages (selected from SERP)
+    competitorPages: v.array(v.object({
+      domain: v.string(),
+      url: v.string(),
+      position: v.number(),
+      pageAnalysisId: v.optional(v.id("competitorPageAnalysis")), // Link to detailed analysis
+    })),
+
+    // User's page (if ranking)
+    userPage: v.optional(v.object({
+      url: v.string(),
+      position: v.number(),
+    })),
+
+    // Analysis summary
+    analysis: v.optional(v.object({
+      // On-page comparison
+      avgCompetitorWordCount: v.number(),
+      avgCompetitorH2Count: v.number(),
+      avgCompetitorImagesCount: v.number(),
+
+      // Content insights
+      commonTopics: v.optional(v.array(v.string())),
+      missingTopics: v.optional(v.array(v.string())),
+
+      // Backlinks summary
+      avgBacklinksCount: v.optional(v.number()),
+      topReferringDomains: v.optional(v.array(v.object({
+        domain: v.string(),
+        backlinksCount: v.number(),
+      }))),
+    })),
+
+    // AI-generated actionable recommendations
+    recommendations: v.optional(v.array(v.object({
+      category: v.union(
+        v.literal("content"),
+        v.literal("onpage"),
+        v.literal("backlinks"),
+        v.literal("technical")
+      ),
+      priority: v.union(v.literal("high"), v.literal("medium"), v.literal("low")),
+      title: v.string(),
+      description: v.string(),
+      actionSteps: v.optional(v.array(v.string())),
+    }))),
+
+    status: v.union(
+      v.literal("pending"),
+      v.literal("analyzing"),
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_keyword", ["keywordId"])
+    .index("by_domain_status", ["domainId", "status"]),
+
+  // =================================================================
+  // Competitor Jobs
+  // =================================================================
+
+  // Content Gap Analysis Jobs
+  competitorContentGapJobs: defineTable({
+    domainId: v.id("domains"),
+    competitorId: v.id("competitors"),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed"),
+      v.literal("cancelled")
+    ),
+    opportunitiesFound: v.optional(v.number()),
+    createdAt: v.number(),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_competitor", ["competitorId"])
+    .index("by_status", ["status"]),
+
+  // Competitor Backlinks Fetch Jobs
+  competitorBacklinksJobs: defineTable({
+    domainId: v.id("domains"),
+    competitorId: v.id("competitors"),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed"),
+      v.literal("cancelled")
+    ),
+    backlinksFound: v.optional(v.number()),
+    createdAt: v.number(),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_competitor", ["competitorId"])
+    .index("by_status", ["status"]),
 
   // =================================================================
   // Forecasting & Predictive Analytics

@@ -67,10 +67,14 @@ import { OnSiteSection } from "@/components/domain/sections/OnSiteSection";
 import { GapSummaryCards } from "@/components/domain/cards/GapSummaryCards";
 // import { ContentGapsTable } from "@/components/domain/tables/ContentGapsTable";
 import { CompetitorManagementSection } from "@/components/domain/sections/CompetitorManagementSection";
+import { ContentGapOpportunitiesTable } from "@/components/domain/tables/ContentGapOpportunitiesTable";
+import { CompetitorBacklinksSection } from "@/components/domain/sections/CompetitorBacklinksSection";
+import { CompetitorContentAnalysisSection } from "@/components/domain/sections/CompetitorContentAnalysisSection";
 import { AddKeywordsModal } from "@/components/domain/modals/AddKeywordsModal";
 import { CompetitorOverviewChart } from "@/components/domain/charts/CompetitorOverviewChart";
 import { CompetitorKeywordGapTable } from "@/components/domain/tables/CompetitorKeywordGapTable";
 import { ForecastSummaryCard } from "@/components/domain/cards/ForecastSummaryCard";
+import { CompetitorAnalysisReportsSection } from "@/components/domain/sections/CompetitorAnalysisReportsSection";
 
 // Helper to format date
 function formatDate(timestamp: number) {
@@ -644,7 +648,15 @@ export default function DomainDetailPage() {
                   </p>
                 </div>
 
+                <CompetitorAnalysisReportsSection domainId={domainId} />
+
                 <CompetitorManagementSection domainId={domainId} />
+
+                <ContentGapOpportunitiesTable domainId={domainId} />
+
+                <CompetitorBacklinksSection domainId={domainId} />
+
+                <CompetitorContentAnalysisSection domainId={domainId} />
 
                 <CompetitorOverviewChart domainId={domainId} />
 
