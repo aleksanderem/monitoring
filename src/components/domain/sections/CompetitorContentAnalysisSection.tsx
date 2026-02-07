@@ -8,7 +8,7 @@ import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Select } from "@/components/base/select/select";
 import type { SelectItemType } from "@/components/base/select/select";
-import { FileSearch02, TrendUp02, TrendDown02, RefreshCcw01, Zap } from "@untitledui/icons";
+import { FileSearch02, TrendUp02, TrendDown02, RefreshCw01, Zap } from "@untitledui/icons";
 import { toast } from "sonner";
 
 interface CompetitorContentAnalysisSectionProps {
@@ -40,24 +40,29 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
       : "skip"
   );
 
+  // Only show active competitors
+  const activeCompetitors = competitors?.filter(c => c.status === "active") ?? [];
+
   // Transform to select items
-  const competitorItems: SelectItemType[] = competitors
-    ?.map((c) => ({ id: c._id, label: c.name || c.competitorDomain })) || [];
+  const competitorItems: SelectItemType[] = activeCompetitors
+    .map((c) => ({ id: c._id, label: c.name || c.competitorDomain }));
 
   const keywordItems: SelectItemType[] = keywords
     ?.map((k) => ({ id: k._id, label: k.phrase })) || [];
+
+  const triggerAnalysis = useMutation(api.competitorAnalysis.triggerCompetitorPageAnalysis);
 
   const handleAnalyzePage = async () => {
     if (!selectedCompetitor || !selectedKeyword) return;
 
     setAnalyzing(true);
-    toast.info("Analyzing competitor page...");
-
     try {
-      // Find the competitor's SERP result for this keyword
-      const serpResults = await fetch(`/api/serp-results?keywordId=${selectedKeyword}`);
-      // This is simplified - you'd need to get the actual URL from SERP results
-      toast.success("Page analysis started");
+      const result = await triggerAnalysis({ competitorId: selectedCompetitor, keywordId: selectedKeyword });
+      if (result.success) {
+        toast.success("Page analysis started — results will appear shortly");
+      } else {
+        toast.error(result.error || "Failed to analyze page");
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to analyze page");
     } finally {
@@ -114,7 +119,7 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
     );
   }
 
-  if (competitors.length === 0) {
+  if (activeCompetitors.length === 0) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-6">
         <div className="text-center py-12">
@@ -150,7 +155,7 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
             onSelectionChange={(key) => setSelectedCompetitor(key as Id<"competitors">)}
             placeholder="Select competitor"
           >
-            {(item) => <span>{item.label}</span>}
+            {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}
           </Select>
 
           <Select
@@ -161,7 +166,7 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
             placeholder="Select keyword"
             isDisabled={!selectedCompetitor}
           >
-            {(item) => <span>{item.label}</span>}
+            {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}
           </Select>
 
           <Button
@@ -169,7 +174,7 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
             size="md"
             onClick={handleAnalyzePage}
             isDisabled={!selectedCompetitor || !selectedKeyword || analyzing}
-            iconLeading={analyzing ? RefreshCcw01 : Zap}
+            iconLeading={analyzing ? RefreshCw01 : Zap}
           >
             {analyzing ? "Analyzing..." : "Analyze Page"}
           </Button>
@@ -328,17 +333,12 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
                 {comparison.competitor.htags.h2 && comparison.competitor.htags.h2.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-tertiary mb-1">H2 Tags ({comparison.competitor.htags.h2.length})</p>
-                    <div className="space-y-1 max-h-40 overflow-y-auto">
-                      {comparison.competitor.htags.h2.slice(0, 5).map((h2: string, idx: number) => (
+                    <div className="space-y-1 max-h-80 overflow-y-auto">
+                      {comparison.competitor.htags.h2.map((h2: string, idx: number) => (
                         <p key={idx} className="text-sm text-primary pl-3 border-l-2 border-secondary">
                           {h2}
                         </p>
                       ))}
-                      {comparison.competitor.htags.h2.length > 5 && (
-                        <p className="text-xs text-quaternary pl-3">
-                          +{comparison.competitor.htags.h2.length - 5} more...
-                        </p>
-                      )}
                     </div>
                   </div>
                 )}

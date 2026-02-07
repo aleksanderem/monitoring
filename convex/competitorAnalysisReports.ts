@@ -80,6 +80,133 @@ export const deleteReport = mutation({
 });
 
 /**
+ * Retry analysis for an existing report (resets status and re-schedules)
+ */
+export const retryAnalysis = mutation({
+  args: { reportId: v.id("competitorAnalysisReports") },
+  handler: async (ctx, args) => {
+    const report = await ctx.db.get(args.reportId);
+    if (!report) throw new Error("Report not found");
+
+    // Reset report state
+    await ctx.db.patch(args.reportId, {
+      status: "pending",
+      analysis: undefined,
+      recommendations: undefined,
+      error: undefined,
+      completedAt: undefined,
+    });
+
+    // Re-schedule analysis
+    await ctx.scheduler.runAfter(0, internal.competitorAnalysisReports.analyzeReportInternal, {
+      reportId: args.reportId,
+    });
+
+    return args.reportId;
+  },
+});
+
+/**
+ * Generate reports for all monitored keywords that don't have a report yet.
+ * Finds competitor URLs from SERP data and creates analysis reports.
+ */
+export const generateAllKeywordReports = mutation({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    // Fetch domain once for user page matching
+    const domainDoc = await ctx.db.get(args.domainId);
+    const userDomain = domainDoc?.domain;
+
+    // Get active keywords
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    // Get active competitors
+    const competitors = await ctx.db
+      .query("competitors")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    if (keywords.length === 0 || competitors.length === 0) {
+      return { created: 0, skipped: 0, error: "No keywords or competitors found" };
+    }
+
+    // Get existing reports to avoid duplicates
+    const existingReports = await ctx.db
+      .query("competitorAnalysisReports")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    const existingKeywordIds = new Set(existingReports.map((r) => r.keywordId));
+
+    let created = 0;
+    let skipped = 0;
+
+    for (const keyword of keywords) {
+      // Skip if report already exists for this keyword
+      if (existingKeywordIds.has(keyword._id)) {
+        skipped++;
+        continue;
+      }
+
+      // Find competitor pages from SERP data
+      const serpResults = await ctx.db
+        .query("keywordSerpResults")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+        .collect();
+
+      const competitorPages: { domain: string; url: string; position: number }[] = [];
+
+      for (const comp of competitors) {
+        const match = serpResults.find(
+          (r) => r.domain === comp.competitorDomain || r.url.includes(comp.competitorDomain)
+        );
+        if (match) {
+          competitorPages.push({
+            domain: comp.competitorDomain,
+            url: match.url,
+            position: match.position,
+          });
+        }
+      }
+
+      // Only create report if we found at least one competitor in SERP
+      if (competitorPages.length === 0) {
+        skipped++;
+        continue;
+      }
+
+      // Find user's own page
+      const userPage = userDomain
+        ? serpResults.find((r) => r.domain === userDomain)
+        : undefined;
+
+      const reportId = await ctx.db.insert("competitorAnalysisReports", {
+        domainId: args.domainId,
+        keywordId: keyword._id,
+        keyword: keyword.phrase,
+        competitorPages,
+        userPage: userPage ? { url: userPage.url, position: userPage.position } : undefined,
+        status: "pending",
+        createdAt: Date.now(),
+      });
+
+      await ctx.scheduler.runAfter(0, internal.competitorAnalysisReports.analyzeReportInternal, {
+        reportId,
+      });
+
+      created++;
+    }
+
+    return { created, skipped };
+  },
+});
+
+/**
  * Internal action to analyze competitors and generate recommendations
  */
 export const analyzeReportInternal = internalAction({

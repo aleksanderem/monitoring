@@ -1,14 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, AlertTriangle, InfoCircle, Link01, File01, Image01, Zap, Eye } from "@untitledui/icons";
+import {
+  AlertCircle,
+  AlertTriangle,
+  InfoCircle,
+  Link01,
+  File01,
+  Image01,
+  Zap,
+  Eye,
+  ShieldTick,
+  Phone01,
+  Tag01,
+} from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { PagesIssueModal } from "../modals/PagesIssueModal";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
 interface IssuesBreakdownSectionProps {
   scanId?: Id<"onSiteScans">;
+  severityFilter?: "critical" | "warning" | "recommendation" | null;
+  onClearFilter?: () => void;
   issues: {
+    // Legacy DataForSEO fields
     missingTitles: number;
     missingMetaDescriptions: number;
     duplicateContent: number;
@@ -19,95 +34,147 @@ interface IssuesBreakdownSectionProps {
     missingH1: number;
     largeImages: number;
     missingAltText: number;
+    // SEO Audit API fields
+    missingHttps?: number;
+    missingCanonical?: number;
+    missingRobotsMeta?: number;
+    notMobileFriendly?: number;
+    missingStructuredData?: number;
+    largeDomSize?: number;
+    tooManyElements?: number;
+    highElementSimilarity?: number;
+    lowTextToCodeRatio?: number;
   };
 }
 
-type IssueModalType = "brokenLinks" | "missingTitles" | "missingMetaDescriptions" | "missingH1" | "slowPages" | "duplicateContent" | "thinContent" | null;
+// Each entry maps a check type to its display config and the issues field it reads from
+const SEO_AUDIT_ISSUES = [
+  // Critical
+  {
+    checkType: "HTTPS_CHECK",
+    label: "Missing HTTPS",
+    field: "missingHttps" as const,
+    severity: "critical",
+    icon: ShieldTick,
+    description: "Pages not served over HTTPS",
+  },
+  {
+    checkType: "H1_FOUND",
+    label: "Missing H1 Tags",
+    field: "missingH1" as const,
+    severity: "critical",
+    icon: File01,
+    description: "Pages without primary headings",
+  },
+  {
+    checkType: "CANONICAL_FOUND",
+    label: "Missing Canonical Tag",
+    field: "missingCanonical" as const,
+    severity: "critical",
+    icon: Link01,
+    description: "Pages without canonical URL tag",
+  },
+  // Warning
+  {
+    checkType: "TITLE_REPETITION",
+    label: "Duplicate Titles",
+    field: "missingTitles" as const,
+    severity: "warning",
+    icon: File01,
+    description: "Pages with repeated title tags",
+  },
+  {
+    checkType: "META_DESCRIPTION_REPETITION",
+    label: "Duplicate Descriptions",
+    field: "missingMetaDescriptions" as const,
+    severity: "warning",
+    icon: File01,
+    description: "Pages with repeated meta descriptions",
+  },
+  {
+    checkType: "ROBOTS_META_FOUND",
+    label: "Missing Robots Meta",
+    field: "missingRobotsMeta" as const,
+    severity: "warning",
+    icon: Eye,
+    description: "Pages without robots meta tag",
+  },
+  {
+    checkType: "IMAGE_ALT_FOUND",
+    label: "Missing Image Alt Text",
+    field: "missingAltText" as const,
+    severity: "warning",
+    icon: Image01,
+    description: "Images without alt attributes",
+  },
+  {
+    checkType: "MOBILE_FRIENDLY",
+    label: "Not Mobile Friendly",
+    field: "notMobileFriendly" as const,
+    severity: "warning",
+    icon: Phone01,
+    description: "Pages not optimized for mobile",
+  },
+  // Recommendation
+  {
+    checkType: "TEXT_TO_CODE_RATIO",
+    label: "Low Text-to-Code Ratio",
+    field: "lowTextToCodeRatio" as const,
+    severity: "recommendation",
+    icon: File01,
+    description: "Text-to-code ratio below recommended threshold",
+  },
+  {
+    checkType: "DOM_SIZE",
+    label: "Large DOM Size",
+    field: "largeDomSize" as const,
+    severity: "recommendation",
+    icon: Zap,
+    description: "DOM size exceeds recommended limit",
+  },
+  {
+    checkType: "ELEMENTS_SIMILARITY",
+    label: "High Element Similarity",
+    field: "highElementSimilarity" as const,
+    severity: "recommendation",
+    icon: File01,
+    description: "Multiple elements with very similar content",
+  },
+  {
+    checkType: "ELEMENTS_COUNT",
+    label: "Too Many DOM Elements",
+    field: "tooManyElements" as const,
+    severity: "recommendation",
+    icon: Zap,
+    description: "Page has excessive number of DOM elements",
+  },
+  {
+    checkType: "STRUCTURED_DATA_FOUND",
+    label: "Missing Structured Data",
+    field: "missingStructuredData" as const,
+    severity: "recommendation",
+    icon: Tag01,
+    description: "No Schema.org structured data found",
+  },
+] as const;
 
-export function IssuesBreakdownSection({ issues, scanId }: IssuesBreakdownSectionProps) {
-  const [activeIssueModal, setActiveIssueModal] = useState<IssueModalType>(null);
-  const issuesList = [
-    {
-      label: "Broken Links",
-      count: issues.brokenLinks,
-      severity: "critical",
-      icon: Link01,
-      description: "Pages with broken outbound links",
-      modalType: "brokenLinks" as const,
-    },
-    {
-      label: "Missing Titles",
-      count: issues.missingTitles,
-      severity: "critical",
-      icon: File01,
-      description: "Pages without title tags",
-      modalType: "missingTitles" as const,
-    },
-    {
-      label: "Missing H1 Tags",
-      count: issues.missingH1,
-      severity: "critical",
-      icon: File01,
-      description: "Pages without primary headings",
-      modalType: "missingH1" as const,
-    },
-    {
-      label: "Missing Meta Descriptions",
-      count: issues.missingMetaDescriptions,
-      severity: "warning",
-      icon: File01,
-      description: "Pages without meta descriptions",
-      modalType: "missingMetaDescriptions" as const,
-    },
-    {
-      label: "Slow Pages",
-      count: issues.slowPages,
-      severity: "warning",
-      icon: Zap,
-      description: "Pages with high loading time",
-      modalType: "slowPages" as const,
-    },
-    {
-      label: "Duplicate Content",
-      count: issues.duplicateContent,
-      severity: "warning",
-      icon: File01,
-      description: "Pages with duplicate content",
-      modalType: "duplicateContent" as const,
-    },
-    {
-      label: "Thin Content",
-      count: issues.thinContent,
-      severity: "recommendation",
-      icon: File01,
-      description: "Pages with low content rate",
-      modalType: "thinContent" as const,
-    },
-    {
-      label: "Suboptimal Titles",
-      count: issues.suboptimalTitles,
-      severity: "recommendation",
-      icon: File01,
-      description: "Titles too long or too short",
-      modalType: null,
-    },
-    {
-      label: "Missing Alt Text",
-      count: issues.missingAltText,
-      severity: "recommendation",
-      icon: Image01,
-      description: "Images without alt attributes",
-      modalType: null,
-    },
-    {
-      label: "Large Images",
-      count: issues.largeImages,
-      severity: "recommendation",
-      icon: Image01,
-      description: "Images larger than 3MB",
-      modalType: null,
-    },
-  ].filter((issue) => issue.count > 0); // Only show issues that exist
+export function IssuesBreakdownSection({
+  issues,
+  scanId,
+  severityFilter,
+  onClearFilter,
+}: IssuesBreakdownSectionProps) {
+  const [activeCheckType, setActiveCheckType] = useState<string | null>(null);
+
+  // Build visible issues list from the 13 SEO Audit check types
+  const allIssues = SEO_AUDIT_ISSUES.map((item) => {
+    const count = (issues as any)[item.field] ?? 0;
+    return { ...item, count };
+  }).filter((item) => item.count > 0);
+
+  const issuesList = severityFilter
+    ? allIssues.filter((item) => item.severity === severityFilter)
+    : allIssues;
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -135,7 +202,7 @@ export function IssuesBreakdownSection({ issues, scanId }: IssuesBreakdownSectio
     }
   };
 
-  if (issuesList.length === 0) {
+  if (allIssues.length === 0) {
     return (
       <div className="bg-primary rounded-lg border border-secondary p-6">
         <div className="text-center py-8">
@@ -153,25 +220,47 @@ export function IssuesBreakdownSection({ issues, scanId }: IssuesBreakdownSectio
     );
   }
 
+  const activeIssue = activeCheckType
+    ? SEO_AUDIT_ISSUES.find((i) => i.checkType === activeCheckType)
+    : null;
+
+  const filterLabel = severityFilter === "critical"
+    ? "Critical"
+    : severityFilter === "warning"
+      ? "Warnings"
+      : severityFilter === "recommendation"
+        ? "Recommendations"
+        : null;
+
   return (
     <div className="bg-primary rounded-lg border border-secondary p-6">
-      <h3 className="text-md font-semibold text-primary mb-4">
-        Issues Breakdown
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-md font-semibold text-primary">
+          Issues Breakdown
+        </h3>
+        {filterLabel && onClearFilter && (
+          <button
+            onClick={onClearFilter}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-secondary text-secondary hover:bg-tertiary transition-colors"
+          >
+            Showing: {filterLabel}
+            <span className="text-quaternary">&times;</span>
+          </button>
+        )}
+      </div>
       <div className="space-y-3">
         {issuesList.map((issue) => {
           const colors = getSeverityColor(issue.severity);
-          const SeverityIcon = colors.icon;
           const IssueIcon = issue.icon;
-
-          const hasModal = issue.modalType && scanId;
 
           return (
             <div
-              key={issue.label}
+              key={issue.checkType}
               className="flex items-start gap-3 p-3 rounded-lg border border-secondary hover:bg-secondary transition-colors"
             >
-              <div className={`${colors.bg} rounded-full p-2 flex-shrink-0`}>
+              <div
+                className={`${colors.bg} rounded-full p-2 flex-shrink-0`}
+              >
                 <IssueIcon className={`w-4 h-4 ${colors.text}`} />
               </div>
               <div className="flex-1 min-w-0">
@@ -180,15 +269,19 @@ export function IssuesBreakdownSection({ issues, scanId }: IssuesBreakdownSectio
                     {issue.label}
                   </h4>
                   <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors.badge} flex-shrink-0`}>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors.badge} flex-shrink-0`}
+                    >
                       {issue.count}
                     </span>
-                    {hasModal && (
+                    {scanId && (
                       <Button
                         size="sm"
                         color="secondary"
                         iconLeading={Eye}
-                        onClick={() => setActiveIssueModal(issue.modalType as IssueModalType)}
+                        onClick={() =>
+                          setActiveCheckType(issue.checkType)
+                        }
                       >
                         View Details
                       </Button>
@@ -203,30 +296,14 @@ export function IssuesBreakdownSection({ issues, scanId }: IssuesBreakdownSectio
       </div>
 
       {/* Pages Issue Modal */}
-      {scanId && activeIssueModal && (
+      {scanId && activeCheckType && activeIssue && (
         <PagesIssueModal
           scanId={scanId}
           isOpen={true}
-          onClose={() => setActiveIssueModal(null)}
-          issueType={activeIssueModal}
-          title={
-            activeIssueModal === "brokenLinks" ? "Pages with Broken Links" :
-            activeIssueModal === "missingTitles" ? "Missing Titles" :
-            activeIssueModal === "missingMetaDescriptions" ? "Missing Meta Descriptions" :
-            activeIssueModal === "missingH1" ? "Missing H1 Tags" :
-            activeIssueModal === "slowPages" ? "Slow Pages" :
-            activeIssueModal === "duplicateContent" ? "Duplicate Content" :
-            "Thin Content"
-          }
-          description={
-            activeIssueModal === "brokenLinks" ? "List of pages that have broken outbound links" :
-            activeIssueModal === "missingTitles" ? "List of pages without title tags" :
-            activeIssueModal === "missingMetaDescriptions" ? "List of pages without meta descriptions" :
-            activeIssueModal === "missingH1" ? "List of pages without H1 tags" :
-            activeIssueModal === "slowPages" ? "List of pages with high loading time (>3s)" :
-            activeIssueModal === "duplicateContent" ? "List of pages with duplicate content" :
-            "List of pages with low content rate (<300 words)"
-          }
+          onClose={() => setActiveCheckType(null)}
+          checkType={activeCheckType}
+          title={activeIssue.label}
+          description={`Pages failing the ${activeIssue.label} check`}
         />
       )}
     </div>

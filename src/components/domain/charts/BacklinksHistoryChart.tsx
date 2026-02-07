@@ -110,7 +110,7 @@ export function BacklinksHistoryChart({
         <div>
           <h3 className="text-md font-semibold text-primary">Backlinks Over Time</h3>
           <p className="text-sm text-tertiary">
-            {totalBacklinks.toLocaleString()} total backlinks discovered
+            Historical backlink growth trend. {totalBacklinks.toLocaleString()} total backlinks discovered
             {comparisonRange && totalComparisonBacklinks > 0 && (
               <span className="ml-2">
                 (vs. {totalComparisonBacklinks.toLocaleString()} in comparison period)

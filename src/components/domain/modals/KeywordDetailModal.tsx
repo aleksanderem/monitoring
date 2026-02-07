@@ -4,6 +4,7 @@ import { XClose } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { KeywordDetailCard } from "../cards/KeywordDetailCard";
 import { MonthlySearchTrendChart } from "../charts/MonthlySearchTrendChart";
+import { useEscapeClose } from "@/hooks/useEscapeClose";
 
 interface KeywordDetailModalProps {
   keyword: any;
@@ -12,6 +13,7 @@ interface KeywordDetailModalProps {
 }
 
 export function KeywordDetailModal({ keyword, isOpen, onClose }: KeywordDetailModalProps) {
+  useEscapeClose(onClose, isOpen);
   if (!isOpen) return null;
 
   return (

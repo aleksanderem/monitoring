@@ -12,11 +12,11 @@ interface LighthouseScoresCardProps {
 export function LighthouseScoresCard({ scores }: LighthouseScoresCardProps) {
   if (!scores) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-md font-semibold text-gray-900 mb-4">
+      <div className="bg-primary rounded-lg border border-secondary p-6">
+        <h3 className="text-md font-semibold text-primary mb-4">
           Lighthouse Scores
         </h3>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-tertiary">
           No Lighthouse data available. Run an Instant Pages scan to get detailed performance metrics.
         </p>
       </div>
@@ -24,27 +24,27 @@ export function LighthouseScoresCard({ scores }: LighthouseScoresCardProps) {
   }
 
   const getScoreColor = (score: number) => {
-    if (score >= 90) return "text-success-600 bg-success-50";
-    if (score >= 50) return "text-warning-600 bg-warning-50";
-    return "text-error-600 bg-error-50";
+    if (score >= 90) return "text-utility-success-600";
+    if (score >= 50) return "text-utility-warning-600";
+    return "text-utility-error-600";
   };
 
-  const getScoreRing = (score: number) => {
-    if (score >= 90) return "stroke-success-600";
-    if (score >= 50) return "stroke-warning-600";
-    return "stroke-error-600";
+  const getRingColor = (score: number) => {
+    if (score >= 90) return "stroke-utility-success-500";
+    if (score >= 50) return "stroke-utility-warning-500";
+    return "stroke-utility-error-500";
   };
 
   const categories = [
-    { name: "Performance", key: "performance" as const, icon: "⚡" },
-    { name: "Accessibility", key: "accessibility" as const, icon: "♿" },
-    { name: "Best Practices", key: "bestPractices" as const, icon: "✓" },
-    { name: "SEO", key: "seo" as const, icon: "🔍" },
+    { name: "Performance", key: "performance" as const },
+    { name: "Accessibility", key: "accessibility" as const },
+    { name: "Best Practices", key: "bestPractices" as const },
+    { name: "SEO", key: "seo" as const },
   ];
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
-      <h3 className="text-md font-semibold text-gray-900 mb-6">
+    <div className="flex flex-col bg-primary rounded-lg border border-secondary p-6">
+      <h3 className="text-md font-semibold text-primary mb-6">
         Lighthouse Scores
       </h3>
 
@@ -57,7 +57,6 @@ export function LighthouseScoresCard({ scores }: LighthouseScoresCardProps) {
 
           return (
             <div key={category.key} className="flex flex-col items-center">
-              {/* Circular progress */}
               <div className="relative w-24 h-24 mb-3">
                 <svg className="w-24 h-24 transform -rotate-90">
                   <circle
@@ -67,7 +66,7 @@ export function LighthouseScoresCard({ scores }: LighthouseScoresCardProps) {
                     stroke="currentColor"
                     strokeWidth="8"
                     fill="none"
-                    className="text-gray-200"
+                    className="text-quaternary opacity-40"
                   />
                   <circle
                     cx="48"
@@ -78,40 +77,37 @@ export function LighthouseScoresCard({ scores }: LighthouseScoresCardProps) {
                     fill="none"
                     strokeDasharray={circumference}
                     strokeDashoffset={offset}
-                    className={getScoreRing(score)}
+                    className={getRingColor(score)}
                     strokeLinecap="round"
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className={`text-2xl font-bold ${getScoreColor(score).split(' ')[0]}`}>
+                  <span className={`text-2xl font-bold ${getScoreColor(score)}`}>
                     {score}
                   </span>
                 </div>
               </div>
 
-              {/* Label */}
-              <div className="text-center">
-                <div className="text-lg mb-1">{category.icon}</div>
-                <div className="text-sm font-medium text-gray-900">{category.name}</div>
-              </div>
+              <div className="text-xs text-tertiary">{category.name}</div>
             </div>
           );
         })}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-gray-200">
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-success-600"></span>
-            90-100: Good
+      <div className="mt-auto pt-4 border-t border-secondary">
+        <p className="text-xs font-medium text-tertiary mb-2">Status Guide:</p>
+        <div className="flex flex-wrap gap-4 text-xs text-tertiary">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-utility-success-500" />
+            Good
           </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-warning-600"></span>
-            50-89: Needs Improvement
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-utility-warning-500" />
+            Needs Improvement
           </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-error-600"></span>
-            0-49: Poor
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-utility-error-500" />
+            Poor
           </span>
         </div>
       </div>

@@ -69,7 +69,7 @@ export function CountriesDistributionChart({
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
         <h3 className="text-md font-semibold text-primary">Countries Distribution</h3>
-        <p className="text-sm text-tertiary">Top 10 countries by backlink count</p>
+        <p className="text-sm text-tertiary">Geographic distribution of your backlinks. Shows which countries your link authority comes from.</p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">

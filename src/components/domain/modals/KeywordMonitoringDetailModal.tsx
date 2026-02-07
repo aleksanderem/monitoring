@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { XClose, Target04 } from "@untitledui/icons";
+import { useEscapeClose } from "@/hooks/useEscapeClose";
 import { Button } from "@/components/base/buttons/button";
 import { KeywordPositionChart } from "../charts/KeywordPositionChart";
 import { MonthlySearchTrendChart } from "../charts/MonthlySearchTrendChart";
@@ -24,6 +25,7 @@ function formatNumber(num: number | null | undefined): string {
 }
 
 export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: KeywordMonitoringDetailModalProps) {
+  useEscapeClose(onClose, isOpen);
   const [selectedCompetitors, setSelectedCompetitors] = useState<Set<string>>(new Set());
   const [isAddingCompetitors, setIsAddingCompetitors] = useState(false);
   const [isCompetitorReportModalOpen, setIsCompetitorReportModalOpen] = useState(false);

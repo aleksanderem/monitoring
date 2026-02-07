@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
@@ -74,13 +74,27 @@ export function UrlSelectionTable({
   const [pathFilterType, setPathFilterType] = useState<"contains" | "not_contains">("contains");
   const [pathInputValue, setPathInputValue] = useState("");
 
-  // Column visibility state
-  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
-    url: false, // Hidden by default since we have domain + path
-    domain: true,
-    path: true,
-    pathSegment: true,
+  // Column visibility state — persisted to localStorage
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("urlSelection_columnVisibility");
+      if (saved) {
+        try { return JSON.parse(saved); } catch { /* use defaults */ }
+      }
+    }
+    return {
+      url: false, // Hidden by default since we have domain + path
+      domain: true,
+      path: true,
+      pathSegment: true,
+    };
   });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("urlSelection_columnVisibility", JSON.stringify(columnVisibility));
+    }
+  }, [columnVisibility]);
 
   const toggleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -452,7 +466,7 @@ export function UrlSelectionTable({
               return (
                 <tr
                   key={url}
-                  className={`cursor-pointer transition-colors hover:bg-secondary/30 ${
+                  className={`cursor-pointer transition-colors hover:bg-primary_hover ${
                     isSelected ? "bg-primary-50" : ""
                   }`}
                   onClick={() => onToggleUrl(url)}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -13,6 +13,11 @@ import { IssuesSummaryCards } from "../cards/IssuesSummaryCards";
 import { IssuesBreakdownSection } from "./IssuesBreakdownSection";
 import { UrlSelectionModal } from "../modals/UrlSelectionModal";
 import { InstantPagesMetrics } from "./InstantPagesMetrics";
+import { SitemapOverviewCard } from "./SitemapOverviewCard";
+import { RobotsAnalysisCard } from "./RobotsAnalysisCard";
+import { CrawlSummaryCards } from "../cards/CrawlSummaryCards";
+import { CrawlAnalyticsSection } from "./CrawlAnalyticsSection";
+import { AuditSectionsBreakdown } from "./AuditSectionsBreakdown";
 
 interface OnSiteSectionProps {
   domainId: Id<"domains">;
@@ -22,15 +27,22 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [showUrlSelection, setShowUrlSelection] = useState(false);
+  const [severityFilter, setSeverityFilter] = useState<"critical" | "warning" | "recommendation" | null>(null);
+  const issuesBreakdownRef = useRef<HTMLDivElement>(null);
 
   // Queries
-  const latestScan = useQuery(api.onSite_queries.getLatestScan, { domainId });
-  const latestAnalysis = useQuery(api.onSite_queries.getLatestAnalysis, { domainId });
-  const isStale = useQuery(api.onSite_queries.isOnsiteDataStale, { domainId });
+  const latestScan = useQuery(api.seoAudit_queries.getLatestScan, { domainId });
+  const latestAnalysis = useQuery(api.seoAudit_queries.getLatestAnalysis, { domainId });
+  const isStale = useQuery(api.seoAudit_queries.isOnsiteDataStale, { domainId });
+  const fullAuditData = useQuery(api.seoAudit_queries.getFullAuditSections, { domainId });
+  const livePagesCount = useQuery(
+    api.seoAudit_queries.getScanPagesCount,
+    latestScan?._id ? { scanId: latestScan._id } : "skip"
+  );
 
   // Mutations
-  const triggerScan = useMutation(api.onSite_actions.triggerOnSiteScan);
-  const cancelScan = useMutation(api.onSite_actions.cancelOnSiteScan);
+  const triggerScan = useMutation(api.seoAudit_actions.triggerSeoAuditScan);
+  const cancelScan = useMutation(api.seoAudit_actions.cancelSeoAuditScan);
 
   const handleStartScan = async () => {
     setIsScanning(true);
@@ -38,7 +50,7 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
       const scanId = await triggerScan({ domainId });
 
       toast.success(
-        "On-site scan started. This may take 5-30 minutes.",
+        "SEO audit scan started. This typically takes 1-5 minutes.",
         {
           description: "The page will update automatically when the scan completes."
         }
@@ -89,11 +101,18 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
     setShowUrlSelection(false);
   };
 
-  // Show scan in progress state
+  // Timer for elapsed time display
+  const [tick, setTick] = useState(0);
   const isScanInProgress =
     latestScan?.status === "queued" ||
     latestScan?.status === "crawling" ||
     latestScan?.status === "processing";
+
+  useEffect(() => {
+    if (!isScanInProgress) return;
+    const interval = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, [isScanInProgress]);
 
   // Show empty state if no data
   if (!latestAnalysis && !isScanInProgress) {
@@ -119,7 +138,7 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
           {isScanning ? "Starting Scan..." : "Run On-Site Scan"}
         </Button>
         <p className="text-xs text-quaternary mt-3">
-          Scan typically takes 5-30 minutes depending on site size
+          Scan typically takes 1-5 minutes depending on site size
         </p>
       </div>
     );
@@ -127,36 +146,61 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
 
   // Show scan in progress state
   if (isScanInProgress) {
-    // Don't show mock mode warning - if scan exists, credentials are configured
-    const isMockMode = false;
     const elapsedTime = Math.floor((Date.now() - latestScan.startedAt) / 1000);
     const elapsedMinutes = Math.floor(elapsedTime / 60);
     const elapsedSeconds = elapsedTime % 60;
 
-    // Calculate progress percentage
-    const progressPercentage =
-      latestScan.pagesScanned !== undefined && latestScan.totalPagesToScan
-        ? Math.round((latestScan.pagesScanned / latestScan.totalPagesToScan) * 100)
-        : latestScan.status === "queued"
-          ? 5
-          : latestScan.status === "crawling"
-            ? 50
-            : 90;
+    // Calculate progress percentage based on dual-job status + real progress data
+    const bothDone =
+      latestScan.seoAuditStatus === "completed" && latestScan.advertoolsCrawlStatus === "completed";
+    const oneDone =
+      latestScan.seoAuditStatus === "completed" || latestScan.advertoolsCrawlStatus === "completed";
 
-    // Determine current stage
-    const currentStage =
-      latestScan.status === "queued"
-        ? "1/3"
-        : latestScan.status === "crawling"
-          ? "2/3"
-          : "3/3";
+    // Use real progress from audit job when available
+    const auditProgress = latestScan.pagesScanned && latestScan.totalPagesToScan
+      ? Math.min(95, Math.round((latestScan.pagesScanned / latestScan.totalPagesToScan) * 50))
+      : null;
 
-    const stageDescription =
+    const progressPercentage = bothDone
+      ? 95
+      : oneDone
+        ? 65
+        : auditProgress !== null
+          ? auditProgress + 5 // 5-55% range for audit progress
+          : latestScan.status === "queued"
+            ? 5
+            : latestScan.status === "crawling"
+              ? 25
+              : 80;
+
+    // Descriptive status for each sub-job
+    const auditStatus = latestScan.seoAuditStatus;
+    const crawlStatus = latestScan.advertoolsCrawlStatus;
+
+    const getJobLabel = (status: string | undefined) => {
+      if (!status || status === "pending") return { label: "Waiting...", color: "text-tertiary", dot: "bg-gray-400" };
+      if (status === "running") return { label: "Running", color: "text-warning-600", dot: "bg-warning-500 animate-pulse" };
+      if (status === "completed") return { label: "Done", color: "text-success-600", dot: "bg-success-500" };
+      if (status === "failed") return { label: "Failed", color: "text-error-600", dot: "bg-error-500" };
+      return { label: status, color: "text-tertiary", dot: "bg-gray-400" };
+    };
+
+    const auditJob = getJobLabel(auditStatus);
+    const crawlJob = getJobLabel(crawlStatus);
+
+    // Overall description
+    const overallDescription =
       latestScan.status === "queued"
-        ? "Queued - Waiting to start"
-        : latestScan.status === "crawling"
-          ? "Crawling - Analyzing pages"
-          : "Processing - Calculating scores";
+        ? "Starting scan — queuing SEO audit and site crawl..."
+        : auditStatus === "running" && crawlStatus === "running"
+          ? "Two parallel jobs running: SEO audit (homepage checks) and site crawl (discovering all pages)..."
+          : auditStatus === "completed" && crawlStatus === "running"
+            ? "SEO audit finished. Site crawl still discovering and indexing pages — this takes 2-5 minutes..."
+            : auditStatus === "running" && crawlStatus === "completed"
+              ? "Site crawl finished. SEO audit still processing..."
+              : latestScan.status === "processing"
+                ? "Both jobs done. Running post-crawl analytics (links, images, redirects, word frequency, robots)..."
+                : "Processing...";
 
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -164,106 +208,108 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
           <Play className="w-8 h-8 text-warning-600" />
         </div>
         <h3 className="text-lg font-semibold text-primary mb-2">
-          {isMockMode ? "Development Scan In Progress" : "On-Site Audit In Progress"}
+          Site Scan In Progress
         </h3>
 
-        {/* Stage indicator */}
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-sm font-semibold text-brand-600">Stage {currentStage}</span>
-          <span className="text-sm text-tertiary">•</span>
-          <span className="text-sm text-secondary">{stageDescription}</span>
+        {/* Elapsed time */}
+        <div className="text-sm text-tertiary mb-4">
+          {elapsedMinutes}m {elapsedSeconds}s elapsed
         </div>
 
-        <p className="text-sm text-tertiary mb-2 text-center max-w-md">
-          {latestScan.status === "queued" && "Your scan is queued and will start shortly."}
-          {latestScan.status === "crawling" && (
-            isMockMode
-              ? "Simulating website crawl (development mode)..."
-              : "DataForSEO is crawling your website and analyzing SEO issues..."
-          )}
-          {latestScan.status === "processing" && "Processing scan results and calculating health score..."}
+        {/* Overall description */}
+        <p className="text-sm text-secondary mb-6 text-center max-w-md">
+          {overallDescription}
         </p>
 
-        {/* Scan Details */}
-        <div className="bg-secondary rounded-lg p-4 mb-6 w-full max-w-md space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-tertiary">Status:</span>
-            <span className="font-medium text-primary capitalize">
-              {latestScan.status}
+        {/* Dual-job status panel */}
+        <div className="bg-secondary rounded-lg p-4 mb-6 w-full max-w-lg space-y-3">
+          {/* Job 1: SEO Audit */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${auditJob.dot}`} />
+              <span className="text-sm font-medium text-primary">SEO Audit</span>
+            </div>
+            <span className={`text-sm font-medium ${auditJob.color}`}>
+              {auditJob.label}
             </span>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-tertiary">Elapsed Time:</span>
-            <span className="font-medium text-primary">
-              {elapsedMinutes}m {elapsedSeconds}s
+          {/* Audit job ID */}
+          {(latestScan.fullAuditJobId || latestScan.seoAuditJobId) && (
+            <div className="text-[10px] text-quaternary pl-4 font-mono">
+              job: {latestScan.fullAuditJobId || latestScan.seoAuditJobId}
+            </div>
+          )}
+          <div className="text-xs text-quaternary pl-4">
+            {auditStatus === "running" && (
+              latestScan.pagesScanned && latestScan.totalPagesToScan
+                ? `Auditing: ${latestScan.pagesScanned} of ${latestScan.totalPagesToScan} pages checked`
+                : latestScan.pagesScanned
+                  ? `Auditing: ${latestScan.pagesScanned} pages checked so far`
+                  : "Starting full site audit (use_sitemap, max 100 pages)..."
+            )}
+            {auditStatus === "completed" && `Done — ${latestScan.pagesScanned ?? "?"} pages analyzed`}
+            {auditStatus === "pending" && "Queued, waiting for sitemap/robots fetch to finish"}
+            {auditStatus === "failed" && (latestScan.error || "An error occurred during the audit")}
+            {!auditStatus && "Not started"}
+          </div>
+
+          <div className="border-t border-tertiary" />
+
+          {/* Job 2: Site Crawl */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${crawlJob.dot}`} />
+              <span className="text-sm font-medium text-primary">Site Crawl</span>
+            </div>
+            <span className={`text-sm font-medium ${crawlJob.color}`}>
+              {crawlJob.label}
             </span>
           </div>
-          {latestScan.pagesScanned !== undefined && (
-            <div className="flex justify-between text-sm">
-              <span className="text-tertiary">Pages Crawled:</span>
-              <span className="font-medium text-primary">
-                {latestScan.pagesScanned}
-                {latestScan.totalPagesToScan && ` / ${latestScan.totalPagesToScan}`}
-              </span>
+          {/* Crawl job ID */}
+          {latestScan.advertoolsCrawlJobId && (
+            <div className="text-[10px] text-quaternary pl-4 font-mono">
+              job: {latestScan.advertoolsCrawlJobId}
             </div>
           )}
-          {latestScan.lastProgressUpdate && (
-            <div className="flex justify-between text-sm">
-              <span className="text-tertiary">Last Update:</span>
-              <span className="font-medium text-primary">
-                {Math.floor((Date.now() - latestScan.lastProgressUpdate) / 1000)}s ago
-              </span>
+          <div className="text-xs text-quaternary pl-4">
+            {crawlStatus === "running" && `Crawling site (depth 2, max 100 pages)... ${livePagesCount ? `${livePagesCount} pages found` : ""}`}
+            {crawlStatus === "completed" && `Done — ${livePagesCount ?? 0} pages crawled and stored`}
+            {crawlStatus === "pending" && "Queued, will start after audit kicks off"}
+            {crawlStatus === "failed" && "Crawl failed (audit results still available)"}
+            {!crawlStatus && "Not started"}
+          </div>
+
+          {/* Stats */}
+          <div className="border-t border-tertiary pt-3 space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-tertiary">Pages in DB:</span>
+              <span className="font-medium text-primary tabular-nums">{livePagesCount ?? 0}</span>
             </div>
-          )}
-          {latestScan.taskId && (
-            <div className="flex justify-between text-sm">
-              <span className="text-tertiary">Task ID:</span>
-              <span className="font-mono text-xs text-secondary">
-                {latestScan.taskId}
-              </span>
+            <div className="flex justify-between text-xs">
+              <span className="text-tertiary">Scan ID:</span>
+              <span className="font-mono text-[10px] text-quaternary">{latestScan._id}</span>
             </div>
-          )}
-          {latestScan.summary?.totalPages && (
-            <div className="flex justify-between text-sm">
-              <span className="text-tertiary">Pages Found:</span>
-              <span className="font-medium text-primary">
-                {latestScan.summary.totalPages}
-              </span>
+            <div className="flex justify-between text-xs">
+              <span className="text-tertiary">Status:</span>
+              <span className="font-medium text-primary">{latestScan.status}</span>
             </div>
-          )}
-          {isMockMode && (
-            <div className="text-xs text-warning-600 mt-2 pt-2 border-t border-warning-200">
-              ⚠️ Running in mock mode (no DataForSEO credentials)
-            </div>
-          )}
+            {latestScan.lastProgressUpdate && (
+              <div className="flex justify-between text-xs">
+                <span className="text-tertiary">Last update:</span>
+                <span className="text-quaternary">{new Date(latestScan.lastProgressUpdate).toLocaleTimeString()}</span>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Progress bar with actual percentage */}
-        <div className="w-full max-w-md mb-4">
-          <div className="flex items-center justify-between text-xs text-tertiary mb-2">
-            <span>Progress</span>
-            <span className="font-semibold text-brand-600">{progressPercentage}%</span>
-          </div>
+        {/* Progress bar */}
+        <div className="w-full max-w-md mb-6">
           <div className="h-2 bg-tertiary rounded-full overflow-hidden">
             <div
               className="h-full bg-brand-600 rounded-full transition-all duration-500"
               style={{ width: `${progressPercentage}%` }}
             />
           </div>
-        </div>
-
-        {/* Page counter - ALWAYS VISIBLE */}
-        <div className="text-lg font-semibold text-primary mb-6">
-          <span className="text-brand-600">
-            {latestScan.pagesScanned ?? latestScan.summary?.totalPages ?? 0}
-          </span>
-          {latestScan.totalPagesToScan && (
-            <>
-              <span className="text-tertiary mx-2">/</span>
-              <span className="text-secondary">{latestScan.totalPagesToScan}</span>
-            </>
-          )}
-          <span className="text-sm text-tertiary ml-2">pages scanned</span>
         </div>
         <div className="flex gap-3">
           <Button
@@ -421,28 +467,54 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
             <OnSiteHealthCard analysis={latestAnalysis} />
-            <IssuesSummaryCards analysis={latestAnalysis} />
+            <IssuesSummaryCards
+              analysis={latestAnalysis}
+              onShowIssues={(severity) => {
+                setSeverityFilter(severity);
+                setTimeout(() => {
+                  issuesBreakdownRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 50);
+              }}
+            />
           </div>
+
+          {/* Sitemap & Robots Overview */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <SitemapOverviewCard domainId={domainId} />
+            <RobotsAnalysisCard domainId={domainId} />
+          </div>
+
+          {/* Crawl Summary Cards (avg word count, load time, links, etc.) */}
+          <CrawlSummaryCards domainId={domainId} />
 
           {/* Lighthouse Scores and Core Web Vitals (Average from scanned pages) */}
           <InstantPagesMetrics domainId={domainId} scanId={latestScan?._id} />
 
-          {/* Issues Breakdown */}
-          <IssuesBreakdownSection
-            issues={latestAnalysis.issues}
+          {/* Issues Breakdown — Full Audit sections or legacy */}
+          <div ref={issuesBreakdownRef}>
+            {fullAuditData?.sections ? (
+              <AuditSectionsBreakdown
+                sections={fullAuditData.sections}
+                recommendations={fullAuditData.recommendations}
+              />
+            ) : (
+              <IssuesBreakdownSection
+                issues={latestAnalysis.issues}
+                scanId={latestScan?._id}
+                severityFilter={severityFilter}
+                onClearFilter={() => setSeverityFilter(null)}
+              />
+            )}
+          </div>
+
+          {/* Pages Table */}
+          <OnSitePagesTable
+            domainId={domainId}
             scanId={latestScan?._id}
           />
 
-          {/* Pages Table */}
-          <div className="bg-primary rounded-lg border border-secondary p-6">
-            <h3 className="text-md font-semibold text-primary mb-4">
-              Analyzed Pages
-            </h3>
-            <OnSitePagesTable
-              domainId={domainId}
-              scanId={latestScan?._id}
-            />
-          </div>
+          {/* Crawl Analytics (Links, Redirects, Images, Word Freq, Robots Test) */}
+          <CrawlAnalyticsSection domainId={domainId} />
         </>
       )}
     </div>

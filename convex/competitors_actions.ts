@@ -359,3 +359,99 @@ export const checkCompetitorPositionsInternal = internalAction({
     };
   },
 });
+
+/**
+ * Suggest competitor domains from DataForSEO competitors_domain endpoint.
+ * Returns domains that compete for the same keywords in organic search.
+ */
+export const suggestCompetitors = action({
+  args: {
+    domainId: v.id("domains"),
+  },
+  handler: async (ctx, args) => {
+    const domain: any = await ctx.runQuery(internal.competitors_internal.getDomainSettings, {
+      domainId: args.domainId,
+    });
+
+    if (!domain) {
+      return { success: false, error: "Domain not found", competitors: [] };
+    }
+
+    const login = process.env.DATAFORSEO_LOGIN;
+    const password = process.env.DATAFORSEO_PASSWORD;
+
+    if (!login || !password) {
+      // Mock data for dev mode
+      const mockCompetitors = [
+        { domain: "competitor-one.com", intersections: 142, avgPosition: 8.3, etv: 12500 },
+        { domain: "competitor-two.com", intersections: 98, avgPosition: 12.1, etv: 8700 },
+        { domain: "rival-site.org", intersections: 76, avgPosition: 15.4, etv: 5200 },
+        { domain: "industry-leader.com", intersections: 63, avgPosition: 5.7, etv: 22000 },
+        { domain: "niche-blog.net", intersections: 51, avgPosition: 18.9, etv: 3100 },
+        { domain: "seo-competitor.com", intersections: 44, avgPosition: 11.2, etv: 6800 },
+        { domain: "market-player.io", intersections: 38, avgPosition: 9.5, etv: 9400 },
+        { domain: "content-hub.com", intersections: 29, avgPosition: 14.6, etv: 4300 },
+      ];
+      return { success: true, competitors: mockCompetitors };
+    }
+
+    try {
+      const authHeader = btoa(`${login}:${password}`);
+
+      // Get already tracked competitors to exclude
+      const existingCompetitors: any[] = await ctx.runQuery(
+        internal.competitors_internal.getCompetitorsByDomain,
+        { domainId: args.domainId }
+      );
+      const excludeDomains = [
+        domain.domain,
+        ...existingCompetitors.map((c: any) => c.competitorDomain),
+      ];
+
+      const response = await fetch(`${DATAFORSEO_API_URL}/dataforseo_labs/google/competitors_domain/live`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Basic ${authHeader}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify([{
+          target: domain.domain,
+          location_name: domain.settings.location,
+          language_code: domain.settings.language,
+          item_types: ["organic"],
+          limit: 50,
+          exclude_top_domains: true,
+          exclude_domains: excludeDomains,
+          order_by: ["metrics.organic.count,desc"],
+        }]),
+      });
+
+      if (!response.ok) {
+        return { success: false, error: `API error: ${response.status}`, competitors: [] };
+      }
+
+      const data = await response.json();
+
+      if (data.status_code !== 20000) {
+        return { success: false, error: data.status_message || "Unknown API error", competitors: [] };
+      }
+
+      const items = data.tasks?.[0]?.result?.[0]?.items || [];
+
+      const competitors = items.slice(0, 30).map((item: any) => ({
+        domain: item.domain,
+        intersections: item.metrics?.organic?.count ?? item.intersections ?? 0,
+        avgPosition: item.avg_position ? Math.round(item.avg_position * 10) / 10 : null,
+        etv: item.metrics?.organic?.etv ? Math.round(item.metrics.organic.etv) : 0,
+      }));
+
+      return { success: true, competitors };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to fetch competitor suggestions",
+        competitors: [],
+      };
+    }
+  },
+});

@@ -67,10 +67,9 @@ export const analyzeContentGap = internalAction({
       intersections: false, // Content gap: competitor has, we don't
       limit: 1000,
       filters: [
-        ["search_volume", ">", 0], // Only keywords with search volume
-        ["keyword_difficulty", "<", 80], // Not too difficult
+        "keyword_data.keyword_info.search_volume", ">", 0
       ],
-      order_by: ["search_volume,desc"], // Order by search volume
+      order_by: ["keyword_data.keyword_info.search_volume,desc"], // Order by search volume
     }];
 
     console.log(`[analyzeContentGap] Calling Domain Intersection API for ${domain.domain} vs ${competitor.competitorDomain}`);
@@ -186,10 +185,13 @@ export const storeContentGapOpportunity = internalMutation({
     // Calculate opportunity score (0-100)
     // Higher score = better opportunity
     // Factors: high search volume, low difficulty, high traffic value, competitor in top 3
-    const searchVolumeScore = Math.min((args.searchVolume / 10000) * 50, 50); // 0-50 points
-    const difficultyScore = Math.max(50 - args.difficulty / 2, 0); // 0-50 points (lower difficulty = higher score)
-    const positionBonus = args.competitorPosition <= 3 ? 20 : args.competitorPosition <= 10 ? 10 : 0;
-    const opportunityScore = Math.min(searchVolumeScore + difficultyScore + positionBonus, 100);
+    const vol = args.searchVolume ?? 0;
+    const diff = args.difficulty ?? 50;
+    const compPos = args.competitorPosition ?? null;
+    const searchVolumeScore = Math.min((vol / 10000) * 50, 50); // 0-50 points
+    const difficultyScore = Math.max(50 - diff / 2, 0); // 0-50 points (lower difficulty = higher score)
+    const positionBonus = compPos !== null && compPos > 0 ? (compPos <= 3 ? 20 : compPos <= 10 ? 10 : 0) : 0;
+    const opportunityScore = Math.min(Math.round(searchVolumeScore + difficultyScore + positionBonus), 100);
 
     // Determine priority
     let priority: "high" | "medium" | "low" = "low";
@@ -259,8 +261,41 @@ export const getContentGapOpportunities = query({
       opportunities = opportunities.filter(opp => opp.priority === args.priority);
     }
 
+    // Resolve keywords and sanitize NaN values
+    const resolved = await Promise.all(
+      opportunities.map(async (opp) => {
+        const kw = await ctx.db.get(opp.keywordId);
+        // Sanitize NaN score and recalculate priority
+        let score = opp.opportunityScore;
+        let priority = opp.priority;
+        let difficulty = opp.difficulty;
+        if (isNaN(score) || score === null || score === undefined) {
+          const vol = opp.searchVolume ?? 0;
+          const diff = isNaN(difficulty) ? 50 : (difficulty ?? 50);
+          const compPos = opp.competitorPosition ?? null;
+          const volScore = Math.min((vol / 10000) * 50, 50);
+          const diffScore = Math.max(50 - diff / 2, 0);
+          const posBonus = compPos !== null && compPos > 0 ? (compPos <= 3 ? 20 : compPos <= 10 ? 10 : 0) : 0;
+          score = Math.min(Math.round(volScore + diffScore + posBonus), 100);
+        }
+        if (isNaN(difficulty)) {
+          difficulty = 0;
+        }
+        if (score >= 70) priority = "high";
+        else if (score >= 40) priority = "medium";
+        else priority = "low";
+        return {
+          ...opp,
+          keyword: kw?.phrase ?? "Unknown keyword",
+          opportunityScore: score,
+          difficulty,
+          priority,
+        };
+      })
+    );
+
     // Sort by opportunity score (higher = better)
-    return opportunities.sort((a, b) => b.opportunityScore - a.opportunityScore);
+    return resolved.sort((a, b) => b.opportunityScore - a.opportunityScore);
   },
 });
 

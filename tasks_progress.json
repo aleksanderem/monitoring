@@ -1,40 +1,118 @@
 {
-  "session_id": "S0022",
-  "date": "2026-02-02",
+  "session_id": "S0029",
+  "date": "2026-02-06",
   "tasks": [
     {
-      "id": 49,
-      "name": "fix_zombie_polling_job",
+      "id": 1,
+      "name": "content_gap_detail_modal",
       "status": "passing",
-      "created_session": "S0022",
-      "last_updated_session": "S0022"
+      "created_session": "S0027",
+      "last_updated_session": "S0027"
     },
     {
-      "id": 50,
-      "name": "add_defensive_error_handling",
+      "id": 2,
+      "name": "content_gap_table_rewrite",
       "status": "passing",
-      "created_session": "S0022",
-      "last_updated_session": "S0022"
+      "created_session": "S0027",
+      "last_updated_session": "S0027"
     },
     {
-      "id": 51,
-      "name": "auto_fetch_keywords_visibility_on_domain_creation",
+      "id": 3,
+      "name": "content_gap_tooltips",
       "status": "passing",
-      "created_session": "S0022",
-      "last_updated_session": "S0022"
+      "created_session": "S0027",
+      "last_updated_session": "S0027"
+    },
+    {
+      "id": 4,
+      "name": "user_system_admin_panel",
+      "status": "passing",
+      "created_session": "S0027",
+      "last_updated_session": "S0028"
+    },
+    {
+      "id": 5,
+      "name": "domain_onboarding_system",
+      "status": "passing",
+      "created_session": "S0029",
+      "last_updated_session": "S0029"
     }
   ],
-  "reason": "COMPLETED: Added automatic domain initialization. Modified createDomain and create mutations to schedule initializeDomainData action that fetches keywords and visibility from SE Ranking immediately after domain creation.",
-  "thinking_process": "Implementation: (1) Added internalAction import, (2) Created initializeDomainData internal action, (3) Scheduled it in both domain creation mutations using ctx.scheduler.runAfter(0, ...), (4) Action fetches top 100 keywords by traffic and full visibility history, (5) Logs results to console and system logs. Deployed successfully at 16:59:22.",
-  "connected_tasks": [49, 50, 51],
+  "reason": "Domain onboarding system implemented: wizard (3-step) + inline checklist + auto-chaining between steps.",
+  "thinking_process": "Created 8 new files + edited 1 existing. Schema already had onboarding fields from previous session. All TypeScript checks pass.",
+  "connected_tasks": [5],
   "how_to_test": [
     {
       "id": 1,
-      "name": "Test auto-initialization on domain creation",
+      "name": "Content Gap table: column visibility, sorting, search, filters, pagination all work",
+      "status": "done",
+      "is_ok": true,
+      "data_for_next_step": [],
+      "session_id": "S0027"
+    },
+    {
+      "id": 2,
+      "name": "Row click opens detail modal with score breakdown, competitor info, recommendations",
+      "status": "done",
+      "is_ok": true,
+      "data_for_next_step": [],
+      "session_id": "S0027"
+    },
+    {
+      "id": 3,
+      "name": "Tooltips visible on: section header, summary cards, chart headings, table columns",
+      "status": "done",
+      "is_ok": true,
+      "data_for_next_step": [],
+      "session_id": "S0027"
+    },
+    {
+      "id": 4,
+      "name": "npx tsc --noEmit passes with zero errors (including all onboarding files)",
+      "status": "done",
+      "is_ok": true,
+      "data_for_next_step": [],
+      "session_id": "S0029"
+    },
+    {
+      "id": 10,
+      "name": "New domain -> wizard auto-opens with 3 steps: Keywords, Competitors, Analysis",
       "status": "not_started",
       "is_ok": null,
-      "data_for_next_step": ["Create new domain in UI", "Check Convex logs for [INIT] messages", "Verify discovered keywords appear in domain", "Verify visibility history chart has data"],
-      "session_id": "S0022"
+      "data_for_next_step": [],
+      "session_id": "S0029"
+    },
+    {
+      "id": 11,
+      "name": "Step 1: discovered keywords table, Select Recommended, Add to Monitoring works",
+      "status": "not_started",
+      "is_ok": null,
+      "data_for_next_step": [],
+      "session_id": "S0029"
+    },
+    {
+      "id": 12,
+      "name": "Step 2: SERP auto-runs, progress bar updates, competitor cards with checkboxes appear",
+      "status": "not_started",
+      "is_ok": null,
+      "data_for_next_step": [],
+      "session_id": "S0029"
+    },
+    {
+      "id": 13,
+      "name": "Step 3: analysis auto-runs, summary shows counts, Go to Dashboard works",
+      "status": "not_started",
+      "is_ok": null,
+      "data_for_next_step": [],
+      "session_id": "S0029"
+    },
+    {
+      "id": 14,
+      "name": "After wizard close -> inline checklist shows remaining steps",
+      "status": "not_started",
+      "is_ok": null,
+      "data_for_next_step": [],
+      "session_id": "S0029"
     }
   ]
 }

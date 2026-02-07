@@ -226,6 +226,14 @@ export const processKeywordCheckJobInternal = internalAction({
         error: "Domain not found",
         completedAt: Date.now(),
       });
+      await ctx.runMutation(internal.notifications.createJobNotification, {
+        domainId: job.domainId,
+        type: "job_failed",
+        title: "Keyword check failed",
+        message: "Domain not found",
+        jobType: "keyword_check",
+        jobId: args.jobId,
+      });
       return;
     }
 
@@ -345,12 +353,28 @@ export const processKeywordCheckJobInternal = internalAction({
       completedAt: Date.now(),
     });
 
+    // Notify team
+    await ctx.runMutation(internal.notifications.createJobNotification, {
+      domainId: job.domainId,
+      type: failedCount > 0 ? "job_failed" : "job_completed",
+      title: "Keyword position check completed",
+      message: `Checked ${processedCount} keywords${failedCount > 0 ? `, ${failedCount} failed` : ""}`,
+      jobType: "keyword_check",
+      jobId: args.jobId,
+    });
+
     // Clear checking status from all keywords
     for (const keywordId of job.keywordIds) {
       await ctx.runMutation(internal.keywordCheckJobs.clearKeywordCheckingStatusInternal, {
         keywordId,
       });
     }
+
+    // Trigger page scoring recomputation after keyword positions updated
+    await ctx.scheduler.runAfter(0, internal.pageScoring.computePageScores, {
+      domainId: job.domainId,
+      offset: 0,
+    });
 
     console.log(`[processKeywordCheckJob] Job ${args.jobId} completed: ${processedCount}/${job.totalKeywords} processed, ${failedCount} failed`);
   },

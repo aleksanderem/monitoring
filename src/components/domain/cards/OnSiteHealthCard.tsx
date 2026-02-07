@@ -9,11 +9,24 @@ interface OnSiteHealthCardProps {
     criticalIssues: number;
     warnings: number;
     recommendations: number;
+    grade?: string;
+    pagesAnalyzed?: number;
   };
 }
 
+function getGradeColor(grade: string) {
+  switch (grade.toUpperCase()) {
+    case "A": return "bg-success-100 text-success-700 border-success-200";
+    case "B": return "bg-success-50 text-success-600 border-success-100";
+    case "C": return "bg-warning-50 text-warning-700 border-warning-200";
+    case "D": return "bg-orange-50 text-orange-700 border-orange-200";
+    case "F": return "bg-error-50 text-error-700 border-error-200";
+    default: return "bg-secondary text-tertiary border-secondary";
+  }
+}
+
 export function OnSiteHealthCard({ analysis }: OnSiteHealthCardProps) {
-  const { healthScore, totalPages, criticalIssues } = analysis;
+  const { healthScore, totalPages, criticalIssues, grade, pagesAnalyzed } = analysis;
 
   // Determine color and status based on health score AND critical issues
   let status: string;
@@ -69,6 +82,11 @@ export function OnSiteHealthCard({ analysis }: OnSiteHealthCardProps) {
             {healthScore}
           </span>
           <span className="text-sm text-tertiary">/ 100</span>
+          {grade && (
+            <span className={`ml-1 inline-flex items-center px-2 py-0.5 rounded-md text-sm font-bold border ${getGradeColor(grade)}`}>
+              {grade.toUpperCase()}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -79,7 +97,7 @@ export function OnSiteHealthCard({ analysis }: OnSiteHealthCardProps) {
 
         <div className="pt-4 border-t border-secondary">
           <span className="text-xs text-tertiary">
-            {totalPages} pages analyzed
+            {pagesAnalyzed ?? totalPages} pages analyzed
           </span>
         </div>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Globe01, Hash01, Edit01, Trash01, Settings01, RefreshCcw01 } from "@untitledui/icons";
+import { Globe01, Hash01, Edit01, Trash01, Settings01, RefreshCw01 } from "@untitledui/icons";
 import { SlideoutMenu } from "@/components/application/slideout-menus/slideout-menu";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
@@ -94,7 +94,7 @@ export function DomainDetailsSlideout({
                 size="xs"
                 color="tertiary"
                 tooltip="Refresh rankings"
-                icon={RefreshCcw01}
+                icon={RefreshCw01}
                 onClick={() => {
                   toast.info("Refresh coming soon");
                 }}

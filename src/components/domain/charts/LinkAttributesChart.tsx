@@ -68,7 +68,7 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
         <h3 className="text-md font-semibold text-primary">Link Attributes</h3>
-        <p className="text-sm text-tertiary">Nofollow, noopener, and other attributes</p>
+        <p className="text-sm text-tertiary">Distribution of link attributes (nofollow, sponsored, UGC, etc.) across your backlink profile. A natural profile has a mix of followed and nofollowed links.</p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">

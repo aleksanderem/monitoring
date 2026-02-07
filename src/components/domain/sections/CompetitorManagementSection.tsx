@@ -1,17 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery, useAction } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { Button } from "@/components/base/buttons/button";
 import { Dialog, Modal, ModalOverlay, DialogTrigger } from "@/components/application/modals/modal";
 import { CloseButton } from "@/components/base/buttons/close-button";
 import { Input } from "@/components/base/input/input";
-import { Badge } from "@/components/base/badges/badges";
-import { Plus, Trash01, PauseCircle, PlayCircle, Edit05, InfoCircle, Target04, Link03 } from "@untitledui/icons";
+import { Plus, Trash01, Edit05, Target04, Link03 } from "@untitledui/icons";
 import { toast } from "sonner";
 import { Heading } from "react-aria-components";
+import { AddCompetitorModal } from "../modals/AddCompetitorModal";
 
 interface CompetitorManagementSectionProps {
   domainId: Id<"domains">;
@@ -19,14 +19,11 @@ interface CompetitorManagementSectionProps {
 
 export function CompetitorManagementSection({ domainId }: CompetitorManagementSectionProps) {
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [competitorDomain, setCompetitorDomain] = useState("");
-  const [competitorName, setCompetitorName] = useState("");
   const [editingCompetitor, setEditingCompetitor] = useState<{ id: Id<"competitors">; name: string } | null>(null);
   const [editName, setEditName] = useState("");
   const [selectedCompetitors, setSelectedCompetitors] = useState<Set<Id<"competitors">>>(new Set());
 
   const competitors = useQuery(api.competitors.getCompetitors, { domainId });
-  const addCompetitor = useMutation(api.competitors.addCompetitor);
   const updateCompetitor = useMutation(api.competitors.updateCompetitor);
   const removeCompetitor = useMutation(api.competitors.removeCompetitor);
   const createContentGapJob = useMutation(api.competitorContentGapJobs.createContentGapJob);
@@ -36,49 +33,21 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
   const contentGapJobs = useQuery(api.competitorContentGapJobs.getActiveJobsForDomain, { domainId });
   const backlinksJobs = useQuery(api.competitorBacklinksJobs.getActiveJobsForDomain, { domainId });
 
-  const handleAddCompetitor = async () => {
-    if (!competitorDomain.trim()) {
-      toast.error("Please enter a competitor domain");
-      return;
-    }
-
-    try {
-      await addCompetitor({
-        domainId,
-        competitorDomain: competitorDomain.trim(),
-        name: competitorName.trim() || undefined,
-      });
-
-      toast.success("Competitor added successfully");
-      setShowAddDialog(false);
-      setCompetitorDomain("");
-      setCompetitorName("");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to add competitor");
-    }
-  };
-
-  const handleToggleStatus = async (competitorId: Id<"competitors">, currentStatus: string) => {
-    try {
-      const newStatus = currentStatus === "active" ? "paused" : "active";
-      await updateCompetitor({
-        competitorId,
-        status: newStatus,
-      });
-
-      toast.success(`Competitor ${newStatus === "active" ? "activated" : "paused"}`);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to update competitor");
-    }
-  };
+  // Only show active competitors
+  const activeCompetitors = competitors?.filter(c => c.status === "active") ?? [];
 
   const handleRemove = async (competitorId: Id<"competitors">) => {
-    if (!confirm("Are you sure you want to remove this competitor? All historical data will be deleted.")) {
+    if (!confirm("Are you sure you want to remove this competitor? It will be hidden from tracking.")) {
       return;
     }
 
     try {
       await removeCompetitor({ competitorId });
+      setSelectedCompetitors(prev => {
+        const next = new Set(prev);
+        next.delete(competitorId);
+        return next;
+      });
       toast.success("Competitor removed");
     } catch (error: any) {
       toast.error(error.message || "Failed to remove competitor");
@@ -125,12 +94,10 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
   };
 
   const handleToggleSelectAll = () => {
-    if (!competitors) return;
-
-    if (selectedCompetitors.size === competitors.length) {
+    if (selectedCompetitors.size === activeCompetitors.length) {
       setSelectedCompetitors(new Set());
     } else {
-      setSelectedCompetitors(new Set(competitors.map(c => c._id)));
+      setSelectedCompetitors(new Set(activeCompetitors.map(c => c._id)));
     }
   };
 
@@ -144,38 +111,10 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
     setSelectedCompetitors(newSelected);
   };
 
-  const handleBulkPause = async () => {
-    if (selectedCompetitors.size === 0) return;
-
-    try {
-      for (const competitorId of selectedCompetitors) {
-        await updateCompetitor({ competitorId, status: "paused" });
-      }
-      toast.success(`Paused ${selectedCompetitors.size} competitor(s)`);
-      setSelectedCompetitors(new Set());
-    } catch (error: any) {
-      toast.error(error.message || "Failed to pause competitors");
-    }
-  };
-
-  const handleBulkResume = async () => {
-    if (selectedCompetitors.size === 0) return;
-
-    try {
-      for (const competitorId of selectedCompetitors) {
-        await updateCompetitor({ competitorId, status: "active" });
-      }
-      toast.success(`Resumed ${selectedCompetitors.size} competitor(s)`);
-      setSelectedCompetitors(new Set());
-    } catch (error: any) {
-      toast.error(error.message || "Failed to resume competitors");
-    }
-  };
-
   const handleBulkDelete = async () => {
     if (selectedCompetitors.size === 0) return;
 
-    if (!confirm(`Are you sure you want to remove ${selectedCompetitors.size} competitor(s)? All historical data will be deleted.`)) {
+    if (!confirm(`Are you sure you want to remove ${selectedCompetitors.size} competitor(s)?`)) {
       return;
     }
 
@@ -192,45 +131,20 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-primary">Competitor Tracking</h3>
-          <p className="text-sm text-tertiary">
-            Monitor competitor rankings and discover keyword opportunities
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {selectedCompetitors.size > 0 && (
-            <>
-              <Button onClick={handleBulkResume} size="sm" color="secondary" iconLeading={PlayCircle}>
-                Resume ({selectedCompetitors.size})
-              </Button>
-              <Button onClick={handleBulkPause} size="sm" color="secondary" iconLeading={PauseCircle}>
-                Pause ({selectedCompetitors.size})
-              </Button>
-              <Button onClick={handleBulkDelete} size="sm" color="tertiary-destructive" iconLeading={Trash01}>
-                Delete ({selectedCompetitors.size})
-              </Button>
-            </>
-          )}
-          <Button onClick={() => setShowAddDialog(true)} size="sm" color="primary" iconLeading={Plus}>
-            Add Competitor
+      <div className="flex items-center justify-end gap-2">
+        {selectedCompetitors.size > 0 && (
+          <Button onClick={handleBulkDelete} size="sm" color="tertiary-destructive" iconLeading={Trash01}>
+            Delete ({selectedCompetitors.size})
           </Button>
-        </div>
-      </div>
-
-      <div className="flex items-start gap-2 rounded-lg border border-brand-subtle bg-brand-subtle/10 p-3">
-        <InfoCircle className="h-4 w-4 text-brand-secondary mt-0.5 shrink-0" />
-        <p className="text-xs text-tertiary">
-          New competitors are paused by default. Click the play icon to activate tracking,
-          then use &quot;Content Gap&quot; and &quot;Backlinks&quot; buttons to analyze them.
-          Only active competitors can be analyzed.
-        </p>
+        )}
+        <Button onClick={() => setShowAddDialog(true)} size="sm" color="primary" iconLeading={Plus}>
+          Add Competitor
+        </Button>
       </div>
 
       {competitors === undefined ? (
         <div className="text-center py-8 text-tertiary">Loading...</div>
-      ) : competitors.length === 0 ? (
+      ) : activeCompetitors.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-secondary rounded-lg">
           <p className="text-tertiary mb-4">No competitors added yet</p>
           <Button onClick={() => setShowAddDialog(true)} color="secondary" size="sm" iconLeading={Plus}>
@@ -243,18 +157,17 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
           <div className="flex items-center gap-3 px-4 py-2 border border-secondary rounded-lg bg-secondary/30">
             <input
               type="checkbox"
-              checked={competitors.length > 0 && selectedCompetitors.size === competitors.length}
+              checked={activeCompetitors.length > 0 && selectedCompetitors.size === activeCompetitors.length}
               onChange={handleToggleSelectAll}
               className="w-4 h-4 rounded border-utility-gray-300 text-brand-600 focus:ring-brand-500"
             />
             <span className="text-sm font-medium text-tertiary">
-              Select All ({competitors.length})
+              Select All ({activeCompetitors.length})
             </span>
           </div>
 
           {/* Competitor List */}
-          {competitors.map((competitor) => {
-            // Find active jobs for this competitor
+          {activeCompetitors.map((competitor) => {
             const contentGapJob = contentGapJobs?.find(job => job.competitorId === competitor._id);
             const backlinksJob = backlinksJobs?.find(job => job.competitorId === competitor._id);
 
@@ -275,9 +188,6 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
                     <h4 className="font-medium text-primary">
                       {competitor.name || competitor.competitorDomain}
                     </h4>
-                    <Badge color={competitor.status === "active" ? "brand" : "gray"} size="sm">
-                      {competitor.status}
-                    </Badge>
                   </div>
                 <p className="text-sm text-tertiary">{competitor.competitorDomain}</p>
                 {competitor.lastCheckedAt && (
@@ -331,7 +241,7 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
                   color="secondary"
                   size="sm"
                   onClick={() => handleAnalyzeContentGap(competitor._id, competitor.name || competitor.competitorDomain)}
-                  isDisabled={!!contentGapJob || competitor.status !== "active"}
+                  isDisabled={!!contentGapJob}
                   title="Analyze content gaps"
                   iconLeading={Target04}
                 >
@@ -341,7 +251,7 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
                   color="secondary"
                   size="sm"
                   onClick={() => handleFetchBacklinks(competitor._id, competitor.name || competitor.competitorDomain)}
-                  isDisabled={!!backlinksJob || competitor.status !== "active"}
+                  isDisabled={!!backlinksJob}
                   title="Fetch backlinks"
                   iconLeading={Link03}
                 >
@@ -353,13 +263,6 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
                   onClick={() => handleEditCompetitor(competitor._id, competitor.name || competitor.competitorDomain)}
                   title="Edit competitor"
                   iconLeading={Edit05}
-                />
-                <Button
-                  color="tertiary"
-                  size="sm"
-                  onClick={() => handleToggleStatus(competitor._id, competitor.status)}
-                  title={competitor.status === "active" ? "Pause tracking" : "Resume tracking"}
-                  iconLeading={competitor.status === "active" ? PauseCircle : PlayCircle}
                 />
                 <Button
                   color="tertiary-destructive"
@@ -375,64 +278,12 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
         </div>
       )}
 
-      {/* Add Competitor Dialog */}
-      <DialogTrigger isOpen={showAddDialog} onOpenChange={setShowAddDialog}>
-        <ModalOverlay isDismissable>
-          <Modal>
-            <Dialog className="overflow-hidden">
-              <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-lg">
-                <CloseButton
-                  onClick={() => setShowAddDialog(false)}
-                  theme="light"
-                  size="lg"
-                  className="absolute top-3 right-3 z-10"
-                />
-
-                {/* Header */}
-                <div className="border-b border-secondary px-6 py-4">
-                  <Heading slot="title" className="text-lg font-semibold text-primary">
-                    Add Competitor
-                  </Heading>
-                  <p className="mt-1 text-sm text-tertiary">
-                    Add a competitor domain to track their keyword rankings
-                  </p>
-                </div>
-
-                {/* Content */}
-                <div className="space-y-4 px-6 py-4">
-                  <Input
-                    size="md"
-                    label="Competitor Domain"
-                    placeholder="example.com"
-                    value={competitorDomain}
-                    onChange={(value: string) => setCompetitorDomain(value)}
-                    hint="Enter the domain without http:// or www."
-                    isRequired
-                  />
-
-                  <Input
-                    size="md"
-                    label="Display Name (optional)"
-                    placeholder="Leave empty to use domain"
-                    value={competitorName}
-                    onChange={(value: string) => setCompetitorName(value)}
-                  />
-                </div>
-
-                {/* Footer */}
-                <div className="flex items-center justify-end gap-3 border-t border-secondary px-6 py-4">
-                  <Button color="secondary" size="md" onClick={() => setShowAddDialog(false)}>
-                    Cancel
-                  </Button>
-                  <Button color="primary" size="md" onClick={handleAddCompetitor}>
-                    Add Competitor
-                  </Button>
-                </div>
-              </div>
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
+      {/* Add Competitor Dialog (shared 3-tab modal) */}
+      <AddCompetitorModal
+        domainId={domainId}
+        isOpen={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+      />
 
       {/* Edit Competitor Dialog */}
       <DialogTrigger isOpen={editingCompetitor !== null} onOpenChange={(open) => { if (!open) setEditingCompetitor(null); }}>

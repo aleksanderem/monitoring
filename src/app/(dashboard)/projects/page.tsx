@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { Edit05, Trash01, SearchLg, Eye, FilterLines, Globe01, Hash01 } from "@untitledui/icons";
+import Link from "next/link";
 import type { SortDescriptor } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/base/buttons/button";
@@ -219,9 +220,9 @@ export default function ProjectsPage() {
                         </span>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-primary">
+                        <Link href={`/projects/${item._id}`} className="text-sm font-medium text-brand-primary hover:underline">
                           {item.name}
-                        </p>
+                        </Link>
                         <p className="text-sm text-tertiary">
                           {item.domainCount} domains · {item.keywordCount} keywords
                         </p>

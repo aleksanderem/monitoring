@@ -1152,3 +1152,113 @@ export const getSerpResultsForKeyword = query({
     };
   },
 });
+
+// Position aggregation: temporal comparison of keyword positions
+export const getPositionAggregation = query({
+  args: {
+    domainId: v.id("domains"),
+    days: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const days = args.days ?? 30;
+    const now = Date.now();
+    const cutoff = now - days * 24 * 60 * 60 * 1000;
+    const cutoffDate = new Date(cutoff).toISOString().split("T")[0];
+
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    if (keywords.length === 0) return null;
+
+    let improving = 0;
+    let declining = 0;
+    let stable = 0;
+    let newEntries = 0;
+    let totalCurrentPos = 0;
+    let totalPreviousPos = 0;
+    let keywordsWithPositions = 0;
+
+    const positionBuckets = {
+      top3: { current: 0, previous: 0 },
+      top10: { current: 0, previous: 0 },
+      top20: { current: 0, previous: 0 },
+      top50: { current: 0, previous: 0 },
+      beyond: { current: 0, previous: 0 },
+    };
+
+    for (const kw of keywords) {
+      // Get most recent position
+      const latestPos = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
+        .order("desc")
+        .first();
+
+      if (!latestPos || latestPos.position === null) continue;
+
+      // Get position from N days ago
+      const oldPositions = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
+        .filter((q) => q.lte(q.field("date"), cutoffDate))
+        .order("desc")
+        .first();
+
+      const currentPos = latestPos.position;
+      keywordsWithPositions++;
+      totalCurrentPos += currentPos;
+
+      // Bucket current position
+      if (currentPos <= 3) positionBuckets.top3.current++;
+      else if (currentPos <= 10) positionBuckets.top10.current++;
+      else if (currentPos <= 20) positionBuckets.top20.current++;
+      else if (currentPos <= 50) positionBuckets.top50.current++;
+      else positionBuckets.beyond.current++;
+
+      if (oldPositions && oldPositions.position !== null) {
+        const prevPos = oldPositions.position;
+        totalPreviousPos += prevPos;
+
+        // Bucket previous position
+        if (prevPos <= 3) positionBuckets.top3.previous++;
+        else if (prevPos <= 10) positionBuckets.top10.previous++;
+        else if (prevPos <= 20) positionBuckets.top20.previous++;
+        else if (prevPos <= 50) positionBuckets.top50.previous++;
+        else positionBuckets.beyond.previous++;
+
+        const diff = prevPos - currentPos; // positive = improved
+        if (diff > 1) improving++;
+        else if (diff < -1) declining++;
+        else stable++;
+      } else {
+        newEntries++;
+      }
+    }
+
+    const avgCurrentPos = keywordsWithPositions > 0 ? Math.round((totalCurrentPos / keywordsWithPositions) * 10) / 10 : null;
+    const compared = improving + declining + stable;
+    const avgPreviousPos = compared > 0 ? Math.round((totalPreviousPos / compared) * 10) / 10 : null;
+    const avgChange = avgCurrentPos !== null && avgPreviousPos !== null ? Math.round((avgPreviousPos - avgCurrentPos) * 10) / 10 : null;
+
+    return {
+      totalKeywords: keywords.length,
+      keywordsWithPositions,
+      improving,
+      declining,
+      stable,
+      newEntries,
+      avgCurrentPosition: avgCurrentPos,
+      avgPreviousPosition: avgPreviousPos,
+      avgPositionChange: avgChange,
+      positionDistributionShift: Object.entries(positionBuckets).map(([bucket, data]) => ({
+        bucket,
+        current: data.current,
+        previous: data.previous,
+        change: data.current - data.previous,
+      })),
+      period: days,
+    };
+  },
+});

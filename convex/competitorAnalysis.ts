@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, internalAction, internalMutation } from "./_generated/server";
+import { mutation, query, internalAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
@@ -322,5 +322,75 @@ export const comparePageWithCompetitor = query({
         internalLinksDiff: (competitorPage.internalLinksCount || 0) - (yourPage.internalLinksCount || 0),
       } : null,
     };
+  },
+});
+
+/**
+ * Trigger competitor page analysis for a keyword.
+ * Finds the competitor's URL from SERP position data and schedules analysis.
+ */
+export const triggerCompetitorPageAnalysis = mutation({
+  args: {
+    competitorId: v.id("competitors"),
+    keywordId: v.id("keywords"),
+  },
+  handler: async (ctx, args) => {
+    let url: string | null = null;
+    let position = 0;
+
+    // 1. Try competitorKeywordPositions first
+    const positionRecord = await ctx.db
+      .query("competitorKeywordPositions")
+      .withIndex("by_competitor_keyword", (q) =>
+        q.eq("competitorId", args.competitorId).eq("keywordId", args.keywordId)
+      )
+      .order("desc")
+      .first();
+
+    if (positionRecord?.url) {
+      url = positionRecord.url;
+      position = positionRecord.position ?? 0;
+    }
+
+    // 2. Fallback: search keywordSerpResults for this competitor's domain
+    if (!url) {
+      const competitor = await ctx.db.get(args.competitorId);
+      if (!competitor) {
+        throw new Error("Competitor not found");
+      }
+
+      const keyword = await ctx.db.get(args.keywordId);
+      if (!keyword) {
+        throw new Error("Keyword not found");
+      }
+
+      const serpResults = await ctx.db
+        .query("keywordSerpResults")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
+        .collect();
+
+      const match = serpResults.find(
+        (r) => r.domain === competitor.competitorDomain || r.url.includes(competitor.competitorDomain)
+      );
+
+      if (match) {
+        url = match.url;
+        position = match.position;
+      }
+    }
+
+    if (!url) {
+      return { success: false, error: "No SERP data found for this competitor and keyword. Run a SERP check for this keyword first.", url: null };
+    }
+
+    // Schedule the internal action
+    await ctx.scheduler.runAfter(0, internal.competitorAnalysis.analyzeCompetitorPage, {
+      competitorId: args.competitorId,
+      keywordId: args.keywordId,
+      url,
+      position,
+    });
+
+    return { success: true, url };
   },
 });

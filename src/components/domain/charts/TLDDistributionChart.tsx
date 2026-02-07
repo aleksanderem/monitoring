@@ -65,7 +65,7 @@ export function TLDDistributionChart({ data, isLoading }: TLDDistributionChartPr
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
         <h3 className="text-md font-semibold text-primary">TLD Distribution</h3>
-        <p className="text-sm text-tertiary">Top 10 domains by backlink count</p>
+        <p className="text-sm text-tertiary">Top-level domain extensions (.com, .org, .pl, etc.) of your referring domains. Helps identify link profile diversity.</p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { toast } from "sonner";
 import {
@@ -69,16 +69,30 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
   const [hoveredKeyword, setHoveredKeyword] = useState<{ keyword: any; position: { x: number; y: number } } | null>(null);
   const [selectedKeyword, setSelectedKeyword] = useState<any | null>(null);
 
-  // Column visibility state
-  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
-    keyword: true,
-    position: true,
-    volume: true,
-    difficulty: true,
-    cpc: true,
-    etv: true,
-    actions: true,
+  // Column visibility state — persisted to localStorage
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("discoveredKeywords_columnVisibility");
+      if (saved) {
+        try { return JSON.parse(saved); } catch { /* use defaults */ }
+      }
+    }
+    return {
+      keyword: true,
+      position: true,
+      volume: true,
+      difficulty: true,
+      cpc: true,
+      etv: true,
+      actions: true,
+    };
   });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("discoveredKeywords_columnVisibility", JSON.stringify(columnVisibility));
+    }
+  }, [columnVisibility]);
 
   // Filter states
   const [positionFilter, setPositionFilter] = useState<string>("all");
@@ -231,7 +245,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
           <div>
             <h3 className="text-lg font-semibold text-primary">Discovered Keywords</h3>
             <p className="text-sm text-tertiary">
-              {sortedAndFilteredKeywords.length} keywords with rich data
+              {sortedAndFilteredKeywords.length} keywords enriched with search volume, difficulty, CPC, and intent data.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -441,7 +455,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                 return (
                   <React.Fragment key={keyword._id}>
                     <tr
-                      className="transition-colors hover:bg-secondary/30 cursor-pointer"
+                      className="transition-colors hover:bg-primary_hover cursor-pointer"
                       onMouseEnter={(e) => handleMouseEnter(keyword, e)}
                       onMouseLeave={handleMouseLeave}
                       onClick={() => setSelectedKeyword(keyword)}

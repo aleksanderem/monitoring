@@ -14,7 +14,7 @@ interface InstantPagesMetricsProps {
 export function InstantPagesMetrics({ domainId, scanId }: InstantPagesMetricsProps) {
   // Query to get pages with Lighthouse data
   const pagesData = useQuery(
-    api.onSite_queries.getPagesList,
+    api.seoAudit_queries.getPagesList,
     scanId ? { domainId, scanId, limit: 100, offset: 0 } : "skip"
   );
 

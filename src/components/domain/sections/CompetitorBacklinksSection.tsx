@@ -27,13 +27,13 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
     selectedCompetitor ? { competitorId: selectedCompetitor, limit: 20 } : "skip"
   );
 
-  // Transform competitors to SelectItemType format
-  const competitorItems: SelectItemType[] = competitors
-    ?.filter((competitor) => competitor && competitor._id)
+  // Transform active competitors to SelectItemType format
+  const activeCompetitors = competitors?.filter(c => c.status === "active") ?? [];
+  const competitorItems: SelectItemType[] = activeCompetitors
     .map((competitor) => ({
       id: competitor._id,
       label: competitor.name || competitor.competitorDomain,
-    })) || [];
+    }));
 
   const calculateDiff = (own: number, competitor: number) => {
     const diff = own - competitor;
@@ -49,7 +49,7 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
     );
   }
 
-  if (competitors.length === 0) {
+  if (activeCompetitors.length === 0) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-6">
         <div className="text-center py-12">
@@ -85,7 +85,7 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
             onSelectionChange={(key) => setSelectedCompetitor(key as Id<"competitors">)}
             placeholder="Select a competitor"
           >
-            {(item) => <span>{item.label}</span>}
+            {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}
           </Select>
         </div>
       </div>

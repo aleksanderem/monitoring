@@ -5,8 +5,7 @@ import { SocialButton } from "@/components/base/buttons/social-button";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Form } from "@/components/base/form/form";
 import { Input } from "@/components/base/input/input";
-import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
-import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
+import { AppLogo } from "@/components/foundations/logo/app-logo";
 
 export const LoginSplitMockup = () => {
     return (
@@ -15,8 +14,7 @@ export const LoginSplitMockup = () => {
                 <div className="flex flex-1 justify-center px-4 py-12 md:items-center md:px-8 md:py-32">
                     <div className="flex w-full flex-col gap-8 sm:max-w-90">
                         <div className="flex flex-col gap-6 md:gap-20">
-                            <UntitledLogo className="max-md:hidden" />
-                            <UntitledLogoMinimal className="size-10 md:hidden" />
+                            <AppLogo className="h-8" />
                             <div className="flex flex-col gap-2 md:gap-3">
                                 <h1 className="text-display-xs font-semibold text-primary md:text-display-md">Log in</h1>
                                 <p className="text-md text-tertiary">Welcome back! Please enter your details.</p>
@@ -64,7 +62,7 @@ export const LoginSplitMockup = () => {
                 </div>
 
                 <footer className="hidden p-8 pt-11 lg:block">
-                    <p className="text-sm text-tertiary">© Untitled UI 2077</p>
+                    <p className="text-sm text-tertiary">© DSE.O 2026</p>
                 </footer>
             </div>
 

@@ -102,7 +102,7 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-primary">Competitor Position Comparison</h3>
         <p className="text-sm text-tertiary">
-          Average keyword rankings compared to competitors over the last {days} days
+          Average keyword rankings compared to competitors over the last {days} days. Lower positions mean better visibility.
         </p>
       </div>
 

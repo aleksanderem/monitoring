@@ -14,7 +14,7 @@ import {
   ChevronRight,
   ChevronDown as ExpandIcon,
   ChevronRight as CollapseIcon,
-  RefreshCcw01,
+  RefreshCw01,
   Trash01,
   Edit05,
   Plus,
@@ -308,13 +308,13 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
           </div>
         )}
 
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-primary">Keyword Monitoring</h3>
-            <p className="text-sm text-tertiary">
-              {sortedAndFilteredKeywords.length} keywords being tracked
-            </p>
-          </div>
+        <div className="mb-3">
+          <h3 className="text-lg font-semibold text-primary">Keyword Monitoring</h3>
+          <p className="text-sm text-tertiary">
+            Track ranking positions over time for {sortedAndFilteredKeywords.length} keywords. Spot trends, detect drops early, and measure the impact of your SEO efforts.
+          </p>
+        </div>
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             {/* Add Keywords Button */}
             <Button
@@ -330,7 +330,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
             <Button
               size="sm"
               color="secondary"
-              iconLeading={RefreshCcw01}
+              iconLeading={RefreshCw01}
               onClick={async () => {
                 if (!keywords || keywords.length === 0) return;
                 try {
@@ -580,7 +580,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                 return (
                   <React.Fragment key={keyword.keywordId}>
                     <tr
-                      className="transition-colors hover:bg-secondary/30 cursor-pointer"
+                      className="transition-colors hover:bg-primary_hover cursor-pointer"
                       onClick={() => setSelectedKeyword(keyword)}
                     >
                       <td className="px-4 py-3">
@@ -623,7 +623,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                       {columnVisibility.position && (
                         <td className="px-4 py-3 text-center">
                           {isRefreshing ? (
-                            <RefreshCcw01 className="h-4 w-4 animate-spin text-brand-600 inline-block" />
+                            <RefreshCw01 className="h-4 w-4 animate-spin text-brand-600 inline-block" />
                           ) : keyword.currentPosition ? (
                             <span
                               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPositionBadgeClass(
@@ -731,7 +731,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                               className="text-tertiary hover:text-primary transition-colors disabled:opacity-50"
                               title="Refresh position"
                             >
-                              <RefreshCcw01 className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                              <RefreshCw01 className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                             </button>
                             <button
                               onClick={(e) => {

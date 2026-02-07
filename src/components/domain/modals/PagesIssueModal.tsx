@@ -1,209 +1,151 @@
 "use client";
 
-import { useState } from "react";
-import { useAction } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { Dialog, Modal, ModalOverlay, DialogTrigger } from "@/components/application/modals/modal";
-import { CloseButton } from "@/components/base/buttons/close-button";
-import { Button } from "@/components/base/buttons/button";
-import { AlertCircle, ArrowUpRight } from "@untitledui/icons";
-import { Heading } from "react-aria-components";
+import { XClose, ArrowUpRight, AlertCircle, CheckCircle } from "@untitledui/icons";
+import { useEscapeClose } from "@/hooks/useEscapeClose";
 
 interface PagesIssueModalProps {
   scanId: Id<"onSiteScans">;
   isOpen: boolean;
   onClose: () => void;
-  issueType: "brokenLinks" | "missingTitles" | "missingMetaDescriptions" | "missingH1" | "slowPages" | "duplicateContent" | "thinContent";
+  checkType: string;
   title: string;
   description: string;
 }
 
-const ISSUE_TYPE_CONFIG = {
-  brokenLinks: {
-    action: api.onSite_actions.getBrokenResourcesDetails,
-    emptyMessage: "No broken resources found",
-  },
-  missingTitles: {
-    action: api.onSite_actions.getMissingTitlesDetails,
-    emptyMessage: "No pages missing titles",
-  },
-  missingMetaDescriptions: {
-    action: api.onSite_actions.getMissingMetaDescriptionsDetails,
-    emptyMessage: "No pages missing meta descriptions",
-  },
-  missingH1: {
-    action: api.onSite_actions.getMissingH1Details,
-    emptyMessage: "No pages missing H1 tags",
-  },
-  slowPages: {
-    action: api.onSite_actions.getSlowPagesDetails,
-    emptyMessage: "No slow pages detected",
-  },
-  duplicateContent: {
-    action: api.onSite_actions.getDuplicateContentDetails,
-    emptyMessage: "No duplicate content detected",
-  },
-  thinContent: {
-    action: api.onSite_actions.getThinContentDetails,
-    emptyMessage: "No thin content detected",
-  },
-};
+export function PagesIssueModal({
+  scanId,
+  isOpen,
+  onClose,
+  checkType,
+  title,
+  description,
+}: PagesIssueModalProps) {
+  useEscapeClose(onClose, isOpen);
 
-export function PagesIssueModal({ scanId, isOpen, onClose, issueType, title, description }: PagesIssueModalProps) {
-  const [pages, setPages] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const pages = useQuery(
+    api.seoAudit_queries.getPagesWithFailedCheck,
+    isOpen ? { scanId, checkCategory: checkType } : "skip"
+  );
 
-  const config = ISSUE_TYPE_CONFIG[issueType];
-  const fetchDetails = useAction(config.action);
+  if (!isOpen) return null;
 
-  const handleOpen = async () => {
-    if (loaded) return; // Already loaded
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await fetchDetails({ scanId });
-
-      if (result.error) {
-        setError(result.error);
-      } else {
-        // Handle both 'pages' (from database) and 'resources' (from DataForSEO API)
-        const data = (result as any).pages || (result as any).resources || [];
-        setPages(data);
-        setLoaded(true);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch page details");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = pages === undefined;
 
   return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={(open) => {
-      if (open) {
-        handleOpen();
-      } else {
-        onClose();
-      }
-    }}>
-      <ModalOverlay isDismissable>
-        <Modal>
-          <Dialog className="overflow-hidden">
-            <div className="relative w-full overflow-hidden rounded-xl bg-white shadow-xl sm:max-w-3xl">
-              <CloseButton
-                onClick={onClose}
-                theme="light"
-                size="lg"
-                className="absolute top-3 right-3 z-10"
-              />
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-[5vh]"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-3xl rounded-2xl bg-primary shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between border-b border-secondary px-6 py-5">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-primary">{title}</h2>
+            <p className="mt-0.5 text-sm text-tertiary">{description}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-fg-quaternary hover:bg-secondary hover:text-fg-primary"
+          >
+            <XClose className="h-5 w-5" />
+          </button>
+        </div>
 
-              {/* Header */}
-              <div className="border-b border-gray-200 px-6 py-4">
-                <Heading slot="title" className="text-lg font-semibold text-gray-900">
-                  {title}
-                </Heading>
-                <p className="mt-1 text-sm text-gray-600">
-                  {description}
-                </p>
-              </div>
-
-              {/* Content */}
-              <div className="max-h-[600px] overflow-y-auto px-6 py-4">
-                {loading && (
-                  <div className="text-center py-12">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                    <p className="mt-4 text-sm text-gray-600">Loading pages...</p>
-                  </div>
-                )}
-
-                {error && (
-                  <div className="text-center py-12">
-                    <div className="bg-error-50 rounded-full p-4 mb-4 inline-block">
-                      <AlertCircle className="w-8 h-8 text-error-600" />
-                    </div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                      Error Loading Pages
-                    </h3>
-                    <p className="text-sm text-gray-600">{error}</p>
-                  </div>
-                )}
-
-                {!loading && !error && pages.length === 0 && (
-                  <div className="text-center py-12">
-                    <div className="bg-success-50 rounded-full p-4 mb-4 inline-block">
-                      <AlertCircle className="w-8 h-8 text-success-600" />
-                    </div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                      {config.emptyMessage}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      All pages meet this requirement.
-                    </p>
-                  </div>
-                )}
-
-                {!loading && !error && pages.length > 0 && (
-                  <div className="space-y-2">
-                    {pages.map((page, index) => (
-                      <div
-                        key={index}
-                        className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <a
-                            href={page.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm font-medium text-gray-900 hover:text-primary-600 flex items-center gap-1 group"
-                          >
-                            <span className="truncate">{page.url}</span>
-                            <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                          </a>
-                          <div className="flex items-center gap-3 mt-1 text-xs text-gray-600">
-                            {page.meta?.title && (
-                              <span className="truncate">Title: {page.meta.title}</span>
-                            )}
-                            {page.checks?.broken_links !== undefined && page.checks.broken_links > 0 && (
-                              <span className="text-error-600 font-medium">{page.checks.broken_links} broken link{page.checks.broken_links > 1 ? 's' : ''}</span>
-                            )}
-                            {page.page_timing?.time_to_interactive && (
-                              <span>{(page.page_timing.time_to_interactive / 1000).toFixed(2)}s load</span>
-                            )}
-                            {page.content_encoding?.plain_text_word_count !== undefined && (
-                              <span>{page.content_encoding.plain_text_word_count} words</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              {!loading && !error && pages.length > 0 && (
-                <div className="border-t border-gray-200 px-6 py-4">
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <span>Total: {pages.length} pages</span>
-                    <Button
-                      color="secondary"
-                      size="sm"
-                      onClick={onClose}
-                    >
-                      Close
-                    </Button>
-                  </div>
-                </div>
-              )}
+        {/* Content */}
+        <div className="max-h-[75vh] overflow-y-auto px-6 py-5">
+          {loading && (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
+              <p className="mt-4 text-sm text-tertiary">Loading pages...</p>
             </div>
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-    </DialogTrigger>
+          )}
+
+          {!loading && pages.length === 0 && (
+            <div className="text-center py-12">
+              <div className="bg-success-50 rounded-full p-4 mb-4 inline-block">
+                <CheckCircle className="w-8 h-8 text-success-600" />
+              </div>
+              <h3 className="text-sm font-semibold text-primary mb-2">
+                All pages pass this check
+              </h3>
+              <p className="text-sm text-tertiary">
+                No pages are currently failing the {title} check.
+              </p>
+            </div>
+          )}
+
+          {!loading && pages.length > 0 && (
+            <div className="space-y-2">
+              {pages.map((page) => {
+                // Find the specific failing check details
+                const checks = page.checks as any[] | undefined;
+                const failedCheck = Array.isArray(checks)
+                  ? checks.find(
+                      (c: any) => c.check === checkType && !c.passed
+                    )
+                  : null;
+
+                return (
+                  <div
+                    key={page._id}
+                    className="flex items-start gap-3 p-3 rounded-lg border border-secondary hover:bg-secondary/30 transition-colors"
+                  >
+                    <div className="bg-error-50 rounded-full p-1.5 flex-shrink-0 mt-0.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-error-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <a
+                        href={page.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-primary hover:text-brand-primary flex items-center gap-1 group"
+                      >
+                        <span className="truncate">{page.url}</span>
+                        <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                      </a>
+                      {failedCheck?.result && (
+                        <p className="text-xs text-tertiary mt-0.5 truncate">
+                          {failedCheck.result}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-3 mt-1 text-xs text-quaternary">
+                        {page.onpageScore !== undefined && (
+                          <span>Score: {page.onpageScore}/100</span>
+                        )}
+                        <span>
+                          {page.issueCount} issue
+                          {page.issueCount !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {!loading && pages && pages.length > 0 && (
+          <div className="flex items-center justify-between border-t border-secondary px-6 py-4">
+            <span className="text-sm text-tertiary">
+              {pages.length} page{pages.length !== 1 ? "s" : ""} affected
+            </span>
+            <button
+              onClick={onClose}
+              className="rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-secondary hover:bg-secondary"
+            >
+              Close
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

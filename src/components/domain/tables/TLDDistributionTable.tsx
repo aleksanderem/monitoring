@@ -71,7 +71,7 @@ export function TLDDistributionTable({ data, isLoading }: TLDDistributionTablePr
           </thead>
           <tbody className="divide-y divide-secondary">
             {tableData.map((item, index) => (
-              <tr key={item.tld} className="hover:bg-secondary/30 transition-colors">
+              <tr key={item.tld} className="hover:bg-primary_hover transition-colors">
                 <td className="px-4 py-3 text-sm font-medium text-primary">{item.tld}</td>
                 <td className="px-4 py-3 text-right text-sm text-primary">
                   {item.count.toLocaleString()}

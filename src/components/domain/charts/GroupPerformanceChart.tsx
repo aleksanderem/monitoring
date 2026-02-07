@@ -63,7 +63,7 @@ export function GroupPerformanceChart({ domainId, days = 30 }: GroupPerformanceC
     <div className="rounded-xl border border-secondary bg-primary p-6">
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-primary">Group Performance Comparison</h3>
-        <p className="text-sm text-tertiary">Average position over time for each group</p>
+        <p className="text-sm text-tertiary">Average ranking position over time for each keyword group. Track which groups are improving or declining.</p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">

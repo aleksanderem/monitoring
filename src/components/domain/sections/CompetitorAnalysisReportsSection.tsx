@@ -1,43 +1,180 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { Button } from "@/components/base/buttons/button";
 import { Badge } from "@/components/base/badges/badges";
-import { FileSearch02, Trash01, Eye, Target04, RefreshCcw01 } from "@untitledui/icons";
+import { Button } from "@/components/base/buttons/button";
+import {
+  FileSearch02,
+  Trash01,
+  RefreshCw01,
+  SearchLg,
+  ChevronSelectorVertical,
+  ArrowUp,
+  ArrowDown,
+  HelpCircle,
+  FilterLines,
+} from "@untitledui/icons";
 import { toast } from "sonner";
+import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
+import { KeywordAnalysisReportDetailModal } from "../modals/KeywordAnalysisReportDetailModal";
 
 interface CompetitorAnalysisReportsSectionProps {
   domainId: Id<"domains">;
 }
 
+type SortColumn = "keyword" | "status" | "competitors" | "avgWords" | "recommendations" | "createdAt";
+type SortDirection = "asc" | "desc";
+
+function SortIcon({ column, currentSort, currentDirection }: {
+  column: SortColumn;
+  currentSort: SortColumn;
+  currentDirection: SortDirection;
+}) {
+  if (currentSort !== column) {
+    return <ChevronSelectorVertical className="h-3.5 w-3.5 text-quaternary" />;
+  }
+  return currentDirection === "asc"
+    ? <ArrowUp className="h-3.5 w-3.5 text-brand-600" />
+    : <ArrowDown className="h-3.5 w-3.5 text-brand-600" />;
+}
+
+function ColumnTooltip({ text }: { text: string }) {
+  return (
+    <Tooltip title={text} delay={200}>
+      <TooltipTrigger className="ml-1 inline-flex text-fg-quaternary hover:text-fg-quaternary_hover">
+        <HelpCircle className="h-3.5 w-3.5" />
+      </TooltipTrigger>
+    </Tooltip>
+  );
+}
+
 export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysisReportsSectionProps) {
-  const [selectedReport, setSelectedReport] = useState<Id<"competitorAnalysisReports"> | null>(null);
+  const [selectedReportId, setSelectedReportId] = useState<Id<"competitorAnalysisReports"> | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortColumn, setSortColumn] = useState<SortColumn>("createdAt");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
+
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const reports = useQuery(api.competitorAnalysisReports.getReportsForDomain, { domainId });
-  const reportDetails = useQuery(
-    api.competitorAnalysisReports.getReport,
-    selectedReport ? { reportId: selectedReport } : "skip"
-  );
   const deleteReport = useMutation(api.competitorAnalysisReports.deleteReport);
+  const retryAnalysis = useMutation(api.competitorAnalysisReports.retryAnalysis);
+  const generateAll = useMutation(api.competitorAnalysisReports.generateAllKeywordReports);
 
-  const handleDelete = async (reportId: Id<"competitorAnalysisReports">, keyword: string) => {
-    if (!confirm(`Delete report for "${keyword}"?`)) return;
-
+  const handleGenerateAll = async () => {
+    setIsGenerating(true);
     try {
-      await deleteReport({ reportId });
-      if (selectedReport === reportId) {
-        setSelectedReport(null);
+      const result = await generateAll({ domainId });
+      if (result.created > 0) {
+        toast.success(`Generated ${result.created} reports${result.skipped > 0 ? ` (${result.skipped} skipped)` : ""}`);
+      } else if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.info("All keywords already have reports");
       }
-      toast.success("Report deleted");
     } catch (error: any) {
-      toast.error(error.message || "Failed to delete report");
+      toast.error(error.message || "Failed to generate reports");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
-  const getStatusBadgeColor = (status: string) => {
+  const toggleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(column);
+      setSortDirection("desc");
+    }
+  };
+
+  const filteredAndSorted = useMemo(() => {
+    if (!reports) return [];
+
+    let filtered = [...reports];
+
+    // Search filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (r) =>
+          r.keyword.toLowerCase().includes(q) ||
+          r.competitorPages.some((c) => c.domain.toLowerCase().includes(q))
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((r) => r.status === statusFilter);
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      const mul = sortDirection === "asc" ? 1 : -1;
+      switch (sortColumn) {
+        case "keyword":
+          return a.keyword.localeCompare(b.keyword) * mul;
+        case "status": {
+          const order = { completed: 0, analyzing: 1, pending: 2, failed: 3 };
+          return ((order[a.status as keyof typeof order] ?? 4) - (order[b.status as keyof typeof order] ?? 4)) * mul;
+        }
+        case "competitors":
+          return (a.competitorPages.length - b.competitorPages.length) * mul;
+        case "avgWords": {
+          const aW = a.analysis?.avgCompetitorWordCount ?? 0;
+          const bW = b.analysis?.avgCompetitorWordCount ?? 0;
+          return (aW - bW) * mul;
+        }
+        case "recommendations": {
+          const aR = a.recommendations?.length ?? 0;
+          const bR = b.recommendations?.length ?? 0;
+          return (aR - bR) * mul;
+        }
+        case "createdAt":
+          return (a.createdAt - b.createdAt) * mul;
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [reports, searchQuery, statusFilter, sortColumn, sortDirection]);
+
+  const totalPages = Math.ceil(filteredAndSorted.length / pageSize);
+  const paginatedReports = filteredAndSorted.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  const handleRetry = async (e: React.MouseEvent, reportId: Id<"competitorAnalysisReports">) => {
+    e.stopPropagation();
+    try {
+      await retryAnalysis({ reportId });
+      toast.success("Re-analyzing report...");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to retry analysis");
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, reportId: Id<"competitorAnalysisReports">) => {
+    e.stopPropagation();
+    try {
+      await deleteReport({ reportId });
+      if (selectedReportId === reportId) setSelectedReportId(null);
+      toast.success("Report deleted");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete report");
+    }
+  };
+
+  const getStatusColor = (status: string) => {
     switch (status) {
       case "completed": return "success";
       case "analyzing": return "brand";
@@ -46,18 +183,10 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high": return "error";
-      case "medium": return "warning";
-      default: return "gray";
-    }
-  };
-
   if (reports === undefined) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-6">
-        <div className="text-center py-8 text-tertiary">Loading...</div>
+        <div className="text-center py-8 text-tertiary">Loading reports...</div>
       </div>
     );
   }
@@ -67,224 +196,308 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
       <div className="rounded-xl border border-secondary bg-primary p-6">
         <div className="text-center py-12">
           <FileSearch02 className="h-12 w-12 text-quaternary mx-auto mb-4" />
-          <p className="text-tertiary mb-2">No competitor analysis reports yet</p>
-          <p className="text-sm text-quaternary">
-            Create a report from keyword monitoring to analyze what competitors do well
+          <h3 className="text-md font-semibold text-primary mb-2">No Keyword Analysis Reports</h3>
+          <p className="text-sm text-quaternary max-w-md mx-auto mb-4">
+            Create reports from keyword monitoring to analyze competitor content strategies and get actionable recommendations.
           </p>
+          <Button
+            color="primary"
+            size="md"
+            onClick={handleGenerateAll}
+            isDisabled={isGenerating}
+            iconLeading={isGenerating ? RefreshCw01 : FileSearch02}
+          >
+            {isGenerating ? "Generating..." : "Generate Reports for All Keywords"}
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary">
-      {/* Header */}
-      <div className="border-b border-secondary p-6">
-        <h3 className="text-lg font-semibold text-primary">Keyword Analysis Reports</h3>
-        <p className="text-sm text-tertiary">
-          Deep-dive competitor analysis with actionable recommendations
-        </p>
-      </div>
-
-      {/* Two column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 divide-x divide-secondary">
-        {/* Reports List */}
-        <div className="lg:col-span-1 max-h-[600px] overflow-y-auto">
-          <div className="divide-y divide-secondary">
-            {reports.map((report) => (
-              <div
-                key={report._id}
-                onClick={() => setSelectedReport(report._id)}
-                className={`
-                  p-4 cursor-pointer transition-colors
-                  ${selectedReport === report._id
-                    ? 'bg-brand-subtle/20 border-l-4 border-l-brand-primary'
-                    : 'hover:bg-secondary/50'
-                  }
-                `}
-              >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <h4 className="font-medium text-primary text-sm line-clamp-2">
-                    {report.keyword}
-                  </h4>
-                  <Badge color={getStatusBadgeColor(report.status)} size="sm">
-                    {report.status}
-                  </Badge>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs text-tertiary mb-2">
-                  <Target04 className="h-3 w-3" />
-                  <span>{report.competitorPages.length} competitors analyzed</span>
-                </div>
-
-                {report.status === "completed" && report.recommendations && (
-                  <div className="text-xs text-tertiary">
-                    {report.recommendations.length} recommendations
-                  </div>
-                )}
-
-                <div className="text-xs text-quaternary mt-2">
-                  {new Date(report.createdAt).toLocaleDateString()}
-                </div>
-
-                <div className="flex items-center gap-2 mt-2">
-                  <Button
-                    color="tertiary-destructive"
-                    size="sm"
-                    onClick={(e: React.MouseEvent) => {
-                      e.stopPropagation();
-                      handleDelete(report._id, report.keyword);
-                    }}
-                    iconLeading={Trash01}
-                    title="Delete report"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-semibold text-primary">Keyword Analysis Reports</h3>
+          <Badge color="gray" size="sm">
+            {filteredAndSorted.length}
+          </Badge>
         </div>
 
-        {/* Report Details */}
-        <div className="lg:col-span-2 p-6 max-h-[600px] overflow-y-auto">
-          {!selectedReport ? (
-            <div className="text-center py-12 text-tertiary">
-              <Eye className="h-12 w-12 text-quaternary mx-auto mb-4" />
-              <p>Select a report to view details</p>
-            </div>
-          ) : !reportDetails ? (
-            <div className="text-center py-12 text-tertiary">
-              <RefreshCcw01 className="h-12 w-12 text-quaternary mx-auto mb-4 animate-spin" />
-              <p>Loading report...</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Report Header */}
-              <div>
-                <h2 className="text-xl font-semibold text-primary mb-2">{reportDetails.keyword}</h2>
-                <div className="flex items-center gap-2">
-                  <Badge color={getStatusBadgeColor(reportDetails.status)} size="sm">
-                    {reportDetails.status}
-                  </Badge>
-                  {reportDetails.status === "analyzing" && (
-                    <span className="text-sm text-tertiary">Analysis in progress...</span>
-                  )}
-                  {reportDetails.status === "failed" && reportDetails.error && (
-                    <span className="text-sm text-utility-error-600">{reportDetails.error}</span>
-                  )}
-                </div>
-              </div>
+        <div className="flex items-center gap-3">
+          {/* Search */}
+          <div className="relative">
+            <SearchLg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-quaternary pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search keywords..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-64 pl-9 pr-3 py-2 border border-secondary rounded-lg text-sm bg-primary text-primary placeholder:text-quaternary focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
+            />
+          </div>
 
-              {reportDetails.status === "completed" && (
-                <>
-                  {/* Analyzed Competitors */}
-                  <div>
-                    <h3 className="text-sm font-semibold text-primary mb-3">Analyzed Competitors</h3>
-                    <div className="space-y-2">
-                      {reportDetails.competitorPages.map((comp, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 border border-secondary rounded-lg bg-secondary/30">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-sm font-medium text-primary">{comp.domain}</span>
-                              <Badge color="gray" size="sm">#{comp.position}</Badge>
-                            </div>
-                            <a
-                              href={comp.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-utility-blue-600 hover:underline break-all"
-                            >
-                              {comp.url}
-                            </a>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+          {/* Generate + Refresh */}
+          <Button
+            color="secondary"
+            size="sm"
+            onClick={handleGenerateAll}
+            isDisabled={isGenerating}
+            iconLeading={isGenerating ? RefreshCw01 : FileSearch02}
+          >
+            {isGenerating ? "Generating..." : "Generate Missing"}
+          </Button>
 
-                  {/* Analysis Summary */}
-                  {reportDetails.analysis && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-primary mb-3">Competitor Averages</h3>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="p-4 border border-secondary rounded-lg bg-secondary/30">
-                          <p className="text-xs text-tertiary mb-1">Avg Word Count</p>
-                          <p className="text-2xl font-bold text-primary">
-                            {!reportDetails.analysis.avgCompetitorWordCount || isNaN(reportDetails.analysis.avgCompetitorWordCount)
-                              ? "—"
-                              : Math.round(reportDetails.analysis.avgCompetitorWordCount).toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="p-4 border border-secondary rounded-lg bg-secondary/30">
-                          <p className="text-xs text-tertiary mb-1">Avg H2 Headings</p>
-                          <p className="text-2xl font-bold text-primary">
-                            {!reportDetails.analysis.avgCompetitorH2Count || isNaN(reportDetails.analysis.avgCompetitorH2Count)
-                              ? "—"
-                              : Math.round(reportDetails.analysis.avgCompetitorH2Count)}
-                          </p>
-                        </div>
-                        <div className="p-4 border border-secondary rounded-lg bg-secondary/30">
-                          <p className="text-xs text-tertiary mb-1">Avg Images</p>
-                          <p className="text-2xl font-bold text-primary">
-                            {!reportDetails.analysis.avgCompetitorImagesCount || isNaN(reportDetails.analysis.avgCompetitorImagesCount)
-                              ? "—"
-                              : Math.round(reportDetails.analysis.avgCompetitorImagesCount)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+          {/* Filters toggle */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm transition-colors ${
+              showFilters
+                ? "border-brand-600 bg-brand-50 text-brand-700"
+                : "border-secondary text-tertiary hover:text-primary hover:bg-secondary"
+            }`}
+          >
+            <FilterLines className="h-4 w-4" />
+            Filters
+          </button>
+        </div>
+      </div>
 
-                  {/* Recommendations */}
-                  {reportDetails.recommendations && reportDetails.recommendations.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-primary mb-3">
-                        Actionable Recommendations ({reportDetails.recommendations.length})
-                      </h3>
-                      <div className="space-y-4">
-                        {reportDetails.recommendations
-                          .sort((a, b) => {
-                            const priorityOrder = { high: 0, medium: 1, low: 2 };
-                            return priorityOrder[a.priority] - priorityOrder[b.priority];
-                          })
-                          .map((rec, idx) => (
-                            <div key={idx} className="p-4 border border-secondary rounded-lg bg-secondary/30">
-                              <div className="flex items-start justify-between gap-2 mb-2">
-                                <h4 className="text-sm font-semibold text-primary">{rec.title}</h4>
-                                <Badge color={getPriorityColor(rec.priority)} size="sm">
-                                  {rec.priority}
-                                </Badge>
-                              </div>
-
-                              <p className="text-sm text-tertiary mb-3">{rec.description}</p>
-
-                              {rec.actionSteps && rec.actionSteps.length > 0 && (
-                                <div>
-                                  <p className="text-xs font-medium text-tertiary mb-2">Action Steps:</p>
-                                  <ul className="space-y-1">
-                                    {rec.actionSteps.map((step, stepIdx) => (
-                                      <li key={stepIdx} className="text-xs text-tertiary flex items-start gap-2">
-                                        <span className="text-brand-primary mt-0.5">•</span>
-                                        <span>{step}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-
-                              <div className="mt-3 pt-3 border-t border-secondary">
-                                <Badge color="gray" size="sm">{rec.category}</Badge>
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+      {/* Filters panel */}
+      {showFilters && (
+        <div className="flex items-center gap-4 p-4 rounded-lg border border-secondary bg-secondary/30">
+          <div>
+            <label className="block text-xs font-medium text-tertiary mb-1">Status</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1.5 border border-secondary rounded-lg text-sm bg-primary"
+            >
+              <option value="all">All</option>
+              <option value="completed">Completed</option>
+              <option value="analyzing">Analyzing</option>
+              <option value="pending">Pending</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+          {(statusFilter !== "all" || searchQuery) && (
+            <button
+              onClick={() => {
+                setStatusFilter("all");
+                setSearchQuery("");
+                setCurrentPage(1);
+              }}
+              className="text-xs text-brand-600 hover:text-brand-700 mt-4"
+            >
+              Clear All
+            </button>
           )}
         </div>
+      )}
+
+      {/* Table */}
+      <div className="overflow-x-auto rounded-xl border border-secondary">
+        <table className="w-full">
+          <thead className="bg-secondary/50">
+            <tr>
+              <th
+                className="px-4 py-3 text-left text-xs font-medium text-tertiary cursor-pointer hover:bg-secondary/70 transition-colors"
+                onClick={() => toggleSort("keyword")}
+              >
+                <div className="flex items-center gap-1">
+                  Keyword
+                  <SortIcon column="keyword" currentSort={sortColumn} currentDirection={sortDirection} />
+                  <ColumnTooltip text="The target keyword this analysis was created for" />
+                </div>
+              </th>
+              <th
+                className="px-4 py-3 text-center text-xs font-medium text-tertiary cursor-pointer hover:bg-secondary/70 transition-colors"
+                onClick={() => toggleSort("status")}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  Status
+                  <SortIcon column="status" currentSort={sortColumn} currentDirection={sortDirection} />
+                  <ColumnTooltip text="Pending (queued), Analyzing (in progress), Completed (done), Failed (error)" />
+                </div>
+              </th>
+              <th
+                className="px-4 py-3 text-center text-xs font-medium text-tertiary cursor-pointer hover:bg-secondary/70 transition-colors"
+                onClick={() => toggleSort("competitors")}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  Competitors
+                  <SortIcon column="competitors" currentSort={sortColumn} currentDirection={sortDirection} />
+                  <ColumnTooltip text="Number of competitor pages analyzed for this keyword" />
+                </div>
+              </th>
+              <th
+                className="px-4 py-3 text-center text-xs font-medium text-tertiary cursor-pointer hover:bg-secondary/70 transition-colors"
+                onClick={() => toggleSort("avgWords")}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  Avg. Words
+                  <SortIcon column="avgWords" currentSort={sortColumn} currentDirection={sortDirection} />
+                  <ColumnTooltip text="Average word count across analyzed competitor pages" />
+                </div>
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
+                <div className="flex items-center justify-center gap-1">
+                  Avg. H2
+                  <ColumnTooltip text="Average number of H2 headings used by competitor pages" />
+                </div>
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
+                <div className="flex items-center justify-center gap-1">
+                  Avg. Images
+                  <ColumnTooltip text="Average number of images used by competitor pages" />
+                </div>
+              </th>
+              <th
+                className="px-4 py-3 text-center text-xs font-medium text-tertiary cursor-pointer hover:bg-secondary/70 transition-colors"
+                onClick={() => toggleSort("recommendations")}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  Recs
+                  <SortIcon column="recommendations" currentSort={sortColumn} currentDirection={sortDirection} />
+                  <ColumnTooltip text="Number of actionable recommendations generated" />
+                </div>
+              </th>
+              <th
+                className="px-4 py-3 text-center text-xs font-medium text-tertiary cursor-pointer hover:bg-secondary/70 transition-colors"
+                onClick={() => toggleSort("createdAt")}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  Created
+                  <SortIcon column="createdAt" currentSort={sortColumn} currentDirection={sortDirection} />
+                </div>
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-secondary">
+            {paginatedReports.map((report) => (
+              <tr
+                key={report._id}
+                onClick={() => setSelectedReportId(report._id)}
+                className="hover:bg-primary_hover transition-colors cursor-pointer"
+              >
+                <td className="px-4 py-3">
+                  <span className="text-sm font-medium text-primary">{report.keyword}</span>
+                  {report.competitorPages.length > 0 && (
+                    <span className="block text-xs text-quaternary truncate max-w-[250px]">
+                      vs {report.competitorPages.map((c) => c.domain).join(", ")}
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <Badge color={getStatusColor(report.status)} size="sm">
+                    {report.status}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3 text-center text-sm text-primary">
+                  {report.competitorPages.length}
+                </td>
+                <td className="px-4 py-3 text-center text-sm text-primary">
+                  {report.analysis?.avgCompetitorWordCount
+                    ? Math.round(report.analysis.avgCompetitorWordCount).toLocaleString()
+                    : "—"}
+                </td>
+                <td className="px-4 py-3 text-center text-sm text-primary">
+                  {report.analysis?.avgCompetitorH2Count
+                    ? Math.round(report.analysis.avgCompetitorH2Count)
+                    : "—"}
+                </td>
+                <td className="px-4 py-3 text-center text-sm text-primary">
+                  {report.analysis?.avgCompetitorImagesCount
+                    ? Math.round(report.analysis.avgCompetitorImagesCount)
+                    : "—"}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  {report.recommendations && report.recommendations.length > 0 ? (
+                    <Badge color="brand" size="sm">
+                      {report.recommendations.length}
+                    </Badge>
+                  ) : (
+                    <span className="text-sm text-quaternary">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-center text-xs text-tertiary whitespace-nowrap">
+                  {new Date(report.createdAt).toLocaleDateString()}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    {(report.status === "completed" || report.status === "failed") && (
+                      <Button
+                        color="tertiary"
+                        size="sm"
+                        iconLeading={RefreshCw01}
+                        onClick={(e: React.MouseEvent) => handleRetry(e, report._id)}
+                        title="Re-run analysis"
+                      />
+                    )}
+                    <Button
+                      color="tertiary-destructive"
+                      size="sm"
+                      iconLeading={Trash01}
+                      onClick={(e: React.MouseEvent) => handleDelete(e, report._id)}
+                      title="Delete report"
+                    />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {paginatedReports.length === 0 && (
+          <div className="text-center py-12 text-tertiary">
+            No reports match your filters
+          </div>
+        )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <span className="text-sm text-tertiary">
+            Page {currentPage} of {totalPages} ({filteredAndSorted.length} results)
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 border border-secondary rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 border border-secondary rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {selectedReportId && (
+        <KeywordAnalysisReportDetailModal
+          reportId={selectedReportId}
+          isOpen={!!selectedReportId}
+          onClose={() => setSelectedReportId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Badge, BadgeWithDot } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
@@ -87,16 +87,30 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Column visibility state
-  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
-    domainFrom: true,
-    anchor: true,
-    itemType: true,
-    linkType: true,
-    rank: true,
-    spamScore: true,
-    lastSeen: true,
+  // Column visibility state — persisted to localStorage
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("backlinks_columnVisibility");
+      if (saved) {
+        try { return JSON.parse(saved); } catch { /* use defaults */ }
+      }
+    }
+    return {
+      domainFrom: true,
+      anchor: true,
+      itemType: true,
+      linkType: true,
+      rank: true,
+      spamScore: true,
+      lastSeen: true,
+    };
   });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("backlinks_columnVisibility", JSON.stringify(columnVisibility));
+    }
+  }, [columnVisibility]);
 
   // Filter states
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -250,7 +264,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
         <div>
           <h3 className="text-lg font-semibold text-primary">Backlinks</h3>
           <p className="text-sm text-tertiary">
-            {filteredAndSortedBacklinks.length} of {backlinks.total} backlinks
+            {filteredAndSortedBacklinks.length} of {backlinks.total} inbound links from external sites. Monitor link quality, anchor text diversity, and referring domain authority.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -493,7 +507,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
               const spamBadge = getSpamBadge(backlink.backlink_spam_score);
 
               return (
-                <tr key={backlink._id} className="transition-colors hover:bg-secondary/30">
+                <tr key={backlink._id} className="transition-colors hover:bg-primary_hover">
                   {columnVisibility.domainFrom && (
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">

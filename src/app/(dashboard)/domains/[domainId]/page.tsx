@@ -11,7 +11,7 @@ import {
   Hash01,
   Edit01,
   Trash01,
-  RefreshCcw01,
+  RefreshCw01,
   BarChart03,
   Settings01,
   Link03,
@@ -19,6 +19,7 @@ import {
   HomeLine,
   Save01,
   FileCheck02,
+  FileSearch02,
   Lightbulb02,
   Users01,
   Lightning01
@@ -64,10 +65,7 @@ import { BacklinksTable } from "@/components/domain/tables/BacklinksTable";
 import { BacklinkVelocityChart } from "@/components/domain/charts/BacklinkVelocityChart";
 import { VelocityMetricsCards } from "@/components/domain/cards/VelocityMetricsCards";
 import { OnSiteSection } from "@/components/domain/sections/OnSiteSection";
-import { GapSummaryCards } from "@/components/domain/cards/GapSummaryCards";
-// import { ContentGapsTable } from "@/components/domain/tables/ContentGapsTable";
 import { CompetitorManagementSection } from "@/components/domain/sections/CompetitorManagementSection";
-import { ContentGapOpportunitiesTable } from "@/components/domain/tables/ContentGapOpportunitiesTable";
 import { CompetitorBacklinksSection } from "@/components/domain/sections/CompetitorBacklinksSection";
 import { CompetitorContentAnalysisSection } from "@/components/domain/sections/CompetitorContentAnalysisSection";
 import { AddKeywordsModal } from "@/components/domain/modals/AddKeywordsModal";
@@ -75,6 +73,15 @@ import { CompetitorOverviewChart } from "@/components/domain/charts/CompetitorOv
 import { CompetitorKeywordGapTable } from "@/components/domain/tables/CompetitorKeywordGapTable";
 import { ForecastSummaryCard } from "@/components/domain/cards/ForecastSummaryCard";
 import { CompetitorAnalysisReportsSection } from "@/components/domain/sections/CompetitorAnalysisReportsSection";
+import { KeywordMapSection } from "@/components/domain/sections/KeywordMapSection";
+import { BacklinkProfileSection } from "@/components/domain/sections/BacklinkProfileSection";
+import { LinkBuildingSection } from "@/components/domain/sections/LinkBuildingSection";
+import { ContentGapSection } from "@/components/domain/sections/ContentGapSection";
+import { InsightsSection } from "@/components/domain/sections/InsightsSection";
+import { Target04, LinkExternal02 } from "@untitledui/icons";
+import { GenerateReportModal } from "@/components/domain/modals/GenerateReportModal";
+import { DomainSetupWizard } from "@/components/domain/onboarding/DomainSetupWizard";
+import { OnboardingChecklist } from "@/components/domain/onboarding/OnboardingChecklist";
 
 // Helper to format date
 function formatDate(timestamp: number) {
@@ -99,9 +106,12 @@ function formatRelativeTime(timestamp: number) {
 const tabs = [
   { id: "overview", label: "Overview", icon: BarChart03 },
   { id: "monitoring", label: "Monitoring", icon: Activity },
+  { id: "keyword-map", label: "Keyword Map", icon: Target04 },
   { id: "visibility", label: "Visibility", icon: TrendUp02 },
   { id: "backlinks", label: "Backlinks", icon: Link03 },
+  { id: "link-building", label: "Link Building", icon: LinkExternal02 },
   { id: "competitors", label: "Competitors", icon: Users01 },
+  { id: "keyword-analysis", label: "Keyword Analysis", icon: FileSearch02 },
   { id: "on-site", label: "On-Site", icon: FileCheck02 },
   { id: "content-gaps", label: "Content Gaps", icon: Lightbulb02 },
   { id: "insights", label: "Insights", icon: Lightning01 },
@@ -145,16 +155,34 @@ export default function DomainDetailPage() {
   const velocityStats = useQuery(api.backlinkVelocity.getVelocityStats, { domainId, days: 30 });
   const velocity7Day = useQuery(api.backlinkVelocity.getVelocityStats, { domainId, days: 7 });
 
-  // Content gaps queries
-  const gapSummary = useQuery(api.contentGaps_queries.getGapSummary, { domainId });
+  // Content gaps queries (now handled inside ContentGapSection)
 
   // Visibility data fetching actions
   const fetchVisibilityAction = useAction(api.dataforseo.fetchAndStoreVisibility);
   const fetchVisibilityHistoryAction = useAction(api.dataforseo.fetchAndStoreVisibilityHistory);
 
+  // Onboarding
+  const onboardingStatus = useQuery(api.onboarding.getOnboardingStatus, { domainId });
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [wizardAutoOpened, setWizardAutoOpened] = useState(false);
+
+  // Auto-open wizard for new domains that haven't completed onboarding
+  useEffect(() => {
+    if (
+      onboardingStatus &&
+      !onboardingStatus.isCompleted &&
+      !onboardingStatus.isDismissed &&
+      !wizardAutoOpened
+    ) {
+      setIsWizardOpen(true);
+      setWizardAutoOpened(true);
+    }
+  }, [onboardingStatus, wizardAutoOpened]);
+
   const [isFetchingBacklinks, setIsFetchingBacklinks] = useState(false);
   const [isFetchingVisibility, setIsFetchingVisibility] = useState(false);
   const [isAddKeywordsModalOpen, setIsAddKeywordsModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [backlinksPage, setBacklinksPage] = useState(1);
   const backlinksPageSize = 50;
 
@@ -378,8 +406,15 @@ export default function DomainDetailPage() {
               <ButtonUtility
                 size="sm"
                 color="tertiary"
+                tooltip="Generate full report"
+                icon={FileCheck02}
+                onClick={() => setIsReportModalOpen(true)}
+              />
+              <ButtonUtility
+                size="sm"
+                color="tertiary"
                 tooltip="Refresh rankings"
-                icon={RefreshCcw01}
+                icon={RefreshCw01}
                 onClick={handleRefresh}
               />
               <ButtonUtility
@@ -405,6 +440,14 @@ export default function DomainDetailPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Onboarding Checklist Banner */}
+      <div className="mx-auto w-full max-w-container px-4 lg:px-8">
+        <OnboardingChecklist
+          domainId={domainId}
+          onOpenWizard={() => setIsWizardOpen(true)}
+        />
       </div>
 
       {/* Main content with vertical tabs */}
@@ -472,6 +515,11 @@ export default function DomainDetailPage() {
               </div>
             </TabPanel>
 
+            {/* Keyword Map Tab */}
+            <TabPanel id="keyword-map">
+              <KeywordMapSection domainId={domainId} />
+            </TabPanel>
+
             {/* Visibility Tab */}
             <TabPanel id="visibility">
               <div className="flex flex-col gap-6">
@@ -486,7 +534,7 @@ export default function DomainDetailPage() {
                   <Button
                     size="md"
                     color="primary"
-                    iconLeading={RefreshCcw01}
+                    iconLeading={RefreshCw01}
                     onClick={handleFetchVisibility}
                     disabled={isFetchingVisibility || !domain}
                     title="Fetch current rankings and discover new keyword opportunities"
@@ -542,7 +590,7 @@ export default function DomainDetailPage() {
                   <Button
                     size="md"
                     color="primary"
-                    iconLeading={RefreshCcw01}
+                    iconLeading={RefreshCw01}
                     onClick={handleFetchBacklinks}
                     disabled={isFetchingBacklinks}
                   >
@@ -635,7 +683,15 @@ export default function DomainDetailPage() {
                     isLoading={backlinksData === undefined}
                   />
                 )}
+
+                {/* Backlink Profile Analysis */}
+                <BacklinkProfileSection domainId={domainId} />
               </div>
+            </TabPanel>
+
+            {/* Link Building Tab */}
+            <TabPanel id="link-building">
+              <LinkBuildingSection domainId={domainId} />
             </TabPanel>
 
             {/* Competitors Tab */}
@@ -648,11 +704,7 @@ export default function DomainDetailPage() {
                   </p>
                 </div>
 
-                <CompetitorAnalysisReportsSection domainId={domainId} />
-
                 <CompetitorManagementSection domainId={domainId} />
-
-                <ContentGapOpportunitiesTable domainId={domainId} />
 
                 <CompetitorBacklinksSection domainId={domainId} />
 
@@ -664,6 +716,20 @@ export default function DomainDetailPage() {
               </div>
             </TabPanel>
 
+            {/* Keyword Analysis Tab */}
+            <TabPanel id="keyword-analysis">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-primary mb-1">Keyword Analysis</h2>
+                  <p className="text-sm text-tertiary">
+                    Deep-dive competitor content analysis with actionable recommendations per keyword
+                  </p>
+                </div>
+
+                <CompetitorAnalysisReportsSection domainId={domainId} />
+              </div>
+            </TabPanel>
+
             {/* On-Site Tab */}
             <TabPanel id="on-site">
               <OnSiteSection domainId={domainId} />
@@ -671,37 +737,12 @@ export default function DomainDetailPage() {
 
             {/* Content Gaps Tab */}
             <TabPanel id="content-gaps">
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-primary mb-1">Content Gap Analysis</h2>
-                  <p className="text-sm text-tertiary">
-                    Identify keyword opportunities where competitors rank but you don't
-                  </p>
-                </div>
-
-                {gapSummary && <GapSummaryCards summary={gapSummary} />}
-
-                {/* <ContentGapsTable domainId={domainId} /> */}
-                <p className="text-gray-500 text-center py-8">Content gaps table temporarily disabled</p>
-              </div>
+              <ContentGapSection domainId={domainId} />
             </TabPanel>
 
             {/* Insights Tab */}
             <TabPanel id="insights">
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-primary mb-1">Insights & Anomalies</h2>
-                  <p className="text-sm text-tertiary">
-                    Statistical anomalies and forecasting for your rankings
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-secondary bg-primary p-6">
-                  <p className="text-sm text-tertiary text-center">
-                    Insights and anomaly detection coming soon. This feature will detect unusual ranking changes and provide predictive analytics.
-                  </p>
-                </div>
-              </div>
+              <InsightsSection domainId={domainId} />
             </TabPanel>
 
             {/* Settings Tab */}
@@ -889,6 +930,23 @@ export default function DomainDetailPage() {
         domainId={domainId}
         isOpen={isAddKeywordsModalOpen}
         onClose={() => setIsAddKeywordsModalOpen(false)}
+      />
+
+      {/* Generate Report Modal */}
+      {domain && (
+        <GenerateReportModal
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          domainId={domainId}
+          domainName={domain.domain}
+        />
+      )}
+
+      {/* Domain Setup Wizard */}
+      <DomainSetupWizard
+        domainId={domainId}
+        isOpen={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
       />
     </main>
   );

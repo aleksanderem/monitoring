@@ -153,16 +153,16 @@ export const processBacklinksJobInternal = internalAction({
       startedAt: Date.now(),
     });
 
+    // Get job details (before try so it's available in catch)
+    const job = await ctx.runQuery(internal.competitorBacklinksJobs.getJobInternal, {
+      jobId: args.jobId,
+    });
+
+    if (!job) {
+      throw new Error("Job not found");
+    }
+
     try {
-      // Get job details
-      const job = await ctx.runQuery(internal.competitorBacklinksJobs.getJobInternal, {
-        jobId: args.jobId,
-      });
-
-      if (!job) {
-        throw new Error("Job not found");
-      }
-
       // Get competitor info
       const competitor = await ctx.runQuery(internal.competitors.getCompetitorInternal, {
         competitorId: job.competitorId,
@@ -190,6 +190,22 @@ export const processBacklinksJobInternal = internalAction({
         completedAt: Date.now(),
       });
 
+      // Notify team
+      await ctx.runMutation(internal.notifications.createJobNotification, {
+        domainId: job.domainId,
+        type: "job_completed",
+        title: "Backlink analysis completed",
+        message: `Found ${summary?.totalBacklinks || 0} backlinks`,
+        jobType: "backlinks",
+        jobId: args.jobId,
+      });
+
+      // Trigger page scoring recomputation after backlinks updated
+      await ctx.scheduler.runAfter(0, internal.pageScoring.computePageScores, {
+        domainId: job.domainId,
+        offset: 0,
+      });
+
       console.log(`[processBacklinksJob] Job ${args.jobId} completed: ${summary?.totalBacklinks || 0} backlinks found`);
     } catch (error: any) {
       console.error(`[processBacklinksJob] Job ${args.jobId} failed:`, error);
@@ -199,6 +215,16 @@ export const processBacklinksJobInternal = internalAction({
         status: "failed",
         error: error.message || "Unknown error",
         completedAt: Date.now(),
+      });
+
+      // Notify team
+      await ctx.runMutation(internal.notifications.createJobNotification, {
+        domainId: job.domainId,
+        type: "job_failed",
+        title: "Backlink analysis failed",
+        message: error.message || "Unknown error",
+        jobType: "backlinks",
+        jobId: args.jobId,
       });
     }
   },

@@ -150,6 +150,14 @@ export const processSerpFetchJobInternal = internalAction({
         completedAt: Date.now(),
         error: "Domain not found",
       });
+      await ctx.runMutation(internal.notifications.createJobNotification, {
+        domainId: job.domainId,
+        type: "job_failed",
+        title: "SERP check failed",
+        message: "Domain not found",
+        jobType: "serp_fetch",
+        jobId: args.jobId,
+      });
       return;
     }
 
@@ -163,6 +171,14 @@ export const processSerpFetchJobInternal = internalAction({
         status: "failed",
         completedAt: Date.now(),
         error: "DataForSEO credentials not configured",
+      });
+      await ctx.runMutation(internal.notifications.createJobNotification, {
+        domainId: job.domainId,
+        type: "job_failed",
+        title: "SERP check failed",
+        message: "DataForSEO credentials not configured",
+        jobType: "serp_fetch",
+        jobId: args.jobId,
       });
       return;
     }
@@ -383,6 +399,16 @@ export const processSerpFetchJobInternal = internalAction({
       completedAt: Date.now(),
       processedKeywords: processedCount,
       failedKeywords: failedCount,
+    });
+
+    // Notify team
+    await ctx.runMutation(internal.notifications.createJobNotification, {
+      domainId: job.domainId,
+      type: failedCount > 0 ? "job_failed" : "job_completed",
+      title: "SERP check completed",
+      message: `Processed ${processedCount} keywords${failedCount > 0 ? `, ${failedCount} failed` : ""}`,
+      jobType: "serp_fetch",
+      jobId: args.jobId,
     });
 
     console.log(

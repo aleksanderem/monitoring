@@ -74,21 +74,26 @@ export const addCompetitor = mutation({
       .first();
 
     if (existing) {
-      // Competitor already exists - throw error so user knows
+      if (existing.status === "paused") {
+        // Re-activate previously removed competitor
+        await ctx.db.patch(existing._id, {
+          status: "active",
+          name: args.name || existing.name,
+          lastCheckedAt: Date.now(),
+        });
+        return existing._id;
+      }
       throw new Error(
-        `Competitor "${args.competitorDomain}" already exists. ` +
-        (existing.status === "paused"
-          ? "It's currently paused - activate it from the list."
-          : "It's already being tracked.")
+        `Competitor "${args.competitorDomain}" is already being tracked.`
       );
     }
 
-    // Create new competitor (paused by default - user must activate)
+    // Create new competitor (active by default)
     const competitorId = await ctx.db.insert("competitors", {
       domainId: args.domainId,
       competitorDomain: args.competitorDomain,
       name: args.name || args.competitorDomain,
-      status: "paused",
+      status: "active",
       createdAt: Date.now(),
     });
 
@@ -262,5 +267,73 @@ export const getCompetitorsForKeyword = query({
     );
 
     return competitorsWithPositions;
+  },
+});
+
+/**
+ * Discover competitor domains from SERP results.
+ * Aggregates domains that appear across monitored keyword SERPs,
+ * excluding the user's own domain and already-tracked competitors.
+ */
+export const getCompetitorSuggestionsFromSerp = query({
+  args: {
+    domainId: v.id("domains"),
+  },
+  handler: async (ctx, args) => {
+    // Get monitored keywords for this domain
+    const allKeywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    const activeKeywords = allKeywords.filter((k) => k.status === "active");
+    if (activeKeywords.length === 0) return [];
+
+    // Get already tracked competitor domains
+    const existingCompetitors = await ctx.db
+      .query("competitors")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+    const trackedDomains = new Set(existingCompetitors.map((c) => c.competitorDomain));
+
+    // Aggregate domains from SERP results across keywords
+    const domainStats: Record<string, { count: number; totalPosition: number; keywords: string[] }> = {};
+
+    for (const kw of activeKeywords.slice(0, 50)) {
+      const results = await ctx.db
+        .query("keywordSerpResults")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
+        .order("desc")
+        .take(20);
+
+      if (results.length === 0) continue;
+
+      const latestDate = results[0].date;
+      const latest = results.filter((r) => r.date === latestDate && !r.isYourDomain);
+
+      for (const r of latest) {
+        const d = r.domain;
+        if (!d || trackedDomains.has(d)) continue;
+
+        if (!domainStats[d]) {
+          domainStats[d] = { count: 0, totalPosition: 0, keywords: [] };
+        }
+        domainStats[d].count++;
+        domainStats[d].totalPosition += r.position;
+        if (domainStats[d].keywords.length < 3) {
+          domainStats[d].keywords.push(kw.phrase);
+        }
+      }
+    }
+
+    return Object.entries(domainStats)
+      .map(([domain, stats]) => ({
+        domain,
+        keywordOverlap: stats.count,
+        avgPosition: Math.round((stats.totalPosition / stats.count) * 10) / 10,
+        sampleKeywords: stats.keywords,
+      }))
+      .sort((a, b) => b.keywordOverlap - a.keywordOverlap)
+      .slice(0, 30);
   },
 });

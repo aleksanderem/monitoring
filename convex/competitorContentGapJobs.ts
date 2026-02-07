@@ -153,16 +153,16 @@ export const processContentGapJobInternal = internalAction({
       startedAt: Date.now(),
     });
 
+    // Get job details (before try so it's available in catch)
+    const job = await ctx.runQuery(internal.competitorContentGapJobs.getJobInternal, {
+      jobId: args.jobId,
+    });
+
+    if (!job) {
+      throw new Error("Job not found");
+    }
+
     try {
-      // Get job details
-      const job = await ctx.runQuery(internal.competitorContentGapJobs.getJobInternal, {
-        jobId: args.jobId,
-      });
-
-      if (!job) {
-        throw new Error("Job not found");
-      }
-
       // Call the existing content gap analysis action
       const result = await ctx.runAction(internal.contentGap.analyzeContentGap, {
         domainId: job.domainId,
@@ -177,6 +177,16 @@ export const processContentGapJobInternal = internalAction({
         completedAt: Date.now(),
       });
 
+      // Notify team
+      await ctx.runMutation(internal.notifications.createJobNotification, {
+        domainId: job.domainId,
+        type: "job_completed",
+        title: "Content gap analysis completed",
+        message: `Found ${result.opportunitiesFound || 0} keyword opportunities`,
+        jobType: "content_gap",
+        jobId: args.jobId,
+      });
+
       console.log(`[processContentGapJob] Job ${args.jobId} completed: ${result.opportunitiesFound || 0} opportunities found`);
     } catch (error: any) {
       console.error(`[processContentGapJob] Job ${args.jobId} failed:`, error);
@@ -186,6 +196,16 @@ export const processContentGapJobInternal = internalAction({
         status: "failed",
         error: error.message || "Unknown error",
         completedAt: Date.now(),
+      });
+
+      // Notify team
+      await ctx.runMutation(internal.notifications.createJobNotification, {
+        domainId: job.domainId,
+        type: "job_failed",
+        title: "Content gap analysis failed",
+        message: error.message || "Unknown error",
+        jobType: "content_gap",
+        jobId: args.jobId,
       });
     }
   },

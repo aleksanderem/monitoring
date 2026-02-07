@@ -33,9 +33,9 @@ export function UrlSelectionModal({
   const [customSitemapUrl, setCustomSitemapUrl] = useState("");
   const [sitemapSource, setSitemapSource] = useState<"auto" | "custom" | "manual">("auto");
 
-  const fetchUrls = useAction(api.onSite_actions.fetchAvailableUrls);
-  const triggerInstantPagesScan = useMutation(api.onSite_actions.triggerInstantPagesScan);
-  const scanUrls = useAction(api.onSite_actions.scanSelectedUrls);
+  const fetchUrls = useAction(api.seoAudit_actions.fetchAvailableUrlsV2);
+  const triggerInstantPagesScan = useMutation(api.seoAudit_actions.triggerInstantPagesScan);
+  const scanUrls = useAction(api.seoAudit_actions.scanSelectedUrlsV2);
 
   useEffect(() => {
     if (isOpen) {
@@ -104,7 +104,7 @@ export function UrlSelectionModal({
       });
 
       toast.success(
-        `Started scanning ${selectedUrls.size} URLs with Instant Pages + Lighthouse`,
+        `Started SEO audit for ${selectedUrls.size} URLs`,
         {
           description: "This will take a few minutes. Results will appear automatically."
         }

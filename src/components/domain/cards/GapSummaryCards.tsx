@@ -1,6 +1,7 @@
 "use client";
 
-import { Lightbulb02, Target03, TrendUp01, Users01 } from "@untitledui/icons";
+import { Lightbulb02, Target03, TrendUp01, Users01, HelpCircle } from "@untitledui/icons";
+import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 
 interface GapSummary {
   totalGaps: number;
@@ -62,6 +63,7 @@ export function GapSummaryCards({ summary, isLoading }: GapSummaryCardsProps) {
       icon: Lightbulb02,
       color: "text-primary-600",
       bgColor: "bg-primary-50",
+      tooltip: "Total keywords where at least one competitor ranks but you don't. More gaps = more untapped opportunities.",
     },
     {
       title: "High Priority",
@@ -70,6 +72,7 @@ export function GapSummaryCards({ summary, isLoading }: GapSummaryCardsProps) {
       icon: Target03,
       color: "text-orange-600",
       bgColor: "bg-orange-50",
+      tooltip: "Gaps scored 70+ out of 100, indicating high search volume, low difficulty, or competitor ranking in top positions. Best opportunities to pursue first.",
     },
     {
       title: "Est. Traffic Value",
@@ -78,6 +81,7 @@ export function GapSummaryCards({ summary, isLoading }: GapSummaryCardsProps) {
       icon: TrendUp01,
       color: "text-green-600",
       bgColor: "bg-green-50",
+      tooltip: "Estimated monthly visits you could gain by ranking for all gap keywords. Calculated assuming ~30% click-through rate for top positions.",
     },
     {
       title: "Competitors",
@@ -86,6 +90,7 @@ export function GapSummaryCards({ summary, isLoading }: GapSummaryCardsProps) {
       icon: Users01,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
+      tooltip: "Number of unique competitor domains analyzed in the content gap comparison.",
     },
   ];
 
@@ -103,6 +108,11 @@ export function GapSummaryCards({ summary, isLoading }: GapSummaryCardsProps) {
                 <Icon className={`h-5 w-5 ${metric.color}`} />
               </div>
               <p className="text-sm font-medium text-secondary">{metric.title}</p>
+              <Tooltip title={metric.title} description={metric.tooltip}>
+                <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
+                  <HelpCircle className="size-3.5" />
+                </TooltipTrigger>
+              </Tooltip>
             </div>
             <div className="flex flex-col">
               <p className="text-3xl font-semibold text-primary">{metric.value}</p>

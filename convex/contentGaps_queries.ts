@@ -95,14 +95,35 @@ export const getContentGaps = query({
       gaps = gaps.slice(0, args.limit);
     }
 
-    // Enrich with keyword and competitor data
+    // Enrich with keyword and competitor data, sanitize NaN values
     const enrichedGaps = await Promise.all(
       gaps.map(async (gap) => {
         const keyword = await ctx.db.get(gap.keywordId);
         const competitor = await ctx.db.get(gap.competitorId);
 
+        // Sanitize NaN score
+        let score = gap.opportunityScore;
+        let priority = gap.priority;
+        let difficulty = gap.difficulty;
+        if (isNaN(score)) {
+          const vol = gap.searchVolume || 0;
+          const diff = isNaN(difficulty) ? 50 : (difficulty || 50);
+          const compPos = gap.competitorPosition || 50;
+          const volScore = Math.min((vol / 10000) * 50, 50);
+          const diffScore = Math.max(50 - diff / 2, 0);
+          const posBonus = compPos <= 3 ? 20 : compPos <= 10 ? 10 : 0;
+          score = Math.min(Math.round(volScore + diffScore + posBonus), 100);
+        }
+        if (isNaN(difficulty)) difficulty = 0;
+        if (score >= 70) priority = "high";
+        else if (score >= 40) priority = "medium";
+        else priority = "low";
+
         return {
           ...gap,
+          opportunityScore: score,
+          difficulty,
+          priority,
           keywordPhrase: keyword?.phrase ?? "Unknown",
           competitorDomain: competitor?.competitorDomain ?? "Unknown",
           competitorName: competitor?.name ?? "Unknown",
@@ -120,10 +141,29 @@ export const getContentGaps = query({
 export const getGapSummary = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
-    const gaps = await ctx.db
+    const rawGaps = await ctx.db
       .query("contentGaps")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
       .collect();
+
+    // Sanitize NaN scores and recalculate priorities
+    const gaps = rawGaps.map((g) => {
+      let score = g.opportunityScore;
+      let priority = g.priority;
+      if (isNaN(score) || score === null || score === undefined) {
+        const vol = g.searchVolume || 0;
+        const diff = isNaN(g.difficulty) ? 50 : (g.difficulty || 50);
+        const compPos = g.competitorPosition || 50;
+        const volScore = Math.min((vol / 10000) * 50, 50);
+        const diffScore = Math.max(50 - diff / 2, 0);
+        const posBonus = compPos <= 3 ? 20 : compPos <= 10 ? 10 : 0;
+        score = Math.min(Math.round(volScore + diffScore + posBonus), 100);
+      }
+      if (score >= 70) priority = "high";
+      else if (score >= 40) priority = "medium";
+      else priority = "low";
+      return { ...g, opportunityScore: score, priority };
+    });
 
     // Calculate statistics
     const totalGaps = gaps.length;
@@ -337,11 +377,30 @@ export const getTopicClusters = query({
         const avgScore =
           clusterGaps.length > 0 ? totalScore / clusterGaps.length : 0;
 
-        // Get top 3 keywords preview
-        const topKeywords = [...clusterGaps]
-          .sort((a, b) => b.opportunityScore - a.opportunityScore)
-          .slice(0, 3)
-          .map((g) => g.phrase);
+        // Get top keywords sorted by score
+        const sorted = [...clusterGaps].sort((a, b) => b.opportunityScore - a.opportunityScore);
+
+        const topKeywords = sorted.slice(0, 3).map((g) => g.phrase);
+
+        // All keywords with details (sorted by score)
+        const keywords = sorted.map((g) => ({
+          phrase: g.phrase,
+          searchVolume: g.searchVolume,
+          opportunityScore: g.opportunityScore,
+          difficulty: isNaN(g.difficulty) ? 0 : g.difficulty,
+          estimatedTrafficValue: g.estimatedTrafficValue,
+          competitorPosition: g.competitorPosition,
+          status: g.status,
+        }));
+
+        const totalSearchVolume = clusterGaps.reduce(
+          (sum, g) => sum + g.searchVolume,
+          0
+        );
+        const avgDifficulty =
+          clusterGaps.length > 0
+            ? clusterGaps.reduce((sum, g) => sum + (isNaN(g.difficulty) ? 0 : g.difficulty), 0) / clusterGaps.length
+            : 0;
 
         return {
           topic: topic.charAt(0).toUpperCase() + topic.slice(1), // Capitalize
@@ -349,7 +408,10 @@ export const getTopicClusters = query({
           totalOpportunityScore: totalScore,
           avgOpportunityScore: avgScore,
           totalEstimatedValue: totalValue,
+          totalSearchVolume,
+          avgDifficulty: Math.round(avgDifficulty),
           topKeywords,
+          keywords,
           gapIds: clusterGaps.map((g) => g._id),
         };
       }

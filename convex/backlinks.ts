@@ -253,7 +253,16 @@ export const fetchBacklinksFromAPI = action({
         throw new Error(`API error: ${response.status}`);
       }
 
-      const data = await response.json();
+      const text = await response.text();
+      if (!text) {
+        throw new Error("API returned empty response");
+      }
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(`API returned invalid JSON (${text.length} chars): ${text.slice(0, 200)}`);
+      }
 
       // Extract summary data from response
       const backlink_summary = data[0]?.backlink_summary?.[0];
@@ -658,7 +667,16 @@ export const fetchCompetitorBacklinksFromAPI = action({
         throw new Error(`API error: ${response.status}`);
       }
 
-      const data = await response.json();
+      const text = await response.text();
+      if (!text) {
+        throw new Error("API returned empty response");
+      }
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(`API returned invalid JSON (${text.length} chars): ${text.slice(0, 200)}`);
+      }
 
       // Extract summary data from response
       const backlink_summary = data[0]?.backlink_summary?.[0];

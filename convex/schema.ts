@@ -62,8 +62,10 @@ export default defineSchema({
     }),
     lastRefreshedAt: v.optional(v.number()),
     limits: v.optional(v.object({
-      maxKeywords: v.optional(v.number()),           // Override project/org default
+      maxKeywords: v.optional(v.number()),
     })),
+    onboardingCompleted: v.optional(v.boolean()),
+    onboardingDismissed: v.optional(v.boolean()),
   }).index("by_project", ["projectId"]),
 
   // Keywords within domains
@@ -88,6 +90,11 @@ export default defineSchema({
     searchVolume: v.optional(v.number()),
     difficulty: v.optional(v.number()),
     tags: v.optional(v.array(v.string())), // Tags for keyword organization
+    keywordType: v.optional(v.union(
+      v.literal("core"),
+      v.literal("longtail"),
+      v.literal("branded")
+    )),
   }).index("by_domain", ["domainId"])
     .index("by_check_job", ["checkJobId"]),
 
@@ -763,6 +770,31 @@ export default defineSchema({
     .index("by_domain", ["domainId"])
     .index("by_domain_date", ["domainId", "date"]),
 
+  // Link building prospects (auto-generated from backlink gap analysis)
+  linkBuildingProspects: defineTable({
+    domainId: v.id("domains"),
+    referringDomain: v.string(),
+    domainRank: v.number(),
+    linksToCompetitors: v.number(),
+    competitors: v.array(v.string()),
+    prospectScore: v.number(), // 0-100
+    acquisitionDifficulty: v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
+    suggestedChannel: v.union(
+      v.literal("broken_link"),
+      v.literal("guest_post"),
+      v.literal("resource_page"),
+      v.literal("outreach"),
+      v.literal("content_mention")
+    ),
+    estimatedImpact: v.number(), // 0-100
+    status: v.union(v.literal("identified"), v.literal("reviewing"), v.literal("dismissed")),
+    reasoning: v.optional(v.string()),
+    generatedAt: v.number(),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_domain_score", ["domainId", "prospectScore"])
+    .index("by_domain_status", ["domainId", "status"]),
+
   // =================================================================
   // User Settings & Preferences
   // =================================================================
@@ -813,8 +845,20 @@ export default defineSchema({
       v.literal("complete"),
       v.literal("failed")
     ),
-    taskId: v.optional(v.string()), // DataForSEO task ID
-    crawlId: v.optional(v.string()), // DataForSEO crawl ID
+    taskId: v.optional(v.string()), // DataForSEO task ID (legacy)
+    crawlId: v.optional(v.string()), // DataForSEO crawl ID (legacy)
+    seoAuditJobId: v.optional(v.string()), // SEO Audit API async job ID
+    advertoolsCrawlJobId: v.optional(v.string()), // Advertools crawl job ID
+    fullAuditJobId: v.optional(v.string()), // Full Audit API job ID
+    psiJobId: v.optional(v.string()), // PageSpeed Insights batch job ID
+    psiStatus: v.optional(v.union(v.literal("pending"), v.literal("running"), v.literal("completed"), v.literal("failed"))),
+    psiProgress: v.optional(v.object({ current: v.number(), total: v.number() })),
+    psiStartedAt: v.optional(v.number()),
+    psiError: v.optional(v.string()),
+    // Dual-job sub-status tracking
+    seoAuditStatus: v.optional(v.union(v.literal("pending"), v.literal("running"), v.literal("completed"), v.literal("failed"), v.literal("skipped"))),
+    advertoolsCrawlStatus: v.optional(v.union(v.literal("pending"), v.literal("running"), v.literal("completed"), v.literal("failed"), v.literal("skipped"))),
+    source: v.optional(v.string()), // "seo_audit" | "dataforseo" | "mock"
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
     error: v.optional(v.string()),
@@ -843,7 +887,9 @@ export default defineSchema({
     recommendations: v.number(),
     avgLoadTime: v.optional(v.number()),
     avgWordCount: v.optional(v.number()),
+    avgPerformance: v.optional(v.number()),
     issues: v.object({
+      // Legacy DataForSEO fields
       missingTitles: v.number(),
       missingMetaDescriptions: v.number(),
       duplicateContent: v.number(),
@@ -854,8 +900,34 @@ export default defineSchema({
       missingH1: v.number(),
       largeImages: v.number(),
       missingAltText: v.number(),
+      // SEO Audit API fields
+      missingHttps: v.optional(v.number()),
+      missingCanonical: v.optional(v.number()),
+      missingRobotsMeta: v.optional(v.number()),
+      notMobileFriendly: v.optional(v.number()),
+      missingStructuredData: v.optional(v.number()),
+      largeDomSize: v.optional(v.number()),
+      tooManyElements: v.optional(v.number()),
+      highElementSimilarity: v.optional(v.number()),
+      lowTextToCodeRatio: v.optional(v.number()),
     }),
+    // Full Audit API fields
+    grade: v.optional(v.string()), // "A", "B", "C", "D", "F"
+    sections: v.optional(v.any()), // {technical, on_page, content, links, images, structured_data}
+    allIssues: v.optional(v.any()), // [{priority, section, issue, action}]
+    auditRecommendations: v.optional(v.array(v.string())),
+    pagesAnalyzed: v.optional(v.number()),
     fetchedAt: v.number(),
+    // Page scoring aggregates
+    avgPageScore: v.optional(v.number()),
+    pageScoreDistribution: v.optional(v.object({
+      A: v.number(),
+      B: v.number(),
+      C: v.number(),
+      D: v.number(),
+      F: v.number(),
+    })),
+    pageScoreScoredAt: v.optional(v.number()),
   })
     .index("by_domain", ["domainId"])
     .index("by_scan", ["scanId"]),
@@ -909,6 +981,14 @@ export default defineSchema({
 
     // Images
     imagesCount: v.optional(v.number()),
+    imagesMissingAlt: v.optional(v.number()),
+    imageAlts: v.optional(v.array(v.object({
+      src: v.string(),
+      alt: v.string(),
+      hasAlt: v.boolean(),
+      containsKeyword: v.optional(v.boolean()),
+      matchedKeyword: v.optional(v.string()),
+    }))),
 
     // Performance timing
     loadTime: v.optional(v.number()),
@@ -975,6 +1055,58 @@ export default defineSchema({
       ),
       category: v.string(),
       message: v.string(),
+    })),
+
+    // Page Score (multi-dimensional scoring algorithm)
+    pageScore: v.optional(v.object({
+      composite: v.number(),
+      grade: v.string(),
+      technical: v.object({
+        score: v.number(),
+        subScores: v.array(v.object({
+          id: v.string(),
+          label: v.string(),
+          score: v.number(),
+          weight: v.number(),
+          status: v.string(),
+          explanation: v.string(),
+        })),
+      }),
+      content: v.object({
+        score: v.number(),
+        subScores: v.array(v.object({
+          id: v.string(),
+          label: v.string(),
+          score: v.number(),
+          weight: v.number(),
+          status: v.string(),
+          explanation: v.string(),
+        })),
+      }),
+      seoPerformance: v.object({
+        score: v.number(),
+        subScores: v.array(v.object({
+          id: v.string(),
+          label: v.string(),
+          score: v.number(),
+          weight: v.number(),
+          status: v.string(),
+          explanation: v.string(),
+        })),
+      }),
+      strategic: v.object({
+        score: v.number(),
+        subScores: v.array(v.object({
+          id: v.string(),
+          label: v.string(),
+          score: v.number(),
+          weight: v.number(),
+          status: v.string(),
+          explanation: v.string(),
+        })),
+      }),
+      scoredAt: v.number(),
+      dataCompleteness: v.number(),
     })),
 
     // Checks from Instant Pages (store as object for flexibility)
@@ -1057,6 +1189,100 @@ export default defineSchema({
     validatedAt: v.number(),
   })
     .index("by_page", ["pageId"])
+    .index("by_domain", ["domainId"])
+    .index("by_scan", ["scanId"]),
+
+  // Sitemap data (from Advertools API)
+  domainSitemapData: defineTable({
+    domainId: v.id("domains"),
+    scanId: v.optional(v.id("onSiteScans")),
+    sitemapUrl: v.string(),
+    totalUrls: v.number(),
+    urls: v.optional(v.array(v.string())),
+    fetchedAt: v.number(),
+  })
+    .index("by_domain", ["domainId"]),
+
+  // Robots.txt data (from Advertools API)
+  domainRobotsData: defineTable({
+    domainId: v.id("domains"),
+    scanId: v.optional(v.id("onSiteScans")),
+    robotsUrl: v.string(),
+    directives: v.any(),
+    fetchedAt: v.number(),
+  })
+    .index("by_domain", ["domainId"]),
+
+  // =================================================================
+  // Crawl Analytics (from Advertools Crawl API)
+  // =================================================================
+
+  // Link analysis from crawl data
+  crawlLinkAnalysis: defineTable({
+    domainId: v.id("domains"),
+    scanId: v.id("onSiteScans"),
+    totalLinks: v.number(),
+    internalLinks: v.number(),
+    externalLinks: v.number(),
+    nofollowLinks: v.number(),
+    links: v.any(), // top 1000: [{sourceUrl, targetUrl, anchorText, nofollow, internal}]
+    fetchedAt: v.number(),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_scan", ["scanId"]),
+
+  // Redirect chain analysis from crawl data
+  crawlRedirectAnalysis: defineTable({
+    domainId: v.id("domains"),
+    scanId: v.id("onSiteScans"),
+    totalRedirects: v.number(),
+    redirects: v.any(), // [{sourceUrl, targetUrl, statusCode, chain, chainLength}]
+    fetchedAt: v.number(),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_scan", ["scanId"]),
+
+  // Image analysis from crawl data
+  crawlImageAnalysis: defineTable({
+    domainId: v.id("domains"),
+    scanId: v.id("onSiteScans"),
+    totalImages: v.number(),
+    missingAltCount: v.number(),
+    images: v.any(), // top 500: [{pageUrl, imageUrl, alt, missingAlt}]
+    fetchedAt: v.number(),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_scan", ["scanId"]),
+
+  // Word frequency analysis from crawl body text
+  crawlWordFrequency: defineTable({
+    domainId: v.id("domains"),
+    scanId: v.id("onSiteScans"),
+    phraseLength: v.number(), // 1=unigrams, 2=bigrams
+    totalWords: v.number(),
+    data: v.array(v.object({
+      word: v.string(),
+      absFreq: v.number(),
+      wtdFreq: v.optional(v.number()),
+      relValue: v.optional(v.number()),
+    })),
+    fetchedAt: v.number(),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_scan", ["scanId"]),
+
+  // Robots.txt test results (can-fetch checks per user-agent)
+  crawlRobotsTestResults: defineTable({
+    domainId: v.id("domains"),
+    scanId: v.id("onSiteScans"),
+    robotstxtUrl: v.string(),
+    results: v.array(v.object({
+      userAgent: v.string(),
+      urlPath: v.string(),
+      canFetch: v.boolean(),
+    })),
+    fetchedAt: v.number(),
+  })
     .index("by_domain", ["domainId"])
     .index("by_scan", ["scanId"]),
 
@@ -1439,4 +1665,62 @@ export default defineSchema({
     competitorsAnalyzed: v.number(),
     keywordsAnalyzed: v.number(),
   }).index("by_domain_date", ["domainId", "generatedAt"]),
+
+  // =================================================================
+  // Domain Reports (Full SEO Report Generation)
+  // =================================================================
+
+  domainReports: defineTable({
+    domainId: v.id("domains"),
+    name: v.string(),
+    status: v.union(
+      v.literal("initializing"),
+      v.literal("analyzing"),
+      v.literal("collecting"),
+      v.literal("ready"),
+      v.literal("failed")
+    ),
+    progress: v.number(), // 0-100
+    currentStep: v.optional(v.string()),
+    steps: v.optional(v.array(v.object({
+      name: v.string(),
+      status: v.union(v.literal("pending"), v.literal("running"), v.literal("completed"), v.literal("skipped"), v.literal("failed")),
+      startedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+    }))),
+    reportData: v.optional(v.any()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+    options: v.optional(v.object({
+      freshnessThresholdMs: v.optional(v.number()),
+    })),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_domain_status", ["domainId", "status"]),
+
+  // =================================================================
+  // Notifications
+  // =================================================================
+
+  notifications: defineTable({
+    userId: v.id("users"),
+    domainId: v.optional(v.id("domains")),
+    type: v.union(
+      v.literal("job_started"),
+      v.literal("job_completed"),
+      v.literal("job_failed"),
+      v.literal("info"),
+      v.literal("warning")
+    ),
+    title: v.string(),
+    message: v.string(),
+    isRead: v.boolean(),
+    createdAt: v.number(),
+    jobType: v.optional(v.string()),
+    jobId: v.optional(v.string()),
+    domainName: v.optional(v.string()),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_user_unread", ["userId", "isRead", "createdAt"]),
 });

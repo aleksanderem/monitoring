@@ -84,7 +84,7 @@ export function BacklinkVelocityChart({
         <div>
           <h3 className="text-md font-semibold text-primary">Backlink Velocity</h3>
           <p className="text-sm text-tertiary">
-            {totalNew} gained, {totalLost} lost (
+            Rate of new vs lost backlinks over time. {totalNew} gained, {totalLost} lost (
             <span className={netChange >= 0 ? "text-green-600" : "text-red-600"}>
               {netChange >= 0 ? "+" : ""}
               {netChange} net

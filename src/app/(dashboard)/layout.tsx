@@ -9,6 +9,7 @@ import {
   BarChartSquare02,
   Folder,
   Globe01,
+  LayersThree01,
   SearchSm,
   Settings01,
   Users01,
@@ -48,53 +49,55 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-primary">
-      {/* Top bar with only right-side elements */}
-      <TopBar activeUrl={pathname} />
+    <div className="flex min-h-screen bg-primary">
+      {/* Sidebar */}
+      <SidebarNavigationSectionDividers
+        activeUrl={pathname}
+        items={[
+          {
+            label: "Dashboard",
+            href: "/dashboard",
+            icon: BarChartSquare02,
+          },
+          {
+            label: "Projects",
+            href: "/projects",
+            icon: Folder,
+          },
+          {
+            label: "Domains",
+            href: "/domains",
+            icon: Globe01,
+          },
+          {
+            label: "Keywords",
+            href: "/keywords",
+            icon: SearchSm,
+          },
+          {
+            label: "Jobs",
+            href: "/jobs",
+            icon: LayersThree01,
+          },
+          { divider: true },
+          {
+            label: "Teams",
+            href: "/teams",
+            icon: Users01,
+          },
+          {
+            label: "Settings",
+            href: "/settings",
+            icon: Settings01,
+          },
+        ]}
+      />
 
-      {/* Sidebar + Content */}
-      <div className="flex flex-1">
-        <SidebarNavigationSectionDividers
-          activeUrl={pathname}
-          items={[
-            {
-              label: "Dashboard",
-              href: "/dashboard",
-              icon: BarChartSquare02,
-            },
-            {
-              label: "Projects",
-              href: "/projects",
-              icon: Folder,
-            },
-            {
-              label: "Domains",
-              href: "/domains",
-              icon: Globe01,
-            },
-            {
-              label: "Keywords",
-              href: "/keywords",
-              icon: SearchSm,
-            },
-            { divider: true },
-            {
-              label: "Teams",
-              href: "/teams",
-              icon: Users01,
-            },
-            {
-              label: "Settings",
-              href: "/settings",
-              icon: Settings01,
-            },
-          ]}
-        />
-
-        <main className="min-w-0 flex-1">
-          {children}
-        </main>
-      </div>
+      {/* Main content area (right of sidebar) */}
+      <main className="min-w-0 flex-1 flex flex-col">
+        <TopBar activeUrl={pathname} />
+        {children}
+      </main>
 
       {/* Global job status indicator */}
       <GlobalJobStatus />

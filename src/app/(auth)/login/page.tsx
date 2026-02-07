@@ -6,6 +6,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { Button } from "@/components/base/buttons/button";
 import { Form } from "@/components/base/form/form";
 import { Input } from "@/components/base/input/input";
+import { AppLogo } from "@/components/foundations/logo/app-logo";
 import { toast } from "sonner";
 
 export default function LoginPage() {
@@ -36,9 +37,7 @@ export default function LoginPage() {
   return (
     <div className="flex flex-col gap-8 rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
       <div className="flex flex-col gap-3">
-        <h1 className="text-display-xs font-semibold text-primary md:text-display-sm">
-          SEO Monitor
-        </h1>
+        <AppLogo className="h-9" />
         <p className="text-md text-tertiary">
           Welcome back! Please enter your details.
         </p>
@@ -75,7 +74,7 @@ export default function LoginPage() {
 
       <div className="flex justify-center gap-1 text-center text-sm text-tertiary">
         <span>Don't have an account?</span>
-        <Button href="/signup" color="link-color" size="md">
+        <Button href="/register" color="link-color" size="md">
           Sign up
         </Button>
       </div>

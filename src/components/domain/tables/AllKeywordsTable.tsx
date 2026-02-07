@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "convex/react";
 import {
   ChevronUp,
@@ -57,14 +57,28 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Column visibility state
-  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
-    phrase: true,
-    position: true,
-    change: true,
-    volume: true,
-    actions: true,
+  // Column visibility state — persisted to localStorage
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("allKeywords_columnVisibility");
+      if (saved) {
+        try { return JSON.parse(saved); } catch { /* use defaults */ }
+      }
+    }
+    return {
+      phrase: true,
+      position: true,
+      change: true,
+      volume: true,
+      actions: true,
+    };
   });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("allKeywords_columnVisibility", JSON.stringify(columnVisibility));
+    }
+  }, [columnVisibility]);
 
   // Filter states
   const [positionFilter, setPositionFilter] = useState<string>("all");
@@ -203,7 +217,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
         <div>
           <h3 className="text-lg font-semibold text-primary">All Keywords</h3>
           <p className="text-sm text-tertiary">
-            {sortedAndFilteredKeywords.length} keywords found
+            Complete keyword inventory ({sortedAndFilteredKeywords.length} total) including monitored, discovered, and competitor keywords.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -397,7 +411,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
                   : 0;
 
               return (
-                <tr key={keyword._id} className="transition-colors hover:bg-secondary/30">
+                <tr key={keyword._id} className="transition-colors hover:bg-primary_hover">
                   {columnVisibility.phrase && (
                     <td className="px-4 py-3">
                       <span className="text-sm font-medium text-primary">{keyword.phrase}</span>

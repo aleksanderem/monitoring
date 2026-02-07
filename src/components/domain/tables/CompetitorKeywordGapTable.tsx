@@ -70,13 +70,15 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
     return "gray"; // Low opportunity - gray
   };
 
+  // Only show active competitors
+  const activeCompetitors = competitors?.filter(c => c.status === "active") ?? [];
+
   // Transform competitors to SelectItemType format
-  const competitorItems: SelectItemType[] = competitors
-    ?.filter((competitor) => competitor && competitor._id)
+  const competitorItems: SelectItemType[] = activeCompetitors
     .map((competitor) => ({
       id: competitor._id,
       label: competitor.name || competitor.competitorDomain,
-    })) || [];
+    }));
 
   const isLoadingCompetitors = competitors === undefined;
   const isLoadingGaps = selectedCompetitor !== null && gaps === undefined;
@@ -89,7 +91,7 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
     );
   }
 
-  if (competitors.length === 0) {
+  if (activeCompetitors.length === 0) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-6">
         <div className="text-center py-12">
@@ -204,7 +206,7 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
               </thead>
               <tbody className="divide-y divide-secondary">
                 {filteredGaps?.map((gap) => (
-                  <tr key={gap.keywordId} className="hover:bg-secondary/50 transition-colors">
+                  <tr key={gap.keywordId} className="hover:bg-primary_hover transition-colors">
                     <td className="px-4 py-3 font-medium text-primary">{gap.phrase}</td>
                     <td className="px-4 py-3 text-center">
                       <Badge color="gray" size="sm">#{gap.competitorPosition}</Badge>

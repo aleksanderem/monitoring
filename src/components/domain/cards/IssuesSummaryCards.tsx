@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, AlertTriangle, InfoCircle } from "@untitledui/icons";
+import { Button } from "@/components/base/buttons/button";
 
 interface IssuesSummaryCardsProps {
   analysis: {
@@ -8,12 +9,14 @@ interface IssuesSummaryCardsProps {
     warnings: number;
     recommendations: number;
   };
+  onShowIssues?: (severity: "critical" | "warning" | "recommendation") => void;
 }
 
-export function IssuesSummaryCards({ analysis }: IssuesSummaryCardsProps) {
+export function IssuesSummaryCards({ analysis, onShowIssues }: IssuesSummaryCardsProps) {
   const cards = [
     {
       label: "Critical",
+      severity: "critical" as const,
       value: analysis.criticalIssues,
       icon: AlertCircle,
       bgColor: "bg-error-50",
@@ -22,6 +25,7 @@ export function IssuesSummaryCards({ analysis }: IssuesSummaryCardsProps) {
     },
     {
       label: "Warnings",
+      severity: "warning" as const,
       value: analysis.warnings,
       icon: AlertTriangle,
       bgColor: "bg-warning-50",
@@ -30,6 +34,7 @@ export function IssuesSummaryCards({ analysis }: IssuesSummaryCardsProps) {
     },
     {
       label: "Recommendations",
+      severity: "recommendation" as const,
       value: analysis.recommendations,
       icon: InfoCircle,
       bgColor: "bg-primary-50",
@@ -56,13 +61,24 @@ export function IssuesSummaryCards({ analysis }: IssuesSummaryCardsProps) {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex items-baseline gap-2">
                 <span className={`text-3xl font-bold ${card.valueColor}`}>
                   {card.value}
                 </span>
                 <span className="text-sm text-tertiary">issues</span>
               </div>
+
+              {card.value > 0 && onShowIssues && (
+                <Button
+                  size="sm"
+                  color="secondary"
+                  onClick={() => onShowIssues(card.severity)}
+                  className="w-full"
+                >
+                  Show Issues
+                </Button>
+              )}
             </div>
           </div>
         );

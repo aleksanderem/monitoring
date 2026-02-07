@@ -75,7 +75,7 @@ export function CountriesDistributionTable({
           </thead>
           <tbody className="divide-y divide-secondary">
             {tableData.map((item, index) => (
-              <tr key={item.country} className="hover:bg-secondary/30 transition-colors">
+              <tr key={item.country} className="hover:bg-primary_hover transition-colors">
                 <td className="px-4 py-3 text-sm font-medium text-primary">{item.country}</td>
                 <td className="px-4 py-3 text-right text-sm text-primary">
                   {item.count.toLocaleString()}

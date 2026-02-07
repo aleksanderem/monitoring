@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { Hash01, TrendUp02, TrendDown02, BarChart03, RefreshCcw01 } from "@untitledui/icons";
+import { Hash01, TrendUp02, TrendDown02, BarChart03, RefreshCw01 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { MetricCard } from "@/components/domain/cards/MetricCard";
@@ -73,7 +73,7 @@ export function MonitoringStats({ domainId }: MonitoringStatsProps) {
           title="Position Changes (7d)"
           value={netMovement7d > 0 ? `+${netMovement7d}` : netMovement7d}
           subtitle={movementText}
-          icon={RefreshCcw01}
+          icon={RefreshCw01}
           trend={netMovement7d > 0 ? "positive" : netMovement7d < 0 ? "negative" : null}
         />
       </div>

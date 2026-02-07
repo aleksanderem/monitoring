@@ -7,6 +7,7 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 import { Button } from "@/components/base/buttons/button";
 import { toast } from "sonner";
 import { X, Plus, Stars01 } from "@untitledui/icons";
+import { useEscapeClose } from "@/hooks/useEscapeClose";
 
 interface AddKeywordsModalProps {
   domainId: Id<"domains">;
@@ -15,6 +16,7 @@ interface AddKeywordsModalProps {
 }
 
 export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModalProps) {
+  useEscapeClose(onClose, isOpen);
   const [keywordsText, setKeywordsText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);

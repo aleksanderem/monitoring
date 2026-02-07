@@ -50,7 +50,7 @@ export function PositionDistributionChart({ domainId }: PositionDistributionChar
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div>
           <h3 className="text-md font-semibold text-primary">Current Position Distribution</h3>
-          <p className="text-sm text-tertiary">Keywords by ranking position</p>
+          <p className="text-sm text-tertiary">How your keywords are distributed across SERP positions. More keywords in top 1-3 means stronger visibility.</p>
         </div>
         <div className="flex flex-col items-center justify-center py-12">
           <BarChart04 className="h-10 w-10 text-fg-quaternary" />
@@ -71,7 +71,7 @@ export function PositionDistributionChart({ domainId }: PositionDistributionChar
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
         <h3 className="text-md font-semibold text-primary">Current Position Distribution</h3>
-        <p className="text-sm text-tertiary">Keywords by ranking position</p>
+        <p className="text-sm text-tertiary">How your keywords are distributed across SERP positions. More keywords in top 1-3 means stronger visibility.</p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">

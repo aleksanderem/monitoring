@@ -94,7 +94,7 @@ export function TopKeywordsTable({ keywords, title, description, isLoading }: To
                 key={keyword._id}
                 className={`border-b border-secondary ${
                   index % 2 === 0 ? "bg-primary" : "bg-secondary-subtle"
-                } hover:bg-secondary-subtle`}
+                } hover:bg-primary_hover transition-colors`}
               >
                 <td className="px-4 py-3">
                   <Badge

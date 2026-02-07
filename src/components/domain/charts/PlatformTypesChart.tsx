@@ -67,7 +67,7 @@ export function PlatformTypesChart({ data, isLoading }: PlatformTypesChartProps)
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
         <h3 className="text-md font-semibold text-primary">Platform Types</h3>
-        <p className="text-sm text-tertiary">Backlink sources by platform</p>
+        <p className="text-sm text-tertiary">Where your backlinks come from — blogs, forums, news sites, social media, and other platform types.</p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">
