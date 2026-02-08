@@ -21,6 +21,7 @@ import { Label } from "@/components/base/input/label";
 import { RadioButtonBase } from "@/components/base/radio-buttons/radio-buttons";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { cx } from "@/lib/utils/cx";
+import { useTranslations } from "next-intl";
 
 /**
  * This is a utility hook that automatically reopens the modal after
@@ -53,6 +54,8 @@ const colorSwatches = [
 ];
 
 export const AppearanceSettingsModal = () => {
+    const t = useTranslations("settings");
+    const tc = useTranslations("common");
     const [mode, setMode] = useState("system");
     const [isOpen, setIsOpen] = useModalState();
 
@@ -101,11 +104,11 @@ export const AppearanceSettingsModal = () => {
 
                                 <div className="z-10 flex flex-col gap-0.5">
                                     <AriaHeading slot="title" className="text-md font-semibold text-primary">
-                                        Appearance
+                                        {t("appearance")}
                                     </AriaHeading>
                                     <p className="text-sm text-tertiary">
-                                        <span className="max-sm:hidden">Change how your dashboard looks and feels in your browser.</span>
-                                        <span className="sm:hidden">How your dashboard looks in your browser.</span>
+                                        <span className="max-sm:hidden">{t("appearanceDescriptionDesktop")}</span>
+                                        <span className="sm:hidden">{t("appearanceDescriptionMobile")}</span>
                                     </p>
                                 </div>
                             </div>
@@ -113,13 +116,13 @@ export const AppearanceSettingsModal = () => {
                             <div className="flex flex-col gap-5 px-4 pt-5 sm:px-6">
                                 <div className="flex flex-col gap-4">
                                     <div className="flex flex-col">
-                                        <p className="text-sm font-semibold text-primary">Brand color</p>
-                                        <p className="text-sm text-tertiary">Update your dashboard to your brand color.</p>
+                                        <p className="text-sm font-semibold text-primary">{t("brandColor")}</p>
+                                        <p className="text-sm text-tertiary">{t("brandColorDescription")}</p>
                                     </div>
                                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                                         <AriaRadioGroup
-                                            aria-label="Brand color"
-                                            aria-describedby="Update your dashboard to your brand color."
+                                            aria-label={t("brandColor")}
+                                            aria-describedby={t("brandColorDescription")}
                                             value={color}
                                             onChange={(value) => setColor(value)}
                                             className="flex flex-col items-start gap-4 md:flex-row md:items-center"
@@ -143,7 +146,7 @@ export const AppearanceSettingsModal = () => {
                                             <AriaRadio value={customColor} className="flex shrink-0 items-center gap-3">
                                                 {({ isSelected, isFocusVisible }) => (
                                                     <>
-                                                        <Label className="text-sm font-semibold text-secondary">Custom</Label>
+                                                        <Label className="text-sm font-semibold text-secondary">{t("custom")}</Label>
                                                         <ColorSwatch
                                                             color={customColor}
                                                             className={cx(
@@ -176,12 +179,12 @@ export const AppearanceSettingsModal = () => {
                                 <div className="w-full border-t border-secondary" />
                                 <div className="flex flex-col">
                                     <div className="flex flex-col">
-                                        <p className="text-sm font-semibold text-primary">Display preference</p>
-                                        <p className="text-sm text-tertiary">Switch between light and dark modes.</p>
+                                        <p className="text-sm font-semibold text-primary">{t("displayPreference")}</p>
+                                        <p className="text-sm text-tertiary">{t("displayPreferenceDescription")}</p>
                                     </div>
                                     <AriaRadioGroup
-                                        aria-label="Display preference"
-                                        aria-describedby="Switch between light and dark modes."
+                                        aria-label={t("displayPreference")}
+                                        aria-describedby={t("displayPreferenceDescription")}
                                         className="-mx-4 scrollbar-hide flex flex-row gap-5 overflow-x-auto px-4 pt-5 sm:pt-6"
                                         value={mode}
                                         onChange={setMode}
@@ -198,7 +201,7 @@ export const AppearanceSettingsModal = () => {
                                                         />
                                                         {props.isSelected && <RadioButtonBase {...props} size="md" className="absolute bottom-2 left-2" />}
                                                     </span>
-                                                    <p className="text-sm font-semibold text-primary">System preference</p>
+                                                    <p className="text-sm font-semibold text-primary">{t("systemPreference")}</p>
                                                 </>
                                             )}
                                         </AriaRadio>
@@ -214,7 +217,7 @@ export const AppearanceSettingsModal = () => {
                                                         />
                                                         {props.isSelected && <RadioButtonBase {...props} size="md" className="absolute bottom-2 left-2" />}
                                                     </span>
-                                                    <p className="text-sm font-semibold text-primary">Light mode</p>
+                                                    <p className="text-sm font-semibold text-primary">{t("lightMode")}</p>
                                                 </>
                                             )}
                                         </AriaRadio>
@@ -230,7 +233,7 @@ export const AppearanceSettingsModal = () => {
                                                         />
                                                         {props.isSelected && <RadioButtonBase {...props} size="md" className="absolute bottom-2 left-2" />}
                                                     </span>
-                                                    <p className="text-sm font-semibold text-primary">Dark mode</p>
+                                                    <p className="text-sm font-semibold text-primary">{t("darkMode")}</p>
                                                 </>
                                             )}
                                         </AriaRadio>
@@ -242,12 +245,12 @@ export const AppearanceSettingsModal = () => {
 
                                 <div className="h-4 w-full sm:h-6" />
                                 <div className="flex flex-1 flex-col-reverse gap-3 px-4 sm:flex-row sm:items-center sm:px-6">
-                                    <Checkbox id="apply-to-terms" label="Apply to all teams" className="mr-auto max-sm:hidden" />
+                                    <Checkbox id="apply-to-terms" label={t("applyToAllTeams")} className="mr-auto max-sm:hidden" />
                                     <Button color="secondary" size="lg" onClick={() => setIsOpen(false)}>
-                                        Cancel
+                                        {tc("cancel")}
                                     </Button>
                                     <Button color="primary" size="lg" onClick={() => setIsOpen(false)}>
-                                        Save changes
+                                        {t("saveChanges")}
                                     </Button>
                                 </div>
                             </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useAction, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -25,6 +26,7 @@ export function UrlSelectionModal({
   onClose,
   onScanStarted
 }: UrlSelectionModalProps) {
+  const t = useTranslations('domains');
   const [urls, setUrls] = useState<string[]>([]);
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
@@ -73,7 +75,7 @@ export function UrlSelectionModal({
       }
     } catch (err) {
       console.error("[UrlSelectionModal] Exception in handleFetchUrls:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch URLs");
+      setError(err instanceof Error ? err.message : t('failedToFetchUrls'));
       setSitemapSource("manual");
     } finally {
       setLoading(false);
@@ -83,7 +85,7 @@ export function UrlSelectionModal({
 
   const handleScan = async () => {
     if (selectedUrls.size === 0) {
-      toast.error("Please select at least one URL to scan");
+      toast.error(t('selectAtLeastOneUrl'));
       return;
     }
 
@@ -104,16 +106,13 @@ export function UrlSelectionModal({
       });
 
       toast.success(
-        `Started SEO audit for ${selectedUrls.size} URLs`,
-        {
-          description: "This will take a few minutes. Results will appear automatically."
-        }
+        t('scanStartedToast', { count: selectedUrls.size }),
       );
 
       onScanStarted();
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to start scan");
+      toast.error(err instanceof Error ? err.message : t('failedToStartScan'));
       console.error(err);
     } finally {
       setScanning(false);
@@ -170,12 +169,12 @@ export function UrlSelectionModal({
               {/* Header */}
               <div className="border-b border-secondary px-6 py-4">
                 <Heading slot="title" className="text-lg font-semibold text-primary">
-                  Select URLs to Scan
+                  {t('selectUrlsToScan')}
                 </Heading>
                 <p className="mt-1 text-sm text-tertiary">
-                  {sitemapSource === "auto" && "URLs automatically fetched from sitemap.xml"}
-                  {sitemapSource === "custom" && "URLs fetched from custom sitemap"}
-                  {sitemapSource === "manual" && "Manual URL input"}
+                  {sitemapSource === "auto" && t('sitemapSourceAuto')}
+                  {sitemapSource === "custom" && t('sitemapSourceCustom')}
+                  {sitemapSource === "manual" && t('sitemapSourceManual')}
                 </p>
               </div>
 
@@ -184,7 +183,7 @@ export function UrlSelectionModal({
                 {loading && (
                   <div className="text-center py-12">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
-                    <p className="mt-4 text-sm text-tertiary">Fetching URLs from sitemap...</p>
+                    <p className="mt-4 text-sm text-tertiary">{t('fetchingUrlsFromSitemap')}</p>
                   </div>
                 )}
 
@@ -194,13 +193,13 @@ export function UrlSelectionModal({
                       <AlertCircle className="w-5 h-5 text-error-primary mt-0.5 flex-shrink-0" />
                       <div className="flex-1">
                         <h3 className="text-sm font-semibold text-primary mb-1">
-                          Could not fetch sitemap
+                          {t('couldNotFetchSitemap')}
                         </h3>
                         <p className="text-sm text-secondary mb-3">{error}</p>
                         <div className="flex gap-2">
                           <input
                             type="text"
-                            placeholder="Enter custom sitemap URL..."
+                            placeholder={t('enterCustomSitemapUrl')}
                             value={customSitemapUrl}
                             onChange={(e) => setCustomSitemapUrl(e.target.value)}
                             className="flex-1 px-3 py-2 border border-secondary bg-primary rounded-lg text-sm text-primary placeholder:text-quaternary focus:border-brand-600 focus:ring-1 focus:ring-brand-600"
@@ -210,7 +209,7 @@ export function UrlSelectionModal({
                             color="secondary"
                             onClick={handleFetchUrls}
                           >
-                            Try Again
+                            {t('tryAgain')}
                           </Button>
                         </div>
                         <Button
@@ -219,7 +218,7 @@ export function UrlSelectionModal({
                           onClick={handleManualInput}
                           className="mt-2"
                         >
-                          Or Enter URLs Manually
+                          {t('orEnterUrlsManually')}
                         </Button>
                       </div>
                     </div>
@@ -241,10 +240,10 @@ export function UrlSelectionModal({
                 <div className="border-t border-secondary px-6 py-4">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-tertiary">
-                      {selectedUrls.size} of {urls.length} URLs selected
+                      {selectedUrls.size} of {urls.length} {t('urlsSelected')}
                       {selectedUrls.size > 20 && (
                         <span className="ml-2 text-warning-primary">
-                          (Scans are processed in batches of 20)
+                          {t('scanBatchDescription')}
                         </span>
                       )}
                     </div>
@@ -254,7 +253,7 @@ export function UrlSelectionModal({
                         size="sm"
                         onClick={onClose}
                       >
-                        Cancel
+                        {t('cancel')}
                       </Button>
                       <Button
                         color="primary"
@@ -262,7 +261,7 @@ export function UrlSelectionModal({
                         onClick={handleScan}
                         isDisabled={selectedUrls.size === 0 || scanning}
                       >
-                        {scanning ? "Starting Scan..." : `Scan ${selectedUrls.size} URLs`}
+                        {scanning ? t('startingScan') : t('scanCountUrls', { count: selectedUrls.size })}
                       </Button>
                     </div>
                   </div>

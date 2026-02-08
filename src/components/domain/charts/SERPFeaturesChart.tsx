@@ -19,67 +19,42 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { useTranslations } from "next-intl";
 
 interface SERPFeaturesChartProps {
   domainId: Id<"domains">;
   days?: number;
 }
 
-const FEATURE_LABELS: Record<string, string> = {
-  featuredSnippet: "Featured Snippet",
-  peopleAlsoAsk: "People Also Ask",
-  imagePack: "Image Pack",
-  videoPack: "Video Pack",
-  localPack: "Local Pack",
-  knowledgeGraph: "Knowledge Graph",
-  sitelinks: "Sitelinks",
-  topStories: "Top Stories",
-  relatedSearches: "Related Searches",
+const FEATURE_LABEL_KEYS: Record<string, string> = {
+  featuredSnippet: "serpFeatureLabelFeaturedSnippetSimple",
+  peopleAlsoAsk: "serpFeatureLabelPeopleAlsoAskSimple",
+  imagePack: "serpFeatureLabelImagePackSimple",
+  videoPack: "serpFeatureLabelVideoPackSimple",
+  localPack: "serpFeatureLabelLocalPackSimple",
+  knowledgeGraph: "serpFeatureLabelKnowledgeGraphSimple",
+  sitelinks: "serpFeatureLabelSitelinksSimple",
+  topStories: "serpFeatureLabelTopStoriesSimple",
+  relatedSearches: "serpFeatureLabelRelatedSearchesSimple",
 };
 
 const chartConfig = {
-  featuredSnippet: {
-    label: "Featured Snippet",
-    color: "#3b82f6", // blue
-  },
-  peopleAlsoAsk: {
-    label: "People Also Ask",
-    color: "#10b981", // green
-  },
-  imagePack: {
-    label: "Image Pack",
-    color: "#8b5cf6", // purple
-  },
-  videoPack: {
-    label: "Video Pack",
-    color: "#ef4444", // red
-  },
-  localPack: {
-    label: "Local Pack",
-    color: "#f59e0b", // orange
-  },
-  knowledgeGraph: {
-    label: "Knowledge Graph",
-    color: "#06b6d4", // cyan
-  },
-  sitelinks: {
-    label: "Sitelinks",
-    color: "#ec4899", // pink
-  },
-  topStories: {
-    label: "Top Stories",
-    color: "#14b8a6", // teal
-  },
-  relatedSearches: {
-    label: "Related Searches",
-    color: "#64748b", // slate
-  },
+  featuredSnippet: { label: "Featured Snippet", color: "#3b82f6" },
+  peopleAlsoAsk: { label: "People Also Ask", color: "#10b981" },
+  imagePack: { label: "Image Pack", color: "#8b5cf6" },
+  videoPack: { label: "Video Pack", color: "#ef4444" },
+  localPack: { label: "Local Pack", color: "#f59e0b" },
+  knowledgeGraph: { label: "Knowledge Graph", color: "#06b6d4" },
+  sitelinks: { label: "Sitelinks", color: "#ec4899" },
+  topStories: { label: "Top Stories", color: "#14b8a6" },
+  relatedSearches: { label: "Related Searches", color: "#64748b" },
 } satisfies ChartConfig;
 
 export function SERPFeaturesChart({
   domainId,
   days = 30,
 }: SERPFeaturesChartProps) {
+  const t = useTranslations("keywords");
   const summary = useQuery(api.serpFeatures_queries.getSerpFeaturesSummary, {
     domainId,
     days,
@@ -89,7 +64,7 @@ export function SERPFeaturesChart({
     return (
       <div className="flex h-[300px] items-center justify-center">
         <div className="animate-pulse text-sm text-gray-500">
-          Loading SERP features...
+          {t("loadingSerpFeatures")}
         </div>
       </div>
     );
@@ -98,9 +73,9 @@ export function SERPFeaturesChart({
   if (summary.totalDataPoints === 0) {
     return (
       <div className="flex h-[300px] flex-col items-center justify-center gap-2">
-        <p className="text-sm text-gray-500">No SERP features data yet</p>
+        <p className="text-sm text-gray-500">{t("noSerpFeaturesDataYet")}</p>
         <p className="text-xs text-gray-400">
-          SERP features will appear here after keyword position checks
+          {t("serpFeaturesAppearAfterChecks")}
         </p>
       </div>
     );
@@ -109,7 +84,7 @@ export function SERPFeaturesChart({
   // Transform data for chart
   const chartData = Object.entries(summary.featurePercentages).map(
     ([feature, percentage]) => ({
-      feature: FEATURE_LABELS[feature] || feature,
+      feature: FEATURE_LABEL_KEYS[feature] ? t(FEATURE_LABEL_KEYS[feature] as any) : feature,
       percentage: Math.round(percentage * 10) / 10, // Round to 1 decimal
       fill: `var(--color-${feature})`,
     })
@@ -119,17 +94,17 @@ export function SERPFeaturesChart({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">SERP Features Presence</h3>
+          <h3 className="text-lg font-semibold">{t("serpFeaturesPresence")}</h3>
           <p className="text-sm text-gray-500">
-            Percentage of keywords showing each feature
+            {t("percentageOfKeywordsShowingFeature")}
           </p>
         </div>
         <div className="text-right">
           <p className="text-xs text-gray-500">
-            {summary.totalKeywords} keywords tracked
+            {t("serpKeywordsTracked", { count: summary.totalKeywords })}
           </p>
           <p className="text-xs text-gray-400">
-            {summary.totalDataPoints} data points
+            {t("serpDataPoints", { count: summary.totalDataPoints })}
           </p>
         </div>
       </div>
@@ -146,7 +121,7 @@ export function SERPFeaturesChart({
               height={100}
             />
             <YAxis
-              label={{ value: "% of Keywords", angle: -90, position: "insideLeft" }}
+              label={{ value: t("percentOfKeywords"), angle: -90, position: "insideLeft" }}
               domain={[0, 100]}
             />
             <ChartTooltip
@@ -162,7 +137,7 @@ export function SERPFeaturesChart({
               dataKey="percentage"
               fill="#3b82f6"
               radius={[4, 4, 0, 0]}
-              name="Presence %"
+              name={t("presencePercent")}
             />
           </BarChart>
         </ResponsiveContainer>
@@ -178,7 +153,7 @@ export function SERPFeaturesChart({
               className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
             >
               <span className="text-xs font-medium text-gray-700">
-                {FEATURE_LABELS[feature]}
+                {FEATURE_LABEL_KEYS[feature] ? t(FEATURE_LABEL_KEYS[feature] as any) : feature}
               </span>
               <span className="text-xs font-bold text-gray-900">{count}</span>
             </div>

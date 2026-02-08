@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Cell } from "recharts";
+import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
@@ -10,10 +11,10 @@ interface DifficultyDistributionChartProps {
 }
 
 const TIER_CONFIG = [
-    { key: "easy", label: "Easy (0-29)", color: "#22c55e" },
-    { key: "medium", label: "Medium (30-49)", color: "#f59e0b" },
-    { key: "hard", label: "Hard (50-74)", color: "#f97316" },
-    { key: "very_hard", label: "Very Hard (75+)", color: "#ef4444" },
+    { key: "easy", labelKey: "difficultyEasy", color: "#22c55e" },
+    { key: "medium", labelKey: "difficultyMedium", color: "#f59e0b" },
+    { key: "hard", labelKey: "difficultyHard", color: "#f97316" },
+    { key: "very_hard", labelKey: "difficultyVeryHard", color: "#ef4444" },
 ] as const;
 
 function formatNumber(num: number): string {
@@ -23,6 +24,7 @@ function formatNumber(num: number): string {
 }
 
 export function DifficultyDistributionChart({ domainId }: DifficultyDistributionChartProps) {
+    const t = useTranslations('keywords');
     const data = useQuery(api.keywordMap_queries.getDifficultyDistribution, { domainId });
 
     if (data === undefined) {
@@ -35,7 +37,7 @@ export function DifficultyDistributionChart({ domainId }: DifficultyDistribution
     }
 
     const chartData = TIER_CONFIG.map((tier) => ({
-        name: tier.label,
+        name: t(tier.labelKey),
         keywords: data.distribution[tier.key],
         volume: data.volumeByTier[tier.key],
         color: tier.color,
@@ -44,7 +46,7 @@ export function DifficultyDistributionChart({ domainId }: DifficultyDistribution
     if (data.total === 0) {
         return (
             <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-secondary bg-primary p-6 py-12">
-                <p className="text-sm text-tertiary">No difficulty data available</p>
+                <p className="text-sm text-tertiary">{t('noDifficultyDataAvailable')}</p>
             </div>
         );
     }
@@ -52,8 +54,8 @@ export function DifficultyDistributionChart({ domainId }: DifficultyDistribution
     return (
         <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
             <div>
-                <h3 className="text-md font-semibold text-primary">Difficulty Distribution</h3>
-                <p className="text-sm text-tertiary">{data.total} keywords grouped by ranking difficulty. Focus on easy and moderate tiers for quicker wins.</p>
+                <h3 className="text-md font-semibold text-primary">{t('difficultyDistribution')}</h3>
+                <p className="text-sm text-tertiary">{t('difficultyDistributionDescription', { total: data.total })}</p>
             </div>
 
             <ResponsiveContainer width="100%" height={220}>
@@ -63,8 +65,8 @@ export function DifficultyDistributionChart({ domainId }: DifficultyDistribution
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip
                         formatter={(value: any, name: any, props: any) => [
-                            `${value} keywords (${formatNumber(props.payload.volume)} total vol)`,
-                            "Count",
+                            t('difficultyTooltip', { count: value, volume: formatNumber(props.payload.volume) }),
+                            t('count'),
                         ]}
                         contentStyle={{ fontSize: 12 }}
                     />

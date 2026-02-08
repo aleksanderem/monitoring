@@ -10,6 +10,7 @@ import {
   type DateRangeValue,
   type ComparisonRange,
 } from "@/hooks/useDateRange";
+import { useLocale, useTranslations } from "next-intl";
 
 export interface DateRangePickerProps {
   value: DateRangeValue;
@@ -21,19 +22,20 @@ export interface DateRangePickerProps {
 }
 
 // Helper to format date range
-function formatDateRange(from: Date, to: Date): string {
+function formatDateRange(from: Date, to: Date, locale: string): string {
+  const loc = locale === "pl" ? "pl-PL" : "en-US";
   const sameYear = from.getFullYear() === to.getFullYear();
   const sameMonth = sameYear && from.getMonth() === to.getMonth();
 
   if (sameMonth && from.getDate() === to.getDate()) {
-    return from.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return from.toLocaleDateString(loc, { month: "short", day: "numeric", year: "numeric" });
   }
 
   if (sameYear) {
-    return `${from.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${to.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+    return `${from.toLocaleDateString(loc, { month: "short", day: "numeric" })} - ${to.toLocaleDateString(loc, { month: "short", day: "numeric", year: "numeric" })}`;
   }
 
-  return `${from.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })} - ${to.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })}`;
+  return `${from.toLocaleDateString(loc, { month: "short", day: "numeric", year: "2-digit" })} - ${to.toLocaleDateString(loc, { month: "short", day: "numeric", year: "2-digit" })}`;
 }
 
 export function DateRangePicker({
@@ -44,6 +46,8 @@ export function DateRangePicker({
   onComparisonChange,
   className,
 }: DateRangePickerProps) {
+  const t = useTranslations('keywords');
+  const locale = useLocale();
   const [isOpen, setIsOpen] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
 
@@ -67,12 +71,12 @@ export function DateRangePicker({
   };
 
   const presets: Array<{ value: DateRangePreset; label: string }> = [
-    { value: "7d", label: "Last 7 days" },
-    { value: "30d", label: "Last 30 days" },
-    { value: "3m", label: "Last 3 months" },
-    { value: "6m", label: "Last 6 months" },
-    { value: "1y", label: "Last year" },
-    { value: "all", label: "All time" },
+    { value: "7d", label: t('dateRangeLast7Days') },
+    { value: "30d", label: t('dateRangeLast30Days') },
+    { value: "3m", label: t('dateRangeLast3Months') },
+    { value: "6m", label: t('dateRangeLast6Months') },
+    { value: "1y", label: t('dateRangeLastYear') },
+    { value: "all", label: t('dateRangeAllTime') },
   ];
 
   return (
@@ -86,7 +90,7 @@ export function DateRangePicker({
         )}
       >
         <CalendarIcon className="h-4 w-4 text-tertiary" />
-        <span>{value.preset && value.preset !== "custom" ? presets.find(p => p.value === value.preset)?.label : formatDateRange(value.from, value.to)}</span>
+        <span>{value.preset && value.preset !== "custom" ? presets.find(p => p.value === value.preset)?.label : formatDateRange(value.from, value.to, locale)}</span>
       </button>
 
       {isOpen && (
@@ -97,7 +101,7 @@ export function DateRangePicker({
           />
           <div className="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-secondary bg-primary p-4 shadow-lg">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-primary">Select Date Range</h3>
+              <h3 className="text-sm font-semibold text-primary">{t('dateRangeSelectTitle')}</h3>
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-tertiary hover:text-primary"
@@ -107,7 +111,7 @@ export function DateRangePicker({
             </div>
 
             <div className="mb-4 space-y-1">
-              <h4 className="mb-2 text-xs font-medium text-tertiary">Presets</h4>
+              <h4 className="mb-2 text-xs font-medium text-tertiary">{t('dateRangePresets')}</h4>
               {presets.map((preset) => (
                 <button
                   key={preset.value}
@@ -133,17 +137,17 @@ export function DateRangePicker({
                     onChange={toggleComparison}
                     className="h-4 w-4 rounded border-secondary"
                   />
-                  <span className="text-sm font-medium text-primary">Compare</span>
+                  <span className="text-sm font-medium text-primary">{t('dateRangeCompare')}</span>
                 </label>
 
                 {showComparison && comparisonValue && (
                   <div className="mt-3 rounded-md bg-secondary/50 p-3">
-                    <p className="text-xs font-medium text-tertiary mb-1">Comparison Period</p>
+                    <p className="text-xs font-medium text-tertiary mb-1">{t('dateRangeComparisonPeriod')}</p>
                     <p className="text-sm text-primary">
-                      {formatDateRange(comparisonValue.from, comparisonValue.to)}
+                      {formatDateRange(comparisonValue.from, comparisonValue.to, locale)}
                     </p>
                     <p className="mt-1 text-xs text-tertiary">
-                      {comparisonValue.type === "previous" ? "vs. Previous Period" : "vs. Custom Period"}
+                      {comparisonValue.type === "previous" ? t('dateRangeVsPreviousPeriod') : t('dateRangeVsCustomPeriod')}
                     </p>
                   </div>
                 )}
@@ -151,7 +155,7 @@ export function DateRangePicker({
             )}
 
             <div className="mt-4 text-xs text-tertiary">
-              <p>Current selection: {formatDateRange(value.from, value.to)}</p>
+              <p>{t('dateRangeCurrentSelection', { range: formatDateRange(value.from, value.to, locale) })}</p>
             </div>
           </div>
         </>

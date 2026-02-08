@@ -6,28 +6,30 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/base/badges/badges";
 import { ArrowUp, ArrowDown } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 
 interface SERPFeaturesSectionProps {
   domainId: Id<"domains">;
   days?: number;
 }
 
-const FEATURE_LABELS: Record<string, string> = {
-  featuredSnippet: "Featured Snippet",
-  peopleAlsoAsk: "People Also Ask",
-  imagePack: "Image Pack",
-  videoPack: "Video Pack",
-  localPack: "Local Pack",
-  knowledgeGraph: "Knowledge Graph",
-  sitelinks: "Sitelinks",
-  topStories: "Top Stories",
-  relatedSearches: "Related Searches",
+const FEATURE_LABEL_KEYS: Record<string, string> = {
+  featuredSnippet: "serpFeatureLabelFeaturedSnippetSimple",
+  peopleAlsoAsk: "serpFeatureLabelPeopleAlsoAskSimple",
+  imagePack: "serpFeatureLabelImagePackSimple",
+  videoPack: "serpFeatureLabelVideoPackSimple",
+  localPack: "serpFeatureLabelLocalPackSimple",
+  knowledgeGraph: "serpFeatureLabelKnowledgeGraphSimple",
+  sitelinks: "serpFeatureLabelSitelinksSimple",
+  topStories: "serpFeatureLabelTopStoriesSimple",
+  relatedSearches: "serpFeatureLabelRelatedSearchesSimple",
 };
 
 export function SERPFeaturesSection({
   domainId,
   days = 30,
 }: SERPFeaturesSectionProps) {
+  const t = useTranslations("keywords");
   const summary = useQuery(api.serpFeatures_queries.getSerpFeaturesSummary, {
     domainId,
     days,
@@ -52,10 +54,9 @@ export function SERPFeaturesSection({
     return (
       <Card className="p-6">
         <div className="text-center">
-          <h3 className="mb-2 text-lg font-semibold">SERP Features</h3>
+          <h3 className="mb-2 text-lg font-semibold">{t("serpFeatures")}</h3>
           <p className="text-sm text-gray-500">
-            No SERP features data available yet. Features will be tracked during keyword
-            position checks.
+            {t("noSerpFeaturesDataAvailable")}
           </p>
         </div>
       </Card>
@@ -77,15 +78,15 @@ export function SERPFeaturesSection({
     <Card className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">SERP Features Overview</h3>
-          <p className="text-sm text-gray-500">Last {days} days</p>
+          <h3 className="text-lg font-semibold">{t("serpFeaturesOverview")}</h3>
+          <p className="text-sm text-gray-500">{t("lastNDays", { days })}</p>
         </div>
         <div className="text-right">
           <p className="text-sm font-medium text-gray-700">
-            {summary.totalKeywords} Keywords Tracked
+            {t("serpKeywordsTracked", { count: summary.totalKeywords })}
           </p>
           <p className="text-xs text-gray-500">
-            {summary.totalDataPoints} data points analyzed
+            {t("serpDataPointsAnalyzed", { count: summary.totalDataPoints })}
           </p>
         </div>
       </div>
@@ -94,9 +95,9 @@ export function SERPFeaturesSection({
         <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-blue-900">Most Common Feature</p>
+              <p className="text-sm font-medium text-blue-900">{t("mostCommonFeature")}</p>
               <p className="text-lg font-bold text-blue-700">
-                {FEATURE_LABELS[topFeature.feature]}
+                {t(FEATURE_LABEL_KEYS[topFeature.feature] as any)}
               </p>
             </div>
             <div className="text-right">
@@ -104,7 +105,7 @@ export function SERPFeaturesSection({
                 {Math.round(topFeature.percentage)}%
               </p>
               <p className="text-xs text-blue-600">
-                {topFeature.count} of {summary.totalKeywords} keywords
+                {t("serpFeatureCountOfTotal", { count: topFeature.count, total: summary.totalKeywords })}
               </p>
             </div>
           </div>
@@ -123,13 +124,13 @@ export function SERPFeaturesSection({
             >
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-700">
-                  {FEATURE_LABELS[feature]}
+                  {t(FEATURE_LABEL_KEYS[feature] as any)}
                 </p>
                 <div className="mt-1 flex items-center gap-2">
                   <Badge size="sm">
                     {Math.round(percentage)}%
                   </Badge>
-                  <span className="text-xs text-gray-500">{count} keywords</span>
+                  <span className="text-xs text-gray-500">{t("serpFeatureKeywordsCount", { count })}</span>
                 </div>
               </div>
               {percentage > 0 && (
@@ -144,9 +145,7 @@ export function SERPFeaturesSection({
 
       <div className="mt-6 rounded-lg bg-gray-50 p-4">
         <p className="text-xs text-gray-600">
-          SERP features are special elements that appear in Google search results, such as
-          featured snippets, image packs, and local results. Tracking these helps identify
-          opportunities to appear in enhanced search results.
+          {t("serpFeaturesExplanation")}
         </p>
       </div>
     </Card>

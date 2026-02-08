@@ -157,12 +157,14 @@ export const getPagesList = query({
       );
     }
 
-    // Audited pages first (by score desc), then crawl-only pages by URL
+    // Scored pages first (by composite desc), fallback to onpageScore, then by URL
     filteredPages.sort((a, b) => {
-      const aHasAudit = a.onpageScore != null ? 1 : 0;
-      const bHasAudit = b.onpageScore != null ? 1 : 0;
-      if (aHasAudit !== bHasAudit) return bHasAudit - aHasAudit;
-      if (aHasAudit && bHasAudit) return (b.onpageScore ?? 0) - (a.onpageScore ?? 0);
+      const aScore = a.pageScore?.composite ?? a.onpageScore ?? -1;
+      const bScore = b.pageScore?.composite ?? b.onpageScore ?? -1;
+      const aHas = aScore >= 0 ? 1 : 0;
+      const bHas = bScore >= 0 ? 1 : 0;
+      if (aHas !== bHas) return bHas - aHas;
+      if (aHas && bHas) return bScore - aScore;
       return a.url.localeCompare(b.url);
     });
 

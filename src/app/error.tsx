@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { Button } from "@/components/base/buttons/button";
 import { AlertCircle } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 
 export default function Error({
   error,
@@ -11,6 +12,8 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("common");
+
   useEffect(() => {
     // Log error to console (could send to logging service)
     console.error("Application error:", error);
@@ -24,14 +27,14 @@ export default function Error({
         </div>
 
         <h2 className="mb-2 text-2xl font-bold text-gray-900">
-          Something went wrong
+          {t("somethingWentWrong")}
         </h2>
 
         <p className="mb-6 text-gray-600">
-          {error.message || "An unexpected error occurred"}
+          {error.message || t("unexpectedError")}
         </p>
 
-        <Button onClick={reset}>Try again</Button>
+        <Button onClick={reset}>{t("tryAgain")}</Button>
       </div>
     </div>
   );

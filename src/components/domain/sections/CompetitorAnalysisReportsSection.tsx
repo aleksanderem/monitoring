@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { KeywordAnalysisReportDetailModal } from "../modals/KeywordAnalysisReportDetailModal";
+import { useTranslations } from "next-intl";
 
 interface CompetitorAnalysisReportsSectionProps {
   domainId: Id<"domains">;
@@ -52,6 +53,12 @@ function ColumnTooltip({ text }: { text: string }) {
 }
 
 export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysisReportsSectionProps) {
+  const t = useTranslations('competitors');
+  const tc = useTranslations('common');
+  const translateStatus = (status: string) => {
+    const key = `status${status.charAt(0).toUpperCase()}${status.slice(1)}` as any;
+    try { return tc(key); } catch { return status; }
+  };
   const [selectedReportId, setSelectedReportId] = useState<Id<"competitorAnalysisReports"> | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortColumn, setSortColumn] = useState<SortColumn>("createdAt");
@@ -73,14 +80,16 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
     try {
       const result = await generateAll({ domainId });
       if (result.created > 0) {
-        toast.success(`Generated ${result.created} reports${result.skipped > 0 ? ` (${result.skipped} skipped)` : ""}`);
+        toast.success(result.skipped > 0
+          ? t('reportsToastGeneratedSkipped', { created: result.created, skipped: result.skipped })
+          : t('reportsToastGenerated', { created: result.created }));
       } else if (result.error) {
         toast.error(result.error);
       } else {
-        toast.info("All keywords already have reports");
+        toast.info(t('reportsToastAllAlready'));
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to generate reports");
+      toast.error(error.message || t('reportsToastGenerateFailed'));
     } finally {
       setIsGenerating(false);
     }
@@ -157,9 +166,9 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
     e.stopPropagation();
     try {
       await retryAnalysis({ reportId });
-      toast.success("Re-analyzing report...");
+      toast.success(t('reportsToastRetrying'));
     } catch (error: any) {
-      toast.error(error?.message || "Failed to retry analysis");
+      toast.error(error?.message || t('reportsToastRetryFailed'));
     }
   };
 
@@ -168,9 +177,9 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
     try {
       await deleteReport({ reportId });
       if (selectedReportId === reportId) setSelectedReportId(null);
-      toast.success("Report deleted");
+      toast.success(t('reportsToastDeleted'));
     } catch (error: any) {
-      toast.error(error?.message || "Failed to delete report");
+      toast.error(error?.message || t('reportsToastDeleteFailed'));
     }
   };
 
@@ -186,7 +195,7 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
   if (reports === undefined) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-6">
-        <div className="text-center py-8 text-tertiary">Loading reports...</div>
+        <div className="text-center py-8 text-tertiary">{t('reportsLoading')}</div>
       </div>
     );
   }
@@ -196,9 +205,9 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
       <div className="rounded-xl border border-secondary bg-primary p-6">
         <div className="text-center py-12">
           <FileSearch02 className="h-12 w-12 text-quaternary mx-auto mb-4" />
-          <h3 className="text-md font-semibold text-primary mb-2">No Keyword Analysis Reports</h3>
+          <h3 className="text-md font-semibold text-primary mb-2">{t('reportsEmpty')}</h3>
           <p className="text-sm text-quaternary max-w-md mx-auto mb-4">
-            Create reports from keyword monitoring to analyze competitor content strategies and get actionable recommendations.
+            {t('reportsEmptyDesc')}
           </p>
           <Button
             color="primary"
@@ -207,7 +216,7 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
             isDisabled={isGenerating}
             iconLeading={isGenerating ? RefreshCw01 : FileSearch02}
           >
-            {isGenerating ? "Generating..." : "Generate Reports for All Keywords"}
+            {isGenerating ? t('reportsGenerating') : t('reportsGenerateAll')}
           </Button>
         </div>
       </div>
@@ -219,7 +228,7 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <h3 className="text-lg font-semibold text-primary">Keyword Analysis Reports</h3>
+          <h3 className="text-lg font-semibold text-primary">{t('reportsTitle')}</h3>
           <Badge color="gray" size="sm">
             {filteredAndSorted.length}
           </Badge>
@@ -231,7 +240,7 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
             <SearchLg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-quaternary pointer-events-none" />
             <input
               type="text"
-              placeholder="Search keywords..."
+              placeholder={t('reportsSearchKeywords')}
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -249,7 +258,7 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
             isDisabled={isGenerating}
             iconLeading={isGenerating ? RefreshCw01 : FileSearch02}
           >
-            {isGenerating ? "Generating..." : "Generate Missing"}
+            {isGenerating ? t('reportsGenerating') : t('reportsGenerateMissing')}
           </Button>
 
           {/* Filters toggle */}
@@ -262,7 +271,7 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
             }`}
           >
             <FilterLines className="h-4 w-4" />
-            Filters
+            {t('reportsFilters')}
           </button>
         </div>
       </div>
@@ -271,7 +280,7 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
       {showFilters && (
         <div className="flex items-center gap-4 p-4 rounded-lg border border-secondary bg-secondary/30">
           <div>
-            <label className="block text-xs font-medium text-tertiary mb-1">Status</label>
+            <label className="block text-xs font-medium text-tertiary mb-1">{t('reportsFilterStatus')}</label>
             <select
               value={statusFilter}
               onChange={(e) => {
@@ -280,11 +289,11 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
               }}
               className="px-3 py-1.5 border border-secondary rounded-lg text-sm bg-primary"
             >
-              <option value="all">All</option>
-              <option value="completed">Completed</option>
-              <option value="analyzing">Analyzing</option>
-              <option value="pending">Pending</option>
-              <option value="failed">Failed</option>
+              <option value="all">{t('reportsFilterAll')}</option>
+              <option value="completed">{t('reportsFilterCompleted')}</option>
+              <option value="analyzing">{t('reportsFilterAnalyzing')}</option>
+              <option value="pending">{t('reportsFilterPending')}</option>
+              <option value="failed">{t('reportsFilterFailed')}</option>
             </select>
           </div>
           {(statusFilter !== "all" || searchQuery) && (
@@ -296,7 +305,7 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
               }}
               className="text-xs text-brand-600 hover:text-brand-700 mt-4"
             >
-              Clear All
+              {t('reportsClearAll')}
             </button>
           )}
         </div>
@@ -312,9 +321,9 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
                 onClick={() => toggleSort("keyword")}
               >
                 <div className="flex items-center gap-1">
-                  Keyword
+                  {t('reportsColKeyword')}
                   <SortIcon column="keyword" currentSort={sortColumn} currentDirection={sortDirection} />
-                  <ColumnTooltip text="The target keyword this analysis was created for" />
+                  <ColumnTooltip text={t('reportsTooltipKeyword')} />
                 </div>
               </th>
               <th
@@ -322,9 +331,9 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
                 onClick={() => toggleSort("status")}
               >
                 <div className="flex items-center justify-center gap-1">
-                  Status
+                  {t('reportsColStatus')}
                   <SortIcon column="status" currentSort={sortColumn} currentDirection={sortDirection} />
-                  <ColumnTooltip text="Pending (queued), Analyzing (in progress), Completed (done), Failed (error)" />
+                  <ColumnTooltip text={t('reportsTooltipStatus')} />
                 </div>
               </th>
               <th
@@ -332,9 +341,9 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
                 onClick={() => toggleSort("competitors")}
               >
                 <div className="flex items-center justify-center gap-1">
-                  Competitors
+                  {t('reportsColCompetitors')}
                   <SortIcon column="competitors" currentSort={sortColumn} currentDirection={sortDirection} />
-                  <ColumnTooltip text="Number of competitor pages analyzed for this keyword" />
+                  <ColumnTooltip text={t('reportsTooltipCompetitors')} />
                 </div>
               </th>
               <th
@@ -342,21 +351,21 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
                 onClick={() => toggleSort("avgWords")}
               >
                 <div className="flex items-center justify-center gap-1">
-                  Avg. Words
+                  {t('reportsColAvgWords')}
                   <SortIcon column="avgWords" currentSort={sortColumn} currentDirection={sortDirection} />
-                  <ColumnTooltip text="Average word count across analyzed competitor pages" />
+                  <ColumnTooltip text={t('reportsTooltipAvgWords')} />
                 </div>
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
                 <div className="flex items-center justify-center gap-1">
-                  Avg. H2
-                  <ColumnTooltip text="Average number of H2 headings used by competitor pages" />
+                  {t('reportsColAvgH2')}
+                  <ColumnTooltip text={t('reportsTooltipAvgH2')} />
                 </div>
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
                 <div className="flex items-center justify-center gap-1">
-                  Avg. Images
-                  <ColumnTooltip text="Average number of images used by competitor pages" />
+                  {t('reportsColAvgImages')}
+                  <ColumnTooltip text={t('reportsTooltipAvgImages')} />
                 </div>
               </th>
               <th
@@ -364,9 +373,9 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
                 onClick={() => toggleSort("recommendations")}
               >
                 <div className="flex items-center justify-center gap-1">
-                  Recs
+                  {t('reportsColRecs')}
                   <SortIcon column="recommendations" currentSort={sortColumn} currentDirection={sortDirection} />
-                  <ColumnTooltip text="Number of actionable recommendations generated" />
+                  <ColumnTooltip text={t('reportsTooltipRecs')} />
                 </div>
               </th>
               <th
@@ -374,12 +383,12 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
                 onClick={() => toggleSort("createdAt")}
               >
                 <div className="flex items-center justify-center gap-1">
-                  Created
+                  {t('reportsColCreated')}
                   <SortIcon column="createdAt" currentSort={sortColumn} currentDirection={sortDirection} />
                 </div>
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">
-                Actions
+                {t('reportsColActions')}
               </th>
             </tr>
           </thead>
@@ -400,7 +409,7 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
                 </td>
                 <td className="px-4 py-3 text-center">
                   <Badge color={getStatusColor(report.status)} size="sm">
-                    {report.status}
+                    {translateStatus(report.status)}
                   </Badge>
                 </td>
                 <td className="px-4 py-3 text-center text-sm text-primary">
@@ -441,7 +450,7 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
                         size="sm"
                         iconLeading={RefreshCw01}
                         onClick={(e: React.MouseEvent) => handleRetry(e, report._id)}
-                        title="Re-run analysis"
+                        title={t('reportsActionRerun')}
                       />
                     )}
                     <Button
@@ -449,7 +458,7 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
                       size="sm"
                       iconLeading={Trash01}
                       onClick={(e: React.MouseEvent) => handleDelete(e, report._id)}
-                      title="Delete report"
+                      title={t('reportsActionDelete')}
                     />
                   </div>
                 </td>
@@ -460,7 +469,7 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
 
         {paginatedReports.length === 0 && (
           <div className="text-center py-12 text-tertiary">
-            No reports match your filters
+            {t('reportsNoMatch')}
           </div>
         )}
       </div>
@@ -469,7 +478,7 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
           <span className="text-sm text-tertiary">
-            Page {currentPage} of {totalPages} ({filteredAndSorted.length} results)
+            {t('reportsPagination', { currentPage, totalPages, total: filteredAndSorted.length })}
           </span>
           <div className="flex gap-2">
             <button
@@ -477,14 +486,14 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
               disabled={currentPage === 1}
               className="px-3 py-1 border border-secondary rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary"
             >
-              Previous
+              {t('reportsPrevious')}
             </button>
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
               className="px-3 py-1 border border-secondary rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary"
             >
-              Next
+              {t('reportsNext')}
             </button>
           </div>
         </div>

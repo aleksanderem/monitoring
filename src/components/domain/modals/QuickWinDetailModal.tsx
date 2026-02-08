@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -41,11 +42,11 @@ function getPositionBadgeClass(position: number): string {
     return "bg-utility-gray-50 text-utility-gray-600";
 }
 
-const INTENT_BADGES: Record<string, { bg: string; text: string; label: string }> = {
-    commercial: { bg: "bg-utility-warning-50", text: "text-utility-warning-600", label: "Commercial" },
-    informational: { bg: "bg-utility-blue-50", text: "text-utility-blue-600", label: "Informational" },
-    navigational: { bg: "bg-utility-brand-50", text: "text-utility-brand-600", label: "Navigational" },
-    transactional: { bg: "bg-utility-success-50", text: "text-utility-success-600", label: "Transactional" },
+const INTENT_LABEL_KEYS: Record<string, string> = {
+    commercial: "intentCommercial",
+    informational: "intentInformational",
+    navigational: "intentNavigational",
+    transactional: "intentTransactional",
 };
 
 type BadgeColor = "gray" | "brand" | "error" | "warning" | "success" | "gray-blue" | "blue-light" | "blue" | "indigo" | "purple" | "pink" | "orange";
@@ -57,11 +58,11 @@ const CATEGORY_COLORS: Record<string, BadgeColor> = {
     technical: "gray-blue",
 };
 
-const CATEGORY_LABELS: Record<string, string> = {
-    links: "Link Building",
-    content: "Content",
-    serp_features: "SERP Features",
-    technical: "Technical",
+const CATEGORY_LABEL_KEYS: Record<string, string> = {
+    links: "quickWinCategoryLinks",
+    content: "quickWinCategoryContent",
+    serp_features: "quickWinCategorySerpFeatures",
+    technical: "quickWinCategoryTechnical",
 };
 
 const PRIORITY_COLORS: Record<string, BadgeColor> = {
@@ -76,6 +77,13 @@ export function QuickWinDetailModal({
     isOpen,
     onClose,
 }: QuickWinDetailModalProps) {
+    const t = useTranslations('onsite');
+    const tc = useTranslations('common');
+    const tk = useTranslations('keywords');
+    const translatePriority = (priority: string) => {
+        const key = `priority${priority.charAt(0).toUpperCase()}${priority.slice(1)}` as any;
+        try { return tc(key); } catch { return priority; }
+    };
     useEscapeClose(onClose, isOpen);
 
     const plan = useQuery(
@@ -98,7 +106,7 @@ export function QuickWinDetailModal({
                         <div className="flex items-center gap-3 mb-1">
                             <Zap className="h-5 w-5 text-fg-warning-primary flex-shrink-0" />
                             <h2 className="text-lg font-semibold text-primary truncate">
-                                {kw?.keyword || "Loading..."}
+                                {kw?.keyword || t('loading')}
                             </h2>
                             {kw && (
                                 <>
@@ -137,20 +145,20 @@ export function QuickWinDetailModal({
                     <div className="px-6 py-6 space-y-6">
                         {/* Overview Cards */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                            <OverviewCard label="Position" value={`#${kw.position}`} subValue={kw.positionChange !== null && kw.positionChange !== 0 ? `${kw.positionChange > 0 ? "+" : ""}${kw.positionChange}` : undefined} subColor={kw.positionChange && kw.positionChange > 0 ? "text-utility-success-600" : "text-utility-error-600"} />
-                            <OverviewCard label="Volume" value={formatNumber(kw.searchVolume)} />
-                            <OverviewCard label="Difficulty" value={kw.difficulty !== null ? `${kw.difficulty}` : "—"} subValue={kw.difficulty !== null ? (kw.difficulty < 30 ? "Easy" : kw.difficulty < 50 ? "Medium" : "Hard") : undefined} subColor={kw.difficulty !== null ? (kw.difficulty < 30 ? "text-utility-success-600" : kw.difficulty < 50 ? "text-utility-warning-600" : "text-utility-error-600") : undefined} />
-                            <OverviewCard label="CPC" value={kw.cpc !== null ? `$${kw.cpc.toFixed(2)}` : "—"} />
-                            <OverviewCard label="ETV" value={formatNumber(kw.etv)} />
-                            <OverviewCard label="Intent" value={kw.intent ? INTENT_BADGES[kw.intent]?.label ?? kw.intent : "—"} />
-                            <OverviewCard label="Ref. Domains" value={formatNumber((kw.backlinksInfo as any)?.referringDomains)} />
-                            <OverviewCard label="Domain Rank" value={kw.mainDomainRank !== null ? `${kw.mainDomainRank}` : "—"} />
+                            <OverviewCard label={t('labelPosition')} value={`#${kw.position}`} subValue={kw.positionChange !== null && kw.positionChange !== 0 ? `${kw.positionChange > 0 ? "+" : ""}${kw.positionChange}` : undefined} subColor={kw.positionChange && kw.positionChange > 0 ? "text-utility-success-600" : "text-utility-error-600"} />
+                            <OverviewCard label={t('labelVolume')} value={formatNumber(kw.searchVolume)} />
+                            <OverviewCard label={t('labelDifficulty')} value={kw.difficulty !== null ? `${kw.difficulty}` : "—"} subValue={kw.difficulty !== null ? (kw.difficulty < 30 ? t('difficultySimpleEasy') : kw.difficulty < 50 ? t('difficultySimpleMedium') : t('difficultySimpleHard')) : undefined} subColor={kw.difficulty !== null ? (kw.difficulty < 30 ? "text-utility-success-600" : kw.difficulty < 50 ? "text-utility-warning-600" : "text-utility-error-600") : undefined} />
+                            <OverviewCard label={t('labelCpc')} value={kw.cpc !== null ? `$${kw.cpc.toFixed(2)}` : "—"} />
+                            <OverviewCard label={t('labelEtv')} value={formatNumber(kw.etv)} />
+                            <OverviewCard label={t('labelIntent')} value={kw.intent ? (INTENT_LABEL_KEYS[kw.intent] ? tk(INTENT_LABEL_KEYS[kw.intent] as any) : kw.intent) : "—"} />
+                            <OverviewCard label={t('labelRefDomains')} value={formatNumber((kw.backlinksInfo as any)?.referringDomains)} />
+                            <OverviewCard label={t('labelDomainRank')} value={kw.mainDomainRank !== null ? `${kw.mainDomainRank}` : "—"} />
                         </div>
 
                         {/* Your Page */}
                         {kw.url && (
                             <div className="rounded-lg border border-secondary p-4">
-                                <h3 className="text-sm font-semibold text-primary mb-2">Your Page</h3>
+                                <h3 className="text-sm font-semibold text-primary mb-2">{t('yourPage')}</h3>
                                 <a
                                     href={kw.url}
                                     target="_blank"
@@ -169,15 +177,15 @@ export function QuickWinDetailModal({
                             <div>
                                 <h3 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
                                     <FileSearch02 className="h-4 w-4 text-fg-brand-primary" />
-                                    SERP Competitors (Top 10)
+                                    {t('serpCompetitors')}
                                 </h3>
                                 <div className="overflow-x-auto rounded-lg border border-secondary">
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="border-b border-secondary bg-secondary">
-                                                <th className="px-3 py-2 text-left font-medium text-tertiary">Pos</th>
-                                                <th className="px-3 py-2 text-left font-medium text-tertiary">Domain</th>
-                                                <th className="px-3 py-2 text-left font-medium text-tertiary">Title</th>
+                                                <th className="px-3 py-2 text-left font-medium text-tertiary">{t('serpColPos')}</th>
+                                                <th className="px-3 py-2 text-left font-medium text-tertiary">{t('serpColDomain')}</th>
+                                                <th className="px-3 py-2 text-left font-medium text-tertiary">{t('serpColTitle')}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -190,7 +198,7 @@ export function QuickWinDetailModal({
                                                     </td>
                                                     <td className="px-3 py-2 text-primary">
                                                         {s.domain}
-                                                        {s.isYourDomain && <Badge color="brand" size="sm" className="ml-2">You</Badge>}
+                                                        {s.isYourDomain && <Badge color="brand" size="sm" className="ml-2">{t('you')}</Badge>}
                                                     </td>
                                                     <td className="px-3 py-2 text-tertiary truncate max-w-xs">{s.title || "—"}</td>
                                                 </tr>
@@ -203,11 +211,11 @@ export function QuickWinDetailModal({
                             <div className="rounded-lg border border-dashed border-secondary p-4 flex items-center gap-3">
                                 <AlertCircle className="h-5 w-5 text-fg-warning-primary flex-shrink-0" />
                                 <div>
-                                    <p className="text-sm font-medium text-primary">SERP data not available</p>
+                                    <p className="text-sm font-medium text-primary">{t('serpDataNotAvailable')}</p>
                                     <p className="text-xs text-tertiary">
                                         {plan.isMonitored
-                                            ? "SERP data hasn't been fetched yet. Run a SERP check to see competitors."
-                                            : "Add this keyword to monitoring to see SERP competitor data."}
+                                            ? t('serpNotFetchedYet')
+                                            : t('addKeywordToMonitoring')}
                                     </p>
                                 </div>
                             </div>
@@ -218,11 +226,11 @@ export function QuickWinDetailModal({
                             <div>
                                 <h3 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
                                     <Link01 className="h-4 w-4 text-fg-success-primary" />
-                                    Link Profile Comparison
+                                    {t('linkProfileComparison')}
                                 </h3>
                                 <div className="space-y-2">
                                     <LinkProfileBar
-                                        label="Your site"
+                                        label={t('yourSite')}
                                         value={plan.yourBacklinkProfile.referringDomains}
                                         maxValue={Math.max(
                                             plan.yourBacklinkProfile.referringDomains,
@@ -230,6 +238,7 @@ export function QuickWinDetailModal({
                                         )}
                                         color="bg-brand-600"
                                         isYou
+                                        youLabel={t('you')}
                                     />
                                     {plan.competitorProfiles.map((cp) => (
                                         <LinkProfileBar
@@ -253,22 +262,22 @@ export function QuickWinDetailModal({
                             <div>
                                 <h3 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
                                     <Lightbulb02 className="h-4 w-4 text-fg-warning-primary" />
-                                    Action Plan
+                                    {t('actionPlan')}
                                 </h3>
                                 <div className="space-y-3">
                                     {plan.recommendations.map((rec, i) => (
                                         <div key={i} className="rounded-lg border border-secondary p-4">
                                             <div className="flex items-center gap-2 mb-2">
-                                                <Badge color={PRIORITY_COLORS[rec.priority] || "gray"} size="sm">{rec.priority}</Badge>
-                                                <Badge color={CATEGORY_COLORS[rec.category] || "gray"} size="sm">{CATEGORY_LABELS[rec.category] || rec.category}</Badge>
-                                                <span className="text-sm font-medium text-primary">{rec.title}</span>
+                                                <Badge color={PRIORITY_COLORS[rec.priority] || "gray"} size="sm">{translatePriority(rec.priority)}</Badge>
+                                                <Badge color={CATEGORY_COLORS[rec.category] || "gray"} size="sm">{CATEGORY_LABEL_KEYS[rec.category] ? t(CATEGORY_LABEL_KEYS[rec.category] as any) : rec.category}</Badge>
+                                                <span className="text-sm font-medium text-primary">{t(rec.titleKey as any, rec.params)}</span>
                                             </div>
-                                            <p className="text-sm text-tertiary mb-3">{rec.description}</p>
+                                            <p className="text-sm text-tertiary mb-3">{t(rec.descriptionKey as any, rec.params)}</p>
                                             <ul className="space-y-1.5">
-                                                {rec.actionSteps.map((step, j) => (
+                                                {rec.actionStepKeys.map((stepKey, j) => (
                                                     <li key={j} className="flex items-start gap-2 text-sm text-primary">
                                                         <ChevronRight className="h-4 w-4 text-fg-brand-primary flex-shrink-0 mt-0.5" />
-                                                        {step}
+                                                        {t(stepKey as any, rec.params)}
                                                     </li>
                                                 ))}
                                             </ul>
@@ -283,18 +292,18 @@ export function QuickWinDetailModal({
                             <div>
                                 <h3 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
                                     <Target04 className="h-4 w-4 text-fg-error-primary" />
-                                    Link Building Targets ({plan.backlinkGapTargets.length})
+                                    {t('linkBuildingTargets')} ({plan.backlinkGapTargets.length})
                                 </h3>
                                 <div className="overflow-x-auto rounded-lg border border-secondary">
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="border-b border-secondary bg-secondary">
-                                                <th className="px-3 py-2 text-left font-medium text-tertiary">Domain</th>
-                                                <th className="px-3 py-2 text-right font-medium text-tertiary">Priority</th>
-                                                <th className="px-3 py-2 text-right font-medium text-tertiary">Competitors</th>
-                                                <th className="px-3 py-2 text-right font-medium text-tertiary">DR</th>
-                                                <th className="px-3 py-2 text-right font-medium text-tertiary">Dofollow</th>
-                                                <th className="px-3 py-2 text-left font-medium text-tertiary">Top Anchors</th>
+                                                <th className="px-3 py-2 text-left font-medium text-tertiary">{t('lbtColDomain')}</th>
+                                                <th className="px-3 py-2 text-right font-medium text-tertiary">{t('lbtColPriority')}</th>
+                                                <th className="px-3 py-2 text-right font-medium text-tertiary">{t('lbtColCompetitors')}</th>
+                                                <th className="px-3 py-2 text-right font-medium text-tertiary">{t('lbtColDr')}</th>
+                                                <th className="px-3 py-2 text-right font-medium text-tertiary">{t('lbtColDofollow')}</th>
+                                                <th className="px-3 py-2 text-left font-medium text-tertiary">{t('lbtColTopAnchors')}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -334,9 +343,9 @@ export function QuickWinDetailModal({
                         {plan.competitorProfiles.length === 0 && plan.backlinkGapTargets.length === 0 && plan.recommendations.length === 0 && (
                             <div className="rounded-lg border border-dashed border-secondary p-8 flex flex-col items-center gap-3 text-center">
                                 <TrendUp01 className="h-8 w-8 text-fg-quaternary" />
-                                <p className="text-sm font-medium text-primary">Limited data available</p>
+                                <p className="text-sm font-medium text-primary">{t('limitedDataAvailable')}</p>
                                 <p className="text-xs text-tertiary max-w-md">
-                                    Add competitors and run backlink analysis to unlock detailed action plans with link building targets and personalized recommendations.
+                                    {t('addCompetitorsAndRunBacklinks')}
                                 </p>
                             </div>
                         )}
@@ -348,18 +357,18 @@ export function QuickWinDetailModal({
                     <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-secondary bg-primary px-6 py-3">
                         <div className="text-xs text-tertiary">
                             {plan.isMonitored ? (
-                                <span className="text-utility-success-600">Monitored</span>
+                                <span className="text-utility-success-600">{t('monitored')}</span>
                             ) : (
-                                <span>Not monitored</span>
+                                <span>{t('notMonitored')}</span>
                             )}
-                            {plan.serpCompetitors && ` · ${plan.serpCompetitors.length} SERP results`}
-                            {plan.backlinkGapTargets.length > 0 && ` · ${plan.backlinkGapTargets.length} link targets`}
+                            {plan.serpCompetitors && ` · ${t('serpResultsCount', { count: plan.serpCompetitors.length })}`}
+                            {plan.backlinkGapTargets.length > 0 && ` · ${t('linkTargetsCount', { count: plan.backlinkGapTargets.length })}`}
                         </div>
                         <button
                             onClick={onClose}
                             className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-primary hover:bg-secondary_hover transition-colors"
                         >
-                            Close
+                            {t('close')}
                         </button>
                     </div>
                 )}
@@ -387,12 +396,13 @@ function OverviewCard({ label, value, subValue, subColor }: {
     );
 }
 
-function LinkProfileBar({ label, value, maxValue, color, isYou, position }: {
+function LinkProfileBar({ label, value, maxValue, color, isYou, youLabel, position }: {
     label: string;
     value: number;
     maxValue: number;
     color: string;
     isYou?: boolean;
+    youLabel?: string;
     position?: number | null;
 }) {
     const pct = maxValue > 0 ? Math.max(2, (value / maxValue) * 100) : 2;
@@ -400,7 +410,7 @@ function LinkProfileBar({ label, value, maxValue, color, isYou, position }: {
         <div className="flex items-center gap-3">
             <div className="w-32 truncate text-sm text-primary flex items-center gap-1.5">
                 {label}
-                {isYou && <Badge color="brand" size="sm">You</Badge>}
+                {isYou && <Badge color="brand" size="sm">{youLabel}</Badge>}
                 {position !== null && position !== undefined && (
                     <span className="text-xs text-tertiary">#{position}</span>
                 )}

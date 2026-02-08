@@ -24,6 +24,7 @@ import { Input } from "@/components/base/input/input";
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { toast } from "sonner";
 import { ContentGapDetailModal } from "../modals/ContentGapDetailModal";
+import { useTranslations } from "next-intl";
 
 interface ContentGapOpportunitiesTableProps {
   domainId: Id<"domains">;
@@ -71,50 +72,29 @@ function getStatusBadgeColor(status: string): "success" | "warning" | "gray" | "
   return "gray";
 }
 
-const COLUMN_TOOLTIPS: Record<string, { title: string; description: string }> = {
-  keyword: {
-    title: "Keyword",
-    description: "The search phrase that represents this content gap opportunity.",
-  },
-  competitor: {
-    title: "Competitor",
-    description: "The competitor domain that currently ranks for this keyword.",
-  },
-  score: {
-    title: "Opportunity Score",
-    description:
-      "Weighted score (0-100): search volume (up to 50pts) + difficulty bonus (up to 50pts) + position bonus (+20 for top 3, +10 for top 10). Higher is better.",
-  },
-  volume: {
-    title: "Search Volume",
-    description: "Average monthly search volume for this keyword. Higher volume means more potential traffic.",
-  },
-  difficulty: {
-    title: "Keyword Difficulty",
-    description:
-      "Keyword difficulty score (0-100). Lower values indicate easier keywords to rank for. Based on backlink profiles of current top results.",
-  },
-  competitorPosition: {
-    title: "Competitor Position",
-    description: "The position where the competitor currently ranks for this keyword in search results.",
-  },
-  estTraffic: {
-    title: "Est. Traffic",
-    description: "Estimated monthly traffic value you could capture by ranking for this keyword. Based on ~30% CTR for top positions.",
-  },
-  status: {
-    title: "Status",
-    description:
-      "Identified = newly found, Monitoring = being tracked, Ranking = you now rank, Dismissed = not relevant.",
-  },
-  priority: {
-    title: "Priority",
-    description:
-      "Automatically assigned based on opportunity score: High (70+), Medium (40-69), Low (below 40).",
-  },
+const COLUMN_TOOLTIP_KEYS: Record<string, { titleKey: string; descriptionKey: string }> = {
+  keyword: { titleKey: "tooltipKeywordTitle", descriptionKey: "tooltipKeywordDesc" },
+  competitor: { titleKey: "tooltipCompetitorTitle", descriptionKey: "tooltipCompetitorDesc" },
+  score: { titleKey: "tooltipScoreFullTitle", descriptionKey: "tooltipScoreFullDesc" },
+  volume: { titleKey: "tooltipVolumeTitle", descriptionKey: "tooltipVolumeDesc" },
+  difficulty: { titleKey: "tooltipDifficultyFullTitle", descriptionKey: "tooltipDifficultyFullDesc" },
+  competitorPosition: { titleKey: "tooltipCompPosTitle", descriptionKey: "tooltipCompPosDesc" },
+  estTraffic: { titleKey: "tooltipEstTrafficTitle", descriptionKey: "tooltipEstTrafficDesc" },
+  status: { titleKey: "tooltipStatusFullTitle", descriptionKey: "tooltipStatusFullDesc" },
+  priority: { titleKey: "tooltipPriorityFullTitle", descriptionKey: "tooltipPriorityFullDesc" },
 };
 
 export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportunitiesTableProps) {
+  const t = useTranslations('competitors');
+  const tc = useTranslations('common');
+  const translateStatus = (status: string) => {
+    const key = `status${status.charAt(0).toUpperCase()}${status.slice(1)}` as any;
+    try { return tc(key); } catch { return status; }
+  };
+  const translatePriority = (priority: string) => {
+    const key = `priority${priority.charAt(0).toUpperCase()}${priority.slice(1)}` as any;
+    try { return tc(key); } catch { return priority; }
+  };
   // Sort & search state
   const [sortColumn, setSortColumn] = useState<SortColumn>("opportunityScore");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -250,9 +230,9 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
     e.stopPropagation();
     try {
       await markAsMonitoring({ gapId });
-      toast.success(`Now monitoring "${keyword}"`);
+      toast.success(t('toastMonitoringStarted', { keyword }));
     } catch (error: any) {
-      toast.error(error.message || "Failed to start monitoring");
+      toast.error(error.message || t('toastMonitoringFailed'));
     }
   };
 
@@ -260,9 +240,9 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
     e.stopPropagation();
     try {
       await dismissOpportunity({ gapId });
-      toast.success(`Dismissed "${keyword}"`);
+      toast.success(t('toastDismissed', { keyword }));
     } catch (error: any) {
-      toast.error(error.message || "Failed to dismiss");
+      toast.error(error.message || t('toastDismissFailed'));
     }
   };
 
@@ -298,7 +278,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
     sortKey?: SortColumn;
     align?: "left" | "center" | "right";
   }) => {
-    const tooltip = COLUMN_TOOLTIPS[id];
+    const tooltipKeys = COLUMN_TOOLTIP_KEYS[id];
     const alignCls =
       align === "center" ? "justify-center text-center" : align === "right" ? "justify-end text-right" : "text-left";
 
@@ -310,8 +290,8 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
         >
           <div className={`flex items-center gap-1 ${align === "center" ? "justify-center" : align === "right" ? "justify-end" : ""}`}>
             {label}
-            {tooltip && (
-              <Tooltip title={tooltip.title} description={tooltip.description}>
+            {tooltipKeys && (
+              <Tooltip title={t(tooltipKeys.titleKey)} description={t(tooltipKeys.descriptionKey)}>
                 <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                   <HelpCircle className="size-3" />
                 </TooltipTrigger>
@@ -327,8 +307,8 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
       <th className={`px-4 py-3 text-xs font-medium text-tertiary ${alignCls}`}>
         <div className={`flex items-center gap-1 ${align === "center" ? "justify-center" : align === "right" ? "justify-end" : ""}`}>
           {label}
-          {tooltip && (
-            <Tooltip title={tooltip.title} description={tooltip.description}>
+          {tooltipKeys && (
+            <Tooltip title={t(tooltipKeys.titleKey)} description={t(tooltipKeys.descriptionKey)}>
               <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                 <HelpCircle className="size-3" />
               </TooltipTrigger>
@@ -358,9 +338,9 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
       <div className="rounded-xl border border-secondary bg-primary p-6">
         <div className="text-center py-12">
           <SearchLg className="h-12 w-12 text-quaternary mx-auto mb-4" />
-          <p className="text-tertiary mb-2">No competitors added yet</p>
+          <p className="text-tertiary mb-2">{t('contentGapNoCompetitors')}</p>
           <p className="text-sm text-quaternary">
-            Add competitors to discover content gap opportunities
+            {t('contentGapNoCompetitorsHint')}
           </p>
         </div>
       </div>
@@ -374,13 +354,13 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-3">
-              <h3 className="text-lg font-semibold text-primary">Content Gap Opportunities</h3>
+              <h3 className="text-lg font-semibold text-primary">{t('contentGapTitle')}</h3>
               <Badge color="gray" size="sm">
-                {sortedAndFiltered.length} results
+                {t('contentGapResultsCount', { count: sortedAndFiltered.length })}
               </Badge>
             </div>
             <p className="mt-1 text-sm text-tertiary">
-              Keywords where competitors rank but you don't. Higher scores indicate easier wins with more traffic potential.
+              {t('contentGapDescription')}
             </p>
           </div>
 
@@ -388,7 +368,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
             {/* Search */}
             <div className="w-64">
               <Input
-                placeholder="Search keywords..."
+                placeholder={t('contentGapSearchKeywords')}
                 value={searchQuery}
                 onChange={(value) => {
                   setSearchQuery(value);
@@ -405,7 +385,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
               iconLeading={FilterLines}
               onClick={() => setShowFilters(!showFilters)}
             >
-              Filters{hasActiveFilters ? " (active)" : ""}
+              {hasActiveFilters ? t('contentGapFiltersActive') : t('contentGapFilters')}
             </Button>
 
             {/* Column picker */}
@@ -416,7 +396,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
                 iconLeading={Settings01}
                 onClick={() => setShowColumnPicker(!showColumnPicker)}
               >
-                Columns
+                {t('contentGapColumns')}
               </Button>
               {showColumnPicker && (
                 <div className="absolute right-0 top-full z-10 mt-2 w-52 rounded-lg border border-secondary bg-primary p-2 shadow-lg">
@@ -449,7 +429,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
           <div className="mt-4 flex flex-wrap items-center gap-4 rounded-lg border border-secondary bg-secondary/30 p-4">
             {/* Priority filter */}
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-secondary">Priority:</label>
+              <label className="text-sm font-medium text-secondary">{t('contentGapFilterPriority')}</label>
               <select
                 value={priorityFilter}
                 onChange={(e) => {
@@ -458,16 +438,16 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
                 }}
                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
               >
-                <option value="all">All</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
+                <option value="all">{tc('all')}</option>
+                <option value="high">{tc('priorityHigh')}</option>
+                <option value="medium">{tc('priorityMedium')}</option>
+                <option value="low">{tc('priorityLow')}</option>
               </select>
             </div>
 
             {/* Status filter */}
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-secondary">Status:</label>
+              <label className="text-sm font-medium text-secondary">{t('contentGapFilterStatus')}</label>
               <select
                 value={statusFilter}
                 onChange={(e) => {
@@ -476,17 +456,17 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
                 }}
                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
               >
-                <option value="all">All</option>
-                <option value="identified">Identified</option>
-                <option value="monitoring">Monitoring</option>
-                <option value="ranking">Ranking</option>
-                <option value="dismissed">Dismissed</option>
+                <option value="all">{tc('all')}</option>
+                <option value="identified">{tc('statusIdentified')}</option>
+                <option value="monitoring">{tc('statusMonitoring')}</option>
+                <option value="ranking">{tc('statusRanking')}</option>
+                <option value="dismissed">{tc('statusDismissed')}</option>
               </select>
             </div>
 
             {/* Difficulty range */}
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-secondary">Difficulty:</label>
+              <label className="text-sm font-medium text-secondary">{t('contentGapFilterDifficulty')}</label>
               <select
                 value={difficultyMin}
                 onChange={(e) => {
@@ -495,7 +475,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
                 }}
                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
               >
-                <option value="">Min</option>
+                <option value="">{t('contentGapFilterMin')}</option>
                 {[0, 10, 20, 30, 40, 50, 60, 70, 80].map((v) => (
                   <option key={v} value={v}>
                     {v}
@@ -511,7 +491,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
                 }}
                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
               >
-                <option value="">Max</option>
+                <option value="">{t('contentGapFilterMax')}</option>
                 {[10, 20, 30, 40, 50, 60, 70, 80, 100].map((v) => (
                   <option key={v} value={v}>
                     {v}
@@ -522,7 +502,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
 
             {/* Competitor filter */}
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-secondary">Competitor:</label>
+              <label className="text-sm font-medium text-secondary">{t('contentGapFilterCompetitor')}</label>
               <select
                 value={competitorFilter}
                 onChange={(e) => {
@@ -531,7 +511,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
                 }}
                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
               >
-                <option value="all">All</option>
+                <option value="all">{tc('all')}</option>
                 {competitors?.map((c: any) => (
                   <option key={c._id} value={c._id}>
                     {c.competitorDomain || c.name}
@@ -543,7 +523,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
             {/* Clear all */}
             {hasActiveFilters && (
               <Button size="sm" color="secondary" onClick={clearAllFilters}>
-                Clear All
+                {t('contentGapClearAll')}
               </Button>
             )}
           </div>
@@ -553,11 +533,11 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
       {/* Table */}
       {paginated.length === 0 ? (
         <div className="text-center py-12 text-tertiary">
-          <p className="mb-2">No opportunities found</p>
+          <p className="mb-2">{t('contentGapNoOpportunities')}</p>
           <p className="text-sm text-quaternary">
             {hasActiveFilters
-              ? "Try adjusting your filters"
-              : "Run content gap analysis to find opportunities"}
+              ? t('contentGapAdjustFilters')
+              : t('contentGapNoOpportunitiesHint')}
           </p>
         </div>
       ) : (
@@ -566,35 +546,35 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
             <thead className="bg-secondary/30">
               <tr className="border-b border-secondary">
                 {columnVisibility.keyword && (
-                  <ColumnHeader id="keyword" label="Keyword" sortable sortKey="keywordPhrase" />
+                  <ColumnHeader id="keyword" label={t('columnKeywordPhrase')} sortable sortKey="keywordPhrase" />
                 )}
                 {columnVisibility.competitor && (
-                  <ColumnHeader id="competitor" label="Competitor" />
+                  <ColumnHeader id="competitor" label={t('columnCompetitors')} />
                 )}
                 {columnVisibility.score && (
-                  <ColumnHeader id="score" label="Score" sortable sortKey="opportunityScore" align="center" />
+                  <ColumnHeader id="score" label={t('columnOpportunityScore')} sortable sortKey="opportunityScore" align="center" />
                 )}
                 {columnVisibility.volume && (
-                  <ColumnHeader id="volume" label="Volume" sortable sortKey="searchVolume" align="right" />
+                  <ColumnHeader id="volume" label={t('columnSearchVolume')} sortable sortKey="searchVolume" align="right" />
                 )}
                 {columnVisibility.difficulty && (
-                  <ColumnHeader id="difficulty" label="Difficulty" sortable sortKey="difficulty" align="center" />
+                  <ColumnHeader id="difficulty" label={t('columnDifficulty')} sortable sortKey="difficulty" align="center" />
                 )}
                 {columnVisibility.competitorPosition && (
-                  <ColumnHeader id="competitorPosition" label="Comp. Pos." sortable sortKey="competitorPosition" align="center" />
+                  <ColumnHeader id="competitorPosition" label={t('columnCompetitorPosition')} sortable sortKey="competitorPosition" align="center" />
                 )}
                 {columnVisibility.estTraffic && (
-                  <ColumnHeader id="estTraffic" label="Est. Traffic" sortable sortKey="estimatedTrafficValue" align="right" />
+                  <ColumnHeader id="estTraffic" label={t('columnEstTraffic')} sortable sortKey="estimatedTrafficValue" align="right" />
                 )}
                 {columnVisibility.status && (
-                  <ColumnHeader id="status" label="Status" align="center" />
+                  <ColumnHeader id="status" label={t('columnReportStatus')} align="center" />
                 )}
                 {columnVisibility.priority && (
-                  <ColumnHeader id="priority" label="Priority" align="center" />
+                  <ColumnHeader id="priority" label={t('columnPriority')} align="center" />
                 )}
                 {columnVisibility.actions && (
                   <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">
-                    Actions
+                    {t('columnActions')}
                   </th>
                 )}
               </tr>
@@ -679,14 +659,14 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
                   {columnVisibility.status && (
                     <td className="px-4 py-3 text-center">
                       <Badge color={getStatusBadgeColor(opp.status)} size="sm">
-                        {opp.status}
+                        {translateStatus(opp.status)}
                       </Badge>
                     </td>
                   )}
                   {columnVisibility.priority && (
                     <td className="px-4 py-3 text-center">
                       <Badge color={getPriorityBadgeColor(opp.priority)} size="sm">
-                        {opp.priority}
+                        {translatePriority(opp.priority)}
                       </Badge>
                     </td>
                   )}
@@ -699,7 +679,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
                             color="secondary"
                             onClick={(e: React.MouseEvent) => handleMarkAsMonitoring(e, opp._id, opp.keywordPhrase)}
                             iconLeading={Eye}
-                            title="Start monitoring"
+                            title={t('contentGapStartMonitoring')}
                           />
                         )}
                         {opp.status !== "dismissed" && (
@@ -708,7 +688,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
                             color="tertiary"
                             onClick={(e: React.MouseEvent) => handleDismiss(e, opp._id, opp.keywordPhrase)}
                             iconLeading={XClose}
-                            title="Dismiss"
+                            title={t('contentGapDismiss')}
                           />
                         )}
                       </div>
@@ -725,7 +705,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
       {totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-secondary px-4 py-3">
           <span className="text-sm text-tertiary">
-            Page {currentPage} of {totalPages} ({sortedAndFiltered.length} results)
+            {t('contentGapPagination', { currentPage, totalPages, total: sortedAndFiltered.length })}
           </span>
           <div className="flex items-center gap-2">
             <Button
@@ -735,7 +715,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
             >
-              Previous
+              {t('contentGapPrevious')}
             </Button>
             <Button
               size="sm"
@@ -744,7 +724,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
             >
-              Next
+              {t('contentGapNext')}
             </Button>
           </div>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -22,6 +23,7 @@ export function DomainSetupWizard({
   isOpen,
   onClose,
 }: DomainSetupWizardProps) {
+  const t = useTranslations('domains');
   const [currentStep, setCurrentStep] = useState(0);
   const [serpJobId, setSerpJobId] = useState<Id<"keywordSerpJobs"> | null>(
     null
@@ -70,7 +72,7 @@ export function DomainSetupWizard({
           const jobId = await createSerpJob({ domainId, keywordIds });
           setSerpJobId(jobId);
         } catch (error: any) {
-          toast.error("Failed to start SERP analysis");
+          toast.error(t('failedToStartSerp'));
           console.error(error);
         }
       }
@@ -131,9 +133,9 @@ export function DomainSetupWizard({
   if (!isOpen) return null;
 
   const steps = [
-    { label: "Keywords", completed: currentStep > 0 },
-    { label: "Competitors", completed: currentStep > 1 },
-    { label: "Analysis", completed: false },
+    { label: t('stepKeywords'), completed: currentStep > 0 },
+    { label: t('stepCompetitors'), completed: currentStep > 1 },
+    { label: t('stepAnalysis'), completed: false },
   ];
 
   return (
@@ -158,10 +160,10 @@ export function DomainSetupWizard({
           {/* Header with step indicator */}
           <div className="border-b border-secondary px-6 py-5">
             <h2 className="text-lg font-semibold text-primary text-center mb-1">
-              Domain Setup
+              {t('domainSetup')}
             </h2>
             <p className="text-sm text-tertiary text-center mb-5">
-              Let&apos;s set up monitoring for your domain
+              {t('letsSetUp')}
             </p>
             <StepIndicator steps={steps} currentStep={currentStep} />
           </div>

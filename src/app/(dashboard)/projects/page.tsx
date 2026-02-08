@@ -19,6 +19,7 @@ import { CreateProjectDialog } from "@/components/application/modals/create-proj
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
 import { ProjectDetailsSlideout } from "@/components/application/slideout-menus/project-details-slideout";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 // Helper to format relative time
 function formatRelativeTime(timestamp: number): string {
@@ -35,6 +36,7 @@ function formatRelativeTime(timestamp: number): string {
 }
 
 export default function ProjectsPage() {
+  const t = useTranslations("projects");
   const projects = useQuery(api.projects.list);
   const deleteProject = useMutation(api.projects.remove);
 
@@ -81,9 +83,9 @@ export default function ProjectsPage() {
   const handleDelete = async (id: Id<"projects">) => {
     try {
       await deleteProject({ id });
-      toast.success("Project deleted successfully");
+      toast.success(t("projectDeletedSuccess"));
     } catch (error) {
-      toast.error("Failed to delete project");
+      toast.error(t("projectDeletedError"));
       console.error(error);
     }
   };
@@ -102,10 +104,10 @@ export default function ProjectsPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
           <div className="flex flex-col gap-0.5 lg:gap-1">
             <p className="text-xl font-semibold text-primary lg:text-display-xs">
-              Projects
+              {t("title")}
             </p>
             <p className="text-md text-tertiary">
-              Manage your SEO monitoring projects and track keyword rankings.
+              {t("description")}
             </p>
           </div>
           <div className="flex flex-col gap-4 lg:flex-row">
@@ -123,9 +125,9 @@ export default function ProjectsPage() {
           </EmptyState.Header>
 
           <EmptyState.Content>
-            <EmptyState.Title>No projects found</EmptyState.Title>
+            <EmptyState.Title>{t("noProjectsFound")}</EmptyState.Title>
             <EmptyState.Description>
-              Get started by creating your first project to track keywords and domains.
+              {t("noProjectsDescription")}
             </EmptyState.Description>
           </EmptyState.Content>
 
@@ -136,8 +138,8 @@ export default function ProjectsPage() {
       ) : (
         <TableCard.Root>
           <TableCard.Header
-            title="All Projects"
-            badge={`${projects.length} project${projects.length !== 1 ? "s" : ""}`}
+            title={t("allProjects")}
+            badge={t("projectCount", { count: projects.length })}
           />
 
           {/* Filters section - inside TableCard */}
@@ -147,7 +149,7 @@ export default function ProjectsPage() {
                 size="sm"
                 type="search"
                 aria-label="Search"
-                placeholder="Search projects..."
+                placeholder={t("searchPlaceholder")}
                 icon={SearchLg}
                 value={searchQuery}
                 onChange={(value) => {
@@ -158,7 +160,7 @@ export default function ProjectsPage() {
               />
 
               <Button iconLeading={FilterLines} color="secondary" size="md">
-                Filters
+                {t("filters")}
               </Button>
             </div>
           </div>
@@ -166,7 +168,7 @@ export default function ProjectsPage() {
           {sortedItems.length === 0 ? (
             <div className="p-12 text-center">
               <p className="text-sm text-tertiary">
-                No projects match your search &quot;{searchQuery}&quot;
+                {t("noSearchResults", { query: searchQuery })}
               </p>
               <Button
                 size="sm"
@@ -174,12 +176,12 @@ export default function ProjectsPage() {
                 onClick={() => setSearchQuery("")}
                 className="mt-4"
               >
-                Clear search
+                {t("clearSearch")}
               </Button>
             </div>
           ) : (
           <Table
-            aria-label="Projects"
+            aria-label={t("title")}
             selectionMode="multiple"
             sortDescriptor={sortDescriptor}
             onSortChange={setSortDescriptor}
@@ -187,23 +189,23 @@ export default function ProjectsPage() {
             <Table.Header>
               <Table.Head
                 id="name"
-                label="Project"
+                label={t("columnProject")}
                 isRowHeader
                 allowsSorting
                 className="w-full max-w-1/3"
               />
-              <Table.Head id="status" label="Status" allowsSorting />
-              <Table.Head id="domainCount" label="Domains" allowsSorting />
-              <Table.Head id="keywordCount" label="Keywords" allowsSorting />
+              <Table.Head id="status" label={t("columnStatus")} allowsSorting />
+              <Table.Head id="domainCount" label={t("columnDomains")} allowsSorting />
+              <Table.Head id="keywordCount" label={t("columnKeywords")} allowsSorting />
               <Table.Head
                 id="createdAt"
-                label="Created"
+                label={t("columnCreated")}
                 allowsSorting
                 className="md:hidden xl:table-cell"
               />
               <Table.Head
                 id="owner"
-                label="Owner"
+                label={t("columnOwner")}
                 className="md:hidden xl:table-cell"
               />
               <Table.Head id="actions" />
@@ -224,7 +226,7 @@ export default function ProjectsPage() {
                           {item.name}
                         </Link>
                         <p className="text-sm text-tertiary">
-                          {item.domainCount} domains · {item.keywordCount} keywords
+                          {t("domainKeywordSummary", { domains: item.domainCount, keywords: item.keywordCount })}
                         </p>
                       </div>
                     </div>
@@ -235,7 +237,7 @@ export default function ProjectsPage() {
                       color="success"
                       type="modern"
                     >
-                      Active
+                      {t("statusActive")}
                     </BadgeWithDot>
                   </Table.Cell>
                   <Table.Cell>
@@ -271,7 +273,7 @@ export default function ProjectsPage() {
                         initials="ME"
                         className="shrink-0"
                       />
-                      <span className="text-sm text-primary">You</span>
+                      <span className="text-sm text-primary">{t("ownerYou")}</span>
                     </div>
                   </Table.Cell>
                   <Table.Cell className="px-4">
@@ -285,7 +287,7 @@ export default function ProjectsPage() {
                         <ButtonUtility
                           size="xs"
                           color="tertiary"
-                          tooltip="View project"
+                          tooltip={t("viewProject")}
                           icon={Eye}
                           onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
@@ -295,17 +297,17 @@ export default function ProjectsPage() {
                       <ButtonUtility
                         size="xs"
                         color="tertiary"
-                        tooltip="Edit"
+                        tooltip={t("editTooltip")}
                         icon={Edit05}
                         onClick={(e: React.MouseEvent) => {
                           e.stopPropagation();
-                          toast.info("Edit dialog coming soon");
+                          toast.info(t("editComingSoon"));
                         }}
                       />
                       <DeleteConfirmationDialog
-                        title={`Delete "${item.name}"?`}
-                        description="This will permanently delete the project and all associated domains and keywords. This action cannot be undone."
-                        confirmLabel="Delete project"
+                        title={t("deleteTitle", { name: item.name })}
+                        description={t("deleteDescription")}
+                        confirmLabel={t("deleteConfirm")}
                         onConfirm={async () => {
                           await handleDelete(item._id);
                         }}
@@ -313,7 +315,7 @@ export default function ProjectsPage() {
                         <ButtonUtility
                           size="xs"
                           color="tertiary"
-                          tooltip="Delete"
+                          tooltip={t("deleteTooltip")}
                           icon={Trash01}
                           onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useMemo } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -11,6 +12,7 @@ interface CrawlLinksTableProps {
 }
 
 export function CrawlLinksTable({ domainId }: CrawlLinksTableProps) {
+  const t = useTranslations('onsite');
   const linkData = useQuery(api.seoAudit_queries.getLinkAnalysis, { domainId });
   const [filter, setFilter] = useState<"all" | "internal" | "external">("all");
   const [search, setSearch] = useState("");
@@ -46,17 +48,17 @@ export function CrawlLinksTable({ domainId }: CrawlLinksTableProps) {
     <div className="space-y-4">
       {/* Summary */}
       <div className="flex items-center gap-4 text-sm text-tertiary">
-        <span>Total: <strong className="text-primary">{linkData.totalLinks.toLocaleString()}</strong></span>
-        <span>Internal: <strong className="text-brand-600">{linkData.internalLinks.toLocaleString()}</strong></span>
-        <span>External: <strong className="text-primary">{linkData.externalLinks.toLocaleString()}</strong></span>
-        <span>Nofollow: <strong className="text-warning-600">{linkData.nofollowLinks.toLocaleString()}</strong></span>
+        <span>{t('total')}: <strong className="text-primary">{linkData.totalLinks.toLocaleString()}</strong></span>
+        <span>{t('internal')}: <strong className="text-brand-600">{linkData.internalLinks.toLocaleString()}</strong></span>
+        <span>{t('external')}: <strong className="text-primary">{linkData.externalLinks.toLocaleString()}</strong></span>
+        <span>{t('nofollow')}: <strong className="text-warning-600">{linkData.nofollowLinks.toLocaleString()}</strong></span>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <input
           type="text"
-          placeholder="Search URLs or anchor text..."
+          placeholder={t('searchUrlsOrAnchor')}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
           className="flex-1 min-w-[200px] px-3 py-2 border border-secondary rounded-lg text-sm"
@@ -83,10 +85,10 @@ export function CrawlLinksTable({ domainId }: CrawlLinksTableProps) {
         <table className="min-w-full divide-y divide-secondary">
           <thead className="bg-secondary">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">Source URL</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">Target URL</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">Anchor Text</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">Type</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">{t('colSourceUrl')}</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">{t('colTargetUrl')}</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">{t('colAnchorText')}</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">{t('colType')}</th>
             </tr>
           </thead>
           <tbody className="bg-primary divide-y divide-secondary">
@@ -115,11 +117,11 @@ export function CrawlLinksTable({ domainId }: CrawlLinksTableProps) {
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
                       link.internal ? "bg-brand-50 text-brand-700" : "bg-primary-50 text-primary-700"
                     }`}>
-                      {link.internal ? "Internal" : "External"}
+                      {link.internal ? t('internal') : t('external')}
                     </span>
                     {link.nofollow && (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-warning-50 text-warning-700">
-                        Nofollow
+                        {t('nofollow')}
                       </span>
                     )}
                   </div>
@@ -129,7 +131,7 @@ export function CrawlLinksTable({ domainId }: CrawlLinksTableProps) {
           </tbody>
         </table>
         {paginatedLinks.length === 0 && (
-          <div className="text-center py-8 text-sm text-tertiary">No links found</div>
+          <div className="text-center py-8 text-sm text-tertiary">{t('noLinksFound')}</div>
         )}
       </div>
 
@@ -145,7 +147,7 @@ export function CrawlLinksTable({ domainId }: CrawlLinksTableProps) {
               disabled={currentPage === 1}
               className="px-3 py-1 border border-secondary rounded-lg text-sm disabled:opacity-50 hover:bg-secondary"
             >
-              Previous
+              {t('previous')}
             </button>
             <span className="px-3 py-1 text-sm text-tertiary">
               {currentPage} / {totalPages}
@@ -155,7 +157,7 @@ export function CrawlLinksTable({ domainId }: CrawlLinksTableProps) {
               disabled={currentPage === totalPages}
               className="px-3 py-1 border border-secondary rounded-lg text-sm disabled:opacity-50 hover:bg-secondary"
             >
-              Next
+              {t('next')}
             </button>
           </div>
         </div>

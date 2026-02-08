@@ -927,6 +927,12 @@ export default defineSchema({
       D: v.number(),
       F: v.number(),
     })),
+    pageScoreAxes: v.optional(v.object({
+      technical: v.number(),
+      content: v.number(),
+      seoPerformance: v.number(),
+      strategic: v.number(),
+    })),
     pageScoreScoredAt: v.optional(v.number()),
   })
     .index("by_domain", ["domainId"])

@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { RefreshCw01, Plus } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { SectionLabel } from "@/components/application/section-headers/section-label";
 import { AddCompetitorModal } from "../modals/AddCompetitorModal";
@@ -19,6 +20,7 @@ interface ContentGapSectionProps {
 }
 
 export function ContentGapSection({ domainId }: ContentGapSectionProps) {
+    const t = useTranslations('competitors');
     const gapSummary = useQuery(api.contentGaps_queries.getGapSummary, { domainId });
     const competitors = useQuery(api.competitors.getCompetitors, { domainId });
     const createJob = useMutation(api.competitorContentGapJobs.createContentGapJob);
@@ -29,16 +31,16 @@ export function ContentGapSection({ domainId }: ContentGapSectionProps) {
 
     async function handleCompetitorAdded(competitorId: Id<"competitors">, domain: string) {
         try {
-            toast.success(`${domain} added — starting content gap analysis...`);
+            toast.success(t('contentGapToastRefreshed'));
             await createJob({ domainId, competitorId });
         } catch (error: any) {
-            toast.error(error?.message || "Failed to start analysis");
+            toast.error(error?.message || t('contentGapToastRefreshFailed'));
         }
     }
 
     async function handleRefresh() {
         if (activeCompetitors.length === 0) {
-            toast.error("No active competitors to analyze. Activate competitors first.");
+            toast.error(t('contentGapToastRefreshFailed'));
             return;
         }
         setIsRefreshing(true);
@@ -48,9 +50,9 @@ export function ContentGapSection({ domainId }: ContentGapSectionProps) {
                     createJob({ domainId, competitorId: c._id })
                 )
             );
-            toast.success(`Content gap analysis queued for ${activeCompetitors.length} competitor${activeCompetitors.length > 1 ? "s" : ""}`);
+            toast.success(t('contentGapToastRefreshed'));
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to trigger content gap analysis");
+            toast.error(err instanceof Error ? err.message : t('contentGapToastRefreshFailed'));
         } finally {
             setIsRefreshing(false);
         }
@@ -61,10 +63,10 @@ export function ContentGapSection({ domainId }: ContentGapSectionProps) {
             <div className="flex items-start justify-between gap-4">
                 <SectionLabel.Root
                     size="md"
-                    title="Content Gap Analysis"
-                    description="Identify keyword opportunities where competitors rank but you don't"
-                    tooltip="Content Gap Analysis"
-                    tooltipDescription="Analyzes keywords where your competitors rank in search results but your site does not. These represent opportunities to create new content and capture additional organic traffic."
+                    title={t('contentGapSectionTitle')}
+                    description={t('contentGapSectionSubtitle')}
+                    tooltip={t('contentGapSectionTitle')}
+                    tooltipDescription={t('contentGapSectionTooltip')}
                 />
                 <div className="flex shrink-0 items-center gap-2">
                     <button
@@ -72,7 +74,7 @@ export function ContentGapSection({ domainId }: ContentGapSectionProps) {
                         className="inline-flex items-center gap-2 rounded-lg border border-secondary bg-primary px-4 py-2 text-sm font-medium text-primary shadow-xs hover:bg-primary-hover"
                     >
                         <Plus className="h-4 w-4" />
-                        Add Competitor
+                        {t('contentGapAddCompetitor')}
                     </button>
                     <button
                         onClick={handleRefresh}
@@ -80,7 +82,7 @@ export function ContentGapSection({ domainId }: ContentGapSectionProps) {
                         className="inline-flex items-center gap-2 rounded-lg border border-secondary bg-primary px-4 py-2 text-sm font-medium text-primary shadow-xs hover:bg-primary-hover disabled:opacity-50"
                     >
                         <RefreshCw01 className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                        {isRefreshing ? "Analyzing..." : "Refresh Analysis"}
+                        {isRefreshing ? t('contentGapAnalyzing') : t('contentGapRefreshAnalysis')}
                     </button>
                 </div>
             </div>

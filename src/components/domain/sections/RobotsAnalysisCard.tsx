@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -104,6 +105,7 @@ function parseDirectiveGroups(directives: Record<string, unknown>): {
 }
 
 export function RobotsAnalysisCard({ domainId }: RobotsAnalysisCardProps) {
+  const t = useTranslations('onsite');
   const robotsData = useQuery(api.seoAudit_queries.getRobotsData, {
     domainId,
   });
@@ -113,10 +115,10 @@ export function RobotsAnalysisCard({ domainId }: RobotsAnalysisCardProps) {
       <div className="bg-primary rounded-lg border border-secondary p-6">
         <div className="flex items-center gap-2 mb-2">
           <ShieldTick className="w-4 h-4 text-tertiary" />
-          <h3 className="text-sm font-medium text-tertiary">Robots.txt</h3>
+          <h3 className="text-sm font-medium text-tertiary">{t('robotsTxt')}</h3>
         </div>
         <p className="text-sm text-quaternary">
-          No robots.txt data available. Run a full site scan to fetch.
+          {t('noRobotsTxtData')}
         </p>
       </div>
     );
@@ -132,16 +134,16 @@ export function RobotsAnalysisCard({ domainId }: RobotsAnalysisCardProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <ShieldTick className="w-4 h-4 text-tertiary" />
-          <h3 className="text-sm font-medium text-tertiary">Robots.txt</h3>
+          <h3 className="text-sm font-medium text-tertiary">{t('robotsTxt')}</h3>
         </div>
         <span className="text-xs text-quaternary">
-          Fetched {new Date(robotsData.fetchedAt).toLocaleDateString()}
+          {t('fetched')} {new Date(robotsData.fetchedAt).toLocaleDateString()}
         </span>
       </div>
 
       <div className="space-y-4">
         <div className="text-xs text-quaternary truncate" title={robotsData.robotsUrl}>
-          Source: {robotsData.robotsUrl}
+          {t('source')}: {robotsData.robotsUrl}
         </div>
 
         {groups.length > 0 ? (
@@ -149,7 +151,7 @@ export function RobotsAnalysisCard({ domainId }: RobotsAnalysisCardProps) {
             {groups.map((group, idx) => (
               <div key={idx} className="space-y-1.5">
                 <div className="text-xs font-medium text-primary">
-                  User-agent: {group.userAgent}
+                  {t('userAgent')}: {group.userAgent}
                 </div>
 
                 {group.allow.length > 0 && (
@@ -188,7 +190,7 @@ export function RobotsAnalysisCard({ domainId }: RobotsAnalysisCardProps) {
 
             {sitemaps.length > 0 && (
               <div className="pt-2 border-t border-secondary">
-                <div className="text-xs font-medium text-secondary mb-1">Sitemaps</div>
+                <div className="text-xs font-medium text-secondary mb-1">{t('sitemaps')}</div>
                 {sitemaps.map((url, i) => (
                   <div key={i} className="text-[11px] text-tertiary truncate" title={url}>
                     {url}
@@ -199,13 +201,13 @@ export function RobotsAnalysisCard({ domainId }: RobotsAnalysisCardProps) {
 
             {crawlDelay && (
               <div className="text-[11px] text-tertiary">
-                Crawl-delay: {crawlDelay}s
+                {t('crawlDelay')}: {crawlDelay}s
               </div>
             )}
           </div>
         ) : (
           <p className="text-xs text-quaternary pt-3 border-t border-secondary">
-            No specific directives found
+            {t('noDirectivesFound')}
           </p>
         )}
       </div>

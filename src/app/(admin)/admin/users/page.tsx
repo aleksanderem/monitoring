@@ -25,6 +25,7 @@ import {
 } from "@untitledui/icons";
 import type { Selection } from "react-aria-components";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 interface UserWithStats {
   _id: Id<"users">;
@@ -66,6 +67,8 @@ interface UserDetails {
 }
 
 export default function AdminUsersPage() {
+  const t = useTranslations("admin");
+  const tc = useTranslations("common");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "super_admin" | "user">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "suspended">("all");
@@ -105,13 +108,13 @@ export default function AdminUsersPage() {
     try {
       if (isSuperAdmin) {
         await revokeSuperAdmin({ userId });
-        toast.success("Super admin role revoked");
+        toast.success(t("superAdminRevoked"));
       } else {
         await grantSuperAdmin({ userId });
-        toast.success("Super admin role granted");
+        toast.success(t("superAdminGranted"));
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to change role");
+      toast.error(error instanceof Error ? error.message : t("failedChangeRole"));
     }
   };
 
@@ -119,13 +122,13 @@ export default function AdminUsersPage() {
     try {
       if (suspended) {
         await activateUser({ userId });
-        toast.success("User activated");
+        toast.success(t("userActivated"));
       } else {
         await suspendUser({ userId });
-        toast.success("User suspended");
+        toast.success(t("userSuspended"));
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update status");
+      toast.error(error instanceof Error ? error.message : t("failedUpdateStatus"));
     }
   };
 
@@ -133,10 +136,10 @@ export default function AdminUsersPage() {
     if (!selectedUserId) return;
     try {
       await impersonateUser({ userId: selectedUserId });
-      toast.success("Impersonation logged.");
+      toast.success(t("impersonationLogged"));
       setIsImpersonateModalOpen(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to impersonate");
+      toast.error(error instanceof Error ? error.message : t("failedImpersonate"));
     }
   };
 
@@ -144,12 +147,12 @@ export default function AdminUsersPage() {
     if (!selectedUserId) return;
     try {
       await deleteUser({ userId: selectedUserId });
-      toast.success("User deleted");
+      toast.success(t("userDeleted"));
       setIsSlideoutOpen(false);
       setIsDeleteModalOpen(false);
       setSelectedUserId(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete user");
+      toast.error(error instanceof Error ? error.message : t("failedDeleteUser"));
     }
   };
 
@@ -161,8 +164,8 @@ export default function AdminUsersPage() {
     for (const userId of selectedIds) {
       try { await suspendUser({ userId }); successCount++; } catch { errorCount++; }
     }
-    if (successCount > 0) toast.success(`${successCount} user(s) suspended`);
-    if (errorCount > 0) toast.error(`Failed to suspend ${errorCount} user(s)`);
+    if (successCount > 0) toast.success(t("bulkSuspendSuccess", { count: successCount }));
+    if (errorCount > 0) toast.error(t("bulkSuspendError", { count: errorCount }));
     setSelectedKeys(new Set());
   };
 
@@ -175,8 +178,8 @@ export default function AdminUsersPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <Breadcrumbs className="mb-6">
-        <Breadcrumbs.Item href="/admin">Admin</Breadcrumbs.Item>
-        <Breadcrumbs.Item>Users</Breadcrumbs.Item>
+        <Breadcrumbs.Item href="/admin">{t("sidebarTitle")}</Breadcrumbs.Item>
+        <Breadcrumbs.Item>{t("navUsers")}</Breadcrumbs.Item>
       </Breadcrumbs>
 
       <div className="mb-6">
@@ -185,8 +188,8 @@ export default function AdminUsersPage() {
             <Users02 className="w-7 h-7 text-utility-brand-700" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-primary">Users</h1>
-            <p className="mt-0.5 text-sm text-tertiary">Manage all users in the system</p>
+            <h1 className="text-2xl font-semibold text-primary">{t("navUsers")}</h1>
+            <p className="mt-0.5 text-sm text-tertiary">{t("usersDescription")}</p>
           </div>
         </div>
       </div>
@@ -195,7 +198,7 @@ export default function AdminUsersPage() {
         <div className="flex-1 max-w-md">
           <input
             type="text"
-            placeholder="Search by email or name..."
+            placeholder={t("searchUsersPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full px-4 py-2 border border-primary rounded-lg bg-primary text-primary placeholder:text-tertiary focus:outline-none focus:ring-2 focus:ring-brand-solid"
@@ -206,48 +209,48 @@ export default function AdminUsersPage() {
           onChange={(e) => setRoleFilter(e.target.value as typeof roleFilter)}
           className="px-4 py-2 border border-primary rounded-lg bg-primary text-primary focus:outline-none focus:ring-2 focus:ring-brand-solid"
         >
-          <option value="all">All Roles</option>
-          <option value="super_admin">Super Admin</option>
-          <option value="user">User</option>
+          <option value="all">{t("allRoles")}</option>
+          <option value="super_admin">{t("roleSuperAdmin")}</option>
+          <option value="user">{t("roleUser")}</option>
         </select>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
           className="px-4 py-2 border border-primary rounded-lg bg-primary text-primary focus:outline-none focus:ring-2 focus:ring-brand-solid"
         >
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="suspended">Suspended</option>
+          <option value="all">{t("allStatus")}</option>
+          <option value="active">{t("statusActive")}</option>
+          <option value="suspended">{t("statusSuspended")}</option>
         </select>
       </div>
 
       {hasSelection && (
         <div className="mb-4 flex items-center justify-between px-4 py-3 bg-utility-gray-50 border border-primary rounded-lg">
-          <span className="text-sm text-secondary">{selectedKeys.size} user(s) selected</span>
+          <span className="text-sm text-secondary">{t("usersSelected", { count: selectedKeys.size })}</span>
           <div className="flex items-center gap-2">
             <Button color="tertiary-destructive" size="sm" onClick={handleBulkSuspend}>
               <UserMinus01 className="w-4 h-4 mr-1" />
-              Suspend Selected
+              {t("suspendSelected")}
             </Button>
           </div>
         </div>
       )}
 
       <TableCard.Root size="md">
-        <TableCard.Header title="All Users" badge={filteredUsers?.length ?? 0} description="System-wide user management" />
+        <TableCard.Header title={t("allUsers")} badge={filteredUsers?.length ?? 0} description={t("usersTableDescription")} />
         <Table
-          aria-label="Users table"
+          aria-label={t("allUsers")}
           selectionMode="multiple"
           selectedKeys={selectedKeys}
           onSelectionChange={setSelectedKeys}
           onRowAction={(key) => handleRowClick(key as Id<"users">)}
         >
           <Table.Header>
-            <Table.Head label="Email" isRowHeader allowsSorting />
-            <Table.Head label="Organizations" allowsSorting />
-            <Table.Head label="Role" allowsSorting />
-            <Table.Head label="Status" allowsSorting />
-            <Table.Head label="Created" allowsSorting />
+            <Table.Head label={t("columnEmail")} isRowHeader allowsSorting />
+            <Table.Head label={t("navOrganizations")} allowsSorting />
+            <Table.Head label={t("columnRole")} allowsSorting />
+            <Table.Head label={t("columnStatus")} allowsSorting />
+            <Table.Head label={t("columnCreated")} allowsSorting />
           </Table.Header>
           <Table.Body items={filteredUsers ?? []}>
             {(user) => (
@@ -260,7 +263,7 @@ export default function AdminUsersPage() {
                       </span>
                     </div>
                     <div>
-                      <div className="font-medium text-primary">{user.name || user.email || "Unknown"}</div>
+                      <div className="font-medium text-primary">{user.name || user.email || t("unknown")}</div>
                       <div className="text-xs text-tertiary">{user.email}</div>
                     </div>
                   </div>
@@ -268,16 +271,16 @@ export default function AdminUsersPage() {
                 <Table.Cell><span className="text-sm text-secondary">{user.organizationCount}</span></Table.Cell>
                 <Table.Cell>
                   {user.isSuperAdmin ? (
-                    <Badge color="error" size="sm">Super Admin</Badge>
+                    <Badge color="error" size="sm">{t("roleSuperAdmin")}</Badge>
                   ) : (
-                    <Badge color="gray" size="sm">User</Badge>
+                    <Badge color="gray" size="sm">{t("roleUser")}</Badge>
                   )}
                 </Table.Cell>
                 <Table.Cell>
                   {user.suspended ? (
-                    <Badge color="warning" size="sm">Suspended</Badge>
+                    <Badge color="warning" size="sm">{t("statusSuspended")}</Badge>
                   ) : (
-                    <Badge color="success" size="sm">Active</Badge>
+                    <Badge color="success" size="sm">{t("statusActive")}</Badge>
                   )}
                 </Table.Cell>
                 <Table.Cell>
@@ -298,7 +301,7 @@ export default function AdminUsersPage() {
         <SlideoutMenu.Header onClose={() => setIsSlideoutOpen(false)}>
           <div className="flex items-center gap-3">
             <Users02 className="w-12 h-12 text-utility-brand-700" />
-            <h2 className="text-lg font-semibold text-primary">User Details</h2>
+            <h2 className="text-lg font-semibold text-primary">{t("userDetails")}</h2>
           </div>
         </SlideoutMenu.Header>
 
@@ -312,14 +315,14 @@ export default function AdminUsersPage() {
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-primary">{userDetails.name || "Unknown"}</h3>
+                  <h3 className="text-lg font-semibold text-primary">{userDetails.name || t("unknown")}</h3>
                   <p className="text-sm text-secondary mt-0.5">{userDetails.email}</p>
                   <div className="mt-2 flex items-center gap-2">
-                    {userDetails.isSuperAdmin && <Badge color="error" size="sm">Super Admin</Badge>}
+                    {userDetails.isSuperAdmin && <Badge color="error" size="sm">{t("roleSuperAdmin")}</Badge>}
                     {userDetails.suspended ? (
-                      <Badge color="warning" size="sm">Suspended</Badge>
+                      <Badge color="warning" size="sm">{t("statusSuspended")}</Badge>
                     ) : (
-                      <Badge color="success" size="sm">Active</Badge>
+                      <Badge color="success" size="sm">{t("statusActive")}</Badge>
                     )}
                   </div>
                 </div>
@@ -327,10 +330,10 @@ export default function AdminUsersPage() {
 
               <div className="mt-6 flex items-center gap-2 border-b border-primary">
                 {[
-                  { key: "overview", label: "Overview", Icon: UserCheck01 },
-                  { key: "organizations", label: "Organizations", Icon: Building01 },
-                  { key: "teams", label: "Teams", Icon: Users02 },
-                  { key: "activity", label: "Activity", Icon: Activity },
+                  { key: "overview", label: t("tabOverview"), Icon: UserCheck01 },
+                  { key: "organizations", label: t("navOrganizations"), Icon: Building01 },
+                  { key: "teams", label: t("tabTeams"), Icon: Users02 },
+                  { key: "activity", label: t("tabActivity"), Icon: Activity },
                 ].map((tab) => (
                   <button
                     key={tab.key}
@@ -351,12 +354,12 @@ export default function AdminUsersPage() {
                 {activeTab === "overview" && (
                   <div className="space-y-4">
                     {[
-                      { label: "Email", value: userDetails.email },
-                      { label: "Status", value: userDetails.suspended ? "Suspended" : "Active" },
-                      { label: "System Role", value: userDetails.isSuperAdmin ? "Super Admin" : "User" },
-                      { label: "Created", value: new Date(userDetails.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) },
-                      { label: "Organizations", value: String(userDetails.organizations.length) },
-                      { label: "Teams", value: String(userDetails.teams.length) },
+                      { label: t("columnEmail"), value: userDetails.email },
+                      { label: t("columnStatus"), value: userDetails.suspended ? t("statusSuspended") : t("statusActive") },
+                      { label: t("systemRole"), value: userDetails.isSuperAdmin ? t("roleSuperAdmin") : t("roleUser") },
+                      { label: t("columnCreated"), value: new Date(userDetails.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) },
+                      { label: t("navOrganizations"), value: String(userDetails.organizations.length) },
+                      { label: t("tabTeams"), value: String(userDetails.teams.length) },
                     ].map((item) => (
                       <div key={item.label}>
                         <p className="text-xs font-medium text-tertiary uppercase tracking-wider">{item.label}</p>
@@ -369,7 +372,7 @@ export default function AdminUsersPage() {
                 {activeTab === "organizations" && (
                   <div className="space-y-3">
                     {userDetails.organizations.length === 0 ? (
-                      <p className="text-sm text-tertiary">Not a member of any organizations.</p>
+                      <p className="text-sm text-tertiary">{t("notMemberOfOrgs")}</p>
                     ) : (
                       userDetails.organizations.map((org, idx) =>
                         org ? (
@@ -389,7 +392,7 @@ export default function AdminUsersPage() {
                 {activeTab === "teams" && (
                   <div className="space-y-3">
                     {userDetails.teams.length === 0 ? (
-                      <p className="text-sm text-tertiary">Not a member of any teams.</p>
+                      <p className="text-sm text-tertiary">{t("notMemberOfTeams")}</p>
                     ) : (
                       userDetails.teams.map((team, idx) =>
                         team ? (
@@ -410,7 +413,7 @@ export default function AdminUsersPage() {
                 {activeTab === "activity" && (
                   <div className="space-y-3">
                     {!userActivityLogs || userActivityLogs.length === 0 ? (
-                      <p className="text-sm text-tertiary">No activity logs found.</p>
+                      <p className="text-sm text-tertiary">{t("noActivityLogs")}</p>
                     ) : (
                       userActivityLogs.map((log) => (
                         <div key={log._id} className="p-3 border border-primary rounded-lg">
@@ -433,7 +436,7 @@ export default function AdminUsersPage() {
                   className="w-full"
                 >
                   <UserPlus01 className="w-4 h-4 mr-1" />
-                  {userDetails.isSuperAdmin ? "Revoke Super Admin" : "Grant Super Admin"}
+                  {userDetails.isSuperAdmin ? t("revokeSuperAdmin") : t("grantSuperAdmin")}
                 </Button>
                 <Button
                   color={userDetails.suspended ? "secondary" : "tertiary"}
@@ -441,16 +444,16 @@ export default function AdminUsersPage() {
                   className="w-full"
                 >
                   {userDetails.suspended ? (
-                    <><CheckCircle className="w-4 h-4 mr-1" />Activate User</>
+                    <><CheckCircle className="w-4 h-4 mr-1" />{t("activateUser")}</>
                   ) : (
-                    <><XCircle className="w-4 h-4 mr-1" />Suspend User</>
+                    <><XCircle className="w-4 h-4 mr-1" />{t("suspendUser")}</>
                   )}
                 </Button>
                 <Button color="tertiary" onClick={() => setIsImpersonateModalOpen(true)} className="w-full">
-                  <Eye className="w-4 h-4 mr-1" />Impersonate User
+                  <Eye className="w-4 h-4 mr-1" />{t("impersonateUser")}
                 </Button>
                 <Button color="tertiary-destructive" onClick={() => setIsDeleteModalOpen(true)} className="w-full">
-                  <Trash01 className="w-4 h-4 mr-1" />Delete User
+                  <Trash01 className="w-4 h-4 mr-1" />{t("deleteUser")}
                 </Button>
               </div>
             </div>
@@ -458,34 +461,34 @@ export default function AdminUsersPage() {
         </SlideoutMenu.Content>
       </SlideoutMenu>
 
-      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Delete User" size="md">
+      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title={t("deleteUser")} size="md">
         <div className="space-y-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-utility-error-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm text-primary">Are you sure? This action cannot be undone.</p>
-              <p className="text-sm text-tertiary mt-2">All user data and memberships will be permanently removed.</p>
+              <p className="text-sm text-primary">{t("deleteUserConfirmation")}</p>
+              <p className="text-sm text-tertiary mt-2">{t("deleteUserWarning")}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 pt-4">
-            <Button color="secondary" onClick={() => setIsDeleteModalOpen(false)} className="flex-1">Cancel</Button>
-            <Button color="primary-destructive" onClick={handleDelete} className="flex-1">Delete User</Button>
+            <Button color="secondary" onClick={() => setIsDeleteModalOpen(false)} className="flex-1">{tc("cancel")}</Button>
+            <Button color="primary-destructive" onClick={handleDelete} className="flex-1">{t("deleteUser")}</Button>
           </div>
         </div>
       </Modal>
 
-      <Modal isOpen={isImpersonateModalOpen} onClose={() => setIsImpersonateModalOpen(false)} title="Impersonate User" size="md">
+      <Modal isOpen={isImpersonateModalOpen} onClose={() => setIsImpersonateModalOpen(false)} title={t("impersonateUser")} size="md">
         <div className="space-y-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-utility-warning-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm text-primary">Impersonating this user will be logged in the audit trail.</p>
+              <p className="text-sm text-primary">{t("impersonateWarning")}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 pt-4">
-            <Button color="secondary" onClick={() => setIsImpersonateModalOpen(false)} className="flex-1">Cancel</Button>
+            <Button color="secondary" onClick={() => setIsImpersonateModalOpen(false)} className="flex-1">{tc("cancel")}</Button>
             <Button color="primary" onClick={handleImpersonate} className="flex-1">
-              <Eye className="w-4 h-4 mr-1" />Impersonate
+              <Eye className="w-4 h-4 mr-1" />{t("impersonate")}
             </Button>
           </div>
         </div>

@@ -11,15 +11,17 @@ import { ProjectOverviewSection } from "@/components/project/sections/ProjectOve
 import { ProjectPositionMonitoring } from "@/components/project/sections/ProjectPositionMonitoring";
 import { ProjectBacklinksOverview } from "@/components/project/sections/ProjectBacklinksOverview";
 import { ProjectDomainsTable } from "@/components/project/tables/ProjectDomainsTable";
-
-const tabs = [
-    { id: "overview", label: "Overview", icon: BarChart03 },
-    { id: "keywords", label: "Keywords", icon: Hash01 },
-    { id: "backlinks", label: "Backlinks", icon: Link03 },
-    { id: "monitoring", label: "Monitoring", icon: Activity },
-];
+import { useTranslations } from "next-intl";
 
 export default function ProjectDetailPage() {
+    const t = useTranslations("projects");
+
+    const tabs = [
+        { id: "overview", label: t("tabOverview"), icon: BarChart03 },
+        { id: "keywords", label: t("tabKeywords"), icon: Hash01 },
+        { id: "backlinks", label: t("tabBacklinks"), icon: Link03 },
+        { id: "monitoring", label: t("tabMonitoring"), icon: Activity },
+    ];
     const params = useParams();
     const router = useRouter();
     const projectId = params.projectId as Id<"projects">;
@@ -33,9 +35,9 @@ export default function ProjectDetailPage() {
     if (!project) {
         return (
             <div className="flex flex-col items-center justify-center py-20">
-                <p className="text-lg font-medium text-primary">Project not found</p>
+                <p className="text-lg font-medium text-primary">{t("projectNotFound")}</p>
                 <button onClick={() => router.push("/projects")} className="mt-4 text-sm text-brand-primary hover:underline">
-                    Back to projects
+                    {t("backToProjects")}
                 </button>
             </div>
         );
@@ -51,7 +53,7 @@ export default function ProjectDetailPage() {
                 <div>
                     <h1 className="text-2xl font-semibold text-primary">{project.name}</h1>
                     <p className="text-sm text-tertiary">
-                        {project.domainCount} domains &middot; {project.keywordCount} keywords
+                        {t("domainKeywordSummary", { domains: project.domainCount, keywords: project.keywordCount })}
                     </p>
                 </div>
             </div>

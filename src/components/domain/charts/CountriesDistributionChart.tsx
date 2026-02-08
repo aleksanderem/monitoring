@@ -2,6 +2,7 @@
 
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 import { Globe01 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import {
   ChartContainer,
   ChartTooltip,
@@ -18,6 +19,7 @@ export function CountriesDistributionChart({
   data,
   isLoading,
 }: CountriesDistributionChartProps) {
+  const t = useTranslations('backlinks');
   const barColor = "#10b981"; // Modern green
   if (isLoading) {
     return (
@@ -47,12 +49,12 @@ export function CountriesDistributionChart({
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div>
-          <h3 className="text-md font-semibold text-primary">Countries Distribution</h3>
-          <p className="text-sm text-tertiary">Geographic distribution of backlinks</p>
+          <h3 className="text-md font-semibold text-primary">{t('countriesTitle')}</h3>
+          <p className="text-sm text-tertiary">{t('countriesSubtitle')}</p>
         </div>
         <div className="flex flex-col items-center justify-center py-12">
           <Globe01 className="h-10 w-10 text-fg-quaternary" />
-          <p className="mt-2 text-sm text-tertiary">No country data available</p>
+          <p className="mt-2 text-sm text-tertiary">{t('countriesEmpty')}</p>
         </div>
       </div>
     );
@@ -60,7 +62,7 @@ export function CountriesDistributionChart({
 
   const chartConfig = {
     count: {
-      label: "Backlinks",
+      label: t('backlinks'),
       color: "var(--chart-2)",
     },
   } satisfies ChartConfig;
@@ -68,8 +70,8 @@ export function CountriesDistributionChart({
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
-        <h3 className="text-md font-semibold text-primary">Countries Distribution</h3>
-        <p className="text-sm text-tertiary">Geographic distribution of your backlinks. Shows which countries your link authority comes from.</p>
+        <h3 className="text-md font-semibold text-primary">{t('countriesTitle')}</h3>
+        <p className="text-sm text-tertiary">{t('countriesDescription')}</p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">

@@ -1,11 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 interface KeywordTooltipProps {
   keyword: any;
   position: { x: number; y: number };
 }
 
 export function KeywordTooltip({ keyword, position }: KeywordTooltipProps) {
+  const t = useTranslations("keywords");
   return (
     <div
       className="fixed z-50 pointer-events-none"
@@ -23,13 +26,13 @@ export function KeywordTooltip({ keyword, position }: KeywordTooltipProps) {
           <div className="grid grid-cols-2 gap-2">
             {keyword.searchVolume !== undefined && (
               <div>
-                <p className="text-xs text-tertiary">Volume</p>
+                <p className="text-xs text-tertiary">{t("tooltipVolume")}</p>
                 <p className="text-sm font-medium text-primary">{keyword.searchVolume.toLocaleString()}</p>
               </div>
             )}
             {keyword.difficulty !== undefined && (
               <div>
-                <p className="text-xs text-tertiary">Difficulty</p>
+                <p className="text-xs text-tertiary">{t("tooltipDifficulty")}</p>
                 <p className={`text-sm font-medium ${
                   keyword.difficulty < 30 ? 'text-utility-success-600' :
                   keyword.difficulty < 70 ? 'text-utility-warning-600' :
@@ -45,13 +48,13 @@ export function KeywordTooltip({ keyword, position }: KeywordTooltipProps) {
           <div className="grid grid-cols-2 gap-2">
             {keyword.cpc !== undefined && (
               <div>
-                <p className="text-xs text-tertiary">CPC</p>
+                <p className="text-xs text-tertiary">{t("tooltipCpc")}</p>
                 <p className="text-sm font-medium text-primary">${keyword.cpc.toFixed(2)}</p>
               </div>
             )}
             {keyword.etv !== undefined && (
               <div>
-                <p className="text-xs text-tertiary">ETV</p>
+                <p className="text-xs text-tertiary">{t("tooltipEtv")}</p>
                 <p className="text-sm font-medium text-primary">{keyword.etv.toFixed(2)}</p>
               </div>
             )}

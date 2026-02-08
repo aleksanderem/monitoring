@@ -3,6 +3,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useTranslations } from "next-intl";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
@@ -13,6 +14,7 @@ interface GroupPerformanceChartProps {
 }
 
 export function GroupPerformanceChart({ domainId, days = 30 }: GroupPerformanceChartProps) {
+  const t = useTranslations('keywords');
   const groupsPerformance = useQuery(api.keywordGroups_queries.getAllGroupsPerformance, {
     domainId,
     days,
@@ -25,8 +27,8 @@ export function GroupPerformanceChart({ domainId, days = 30 }: GroupPerformanceC
   if (!groupsPerformance || groupsPerformance.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary p-12">
-        <p className="text-sm font-medium text-tertiary">No groups created yet</p>
-        <p className="mt-1 text-sm text-quaternary">Create keyword groups to see performance comparison</p>
+        <p className="text-sm font-medium text-tertiary">{t('noGroupsCreatedYet')}</p>
+        <p className="mt-1 text-sm text-quaternary">{t('createGroupsToSeePerformance')}</p>
       </div>
     );
   }
@@ -62,8 +64,8 @@ export function GroupPerformanceChart({ domainId, days = 30 }: GroupPerformanceC
   return (
     <div className="rounded-xl border border-secondary bg-primary p-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-primary">Group Performance Comparison</h3>
-        <p className="text-sm text-tertiary">Average ranking position over time for each keyword group. Track which groups are improving or declining.</p>
+        <h3 className="text-lg font-semibold text-primary">{t('groupPerformanceComparison')}</h3>
+        <p className="text-sm text-tertiary">{t('groupPerformanceDescription')}</p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">
@@ -79,7 +81,7 @@ export function GroupPerformanceChart({ domainId, days = 30 }: GroupPerformanceC
               reversed
               domain={[1, "auto"]}
               className="text-xs text-muted-foreground"
-              label={{ value: "Position (lower is better)", angle: -90, position: "insideLeft" }}
+              label={{ value: t('positionLowerIsBetter'), angle: -90, position: "insideLeft" }}
             />
             <ChartTooltip content={<ChartTooltipContent />} />
             <Legend />

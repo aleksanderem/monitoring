@@ -15,6 +15,7 @@ import { Select } from "@/components/base/select/select";
 import { TextAreaBase } from "@/components/base/textarea/textarea";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
+import { useTranslations } from "next-intl";
 
 /**
  * This is a utility hook that automatically reopens the modal after
@@ -54,6 +55,7 @@ const employmentTypes = [
 ];
 
 export const Form01Modal = () => {
+    const t = useTranslations("common");
     const [isOpen, setIsOpen] = useModalState();
 
     return (
@@ -71,22 +73,22 @@ export const Form01Modal = () => {
                                 </div>
                                 <div className="z-10 flex flex-col gap-0.5">
                                     <AriaHeading slot="title" className="text-md font-semibold text-primary">
-                                        Add experience
+                                        {t("addExperience")}
                                     </AriaHeading>
-                                    <p className="text-sm text-tertiary">Share where you've worked on your profile.</p>
+                                    <p className="text-sm text-tertiary">{t("addExperienceDescription")}</p>
                                 </div>
                             </div>
                             <div className="h-5 w-full" />
                             <Carousel.Content className="gap-5">
                                 <Carousel.Item className="grid w-full grid-cols-1 items-start justify-start gap-4 px-4 sm:grid-cols-[280px_1fr] sm:px-6">
-                                    <Input size="md" label="Title" placeholder="What is your title?" className="sm:col-span-2" />
+                                    <Input size="md" label={t("formTitle")} placeholder={t("formTitlePlaceholder")} className="sm:col-span-2" />
                                     <Select.ComboBox
-                                        label="Company"
+                                        label={t("formCompany")}
                                         className="sm:col-span-1"
                                         size="md"
                                         items={people}
                                         shortcut={false}
-                                        placeholder="Search for company"
+                                        placeholder={t("searchForCompany")}
                                     >
                                         {(item) => (
                                             <Select.Item key={item.id} id={item.id}>
@@ -96,7 +98,7 @@ export const Form01Modal = () => {
                                     </Select.ComboBox>
                                     <InputGroup
                                         size="md"
-                                        label="Website"
+                                        label={t("formWebsite")}
                                         className="sm:col-span-1"
                                         leadingAddon={<InputGroup.Prefix>https://</InputGroup.Prefix>}
                                     >
@@ -104,9 +106,9 @@ export const Form01Modal = () => {
                                     </InputGroup>{" "}
                                     <Select.ComboBox
                                         size="md"
-                                        label="Location"
+                                        label={t("formLocation")}
                                         className="sm:col-span-1"
-                                        placeholder="Search for city"
+                                        placeholder={t("searchForCity")}
                                         items={people}
                                         shortcutClassName="sm:hidden"
                                     >
@@ -118,7 +120,7 @@ export const Form01Modal = () => {
                                     </Select.ComboBox>
                                     <div className="w-32 max-sm:hidden">
                                         <Select
-                                            label="Employment"
+                                            label={t("formEmployment")}
                                             size="md"
                                             items={employmentTypes}
                                             defaultSelectedKey={employmentTypes[0].id}
@@ -131,10 +133,10 @@ export const Form01Modal = () => {
                                             )}
                                         </Select>
                                     </div>
-                                    <Input size="md" label="Title" placeholder="What is your title?" className="col-span-2 max-sm:hidden" />
+                                    <Input size="md" label={t("formTitle")} placeholder={t("formTitlePlaceholder")} className="col-span-2 max-sm:hidden" />
                                     <div className="col-span-2 flex h-36 flex-col gap-1.5 self-stretch max-sm:hidden">
-                                        <Label className="flex items-center gap-0.5" tooltip="This will be public">
-                                            Description
+                                        <Label className="flex items-center gap-0.5" tooltip={t("thisWillBePublic")}>
+                                            {t("description")}
                                         </Label>
                                         <TextAreaBase
                                             className="flex-1 rounded-lg px-3.5 py-3"
@@ -143,17 +145,17 @@ export const Form01Modal = () => {
                                     </div>
                                 </Carousel.Item>
                                 <Carousel.Item className="flex w-full flex-col gap-4 px-4 sm:hidden sm:px-6">
-                                    <Select defaultSelectedKey={employmentTypes[0].id} label="Employment" size="md" items={employmentTypes}>
+                                    <Select defaultSelectedKey={employmentTypes[0].id} label={t("formEmployment")} size="md" items={employmentTypes}>
                                         {(item) => (
                                             <Select.Item key={item.id} id={item.id}>
                                                 {item.label}
                                             </Select.Item>
                                         )}
                                     </Select>
-                                    <Input size="md" label="Title" placeholder="What is your title?" className="max-sm:hidden" />
+                                    <Input size="md" label={t("formTitle")} placeholder={t("formTitlePlaceholder")} className="max-sm:hidden" />
                                     <div className="resize-both flex min-h-40 flex-col gap-1.5 self-stretch">
-                                        <Label className="flex items-center gap-0.5" tooltip="This will be public">
-                                            Description
+                                        <Label className="flex items-center gap-0.5" tooltip={t("thisWillBePublic")}>
+                                            {t("description")}
                                         </Label>
                                         <TextAreaBase
                                             className="h-full flex-1 rounded-lg px-3.5 py-3"
@@ -176,10 +178,10 @@ export const Form01Modal = () => {
                                             iconLeading={context?.canScrollPrev ? ArrowLeft : Save01}
                                             onClick={() => (context?.canScrollPrev ? context?.scrollPrev() : setIsOpen(false))}
                                         >
-                                            {context?.canScrollPrev ? "Back" : "Save as draft"}
+                                            {context?.canScrollPrev ? t("back") : t("saveAsDraft")}
                                         </Button>
                                         <Button size="lg" color="primary" onClick={() => (context?.canScrollNext ? context?.scrollNext() : setIsOpen(false))}>
-                                            {context?.canScrollNext ? "Next" : "Add experience"}
+                                            {context?.canScrollNext ? t("next") : t("addExperience")}
                                         </Button>
                                     </div>
                                 )}

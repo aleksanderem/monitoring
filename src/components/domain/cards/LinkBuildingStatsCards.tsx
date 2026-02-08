@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { Target04, TrendUp02, Zap, BarChart03 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
@@ -10,6 +11,7 @@ interface LinkBuildingStatsCardsProps {
 }
 
 export function LinkBuildingStatsCards({ domainId }: LinkBuildingStatsCardsProps) {
+    const t = useTranslations('backlinks');
     const stats = useQuery(api.linkBuilding_queries.getProspectStats, { domainId });
 
     if (stats === undefined) {
@@ -31,10 +33,10 @@ export function LinkBuildingStatsCards({ domainId }: LinkBuildingStatsCardsProps
                 <div className="rounded-xl border border-secondary bg-primary p-4">
                     <div className="flex items-center gap-2 text-sm text-tertiary">
                         <Target04 className="h-4 w-4" />
-                        Prospects
+                        {t('statsProspects')}
                     </div>
                     <p className="mt-1 text-2xl font-semibold text-primary">0</p>
-                    <p className="mt-0.5 text-xs text-tertiary">Generate report to find prospects</p>
+                    <p className="mt-0.5 text-xs text-tertiary">{t('statsGenerateToFind')}</p>
                 </div>
             </div>
         );
@@ -45,35 +47,35 @@ export function LinkBuildingStatsCards({ domainId }: LinkBuildingStatsCardsProps
             <div className="rounded-xl border border-secondary bg-primary p-4">
                 <div className="flex items-center gap-2 text-sm text-tertiary">
                     <Target04 className="h-4 w-4" />
-                    Active Prospects
+                    {t('statsActiveProspects')}
                 </div>
                 <p className="mt-1 text-2xl font-semibold text-primary">{stats.activeProspects}</p>
-                <p className="mt-0.5 text-xs text-tertiary">{stats.reviewingCount} under review</p>
+                <p className="mt-0.5 text-xs text-tertiary">{t('statsUnderReview', { count: stats.reviewingCount })}</p>
             </div>
             <div className="rounded-xl border border-secondary bg-primary p-4">
                 <div className="flex items-center gap-2 text-sm text-tertiary">
                     <BarChart03 className="h-4 w-4" />
-                    Avg Score
+                    {t('statsAvgScore')}
                 </div>
                 <p className="mt-1 text-2xl font-semibold text-primary">{stats.avgScore}</p>
-                <p className="mt-0.5 text-xs text-tertiary">out of 100</p>
+                <p className="mt-0.5 text-xs text-tertiary">{t('statsOutOf100')}</p>
             </div>
             <div className="rounded-xl border border-secondary bg-primary p-4">
                 <div className="flex items-center gap-2 text-sm text-tertiary">
                     <TrendUp02 className="h-4 w-4" />
-                    Avg Impact
+                    {t('statsAvgImpact')}
                 </div>
                 <p className="mt-1 text-2xl font-semibold text-utility-success-600">{stats.avgImpact}</p>
-                <p className="mt-0.5 text-xs text-tertiary">estimated SEO impact</p>
+                <p className="mt-0.5 text-xs text-tertiary">{t('statsEstimatedSeoImpact')}</p>
             </div>
             <div className="rounded-xl border border-secondary bg-primary p-4">
                 <div className="flex items-center gap-2 text-sm text-tertiary">
                     <Zap className="h-4 w-4 text-fg-warning-primary" />
-                    Easy Wins
+                    {t('statsEasyWins')}
                 </div>
                 <p className="mt-1 text-2xl font-semibold text-primary">{stats.byDifficulty.easy}</p>
                 <p className="mt-0.5 text-xs text-tertiary">
-                    {stats.byDifficulty.medium} medium, {stats.byDifficulty.hard} hard
+                    {t('statsDifficultyBreakdown', { medium: stats.byDifficulty.medium, hard: stats.byDifficulty.hard })}
                 </p>
             </div>
         </div>

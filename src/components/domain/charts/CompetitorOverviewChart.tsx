@@ -7,6 +7,7 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
 import { cx } from "@/utils/cx";
+import { useTranslations } from "next-intl";
 
 interface CompetitorOverviewChartProps {
   domainId: Id<"domains">;
@@ -24,6 +25,7 @@ const CHART_COLORS = [
 const OWN_DOMAIN_COLOR = { className: "text-utility-gray-700", color: "#374151" };
 
 export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverviewChartProps) {
+  const t = useTranslations('competitors');
   const overview = useQuery(api.queries.competitors.getCompetitorOverview, {
     domainId,
     days,
@@ -36,9 +38,9 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
   if (!overview || !overview.competitors || overview.competitors.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-secondary bg-secondary/50 p-12">
-        <p className="text-sm font-medium text-tertiary">No competitors added yet</p>
+        <p className="text-sm font-medium text-tertiary">{t('competitorOverviewNoCompetitors')}</p>
         <p className="mt-1 text-sm text-quaternary">
-          Add competitors to compare rankings over time
+          {t('competitorOverviewNoCompetitorsHint')}
         </p>
       </div>
     );
@@ -50,9 +52,9 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
   if (validCompetitors.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-secondary bg-secondary/50 p-12">
-        <p className="text-sm font-medium text-tertiary">No competitor data available</p>
+        <p className="text-sm font-medium text-tertiary">{t('competitorOverviewNoData')}</p>
         <p className="mt-1 text-sm text-quaternary">
-          Check competitor positions to populate the chart
+          {t('competitorOverviewNoDataHint')}
         </p>
       </div>
     );
@@ -80,7 +82,7 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
   // Chart config for ChartContainer with className-based colors
   const chartConfig: any = {
     own: {
-      label: "Your Domain",
+      label: t('competitorOverviewYourDomain'),
       className: OWN_DOMAIN_COLOR.className,
       color: OWN_DOMAIN_COLOR.color,
     },
@@ -100,7 +102,7 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
   return (
     <div className="rounded-xl border border-secondary bg-primary p-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-primary">Competitor Position Comparison</h3>
+        <h3 className="text-lg font-semibold text-primary">{t('competitorOverviewTitle')}</h3>
         <p className="text-sm text-tertiary">
           Average keyword rankings compared to competitors over the last {days} days. Lower positions mean better visibility.
         </p>

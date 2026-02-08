@@ -1,6 +1,7 @@
 "use client";
 
 import { TrendUp02, TrendDown02, Eye, Target04, Hash01 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 
 interface VisibilityStatsProps {
   stats: {
@@ -75,6 +76,7 @@ function StatCard({
 }
 
 export function VisibilityStats({ stats, isLoading }: VisibilityStatsProps) {
+  const t = useTranslations("keywords");
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -94,7 +96,7 @@ export function VisibilityStats({ stats, isLoading }: VisibilityStatsProps) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
       <StatCard
-        label="Visibility Score"
+        label={t("visibilityScore")}
         value={stats.visibilityScore.toFixed(0)}
         icon={Eye}
         iconColor="blue"
@@ -103,33 +105,33 @@ export function VisibilityStats({ stats, isLoading }: VisibilityStatsProps) {
       />
 
       <StatCard
-        label="Average Position"
+        label={t("averagePosition")}
         value={stats.avgPosition.toFixed(1)}
         icon={Target04}
         iconColor="purple"
       />
 
       <StatCard
-        label="Top 3 Rankings"
+        label={t("top3Rankings")}
         value={stats.top3Count}
         icon={TrendUp02}
         iconColor="green"
         secondaryText={
           stats.totalKeywords > 0
-            ? `${((stats.top3Count / stats.totalKeywords) * 100).toFixed(1)}% of keywords`
-            : "0% of keywords"
+            ? t("percentOfKeywordsValue", { value: ((stats.top3Count / stats.totalKeywords) * 100).toFixed(1) })
+            : t("percentOfKeywordsValue", { value: "0" })
         }
       />
 
       <StatCard
-        label="Top 10 Rankings"
+        label={t("top10Rankings")}
         value={stats.top10Count}
         icon={Hash01}
         iconColor="blue"
         secondaryText={
           stats.totalKeywords > 0
-            ? `${((stats.top10Count / stats.totalKeywords) * 100).toFixed(1)}% of keywords`
-            : "0% of keywords"
+            ? t("percentOfKeywordsValue", { value: ((stats.top10Count / stats.totalKeywords) * 100).toFixed(1) })
+            : t("percentOfKeywordsValue", { value: "0" })
         }
       />
     </div>

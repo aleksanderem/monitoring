@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -10,6 +11,7 @@ interface WordFrequencySectionProps {
 }
 
 export function WordFrequencySection({ domainId }: WordFrequencySectionProps) {
+  const t = useTranslations('onsite');
   const [phraseLength, setPhraseLength] = useState(1);
 
   const wordFreqData = useQuery(api.seoAudit_queries.getWordFrequency, {
@@ -28,7 +30,7 @@ export function WordFrequencySection({ domainId }: WordFrequencySectionProps) {
       {/* Toggle */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-tertiary">
-          Total words analyzed: <strong className="text-primary">{latestData.totalWords.toLocaleString()}</strong>
+          {t('totalWordsAnalyzed')}: <strong className="text-primary">{latestData.totalWords.toLocaleString()}</strong>
         </div>
         <div className="flex gap-1 bg-secondary rounded-lg p-0.5">
           <button
@@ -39,7 +41,7 @@ export function WordFrequencySection({ domainId }: WordFrequencySectionProps) {
                 : "text-tertiary hover:text-secondary"
             }`}
           >
-            Single Words
+            {t('singleWords')}
           </button>
           <button
             onClick={() => setPhraseLength(2)}
@@ -49,7 +51,7 @@ export function WordFrequencySection({ domainId }: WordFrequencySectionProps) {
                 : "text-tertiary hover:text-secondary"
             }`}
           >
-            Two-Word Phrases
+            {t('twoWordPhrases')}
           </button>
         </div>
       </div>
@@ -79,7 +81,7 @@ export function WordFrequencySection({ domainId }: WordFrequencySectionProps) {
 
       {topWords.length === 0 && (
         <div className="text-center py-8 text-sm text-tertiary">
-          No word frequency data available
+          {t('noWordFrequencyData')}
         </div>
       )}
     </div>

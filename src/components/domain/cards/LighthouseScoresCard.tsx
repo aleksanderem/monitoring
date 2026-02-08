@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 interface LighthouseScoresCardProps {
   scores?: {
     performance: number;
@@ -10,14 +12,15 @@ interface LighthouseScoresCardProps {
 }
 
 export function LighthouseScoresCard({ scores }: LighthouseScoresCardProps) {
+  const t = useTranslations('onsite');
   if (!scores) {
     return (
       <div className="bg-primary rounded-lg border border-secondary p-6">
         <h3 className="text-md font-semibold text-primary mb-4">
-          Lighthouse Scores
+          {t('lighthouseScores')}
         </h3>
         <p className="text-sm text-tertiary">
-          No Lighthouse data available. Run an Instant Pages scan to get detailed performance metrics.
+          {t('noLighthouseData')}
         </p>
       </div>
     );
@@ -36,16 +39,16 @@ export function LighthouseScoresCard({ scores }: LighthouseScoresCardProps) {
   };
 
   const categories = [
-    { name: "Performance", key: "performance" as const },
-    { name: "Accessibility", key: "accessibility" as const },
-    { name: "Best Practices", key: "bestPractices" as const },
-    { name: "SEO", key: "seo" as const },
+    { name: t('categoryPerformance'), key: "performance" as const },
+    { name: t('categoryAccessibility'), key: "accessibility" as const },
+    { name: t('categoryBestPractices'), key: "bestPractices" as const },
+    { name: t('categorySeo'), key: "seo" as const },
   ];
 
   return (
     <div className="flex flex-col bg-primary rounded-lg border border-secondary p-6">
       <h3 className="text-md font-semibold text-primary mb-6">
-        Lighthouse Scores
+        {t('lighthouseScores')}
       </h3>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
@@ -95,19 +98,19 @@ export function LighthouseScoresCard({ scores }: LighthouseScoresCardProps) {
       </div>
 
       <div className="mt-auto pt-4 border-t border-secondary">
-        <p className="text-xs font-medium text-tertiary mb-2">Status Guide:</p>
+        <p className="text-xs font-medium text-tertiary mb-2">{t('statusGuide')}</p>
         <div className="flex flex-wrap gap-4 text-xs text-tertiary">
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-utility-success-500" />
-            Good
+            {t('statusGood')}
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-utility-warning-500" />
-            Needs Improvement
+            {t('statusNeedsImprovement')}
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-utility-error-500" />
-            Poor
+            {t('statusPoor')}
           </span>
         </div>
       </div>

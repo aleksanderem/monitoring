@@ -5,15 +5,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AppLogo } from "@/components/foundations/logo/app-logo";
 import { Button } from "@/components/base/buttons/button";
-
-const adminNavItems = [
-  { href: "/admin", label: "Dashboard", icon: ChartIcon },
-  { href: "/admin/organizations", label: "Organizations", icon: BuildingIcon },
-  { href: "/admin/users", label: "Users", icon: UsersIcon },
-  { href: "/admin/logs", label: "Audit Logs", icon: ListIcon },
-];
+import { useTranslations } from "next-intl";
 
 export function AdminSidebar() {
+  const t = useTranslations("admin");
+
+  const adminNavItems = [
+    { href: "/admin", label: t("navDashboard"), icon: ChartIcon },
+    { href: "/admin/organizations", label: t("navOrganizations"), icon: BuildingIcon },
+    { href: "/admin/users", label: t("navUsers"), icon: UsersIcon },
+    { href: "/admin/logs", label: t("navAuditLogs"), icon: ListIcon },
+  ];
   const pathname = usePathname();
   const router = useRouter();
   const { signOut } = useAuthActions();
@@ -23,7 +25,7 @@ export function AdminSidebar() {
       <div className="flex items-center h-16 px-4 border-b border-utility-gray-800">
         <div className="flex items-center gap-3">
           <AppLogo variant="white" className="h-8" />
-          <span className="text-sm font-semibold text-white">Admin</span>
+          <span className="text-sm font-semibold text-white">{t("sidebarTitle")}</span>
         </div>
       </div>
 
@@ -55,7 +57,7 @@ export function AdminSidebar() {
         <Link href="/dashboard">
           <Button color="secondary" size="sm" className="w-full justify-start">
             <ArrowLeftIcon className="w-4 h-4 mr-2" />
-            Back to app
+            {t("backToApp")}
           </Button>
         </Link>
         <Button
@@ -68,7 +70,7 @@ export function AdminSidebar() {
           }}
         >
           <LogOutIcon className="w-4 h-4 mr-2" />
-          Log out
+          {t("logOut")}
         </Button>
       </div>
     </aside>

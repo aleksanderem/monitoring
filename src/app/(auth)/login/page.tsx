@@ -8,8 +8,10 @@ import { Form } from "@/components/base/form/form";
 import { Input } from "@/components/base/input/input";
 import { AppLogo } from "@/components/foundations/logo/app-logo";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 export default function LoginPage() {
+  const t = useTranslations("auth");
   const { signIn } = useAuthActions();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -25,9 +27,9 @@ export default function LoginPage() {
 
       await signIn("password", { email, password, flow: "signIn" });
       router.push("/dashboard");
-      toast.success("Logged in successfully");
+      toast.success(t("loginSuccess"));
     } catch (error) {
-      toast.error("Invalid email or password");
+      toast.error(t("invalidCredentials"));
       console.error("Login error:", error);
     } finally {
       setIsLoading(false);
@@ -39,7 +41,7 @@ export default function LoginPage() {
       <div className="flex flex-col gap-3">
         <AppLogo className="h-9" />
         <p className="text-md text-tertiary">
-          Welcome back! Please enter your details.
+          {t("welcomeBack")}
         </p>
       </div>
 
@@ -48,17 +50,17 @@ export default function LoginPage() {
           <Input
             isRequired
             hideRequiredIndicator
-            label="Email"
+            label={t("email")}
             type="email"
             name="email"
-            placeholder="Enter your email"
+            placeholder={t("enterEmail")}
             size="md"
             isDisabled={isLoading}
           />
           <Input
             isRequired
             hideRequiredIndicator
-            label="Password"
+            label={t("password")}
             type="password"
             name="password"
             size="md"
@@ -68,14 +70,14 @@ export default function LoginPage() {
         </div>
 
         <Button type="submit" size="lg" isLoading={isLoading}>
-          Sign in
+          {t("signIn")}
         </Button>
       </Form>
 
       <div className="flex justify-center gap-1 text-center text-sm text-tertiary">
-        <span>Don't have an account?</span>
+        <span>{t("noAccount")}</span>
         <Button href="/register" color="link-color" size="md">
-          Sign up
+          {t("signUp")}
         </Button>
       </div>
     </div>

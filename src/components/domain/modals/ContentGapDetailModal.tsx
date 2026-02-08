@@ -18,6 +18,7 @@ import {
   Edit05,
   HelpCircle,
 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import { useEscapeClose } from "@/hooks/useEscapeClose";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -53,15 +54,16 @@ function getStatusBadgeColor(status: string): "success" | "warning" | "gray" | "
   return "gray";
 }
 
-function getDifficultyLabel(difficulty: number): { label: string; color: string } {
-  if (difficulty >= 70) return { label: "Hard", color: "text-utility-error-600" };
-  if (difficulty >= 40) return { label: "Medium", color: "text-utility-warning-600" };
-  return { label: "Easy", color: "text-utility-success-600" };
+function getDifficultyLabel(difficulty: number): { labelKey: string; color: string } {
+  if (difficulty >= 70) return { labelKey: "recBadgeHard", color: "text-utility-error-600" };
+  if (difficulty >= 40) return { labelKey: "recBadgeMedium", color: "text-utility-warning-600" };
+  return { labelKey: "recBadgeEasy", color: "text-utility-success-600" };
 }
 
 interface Recommendation {
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
+  descriptionParams?: Record<string, any>;
   icon: typeof Lightbulb02;
   badgeColor: "success" | "warning" | "error" | "brand" | "gray" | "blue";
 }
@@ -72,25 +74,22 @@ function getRecommendations(opportunity: any): Recommendation[] {
   // Difficulty-based recommendation
   if (opportunity.difficulty < 30) {
     recs.push({
-      title: "Easy Win",
-      description:
-        "Low difficulty keyword — create a well-optimized page targeting this phrase. With quality content and basic on-page SEO, you can rank relatively quickly.",
+      titleKey: "recEasyWin",
+      descriptionKey: "recEasyWinDesc",
       icon: Zap,
       badgeColor: "success",
     });
   } else if (opportunity.difficulty < 50) {
     recs.push({
-      title: "Moderate Effort",
-      description:
-        "Medium difficulty — build comprehensive, in-depth content with strong internal linking. Consider creating a pillar page covering this topic thoroughly.",
+      titleKey: "recModerateEffort",
+      descriptionKey: "recModerateEffortDesc",
       icon: Edit05,
       badgeColor: "warning",
     });
   } else {
     recs.push({
-      title: "High Competition",
-      description:
-        "Difficult keyword — build topical authority first by targeting related easier keywords. Then create pillar content backed by quality backlinks.",
+      titleKey: "recHighCompetition",
+      descriptionKey: "recHighCompetitionDesc",
       icon: AlertTriangle,
       badgeColor: "error",
     });
@@ -99,9 +98,8 @@ function getRecommendations(opportunity: any): Recommendation[] {
   // High-value target
   if (opportunity.competitorPosition <= 3 && opportunity.searchVolume > 1000) {
     recs.push({
-      title: "High-Value Target",
-      description:
-        "Your competitor ranks in the top 3 for this high-volume keyword. Study their content structure, word count, and backlink profile to create something better.",
+      titleKey: "recHighValueTarget",
+      descriptionKey: "recHighValueTargetDesc",
       icon: Target04,
       badgeColor: "brand",
     });
@@ -110,9 +108,8 @@ function getRecommendations(opportunity: any): Recommendation[] {
   // Traffic opportunity
   if (opportunity.searchVolume > 5000) {
     recs.push({
-      title: "Significant Traffic Potential",
-      description:
-        "High search volume keyword. Even ranking in positions 5-10 could drive substantial organic traffic to your site.",
+      titleKey: "recSignificantTraffic",
+      descriptionKey: "recSignificantTrafficDesc",
       icon: TrendUp02,
       badgeColor: "blue",
     });
@@ -121,16 +118,16 @@ function getRecommendations(opportunity: any): Recommendation[] {
   // New content needed
   if (opportunity.yourPosition === null || opportunity.yourPosition === undefined) {
     recs.push({
-      title: "Create New Content",
-      description:
-        "You have no rankings for this keyword yet. Create a dedicated, optimized page targeting this specific topic and search intent.",
+      titleKey: "recCreateNewContent",
+      descriptionKey: "recCreateNewContentDesc",
       icon: FileSearch02,
       badgeColor: "gray",
     });
   } else if (opportunity.yourPosition > 20) {
     recs.push({
-      title: "Improve Existing Page",
-      description: `You currently rank at position ${opportunity.yourPosition}. Update and improve your existing page — add more depth, better structure, and relevant internal links.`,
+      titleKey: "recImproveExisting",
+      descriptionKey: "recImproveExistingDesc",
+      descriptionParams: { position: opportunity.yourPosition },
       icon: Edit05,
       badgeColor: "warning",
     });
@@ -139,9 +136,8 @@ function getRecommendations(opportunity: any): Recommendation[] {
   // Low volume but easy
   if (opportunity.searchVolume < 500 && opportunity.difficulty < 20) {
     recs.push({
-      title: "Quick Content Piece",
-      description:
-        "Low volume but very easy to rank for. Good for building topical coverage and internal linking structure.",
+      titleKey: "recQuickContentPiece",
+      descriptionKey: "recQuickContentPieceDesc",
       icon: CheckCircle,
       badgeColor: "success",
     });
@@ -157,6 +153,12 @@ export function ContentGapDetailModal({
   domainId,
 }: ContentGapDetailModalProps) {
   const [isActioning, setIsActioning] = useState(false);
+  const t = useTranslations('competitors');
+  const tc = useTranslations('common');
+  const translateStatus = (status: string) => {
+    const key = `status${status.charAt(0).toUpperCase()}${status.slice(1)}` as any;
+    try { return tc(key); } catch { return status; }
+  };
   useEscapeClose(onClose, isOpen);
 
   const markAsMonitoring = useMutation(api.contentGap.markOpportunityAsMonitoring);
@@ -184,10 +186,10 @@ export function ContentGapDetailModal({
     setIsActioning(true);
     try {
       await markAsMonitoring({ gapId: opportunity._id });
-      toast.success(`Now monitoring "${opportunity.keywordPhrase}"`);
+      toast.success(t('toastMonitoringStarted', { keyword: opportunity.keywordPhrase }));
       onClose();
     } catch (error: any) {
-      toast.error(error.message || "Failed to start monitoring");
+      toast.error(error.message || t('toastMonitoringFailed'));
     } finally {
       setIsActioning(false);
     }
@@ -197,10 +199,10 @@ export function ContentGapDetailModal({
     setIsActioning(true);
     try {
       await dismissOpportunity({ gapId: opportunity._id });
-      toast.success(`Dismissed "${opportunity.keywordPhrase}"`);
+      toast.success(t('toastDismissed', { keyword: opportunity.keywordPhrase }));
       onClose();
     } catch (error: any) {
-      toast.error(error.message || "Failed to dismiss");
+      toast.error(error.message || t('toastDismissFailed'));
     } finally {
       setIsActioning(false);
     }
@@ -221,14 +223,14 @@ export function ContentGapDetailModal({
           <div className="flex items-center justify-between border-b border-secondary p-6">
             <div>
               <h2 className="text-xl font-semibold text-primary">
-                {opportunity.keywordPhrase || "Keyword Details"}
+                {opportunity.keywordPhrase || t('contentGapDetailKeywordDetails')}
               </h2>
               <div className="flex items-center gap-3 mt-2 flex-wrap">
                 <Badge color={getPriorityBadgeColor(opportunity.priority)} size="sm">
-                  {opportunity.priority} priority
+                  {opportunity.priority} {t('priority')}
                 </Badge>
                 <span className="inline-flex items-center rounded-full bg-brand-50 px-3 py-1 text-sm font-medium text-brand-700">
-                  Score: {opportunity.opportunityScore}
+                  {t('contentGapDetailScore', { score: opportunity.opportunityScore })}
                 </span>
                 <span className="text-sm text-tertiary">
                   vs {opportunity.competitorDomain || opportunity.competitorName}
@@ -241,7 +243,7 @@ export function ContentGapDetailModal({
               iconLeading={XClose}
               onClick={onClose}
             >
-              Close
+              {t('close')}
             </Button>
           </div>
 
@@ -252,11 +254,11 @@ export function ContentGapDetailModal({
               <div className="flex items-center gap-2 mb-3">
                 <Lightbulb02 className="h-5 w-5 text-utility-warning-500" />
                 <h3 className="text-base font-semibold text-primary">
-                  Why This Is An Opportunity
+                  {t('contentGapDetailWhyOpportunity')}
                 </h3>
                 <Tooltip
-                  title="Score Breakdown"
-                  description="The opportunity score (0-100) is calculated from three factors: search volume potential, keyword difficulty, and competitor ranking position."
+                  title={t('contentGapDetailScoreBreakdown')}
+                  description={t('contentGapDetailScoreBreakdownDesc')}
                 >
                   <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                     <HelpCircle className="size-4" />
@@ -268,7 +270,7 @@ export function ContentGapDetailModal({
                 {/* Volume Score */}
                 <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-medium text-tertiary">Volume Score</p>
+                    <p className="text-xs font-medium text-tertiary">{t('contentGapDetailVolumeScore')}</p>
                     <span className="text-lg font-semibold text-primary">
                       {Math.round(volumeScore)}/50
                     </span>
@@ -280,15 +282,14 @@ export function ContentGapDetailModal({
                     />
                   </div>
                   <p className="text-xs text-tertiary">
-                    Based on {formatNumber(opportunity.searchVolume)} monthly searches.
-                    Higher volume = more points (up to 50).
+                    {t('contentGapDetailVolumeDesc', { volume: formatNumber(opportunity.searchVolume) })}
                   </p>
                 </div>
 
                 {/* Difficulty Score */}
                 <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-medium text-tertiary">Difficulty Bonus</p>
+                    <p className="text-xs font-medium text-tertiary">{t('contentGapDetailDifficultyBonus')}</p>
                     <span className="text-lg font-semibold text-primary">
                       {Math.round(difficultyScore)}/50
                     </span>
@@ -300,15 +301,14 @@ export function ContentGapDetailModal({
                     />
                   </div>
                   <p className="text-xs text-tertiary">
-                    Difficulty is {opportunity.difficulty}/100 ({difficultyInfo.label}).
-                    Lower difficulty = more points.
+                    {t('contentGapDetailDifficultyDesc', { difficulty: opportunity.difficulty, label: t(difficultyInfo.labelKey) })}
                   </p>
                 </div>
 
                 {/* Position Bonus */}
                 <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-medium text-tertiary">Position Bonus</p>
+                    <p className="text-xs font-medium text-tertiary">{t('contentGapDetailPositionBonus')}</p>
                     <span className="text-lg font-semibold text-primary">
                       +{positionBonus}
                     </span>
@@ -320,19 +320,19 @@ export function ContentGapDetailModal({
                     />
                   </div>
                   <p className="text-xs text-tertiary">
-                    Competitor ranks #{opportunity.competitorPosition}.
+                    {t('contentGapDetailCompetitorRanks', { position: opportunity.competitorPosition })}{' '}
                     {positionBonus === 20
-                      ? " Top 3 = +20 bonus points."
+                      ? t('contentGapDetailPositionTop3')
                       : positionBonus === 10
-                        ? " Top 10 = +10 bonus points."
-                        : " Outside top 10 = no bonus."}
+                        ? t('contentGapDetailPositionTop10')
+                        : t('contentGapDetailPositionOutside')}
                   </p>
                 </div>
               </div>
 
               <div className="mt-3 rounded-lg bg-secondary/20 px-4 py-2.5">
                 <p className="text-sm text-secondary">
-                  <span className="font-medium">Total:</span>{" "}
+                  <span className="font-medium">{t('contentGapDetailTotal')}</span>{" "}
                   {Math.round(volumeScore)} + {Math.round(difficultyScore)} + {positionBonus} ={" "}
                   <span className="font-semibold text-brand-secondary">{totalCalculated}</span>/100
                 </p>
@@ -344,11 +344,11 @@ export function ContentGapDetailModal({
               <div className="flex items-center gap-2 mb-3">
                 <Target04 className="h-5 w-5 text-utility-error-500" />
                 <h3 className="text-base font-semibold text-primary">
-                  Competitor Analysis
+                  {t('contentGapDetailCompetitorAnalysis')}
                 </h3>
                 <Tooltip
-                  title="Who Ranks For This Keyword"
-                  description="Shows which competitor currently ranks for this keyword, their position, and the specific URL that ranks."
+                  title={t('contentGapDetailWhoRanks')}
+                  description={t('contentGapDetailWhoRanksDesc')}
                 >
                   <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                     <HelpCircle className="size-4" />
@@ -369,7 +369,7 @@ export function ContentGapDetailModal({
                         {opportunity.competitorDomain || opportunity.competitorName}
                       </span>
                       <Badge color="error" size="sm">
-                        Position #{opportunity.competitorPosition}
+                        {t('contentGapDetailCompPosition')} #{opportunity.competitorPosition}
                       </Badge>
                     </div>
                     {opportunity.competitorUrl && (
@@ -392,16 +392,15 @@ export function ContentGapDetailModal({
                     <div className="mt-4 pt-4 border-t border-secondary">
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-tertiary">Your position:</span>
+                          <span className="text-xs text-tertiary">{t('contentGapDetailYourPosition')}</span>
                           <Badge color="warning" size="sm">
                             #{opportunity.yourPosition}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-tertiary">Gap:</span>
+                          <span className="text-xs text-tertiary">{t('contentGapDetailGap')}</span>
                           <span className="text-sm font-medium text-utility-error-600">
-                            {opportunity.yourPosition - opportunity.competitorPosition}{" "}
-                            positions behind
+                            {t('contentGapDetailPositionsBehind', { count: opportunity.yourPosition - opportunity.competitorPosition })}
                           </span>
                         </div>
                       </div>
@@ -412,8 +411,7 @@ export function ContentGapDetailModal({
                   opportunity.yourPosition === undefined) && (
                   <div className="mt-4 pt-4 border-t border-secondary">
                     <p className="text-xs text-tertiary">
-                      You currently have <span className="font-medium text-utility-warning-600">no ranking</span> for
-                      this keyword. This is a pure content gap — creating a dedicated page could capture this traffic.
+                      {t('contentGapDetailNoRankingDesc')}
                     </p>
                   </div>
                 )}
@@ -425,27 +423,27 @@ export function ContentGapDetailModal({
               <div className="flex items-center gap-2 mb-3">
                 <BarChartSquare02 className="h-5 w-5 text-utility-blue-500" />
                 <h3 className="text-base font-semibold text-primary">
-                  Keyword Metrics
+                  {t('contentGapDetailKeywordMetrics')}
                 </h3>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                  <p className="text-xs font-medium text-tertiary mb-1">Search Volume</p>
+                  <p className="text-xs font-medium text-tertiary mb-1">{t('contentGapDetailSearchVolume')}</p>
                   <p className="text-lg font-semibold text-primary">
                     {formatNumber(opportunity.searchVolume)}
                   </p>
-                  <p className="text-xs text-tertiary">monthly searches</p>
+                  <p className="text-xs text-tertiary">{t('contentGapDetailMonthlySearches')}</p>
                 </div>
 
                 <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                  <p className="text-xs font-medium text-tertiary mb-1">Difficulty</p>
+                  <p className="text-xs font-medium text-tertiary mb-1">{t('contentGapDetailDifficulty')}</p>
                   <div className="flex items-center gap-2">
                     <p className="text-lg font-semibold text-primary">
                       {opportunity.difficulty}
                     </p>
                     <span className={`text-xs font-medium ${difficultyInfo.color}`}>
-                      {difficultyInfo.label}
+                      {t(difficultyInfo.labelKey)}
                     </span>
                   </div>
                   <div className="mt-1 h-1.5 w-full rounded-full bg-secondary overflow-hidden">
@@ -463,22 +461,22 @@ export function ContentGapDetailModal({
                 </div>
 
                 <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                  <p className="text-xs font-medium text-tertiary mb-1">Est. Traffic</p>
+                  <p className="text-xs font-medium text-tertiary mb-1">{t('contentGapDetailEstTraffic')}</p>
                   <p className="text-lg font-semibold text-primary">
                     {formatNumber(opportunity.estimatedTrafficValue)}
                   </p>
-                  <p className="text-xs text-tertiary">potential monthly visits</p>
+                  <p className="text-xs text-tertiary">{t('contentGapDetailPotentialMonthly')}</p>
                 </div>
 
                 <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                  <p className="text-xs font-medium text-tertiary mb-1">Status</p>
+                  <p className="text-xs font-medium text-tertiary mb-1">{t('columnStatus')}</p>
                   <Badge color={getStatusBadgeColor(opportunity.status)} size="sm">
-                    {opportunity.status}
+                    {translateStatus(opportunity.status)}
                   </Badge>
                 </div>
 
                 <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                  <p className="text-xs font-medium text-tertiary mb-1">Identified</p>
+                  <p className="text-xs font-medium text-tertiary mb-1">{t('contentGapDetailIdentified')}</p>
                   <p className="text-sm text-primary">
                     {opportunity.identifiedAt
                       ? new Date(opportunity.identifiedAt).toLocaleDateString()
@@ -487,7 +485,7 @@ export function ContentGapDetailModal({
                 </div>
 
                 <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                  <p className="text-xs font-medium text-tertiary mb-1">Last Checked</p>
+                  <p className="text-xs font-medium text-tertiary mb-1">{t('contentGapDetailLastChecked')}</p>
                   <p className="text-sm text-primary">
                     {opportunity.lastChecked
                       ? new Date(opportunity.lastChecked).toLocaleDateString()
@@ -496,14 +494,14 @@ export function ContentGapDetailModal({
                 </div>
 
                 <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                  <p className="text-xs font-medium text-tertiary mb-1">Comp. Position</p>
+                  <p className="text-xs font-medium text-tertiary mb-1">{t('contentGapDetailCompPosition')}</p>
                   <p className="text-lg font-semibold text-primary">
                     #{opportunity.competitorPosition}
                   </p>
                 </div>
 
                 <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                  <p className="text-xs font-medium text-tertiary mb-1">Opportunity Score</p>
+                  <p className="text-xs font-medium text-tertiary mb-1">{t('contentGapDetailOpportunityScore')}</p>
                   <p className="text-lg font-semibold text-brand-secondary">
                     {opportunity.opportunityScore}/100
                   </p>
@@ -516,11 +514,11 @@ export function ContentGapDetailModal({
               <div className="flex items-center gap-2 mb-3">
                 <CheckCircle className="h-5 w-5 text-utility-success-500" />
                 <h3 className="text-base font-semibold text-primary">
-                  Recommended Actions
+                  {t('contentGapDetailRecommendedActions')}
                 </h3>
                 <Tooltip
-                  title="What To Do"
-                  description="Actionable recommendations based on keyword difficulty, search volume, competitor position, and your current ranking status."
+                  title={t('contentGapDetailWhatToDo')}
+                  description={t('contentGapDetailWhatToDoDesc')}
                 >
                   <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                     <HelpCircle className="size-4" />
@@ -542,19 +540,19 @@ export function ContentGapDetailModal({
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-sm font-semibold text-primary">
-                            {rec.title}
+                            {t(rec.titleKey)}
                           </span>
                           <Badge color={rec.badgeColor} size="sm">
                             {rec.badgeColor === "success"
-                              ? "Easy"
+                              ? t('recBadgeEasy')
                               : rec.badgeColor === "warning"
-                                ? "Medium"
+                                ? t('recBadgeMedium')
                                 : rec.badgeColor === "error"
-                                  ? "Hard"
-                                  : "Info"}
+                                  ? t('recBadgeHard')
+                                  : t('recBadgeInfo')}
                           </Badge>
                         </div>
-                        <p className="text-sm text-tertiary">{rec.description}</p>
+                        <p className="text-sm text-tertiary">{t(rec.descriptionKey, rec.descriptionParams)}</p>
                       </div>
                     </div>
                   );
@@ -572,7 +570,7 @@ export function ContentGapDetailModal({
                   onClick={handleMonitor}
                   disabled={isActioning}
                 >
-                  {isActioning ? "Processing..." : "Start Monitoring"}
+                  {isActioning ? t('contentGapDetailProcessing') : t('contentGapDetailStartMonitoring')}
                 </Button>
               )}
               {opportunity.status !== "dismissed" && (
@@ -583,7 +581,7 @@ export function ContentGapDetailModal({
                   onClick={handleDismiss}
                   disabled={isActioning}
                 >
-                  Dismiss
+                  {t('contentGapDetailDismiss')}
                 </Button>
               )}
             </div>

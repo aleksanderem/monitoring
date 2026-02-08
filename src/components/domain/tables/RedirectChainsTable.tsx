@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -16,6 +17,7 @@ function getStatusColor(code: number) {
 }
 
 export function RedirectChainsTable({ domainId }: RedirectChainsTableProps) {
+  const t = useTranslations('onsite');
   const redirectData = useQuery(api.seoAudit_queries.getRedirectAnalysis, { domainId });
 
   if (!redirectData) return null;
@@ -26,17 +28,17 @@ export function RedirectChainsTable({ domainId }: RedirectChainsTableProps) {
   return (
     <div className="space-y-4">
       <div className="text-sm text-tertiary">
-        Total redirect chains: <strong className="text-primary">{redirectData.totalRedirects}</strong>
+        {t('totalRedirectChains')}: <strong className="text-primary">{redirectData.totalRedirects}</strong>
       </div>
 
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-secondary">
           <thead className="bg-secondary">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">Source URL</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">Final URL</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">Chain Length</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">{t('colSourceUrl')}</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">{t('colFinalUrl')}</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">{t('colStatus')}</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">{t('colChainLength')}</th>
             </tr>
           </thead>
           <tbody className="bg-primary divide-y divide-secondary">
@@ -61,7 +63,7 @@ export function RedirectChainsTable({ domainId }: RedirectChainsTableProps) {
                     <div className="flex items-center gap-1.5">
                       {isLong && <AlertTriangle className="w-3.5 h-3.5 text-warning-600" />}
                       <span className={isLong ? "text-warning-700 font-medium" : "text-primary"}>
-                        {chainLength} {chainLength === 1 ? "hop" : "hops"}
+                        {t('hops', { count: chainLength })}
                       </span>
                     </div>
                   </td>
@@ -71,7 +73,7 @@ export function RedirectChainsTable({ domainId }: RedirectChainsTableProps) {
           </tbody>
         </table>
         {sorted.length === 0 && (
-          <div className="text-center py-8 text-sm text-tertiary">No redirects found</div>
+          <div className="text-center py-8 text-sm text-tertiary">{t('noRedirectsFound')}</div>
         )}
       </div>
     </div>

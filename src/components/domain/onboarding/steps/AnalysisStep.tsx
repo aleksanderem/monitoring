@@ -10,6 +10,7 @@ import {
   BarChart03,
   Link03,
 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 
 interface AnalysisStepProps {
   domainId: Id<"domains">;
@@ -26,6 +27,7 @@ export function AnalysisStep({
   onComplete,
   onSkip,
 }: AnalysisStepProps) {
+  const t = useTranslations("domains");
   const completeOnboarding = useMutation(api.onboarding.completeOnboarding);
 
   // Reactively poll each job — Convex auto-updates when status changes
@@ -98,15 +100,14 @@ export function AnalysisStep({
         <CheckCircle className="h-16 w-16 text-utility-success-500" />
         <div className="text-center">
           <p className="text-lg font-semibold text-primary">
-            Setup Complete
+            {t("onboardingSetupComplete")}
           </p>
           <p className="text-sm text-tertiary mt-1 max-w-md">
-            You can run competitor analysis later from the domain dashboard.
-            Your keywords are being monitored.
+            {t("onboardingSetupCompleteDesc")}
           </p>
         </div>
         <Button color="primary" size="lg" onClick={handleComplete}>
-          Go to Dashboard
+          {t("onboardingGoToDashboard")}
         </Button>
       </div>
     );
@@ -130,10 +131,10 @@ export function AnalysisStep({
         <div className="h-12 w-12 animate-spin rounded-full border-3 border-brand-solid border-t-transparent" />
         <div className="text-center">
           <p className="text-sm font-medium text-primary">
-            Analyzing competitor data...
+            {t("onboardingAnalyzingCompetitorData")}
           </p>
           <p className="text-xs text-tertiary mt-1">
-            {completedJobs}/{totalJobs} analyses completed
+            {t("onboardingAnalysesCompleted", { completed: completedJobs, total: totalJobs })}
           </p>
         </div>
         {/* Progress bar */}
@@ -147,7 +148,7 @@ export function AnalysisStep({
           onClick={onSkip}
           className="text-sm text-tertiary hover:text-primary transition-colors"
         >
-          Skip and continue to dashboard
+          {t("onboardingSkipToDashboard")}
         </button>
       </div>
     );
@@ -159,10 +160,10 @@ export function AnalysisStep({
       <CheckCircle className="h-16 w-16 text-utility-success-500" />
       <div className="text-center">
         <p className="text-lg font-semibold text-primary">
-          Your domain is fully set up!
+          {t("onboardingDomainFullySetup")}
         </p>
         <p className="text-sm text-tertiary mt-1">
-          Here&apos;s a summary of what we found
+          {t("onboardingSummaryOfFindings")}
         </p>
       </div>
 
@@ -174,7 +175,7 @@ export function AnalysisStep({
             {gapOpportunities}
           </p>
           <p className="text-xs text-tertiary mt-1">
-            Content Gap Opportunities
+            {t("onboardingContentGapOpportunities")}
           </p>
         </div>
         <div className="rounded-lg border border-secondary bg-secondary/30 p-5 text-center">
@@ -183,7 +184,7 @@ export function AnalysisStep({
             {backlinkResults}
           </p>
           <p className="text-xs text-tertiary mt-1">
-            Competitor Backlinks Analyzed
+            {t("onboardingCompetitorBacklinksAnalyzed")}
           </p>
         </div>
       </div>
@@ -192,10 +193,10 @@ export function AnalysisStep({
       {onboardingStatus && (
         <div className="flex items-center gap-4 text-sm text-tertiary">
           <Badge color="blue" size="md">
-            {onboardingStatus.counts.monitoredKeywords} keywords monitored
+            {t("onboardingKeywordsMonitored", { count: onboardingStatus.counts.monitoredKeywords })}
           </Badge>
           <Badge color="blue" size="md">
-            {onboardingStatus.counts.activeCompetitors} competitors tracked
+            {t("onboardingCompetitorsTracked", { count: onboardingStatus.counts.activeCompetitors })}
           </Badge>
         </div>
       )}

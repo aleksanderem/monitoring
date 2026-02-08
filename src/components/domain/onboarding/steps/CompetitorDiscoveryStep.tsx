@@ -9,6 +9,7 @@ import { Badge } from "@/components/base/badges/badges";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Globe01, ArrowRight } from "@untitledui/icons";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 interface CompetitorDiscoveryStepProps {
   domainId: Id<"domains">;
@@ -23,6 +24,7 @@ export function CompetitorDiscoveryStep({
   onComplete,
   onSkip,
 }: CompetitorDiscoveryStepProps) {
+  const t = useTranslations("domains");
   const [selectedDomains, setSelectedDomains] = useState<Set<string>>(
     new Set()
   );
@@ -69,7 +71,7 @@ export function CompetitorDiscoveryStep({
       } catch (error: any) {
         // Skip already-tracked competitors
         if (!error.message?.includes("already being tracked")) {
-          toast.error(`Failed to add ${domain}`);
+          toast.error(t("failedToAddCompetitor", { domain }));
         }
       }
     }
@@ -92,11 +94,10 @@ export function CompetitorDiscoveryStep({
         <div className="h-12 w-12 animate-spin rounded-full border-3 border-brand-solid border-t-transparent" />
         <div className="text-center">
           <p className="text-sm font-medium text-primary">
-            Analyzing SERP results...
+            {t("onboardingAnalyzingSerp")}
           </p>
           <p className="text-xs text-tertiary mt-1">
-            {serpJob.processedKeywords}/{serpJob.totalKeywords} keywords
-            processed
+            {t("onboardingSerpProgress", { processed: serpJob.processedKeywords, total: serpJob.totalKeywords })}
           </p>
         </div>
         {/* Progress bar */}
@@ -117,14 +118,14 @@ export function CompetitorDiscoveryStep({
         <Globe01 className="h-12 w-12 text-utility-error-500" />
         <div className="text-center">
           <p className="text-sm font-medium text-primary">
-            SERP analysis encountered an error
+            {t("onboardingSerpError")}
           </p>
           <p className="text-xs text-tertiary mt-1">
-            {serpJob.error || "An unexpected error occurred"}
+            {serpJob.error || t("onboardingUnexpectedError")}
           </p>
         </div>
         <Button color="secondary" size="md" onClick={onSkip}>
-          Skip and add competitors manually later
+          {t("onboardingSkipAddCompetitorsLater")}
         </Button>
       </div>
     );
@@ -137,15 +138,14 @@ export function CompetitorDiscoveryStep({
         <Globe01 className="h-12 w-12 text-quaternary" />
         <div className="text-center">
           <p className="text-sm font-medium text-primary">
-            No competitor suggestions found
+            {t("onboardingNoCompetitorSuggestions")}
           </p>
           <p className="text-xs text-tertiary mt-1 max-w-sm">
-            We couldn&apos;t identify competitors from SERP data. You can add
-            them manually from the domain dashboard.
+            {t("onboardingNoCompetitorSuggestionsDesc")}
           </p>
         </div>
         <Button color="secondary" size="md" onClick={onSkip}>
-          Skip for now
+          {t("onboardingSkipForNow")}
         </Button>
       </div>
     );
@@ -157,7 +157,7 @@ export function CompetitorDiscoveryStep({
       <div className="flex flex-col items-center justify-center py-16 gap-4">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-solid border-t-transparent" />
         <p className="text-sm text-tertiary">
-          Finding competitor suggestions...
+          {t("onboardingFindingSuggestions")}
         </p>
       </div>
     );
@@ -167,8 +167,7 @@ export function CompetitorDiscoveryStep({
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-tertiary">
-        We found {suggestions.length} domains competing for your keywords.
-        Select the ones you want to track.
+        {t("onboardingFoundCompetitors", { count: suggestions.length })}
       </p>
 
       {/* Competitor cards */}
@@ -196,7 +195,7 @@ export function CompetitorDiscoveryStep({
                 </p>
                 <div className="flex items-center gap-2 mt-1">
                   <Badge color="blue" size="sm">
-                    {suggestion.keywordOverlap} keywords
+                    {t("onboardingKeywordsCount", { count: suggestion.keywordOverlap })}
                   </Badge>
                   <span className="text-xs text-tertiary">
                     avg #{Math.round(suggestion.avgPosition)}
@@ -219,7 +218,7 @@ export function CompetitorDiscoveryStep({
           onClick={onSkip}
           className="text-sm text-tertiary hover:text-primary transition-colors"
         >
-          Skip this step
+          {t("onboardingSkipStep")}
         </button>
         <Button
           color="primary"
@@ -229,8 +228,8 @@ export function CompetitorDiscoveryStep({
           isDisabled={selectedDomains.size === 0 || adding}
         >
           {adding
-            ? "Adding..."
-            : `Add Competitors (${selectedDomains.size})`}
+            ? t("onboardingAdding")
+            : t("onboardingAddCompetitorsCount", { count: selectedDomains.size })}
         </Button>
       </div>
     </div>

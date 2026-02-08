@@ -10,6 +10,7 @@ import {
     Tag01,
     ShieldTick,
 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import { useEscapeClose } from "@/hooks/useEscapeClose";
 
 interface GapItem {
@@ -29,14 +30,15 @@ interface BacklinkGapDetailModalProps {
     onClose: () => void;
 }
 
-function getPriorityBadge(score: number): { bg: string; text: string; label: string } {
-    if (score >= 75) return { bg: "bg-utility-success-50", text: "text-utility-success-600", label: "High" };
-    if (score >= 50) return { bg: "bg-utility-blue-50", text: "text-utility-blue-600", label: "Medium" };
-    if (score >= 25) return { bg: "bg-utility-warning-50", text: "text-utility-warning-600", label: "Low" };
-    return { bg: "bg-utility-gray-50", text: "text-utility-gray-600", label: "Very Low" };
+function getPriorityBadge(score: number): { bg: string; text: string; labelKey: string } {
+    if (score >= 75) return { bg: "bg-utility-success-50", text: "text-utility-success-600", labelKey: "priorityHigh" };
+    if (score >= 50) return { bg: "bg-utility-blue-50", text: "text-utility-blue-600", labelKey: "priorityMedium" };
+    if (score >= 25) return { bg: "bg-utility-warning-50", text: "text-utility-warning-600", labelKey: "priorityLow" };
+    return { bg: "bg-utility-gray-50", text: "text-utility-gray-600", labelKey: "priorityVeryLow" };
 }
 
 export function BacklinkGapDetailModal({ gap, isOpen, onClose }: BacklinkGapDetailModalProps) {
+    const t = useTranslations('backlinks');
     useEscapeClose(onClose, isOpen);
 
     if (!isOpen || !gap) return null;
@@ -64,10 +66,10 @@ export function BacklinkGapDetailModal({ gap, isOpen, onClose }: BacklinkGapDeta
                             </a>
                             <div className="flex items-center gap-2 mt-0.5">
                                 <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${priority.bg} ${priority.text}`}>
-                                    {priority.label} Priority
+                                    {t(priority.labelKey)} {t('priority')}
                                 </span>
                                 <span className="text-xs text-quaternary">
-                                    Links to {gap.competitorCount} competitor{gap.competitorCount !== 1 ? "s" : ""} but not to you
+                                    {t('gapLinksToCompetitors', { count: gap.competitorCount })}
                                 </span>
                             </div>
                         </div>
@@ -80,17 +82,17 @@ export function BacklinkGapDetailModal({ gap, isOpen, onClose }: BacklinkGapDeta
                 <div className="max-h-[75vh] overflow-y-auto px-6 py-5 flex flex-col gap-6">
                     {/* Overview cards */}
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                        <OverviewCard icon={Target04} label="Priority Score" value={`${gap.priorityScore}/100`} color={priority.text} />
-                        <OverviewCard icon={Users01} label="Competitors" value={gap.competitorCount.toString()} color="text-utility-warning-600" />
-                        <OverviewCard icon={LinkExternal01} label="Total Links" value={gap.totalLinks.toString()} color="text-primary" />
-                        <OverviewCard icon={BarChart01} label="Avg Domain Rank" value={gap.avgDomainRank ? gap.avgDomainRank.toString() : "—"} color="text-primary" />
+                        <OverviewCard icon={Target04} label={t('gapPriorityScore')} value={`${gap.priorityScore}/100`} color={priority.text} />
+                        <OverviewCard icon={Users01} label={t('gapCompetitors')} value={gap.competitorCount.toString()} color="text-utility-warning-600" />
+                        <OverviewCard icon={LinkExternal01} label={t('gapTotalLinks')} value={gap.totalLinks.toString()} color="text-primary" />
+                        <OverviewCard icon={BarChart01} label={t('gapAvgDomainRank')} value={gap.avgDomainRank ? gap.avgDomainRank.toString() : "—"} color="text-primary" />
                     </div>
 
                     {/* Score + Dofollow bars */}
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-xs font-medium text-secondary">Priority Score</span>
+                                <span className="text-xs font-medium text-secondary">{t('gapPriorityScore')}</span>
                                 <span className="text-xs font-semibold text-primary">{gap.priorityScore}/100</span>
                             </div>
                             <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
@@ -102,7 +104,7 @@ export function BacklinkGapDetailModal({ gap, isOpen, onClose }: BacklinkGapDeta
                         </div>
                         <div>
                             <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-xs font-medium text-secondary">Dofollow Ratio</span>
+                                <span className="text-xs font-medium text-secondary">{t('gapDofollowRatio')}</span>
                                 <span className="text-xs font-semibold text-primary">{gap.dofollowPercent}%</span>
                             </div>
                             <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
@@ -116,16 +118,15 @@ export function BacklinkGapDetailModal({ gap, isOpen, onClose }: BacklinkGapDeta
 
                     {/* Why this matters */}
                     <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                        <h4 className="text-sm font-semibold text-primary mb-2">Why This Domain Matters</h4>
+                        <h4 className="text-sm font-semibold text-primary mb-2">{t('gapWhyMatters')}</h4>
                         <p className="text-sm text-secondary">
-                            {gap.domain} links to <span className="font-medium text-primary">{gap.competitorCount}</span> of your competitors
-                            with <span className="font-medium text-primary">{gap.totalLinks}</span> total links
-                            {gap.avgDomainRank > 0 && <> (avg. domain rank <span className="font-medium text-primary">{gap.avgDomainRank}</span>)</>}.
+                            {t('gapWhyDescription', { domain: gap.domain, competitorCount: gap.competitorCount, totalLinks: gap.totalLinks })}
+                            {gap.avgDomainRank > 0 && <> ({t('gapAvgRankNote', { rank: gap.avgDomainRank })})</>}.
                             {gap.dofollowPercent >= 75
-                                ? " The majority of links are dofollow, making this a high-value target for outreach."
+                                ? ` ${t('gapDofollowHigh')}`
                                 : gap.dofollowPercent >= 50
-                                    ? " A good mix of dofollow links makes this a worthwhile target."
-                                    : " Most links are nofollow — consider whether the referral traffic alone is worth pursuing."}
+                                    ? ` ${t('gapDofollowMedium')}`
+                                    : ` ${t('gapDofollowLow')}`}
                         </p>
                     </div>
 
@@ -134,15 +135,15 @@ export function BacklinkGapDetailModal({ gap, isOpen, onClose }: BacklinkGapDeta
                         <div className="flex items-center gap-2 mb-3">
                             <Users01 className="h-4 w-4 text-fg-tertiary" />
                             <h4 className="text-sm font-semibold text-primary">
-                                Competitors Linked ({gap.competitors.length})
+                                {t('gapCompetitorsLinked', { count: gap.competitors.length })}
                             </h4>
                         </div>
                         <div className="rounded-lg border border-secondary overflow-hidden">
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b border-secondary bg-secondary/30">
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-tertiary">Competitor Domain</th>
-                                        <th className="px-4 py-2 text-right text-xs font-medium text-tertiary">Visit</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-tertiary">{t('columnCompetitorDomain')}</th>
+                                        <th className="px-4 py-2 text-right text-xs font-medium text-tertiary">{t('visit')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -156,7 +157,7 @@ export function BacklinkGapDetailModal({ gap, isOpen, onClose }: BacklinkGapDeta
                                                     rel="noopener noreferrer"
                                                     className="inline-flex items-center gap-1 text-xs text-brand-primary hover:underline"
                                                 >
-                                                    Visit <ArrowUpRight className="h-3 w-3" />
+                                                    {t('visit')} <ArrowUpRight className="h-3 w-3" />
                                                 </a>
                                             </td>
                                         </tr>
@@ -172,15 +173,15 @@ export function BacklinkGapDetailModal({ gap, isOpen, onClose }: BacklinkGapDeta
                             <div className="flex items-center gap-2 mb-3">
                                 <Tag01 className="h-4 w-4 text-fg-tertiary" />
                                 <h4 className="text-sm font-semibold text-primary">
-                                    Top Anchor Texts ({gap.topAnchors.length})
+                                    {t('gapTopAnchors', { count: gap.topAnchors.length })}
                                 </h4>
                             </div>
                             <div className="rounded-lg border border-secondary overflow-hidden">
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b border-secondary bg-secondary/30">
-                                            <th className="px-4 py-2 text-left text-xs font-medium text-tertiary">Anchor Text</th>
-                                            <th className="px-4 py-2 text-right text-xs font-medium text-tertiary">Count</th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-tertiary">{t('columnAnchorText')}</th>
+                                            <th className="px-4 py-2 text-right text-xs font-medium text-tertiary">{t('columnCount')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -201,19 +202,19 @@ export function BacklinkGapDetailModal({ gap, isOpen, onClose }: BacklinkGapDeta
                         <div className="rounded-lg border border-secondary p-4">
                             <div className="flex items-center gap-2 mb-2">
                                 <ShieldTick className="h-4 w-4 text-fg-tertiary" />
-                                <span className="text-sm font-semibold text-primary">Link Profile</span>
+                                <span className="text-sm font-semibold text-primary">{t('gapLinkProfile')}</span>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-sm text-secondary">Total Links</span>
+                                    <span className="text-sm text-secondary">{t('gapTotalLinks')}</span>
                                     <span className="text-sm font-medium text-primary">{gap.totalLinks}</span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-sm text-utility-success-600">Dofollow</span>
+                                    <span className="text-sm text-utility-success-600">{t('dofollow')}</span>
                                     <span className="text-sm font-medium text-utility-success-600">{gap.dofollowPercent}%</span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-sm text-tertiary">Nofollow</span>
+                                    <span className="text-sm text-tertiary">{t('nofollow')}</span>
                                     <span className="text-sm font-medium text-tertiary">{100 - gap.dofollowPercent}%</span>
                                 </div>
                             </div>
@@ -221,16 +222,16 @@ export function BacklinkGapDetailModal({ gap, isOpen, onClose }: BacklinkGapDeta
                         <div className="rounded-lg border border-secondary p-4">
                             <div className="flex items-center gap-2 mb-2">
                                 <BarChart01 className="h-4 w-4 text-fg-tertiary" />
-                                <span className="text-sm font-semibold text-primary">Authority</span>
+                                <span className="text-sm font-semibold text-primary">{t('gapAuthority')}</span>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-sm text-secondary">Avg Domain Rank</span>
+                                    <span className="text-sm text-secondary">{t('gapAvgDomainRank')}</span>
                                     <span className="text-sm font-medium text-primary">{gap.avgDomainRank || "—"}</span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-sm text-secondary">Competitor Overlap</span>
-                                    <span className="text-sm font-medium text-primary">{gap.competitorCount} domains</span>
+                                    <span className="text-sm text-secondary">{t('gapCompetitorOverlap')}</span>
+                                    <span className="text-sm font-medium text-primary">{t('gapDomainsCount', { count: gap.competitorCount })}</span>
                                 </div>
                             </div>
                         </div>
@@ -240,7 +241,7 @@ export function BacklinkGapDetailModal({ gap, isOpen, onClose }: BacklinkGapDeta
                 {/* Footer */}
                 <div className="flex items-center justify-between border-t border-secondary px-6 py-4">
                     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${priority.bg} ${priority.text}`}>
-                        Priority: {priority.label}
+                        {t('priority')}: {t(priority.labelKey)}
                     </span>
                     <a
                         href={`https://${gap.domain}`}
@@ -249,7 +250,7 @@ export function BacklinkGapDetailModal({ gap, isOpen, onClose }: BacklinkGapDeta
                         className="inline-flex items-center gap-1.5 rounded-lg border border-brand-600 bg-utility-brand-50 px-3 py-1.5 text-sm font-medium text-brand-600 hover:bg-utility-brand-100"
                     >
                         <ArrowUpRight className="h-4 w-4" />
-                        Visit Domain
+                        {t('visitDomain')}
                     </a>
                 </div>
             </div>

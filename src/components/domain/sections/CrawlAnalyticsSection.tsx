@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -15,19 +16,20 @@ interface CrawlAnalyticsSectionProps {
   domainId: Id<"domains">;
 }
 
-const TABS = [
-  { key: "links", label: "Link Analysis" },
-  { key: "redirects", label: "Redirect Chains" },
-  { key: "images", label: "Image Analysis" },
-  { key: "pageSpeed", label: "PageSpeed" },
-  { key: "wordFreq", label: "Word Frequency" },
-  { key: "robotsTest", label: "Robots Test" },
-] as const;
-
-type TabKey = (typeof TABS)[number]["key"];
+type TabKey = "links" | "redirects" | "images" | "pageSpeed" | "wordFreq" | "robotsTest";
 
 export function CrawlAnalyticsSection({ domainId }: CrawlAnalyticsSectionProps) {
+  const t = useTranslations('onsite');
   const [activeTab, setActiveTab] = useState<TabKey>("links");
+
+  const TABS: { key: TabKey; label: string }[] = [
+    { key: "links", label: t('tabLinkAnalysis') },
+    { key: "redirects", label: t('tabRedirectChains') },
+    { key: "images", label: t('tabImageAnalysis') },
+    { key: "pageSpeed", label: t('tabPageSpeed') },
+    { key: "wordFreq", label: t('tabWordFrequency') },
+    { key: "robotsTest", label: t('tabRobotsTest') },
+  ];
 
   const availability = useQuery(
     api.seoAudit_queries.getCrawlAnalyticsAvailability,
@@ -65,7 +67,7 @@ export function CrawlAnalyticsSection({ domainId }: CrawlAnalyticsSectionProps) 
   return (
     <div className="bg-primary rounded-lg border border-secondary p-6">
       <h3 className="text-md font-semibold text-primary mb-4">
-        Crawl Analytics
+        {t('crawlAnalytics')}
       </h3>
 
       {/* Tab navigation */}

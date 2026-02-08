@@ -2,6 +2,7 @@
 
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart, PolarRadiusAxis } from "recharts";
 import { Settings01 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import {
   ChartContainer,
   ChartTooltip,
@@ -17,6 +18,7 @@ interface LinkAttributesChartProps {
 }
 
 export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProps) {
+  const t = useTranslations('backlinks');
   const radarColor = "#10b981"; // green
   if (isLoading) {
     return (
@@ -46,12 +48,12 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div>
-          <h3 className="text-md font-semibold text-primary">Link Attributes</h3>
-          <p className="text-sm text-tertiary">Distribution of link attributes</p>
+          <h3 className="text-md font-semibold text-primary">{t('linkAttributesTitle')}</h3>
+          <p className="text-sm text-tertiary">{t('linkAttributesSubtitle')}</p>
         </div>
         <div className="flex flex-col items-center justify-center py-12">
           <Settings01 className="h-10 w-10 text-fg-quaternary" />
-          <p className="mt-2 text-sm text-tertiary">No attributes data available</p>
+          <p className="mt-2 text-sm text-tertiary">{t('linkAttributesEmpty')}</p>
         </div>
       </div>
     );
@@ -59,7 +61,7 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
 
   const chartConfig = {
     links: {
-      label: "Links",
+      label: t('links'),
       color: radarColor,
     },
   } satisfies ChartConfig;
@@ -67,8 +69,8 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
-        <h3 className="text-md font-semibold text-primary">Link Attributes</h3>
-        <p className="text-sm text-tertiary">Distribution of link attributes (nofollow, sponsored, UGC, etc.) across your backlink profile. A natural profile has a mix of followed and nofollowed links.</p>
+        <h3 className="text-md font-semibold text-primary">{t('linkAttributesTitle')}</h3>
+        <p className="text-sm text-tertiary">{t('linkAttributesDescription')}</p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">
@@ -81,7 +83,7 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
             wrapperStyle={{ zIndex: 1000 }}
           />
           <Radar
-            name="Links"
+            name={t('links')}
             dataKey="links"
             stroke={radarColor}
             fill={radarColor}

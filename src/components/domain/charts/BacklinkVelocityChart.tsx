@@ -2,6 +2,7 @@
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, ComposedChart } from "recharts";
 import { TrendUp01 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import {
   ChartContainer,
   ChartLegend,
@@ -27,6 +28,7 @@ export function BacklinkVelocityChart({
   data,
   isLoading,
 }: BacklinkVelocityChartProps) {
+  const t = useTranslations('backlinks');
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
@@ -45,14 +47,14 @@ export function BacklinkVelocityChart({
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div>
-          <h3 className="text-md font-semibold text-primary">Backlink Velocity</h3>
-          <p className="text-sm text-tertiary">Daily new and lost backlinks</p>
+          <h3 className="text-md font-semibold text-primary">{t('velocityTitle')}</h3>
+          <p className="text-sm text-tertiary">{t('velocitySubtitle')}</p>
         </div>
         <div className="flex flex-col items-center justify-center py-12">
           <TrendUp01 className="h-10 w-10 text-fg-quaternary" />
-          <p className="mt-2 text-sm text-tertiary">No velocity data available yet</p>
+          <p className="mt-2 text-sm text-tertiary">{t('velocityEmpty')}</p>
           <p className="mt-1 text-xs text-quaternary">
-            Velocity tracking starts after the first backlink refresh
+            {t('velocityEmptyHint')}
           </p>
         </div>
       </div>
@@ -61,15 +63,15 @@ export function BacklinkVelocityChart({
 
   const chartConfig = {
     newBacklinks: {
-      label: "New Backlinks",
+      label: t('velocityNewBacklinks'),
       color: "hsl(var(--chart-2))", // Green
     },
     lostBacklinks: {
-      label: "Lost Backlinks",
+      label: t('velocityLostBacklinks'),
       color: "hsl(var(--chart-1))", // Red
     },
     netChange: {
-      label: "Net Change",
+      label: t('velocityNetChange'),
       color: "hsl(var(--chart-3))", // Blue
     },
   } satisfies ChartConfig;
@@ -82,12 +84,12 @@ export function BacklinkVelocityChart({
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-md font-semibold text-primary">Backlink Velocity</h3>
+          <h3 className="text-md font-semibold text-primary">{t('velocityTitle')}</h3>
           <p className="text-sm text-tertiary">
-            Rate of new vs lost backlinks over time. {totalNew} gained, {totalLost} lost (
+            {t('velocityDescription', { gained: totalNew, lost: totalLost })} (
             <span className={netChange >= 0 ? "text-green-600" : "text-red-600"}>
               {netChange >= 0 ? "+" : ""}
-              {netChange} net
+              {netChange} {t('velocityNet')}
             </span>
             )
           </p>

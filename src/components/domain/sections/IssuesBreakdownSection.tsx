@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import {
   AlertCircle,
@@ -49,113 +50,19 @@ interface IssuesBreakdownSectionProps {
 
 // Each entry maps a check type to its display config and the issues field it reads from
 const SEO_AUDIT_ISSUES = [
-  // Critical
-  {
-    checkType: "HTTPS_CHECK",
-    label: "Missing HTTPS",
-    field: "missingHttps" as const,
-    severity: "critical",
-    icon: ShieldTick,
-    description: "Pages not served over HTTPS",
-  },
-  {
-    checkType: "H1_FOUND",
-    label: "Missing H1 Tags",
-    field: "missingH1" as const,
-    severity: "critical",
-    icon: File01,
-    description: "Pages without primary headings",
-  },
-  {
-    checkType: "CANONICAL_FOUND",
-    label: "Missing Canonical Tag",
-    field: "missingCanonical" as const,
-    severity: "critical",
-    icon: Link01,
-    description: "Pages without canonical URL tag",
-  },
-  // Warning
-  {
-    checkType: "TITLE_REPETITION",
-    label: "Duplicate Titles",
-    field: "missingTitles" as const,
-    severity: "warning",
-    icon: File01,
-    description: "Pages with repeated title tags",
-  },
-  {
-    checkType: "META_DESCRIPTION_REPETITION",
-    label: "Duplicate Descriptions",
-    field: "missingMetaDescriptions" as const,
-    severity: "warning",
-    icon: File01,
-    description: "Pages with repeated meta descriptions",
-  },
-  {
-    checkType: "ROBOTS_META_FOUND",
-    label: "Missing Robots Meta",
-    field: "missingRobotsMeta" as const,
-    severity: "warning",
-    icon: Eye,
-    description: "Pages without robots meta tag",
-  },
-  {
-    checkType: "IMAGE_ALT_FOUND",
-    label: "Missing Image Alt Text",
-    field: "missingAltText" as const,
-    severity: "warning",
-    icon: Image01,
-    description: "Images without alt attributes",
-  },
-  {
-    checkType: "MOBILE_FRIENDLY",
-    label: "Not Mobile Friendly",
-    field: "notMobileFriendly" as const,
-    severity: "warning",
-    icon: Phone01,
-    description: "Pages not optimized for mobile",
-  },
-  // Recommendation
-  {
-    checkType: "TEXT_TO_CODE_RATIO",
-    label: "Low Text-to-Code Ratio",
-    field: "lowTextToCodeRatio" as const,
-    severity: "recommendation",
-    icon: File01,
-    description: "Text-to-code ratio below recommended threshold",
-  },
-  {
-    checkType: "DOM_SIZE",
-    label: "Large DOM Size",
-    field: "largeDomSize" as const,
-    severity: "recommendation",
-    icon: Zap,
-    description: "DOM size exceeds recommended limit",
-  },
-  {
-    checkType: "ELEMENTS_SIMILARITY",
-    label: "High Element Similarity",
-    field: "highElementSimilarity" as const,
-    severity: "recommendation",
-    icon: File01,
-    description: "Multiple elements with very similar content",
-  },
-  {
-    checkType: "ELEMENTS_COUNT",
-    label: "Too Many DOM Elements",
-    field: "tooManyElements" as const,
-    severity: "recommendation",
-    icon: Zap,
-    description: "Page has excessive number of DOM elements",
-  },
-  {
-    checkType: "STRUCTURED_DATA_FOUND",
-    label: "Missing Structured Data",
-    field: "missingStructuredData" as const,
-    severity: "recommendation",
-    icon: Tag01,
-    description: "No Schema.org structured data found",
-  },
+  { checkType: "HTTPS_CHECK", labelKey: "issueMissingHttps", field: "missingHttps" as const, severity: "critical", icon: ShieldTick, descKey: "issueMissingHttpsDesc" },
+  { checkType: "H1_FOUND", labelKey: "issueMissingH1", field: "missingH1" as const, severity: "critical", icon: File01, descKey: "issueMissingH1Desc" },
+  { checkType: "CANONICAL_FOUND", labelKey: "issueMissingCanonical", field: "missingCanonical" as const, severity: "critical", icon: Link01, descKey: "issueMissingCanonicalDesc" },
+  { checkType: "TITLE_REPETITION", labelKey: "issueDuplicateTitles", field: "missingTitles" as const, severity: "warning", icon: File01, descKey: "issueDuplicateTitlesDesc" },
+  { checkType: "META_DESCRIPTION_REPETITION", labelKey: "issueDuplicateDescriptions", field: "missingMetaDescriptions" as const, severity: "warning", icon: File01, descKey: "issueDuplicateDescriptionsDesc" },
+  { checkType: "ROBOTS_META_FOUND", labelKey: "issueMissingRobotsMeta", field: "missingRobotsMeta" as const, severity: "warning", icon: Eye, descKey: "issueMissingRobotsMetaDesc" },
+  { checkType: "IMAGE_ALT_FOUND", labelKey: "issueMissingAltText", field: "missingAltText" as const, severity: "warning", icon: Image01, descKey: "issueMissingAltTextDesc" },
+  { checkType: "MOBILE_FRIENDLY", labelKey: "issueNotMobileFriendly", field: "notMobileFriendly" as const, severity: "warning", icon: Phone01, descKey: "issueNotMobileFriendlyDesc" },
+  { checkType: "TEXT_TO_CODE_RATIO", labelKey: "issueLowTextToCode", field: "lowTextToCodeRatio" as const, severity: "recommendation", icon: File01, descKey: "issueLowTextToCodeDesc" },
+  { checkType: "DOM_SIZE", labelKey: "issueLargeDom", field: "largeDomSize" as const, severity: "recommendation", icon: Zap, descKey: "issueLargeDomDesc" },
+  { checkType: "ELEMENTS_SIMILARITY", labelKey: "issueHighSimilarity", field: "highElementSimilarity" as const, severity: "recommendation", icon: File01, descKey: "issueHighSimilarityDesc" },
+  { checkType: "ELEMENTS_COUNT", labelKey: "issueTooManyElements", field: "tooManyElements" as const, severity: "recommendation", icon: Zap, descKey: "issueTooManyElementsDesc" },
+  { checkType: "STRUCTURED_DATA_FOUND", labelKey: "issueMissingStructuredData", field: "missingStructuredData" as const, severity: "recommendation", icon: Tag01, descKey: "issueMissingStructuredDataDesc" },
 ] as const;
 
 export function IssuesBreakdownSection({
@@ -164,12 +71,13 @@ export function IssuesBreakdownSection({
   severityFilter,
   onClearFilter,
 }: IssuesBreakdownSectionProps) {
+  const t = useTranslations('onsite');
   const [activeCheckType, setActiveCheckType] = useState<string | null>(null);
 
   // Build visible issues list from the 13 SEO Audit check types
   const allIssues = SEO_AUDIT_ISSUES.map((item) => {
     const count = (issues as any)[item.field] ?? 0;
-    return { ...item, count };
+    return { ...item, label: t(item.labelKey), description: t(item.descKey), count };
   }).filter((item) => item.count > 0);
 
   const issuesList = severityFilter
@@ -210,10 +118,10 @@ export function IssuesBreakdownSection({
             <AlertCircle className="w-8 h-8 text-success-600" />
           </div>
           <h3 className="text-sm font-semibold text-primary mb-2">
-            No Issues Found
+            {t('noIssuesFound')}
           </h3>
           <p className="text-sm text-tertiary">
-            Your website has no detected SEO issues!
+            {t('noIssuesFoundDescription')}
           </p>
         </div>
       </div>
@@ -225,25 +133,25 @@ export function IssuesBreakdownSection({
     : null;
 
   const filterLabel = severityFilter === "critical"
-    ? "Critical"
+    ? t('severityCritical')
     : severityFilter === "warning"
-      ? "Warnings"
+      ? t('severityWarnings')
       : severityFilter === "recommendation"
-        ? "Recommendations"
+        ? t('severityRecommendations')
         : null;
 
   return (
     <div className="bg-primary rounded-lg border border-secondary p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-md font-semibold text-primary">
-          Issues Breakdown
+          {t('issuesBreakdown')}
         </h3>
         {filterLabel && onClearFilter && (
           <button
             onClick={onClearFilter}
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-secondary text-secondary hover:bg-tertiary transition-colors"
           >
-            Showing: {filterLabel}
+            {t('showing')}: {filterLabel}
             <span className="text-quaternary">&times;</span>
           </button>
         )}
@@ -283,7 +191,7 @@ export function IssuesBreakdownSection({
                           setActiveCheckType(issue.checkType)
                         }
                       >
-                        View Details
+                        {t('viewDetails')}
                       </Button>
                     )}
                   </div>
@@ -302,8 +210,8 @@ export function IssuesBreakdownSection({
           isOpen={true}
           onClose={() => setActiveCheckType(null)}
           checkType={activeCheckType}
-          title={activeIssue.label}
-          description={`Pages failing the ${activeIssue.label} check`}
+          title={t(activeIssue.labelKey)}
+          description={t('pagesFailingCheck', { check: t(activeIssue.labelKey) })}
         />
       )}
     </div>

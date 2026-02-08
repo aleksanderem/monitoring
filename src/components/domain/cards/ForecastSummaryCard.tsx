@@ -7,12 +7,14 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendUp01, TrendDown01, ArrowRight } from "@untitledui/icons";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 interface ForecastSummaryCardProps {
   domainId: Id<"domains">;
 }
 
 export function ForecastSummaryCard({ domainId }: ForecastSummaryCardProps) {
+  const t = useTranslations("keywords");
   // Get domain visibility history to calculate projected ETV change
   const history = useQuery(api.domains.getVisibilityHistory, {
     domainId,
@@ -23,7 +25,7 @@ export function ForecastSummaryCard({ domainId }: ForecastSummaryCardProps) {
     return (
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-primary">30-Day Forecast</h3>
+          <h3 className="text-sm font-medium text-primary">{t("forecast30Day")}</h3>
         </div>
         <div className="h-24 animate-pulse bg-secondary rounded" />
       </Card>
@@ -34,10 +36,10 @@ export function ForecastSummaryCard({ domainId }: ForecastSummaryCardProps) {
     return (
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-primary">30-Day Forecast</h3>
+          <h3 className="text-sm font-medium text-primary">{t("forecast30Day")}</h3>
         </div>
-        <p className="text-sm text-tertiary">Not enough data for forecasting</p>
-        <p className="text-xs text-tertiary mt-1">Need at least 10 days of historical data</p>
+        <p className="text-sm text-tertiary">{t("notEnoughDataForForecasting")}</p>
+        <p className="text-xs text-tertiary mt-1">{t("needAtLeast10Days")}</p>
       </Card>
     );
   }
@@ -91,8 +93,8 @@ export function ForecastSummaryCard({ domainId }: ForecastSummaryCardProps) {
     <Link href={`/domains/${domainId}/insights`}>
       <Card className="p-6 hover:border-primary-600 transition-colors cursor-pointer">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-primary">30-Day Forecast</h3>
-          <Badge variant={variant}>{confidenceLevel} confidence</Badge>
+          <h3 className="text-sm font-medium text-primary">{t("forecast30Day")}</h3>
+          <Badge variant={variant}>{t("forecastConfidence", { level: confidenceLevel })}</Badge>
         </div>
 
         <div className="flex items-center gap-3">
@@ -113,13 +115,13 @@ export function ForecastSummaryCard({ domainId }: ForecastSummaryCardProps) {
               {projected30DayChange > 0 ? "+" : ""}
               {Math.round(projected30DayChange)}
             </div>
-            <div className="text-xs text-tertiary">Projected ETV change</div>
+            <div className="text-xs text-tertiary">{t("projectedEtvChange")}</div>
           </div>
         </div>
 
         <div className="mt-4 pt-4 border-t border-secondary">
           <p className="text-xs text-tertiary">
-            Based on {recentHistory.length}-day trend analysis
+            {t("basedOnDayTrendAnalysis", { days: recentHistory.length })}
           </p>
         </div>
       </Card>

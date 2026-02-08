@@ -6,19 +6,27 @@ import { api } from "../../../../convex/_generated/api";
 import { RefreshCw01, ChevronDown, ChevronUp, XCircle } from "@untitledui/icons";
 import { cx } from "@/utils/cx";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
-// Job type icons / colors
-const JOB_TYPE_CONFIG: Record<string, { color: string; bgColor: string }> = {
-  "Keyword Check": { color: "text-brand-700", bgColor: "bg-brand-50" },
-  "SERP Fetch": { color: "text-purple-700", bgColor: "bg-purple-50" },
-  "On-Site Scan": { color: "text-orange-700", bgColor: "bg-orange-50" },
-  "Competitor Backlinks": { color: "text-emerald-700", bgColor: "bg-emerald-50" },
-  "Content Gap Analysis": { color: "text-blue-700", bgColor: "bg-blue-50" },
-  "Report Generation": { color: "text-pink-700", bgColor: "bg-pink-50" },
-  "Domain SEO Report": { color: "text-indigo-700", bgColor: "bg-indigo-50" },
+// Job type icons / colors — keys match backend job.type values
+const JOB_TYPE_CONFIG: Record<string, { color: string; bgColor: string; labelKey: string }> = {
+  "Keyword Check": { color: "text-brand-700", bgColor: "bg-brand-50", labelKey: "jobTypeKeywordCheck" },
+  "SERP Fetch": { color: "text-purple-700", bgColor: "bg-purple-50", labelKey: "jobTypeSerpFetch" },
+  "On-Site Scan": { color: "text-orange-700", bgColor: "bg-orange-50", labelKey: "jobTypeOnSiteScan" },
+  "Competitor Backlinks": { color: "text-emerald-700", bgColor: "bg-emerald-50", labelKey: "jobTypeCompetitorBacklinks" },
+  "Content Gap Analysis": { color: "text-blue-700", bgColor: "bg-blue-50", labelKey: "jobTypeContentGapAnalysis" },
+  "Report Generation": { color: "text-pink-700", bgColor: "bg-pink-50", labelKey: "jobTypeReportGeneration" },
+  "Domain SEO Report": { color: "text-indigo-700", bgColor: "bg-indigo-50", labelKey: "jobTypeDomainSeoReport" },
 };
 
 export function GlobalJobStatus() {
+  const t = useTranslations("jobs");
+  const tc = useTranslations("common");
+  const tk = useTranslations("keywords");
+  const translateStatus = (status: string) => {
+    const key = `status${status.charAt(0).toUpperCase()}${status.slice(1)}` as any;
+    try { return tc(key); } catch { return status; }
+  };
   const [isExpanded, setIsExpanded] = useState(true);
   const [cancellingJobIds, setCancellingJobIds] = useState<Set<string>>(new Set());
   const notifiedFailuresRef = useRef<Set<string>>(new Set());
@@ -33,8 +41,9 @@ export function GlobalJobStatus() {
     for (const job of recentlyFailed) {
       if (!notifiedFailuresRef.current.has(job.id)) {
         notifiedFailuresRef.current.add(job.id);
-        const errorMsg = job.error || "Unknown error";
-        toast.error(`${job.type} failed: ${job.domainName}`, {
+        const errorMsg = job.error || tc("unexpectedError");
+        const jobLabel = JOB_TYPE_CONFIG[job.type]?.labelKey ? tk(JOB_TYPE_CONFIG[job.type].labelKey as any) : job.type;
+        toast.error(tk("jobFailedToast", { type: jobLabel, domain: job.domainName }), {
           description: errorMsg.length > 100 ? errorMsg.slice(0, 100) + "..." : errorMsg,
           duration: 8000,
         });
@@ -46,9 +55,9 @@ export function GlobalJobStatus() {
     setCancellingJobIds((prev) => new Set(prev).add(jobId));
     try {
       await cancelAnyJob({ table, jobId });
-      toast.success("Job cancelled");
+      toast.success(t("jobCancelled"));
     } catch (error) {
-      toast.error("Failed to cancel job");
+      toast.error(t("failedCancelJob"));
       console.error(error);
     } finally {
       setCancellingJobIds((prev) => {
@@ -79,10 +88,10 @@ export function GlobalJobStatus() {
         </div>
         <div className="flex-1">
           <div className="text-sm font-semibold text-primary">
-            {totalJobs} {totalJobs === 1 ? "job" : "jobs"} running
+            {t("jobsRunning", { count: totalJobs })}
           </div>
           <div className="text-xs text-tertiary">
-            {processingJobs.length} processing, {totalJobs - processingJobs.length} pending
+            {t("processingPending", { processing: processingJobs.length, pending: totalJobs - processingJobs.length })}
           </div>
         </div>
         {isExpanded ? (
@@ -119,7 +128,7 @@ export function GlobalJobStatus() {
                             config.color
                           )}
                         >
-                          {job.type}
+                          {config.labelKey ? tk(config.labelKey as any) : job.type}
                         </span>
                         <span className="text-sm font-medium text-primary truncate">
                           {job.domainName}
@@ -135,7 +144,7 @@ export function GlobalJobStatus() {
                       onClick={() => handleCancelJob(job.table, job.id)}
                       disabled={isCancelling}
                       className="shrink-0 rounded-md p-1.5 text-fg-quaternary transition-colors hover:bg-error-50 hover:text-error-600 disabled:opacity-50"
-                      title="Stop job"
+                      title={t("stopJob")}
                     >
                       {isCancelling ? (
                         <RefreshCw01 className="h-4 w-4 animate-spin" />
@@ -158,13 +167,12 @@ export function GlobalJobStatus() {
                         <span>{job.progress}%</span>
                         <span
                           className={cx(
-                            "capitalize",
                             job.status === "processing"
                               ? "text-brand-600"
                               : "text-quaternary"
                           )}
                         >
-                          {job.status}
+                          {translateStatus(job.status)}
                         </span>
                       </div>
                     </div>
@@ -181,8 +189,8 @@ export function GlobalJobStatus() {
                             : "text-quaternary"
                         )}
                       />
-                      <span className="text-xs text-tertiary capitalize">
-                        {job.status}
+                      <span className="text-xs text-tertiary">
+                        {translateStatus(job.status)}
                       </span>
                     </div>
                   )}

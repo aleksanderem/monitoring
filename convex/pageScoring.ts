@@ -932,16 +932,120 @@ async function updateAggregates(
     .order("desc")
     .first();
 
+  // Per-axis averages
+  const axisAvg = (axis: "technical" | "content" | "seoPerformance" | "strategic") => {
+    const vals = scored.map((p) => p.pageScore![axis]?.score).filter((v): v is number => v != null);
+    return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+  };
+  const pageScoreAxes = {
+    technical: axisAvg("technical"),
+    content: axisAvg("content"),
+    seoPerformance: axisAvg("seoPerformance"),
+    strategic: axisAvg("strategic"),
+  };
+
   if (latestAnalysis) {
     await ctx.db.patch(latestAnalysis._id, {
       avgPageScore: avg,
       pageScoreDistribution: gradeDistribution,
+      pageScoreAxes,
       pageScoreScoredAt: Date.now(),
     });
   }
 
-  console.log(`[PAGE_SCORING] Domain ${domainId}: scored ${scored.length} pages, avg=${avg}, distribution=`, gradeDistribution);
+  console.log(`[PAGE_SCORING] Domain ${domainId}: scored ${scored.length} pages, avg=${avg}, axes=`, pageScoreAxes, `distribution=`, gradeDistribution);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recompute aggregates only (no re-scoring) — for backfilling pageScoreAxes
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const recomputeAggregatesOnly = internalMutation({
+  args: { domainId: v.id("domains"), fixIssues: v.optional(v.boolean()) },
+  handler: async (ctx, args) => {
+    const pages = await ctx.db
+      .query("domainOnsitePages")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+    await updateAggregates(ctx, args.domainId, pages);
+
+    // Optionally recalculate issue counts and totalPages on the analysis record
+    if (args.fixIssues) {
+      const latestAnalysis = await ctx.db
+        .query("domainOnsiteAnalysis")
+        .withIndex("by_domain", (q: any) => q.eq("domainId", args.domainId))
+        .order("desc")
+        .first();
+      if (latestAnalysis) {
+        let criticalCount = 0;
+        let warningCount = 0;
+        let recommendationCount = 0;
+        let totalScore = 0;
+        let scoredPages = 0;
+        let totalLoadTime = 0;
+        let loadTimePages = 0;
+        let totalWordCount = 0;
+        let wordCountPages = 0;
+
+        const issuesByCategory: Record<string, number> = {};
+        for (const page of pages) {
+          if (page.onpageScore != null) { totalScore += page.onpageScore; scoredPages++; }
+          for (const issue of (page.issues || [])) {
+            if (issue.type === "critical") criticalCount++;
+            else if (issue.type === "warning") warningCount++;
+            else recommendationCount++;
+            issuesByCategory[issue.category] = (issuesByCategory[issue.category] || 0) + 1;
+          }
+          if (page.loadTime && page.loadTime > 0) { totalLoadTime += page.loadTime; loadTimePages++; }
+          if (page.wordCount > 0) { totalWordCount += page.wordCount; wordCountPages++; }
+        }
+
+        const avgScore = scoredPages > 0 ? Math.round(totalScore / scoredPages) : latestAnalysis.healthScore;
+        let grade: string;
+        if (avgScore >= 90) grade = "A";
+        else if (avgScore >= 80) grade = "B";
+        else if (avgScore >= 70) grade = "C";
+        else if (avgScore >= 50) grade = "D";
+        else grade = "F";
+
+        await ctx.db.patch(latestAnalysis._id, {
+          totalPages: pages.length,
+          pagesAnalyzed: pages.length,
+          criticalIssues: criticalCount,
+          warnings: warningCount,
+          recommendations: recommendationCount,
+          healthScore: avgScore,
+          grade,
+          avgLoadTime: loadTimePages > 0 ? Math.round((totalLoadTime / loadTimePages) * 100) / 100 : undefined,
+          avgWordCount: wordCountPages > 0 ? Math.round(totalWordCount / wordCountPages) : undefined,
+          issues: {
+            missingTitles: issuesByCategory["meta_tags"] || 0,
+            missingMetaDescriptions: issuesByCategory["meta_description"] || 0,
+            duplicateContent: issuesByCategory["duplicate"] || 0,
+            brokenLinks: issuesByCategory["links"] || 0,
+            slowPages: issuesByCategory["performance"] || 0,
+            suboptimalTitles: 0,
+            thinContent: issuesByCategory["content"] || 0,
+            missingH1: issuesByCategory["headings"] || 0,
+            largeImages: issuesByCategory["images"] || 0,
+            missingAltText: issuesByCategory["alt_text"] || 0,
+            missingHttps: issuesByCategory["security"] || 0,
+            missingCanonical: issuesByCategory["canonical"] || 0,
+            missingRobotsMeta: issuesByCategory["robots"] || 0,
+            notMobileFriendly: issuesByCategory["mobile"] || 0,
+            lowTextToCodeRatio: issuesByCategory["text_ratio"] || 0,
+            largeDomSize: issuesByCategory["dom_size"] || 0,
+            tooManyElements: issuesByCategory["dom_elements"] || 0,
+            highElementSimilarity: issuesByCategory["similarity"] || 0,
+            missingStructuredData: issuesByCategory["structured_data"] || 0,
+          },
+        });
+
+        console.log(`[RECOMPUTE] Domain ${args.domainId}: fixed issues: critical=${criticalCount}, warnings=${warningCount}, recs=${recommendationCount}, totalPages=${pages.length}, healthScore=${avgScore}, grade=${grade}`);
+      }
+    }
+  },
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Manual rescore trigger (user-facing)

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -11,6 +12,7 @@ interface SitemapOverviewCardProps {
 }
 
 export function SitemapOverviewCard({ domainId }: SitemapOverviewCardProps) {
+  const t = useTranslations('onsite');
   const sitemapData = useQuery(api.seoAudit_queries.getSitemapData, {
     domainId,
   });
@@ -21,10 +23,10 @@ export function SitemapOverviewCard({ domainId }: SitemapOverviewCardProps) {
       <div className="bg-primary rounded-lg border border-secondary p-6">
         <div className="flex items-center gap-2 mb-2">
           <File01 className="w-4 h-4 text-tertiary" />
-          <h3 className="text-sm font-medium text-tertiary">Sitemap</h3>
+          <h3 className="text-sm font-medium text-tertiary">{t('sitemap')}</h3>
         </div>
         <p className="text-sm text-quaternary">
-          No sitemap data available. Run a full site scan to fetch sitemap.
+          {t('noSitemapData')}
         </p>
       </div>
     );
@@ -38,10 +40,10 @@ export function SitemapOverviewCard({ domainId }: SitemapOverviewCardProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <File01 className="w-4 h-4 text-tertiary" />
-          <h3 className="text-sm font-medium text-tertiary">Sitemap</h3>
+          <h3 className="text-sm font-medium text-tertiary">{t('sitemap')}</h3>
         </div>
         <span className="text-xs text-quaternary">
-          Fetched {new Date(sitemapData.fetchedAt).toLocaleDateString()}
+          {t('fetched')} {new Date(sitemapData.fetchedAt).toLocaleDateString()}
         </span>
       </div>
 
@@ -50,11 +52,11 @@ export function SitemapOverviewCard({ domainId }: SitemapOverviewCardProps) {
           <span className="text-2xl font-bold text-primary">
             {sitemapData.totalUrls}
           </span>
-          <span className="text-sm text-tertiary">URLs found</span>
+          <span className="text-sm text-tertiary">{t('urlsFound')}</span>
         </div>
 
         <div className="text-xs text-quaternary truncate" title={sitemapData.sitemapUrl}>
-          Source: {sitemapData.sitemapUrl}
+          {t('source')}: {sitemapData.sitemapUrl}
         </div>
 
         {urls.length > 0 && (
@@ -79,12 +81,12 @@ export function SitemapOverviewCard({ domainId }: SitemapOverviewCardProps) {
                 {expanded ? (
                   <>
                     <ChevronUp className="w-3 h-3" />
-                    Show less
+                    {t('showLess')}
                   </>
                 ) : (
                   <>
                     <ChevronDown className="w-3 h-3" />
-                    Show all {urls.length} URLs
+                    {t('showAllUrls', { count: urls.length })}
                   </>
                 )}
               </button>

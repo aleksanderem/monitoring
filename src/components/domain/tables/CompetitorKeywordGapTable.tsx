@@ -10,6 +10,7 @@ import { Select } from "@/components/base/select/select";
 import type { SelectItemType } from "@/components/base/select/select";
 import { Input } from "@/components/base/input/input";
 import { Plus, ChevronSelectorVertical, SearchLg } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 interface CompetitorKeywordGapTableProps {
@@ -17,6 +18,7 @@ interface CompetitorKeywordGapTableProps {
 }
 
 export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTableProps) {
+  const t = useTranslations('competitors');
   const [selectedCompetitor, setSelectedCompetitor] = useState<Id<"competitors"> | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"gapScore" | "volume" | "difficulty">("gapScore");
@@ -86,7 +88,7 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
   if (isLoadingCompetitors) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-6">
-        <div className="text-center py-8 text-tertiary">Loading...</div>
+        <div className="text-center py-8 text-tertiary">{t('keywordGapLoading')}</div>
       </div>
     );
   }
@@ -95,9 +97,9 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
     return (
       <div className="rounded-xl border border-secondary bg-primary p-6">
         <div className="text-center py-12">
-          <p className="text-tertiary mb-4">No competitors added yet</p>
+          <p className="text-tertiary mb-4">{t('keywordGapNoCompetitors')}</p>
           <p className="text-sm text-quaternary">
-            Add competitors to discover keyword opportunities
+            {t('keywordGapNoCompetitorsHint')}
           </p>
         </div>
       </div>
@@ -107,9 +109,9 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
   return (
     <div className="rounded-xl border border-secondary bg-primary p-6 space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-primary">Keyword Gap Analysis</h3>
+        <h3 className="text-lg font-semibold text-primary">{t('keywordGapTitle')}</h3>
         <p className="text-sm text-tertiary">
-          Find keywords your competitors rank for that you don&apos;t
+          {t('keywordGapSubtitle')}
         </p>
       </div>
 
@@ -119,7 +121,7 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
             items={competitorItems}
             selectedKey={selectedCompetitor || null}
             onSelectionChange={(key) => setSelectedCompetitor(key as Id<"competitors">)}
-            placeholder="Select competitor"
+            placeholder={t('keywordGapSelectCompetitor')}
             size="md"
           >
             {(item) => <Select.Item id={item.id} label={item.label} />}
@@ -128,7 +130,7 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
 
         <div className="flex-1">
           <Input
-            placeholder="Search keywords..."
+            placeholder={t('keywordGapSearchKeywords')}
             value={searchQuery}
             onChange={(value: string) => setSearchQuery(value)}
             icon={SearchLg}
@@ -139,21 +141,20 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
 
       {!selectedCompetitor ? (
         <div className="text-center py-12 border border-dashed border-secondary rounded-lg">
-          <p className="text-tertiary">Select a competitor to view keyword gaps</p>
+          <p className="text-tertiary">{t('keywordGapSelectPrompt')}</p>
         </div>
       ) : isLoadingGaps ? (
-        <div className="text-center py-8 text-tertiary">Loading keyword gaps...</div>
+        <div className="text-center py-8 text-tertiary">{t('keywordGapLoading')}</div>
       ) : filteredGaps && filteredGaps.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-secondary rounded-lg">
           <p className="text-tertiary">
-            No keyword gaps found
-            {searchQuery && " matching your search"}
+            {t('keywordGapEmpty')}
           </p>
         </div>
       ) : (
         <>
           <div className="text-sm text-tertiary">
-            Found {filteredGaps?.length} keyword opportunities
+            {filteredGaps?.length} {t('keywordGapTitle')}
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-secondary">
@@ -161,23 +162,23 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
               <thead className="bg-secondary/50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">
-                    Keyword
+                    {t('columnKeyword')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
-                    Competitor Position
+                    {t('columnCompPosition')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
-                    Your Position
+                    {t('columnYourPosition')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
-                    Gap
+                    {t('columnOverlap')}
                   </th>
                   <th
                     className="px-4 py-3 text-center text-xs font-medium text-tertiary cursor-pointer hover:bg-secondary/70 transition-colors"
                     onClick={() => toggleSort("volume")}
                   >
                     <div className="flex items-center justify-center gap-1">
-                      Volume
+                      {t('columnSearchVolume')}
                       <ChevronSelectorVertical className="h-3 w-3" />
                     </div>
                   </th>
@@ -186,7 +187,7 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
                     onClick={() => toggleSort("difficulty")}
                   >
                     <div className="flex items-center justify-center gap-1">
-                      Difficulty
+                      {t('columnDifficulty')}
                       <ChevronSelectorVertical className="h-3 w-3" />
                     </div>
                   </th>
@@ -195,12 +196,12 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
                     onClick={() => toggleSort("gapScore")}
                   >
                     <div className="flex items-center justify-center gap-1">
-                      Opportunity Score
+                      {t('columnOpportunityScore')}
                       <ChevronSelectorVertical className="h-3 w-3" />
                     </div>
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">
-                    Actions
+                    {t('columnActions')}
                   </th>
                 </tr>
               </thead>
@@ -215,7 +216,7 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
                       {gap.ourPosition ? (
                         <Badge color="gray-blue" size="sm">#{gap.ourPosition}</Badge>
                       ) : (
-                        <span className="text-tertiary text-sm">Not ranking</span>
+                        <span className="text-tertiary text-sm">{t('keywordGapNotRanking')}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -256,7 +257,7 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
                         iconLeading={Plus}
                         onClick={() => {
                           // TODO: Implement add to monitoring
-                          toast.info("Bulk actions will be available soon");
+                          toast.info(t('keywordGapBulkActions'));
                         }}
                       />
                     </td>

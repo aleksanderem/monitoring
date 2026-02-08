@@ -16,6 +16,7 @@ import {
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useTranslations } from "next-intl";
 import { ReferringDomainDetailModal } from "../modals/ReferringDomainDetailModal";
 
 interface ReferringDomainsTableProps {
@@ -37,52 +38,52 @@ interface DomainItem {
     country: string | null;
 }
 
-function getQualityBadge(score: number): { bg: string; text: string; label: string } {
-    if (score >= 70) return { bg: "bg-utility-success-50", text: "text-utility-success-600", label: "Excellent" };
-    if (score >= 40) return { bg: "bg-utility-blue-50", text: "text-utility-blue-600", label: "Good" };
-    if (score >= 20) return { bg: "bg-utility-warning-50", text: "text-utility-warning-600", label: "Average" };
-    return { bg: "bg-utility-gray-50", text: "text-utility-gray-600", label: "Poor" };
+function getQualityBadge(score: number): { bg: string; text: string; labelKey: string } {
+    if (score >= 70) return { bg: "bg-utility-success-50", text: "text-utility-success-600", labelKey: "qualityExcellent" };
+    if (score >= 40) return { bg: "bg-utility-blue-50", text: "text-utility-blue-600", labelKey: "qualityGood" };
+    if (score >= 20) return { bg: "bg-utility-warning-50", text: "text-utility-warning-600", labelKey: "qualityAverage" };
+    return { bg: "bg-utility-gray-50", text: "text-utility-gray-600", labelKey: "qualityPoor" };
 }
 
 type SortColumn = "domain" | "linkCount" | "dofollowPercent" | "avgDomainRank" | "avgSpamScore" | "qualityScore";
 type SortDirection = "asc" | "desc";
 
 const QUALITY_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "Excellent (70+)", value: "excellent" },
-    { label: "Good (40-69)", value: "good" },
-    { label: "Average (20-39)", value: "average" },
-    { label: "Poor (<20)", value: "poor" },
+    { labelKey: "filterAll", value: "all" },
+    { labelKey: "refFilterQualityExcellent", value: "excellent" },
+    { labelKey: "refFilterQualityGood", value: "good" },
+    { labelKey: "refFilterQualityAverage", value: "average" },
+    { labelKey: "refFilterQualityPoor", value: "poor" },
 ];
 
 const SPAM_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "Clean (0-10)", value: "clean" },
-    { label: "Moderate (11-30)", value: "moderate" },
-    { label: "High Risk (31+)", value: "high" },
+    { labelKey: "filterAll", value: "all" },
+    { labelKey: "refFilterSpamClean", value: "clean" },
+    { labelKey: "refFilterSpamModerate", value: "moderate" },
+    { labelKey: "refFilterSpamHigh", value: "high" },
 ];
 
 const DR_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "High (70+)", value: "high" },
-    { label: "Medium (30-69)", value: "medium" },
-    { label: "Low (<30)", value: "low" },
+    { labelKey: "filterAll", value: "all" },
+    { labelKey: "filterDrHigh", value: "high" },
+    { labelKey: "refFilterDrMedium", value: "medium" },
+    { labelKey: "refFilterDrLow", value: "low" },
 ];
 
 const LINK_COUNT_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "1 link", value: "1" },
-    { label: "2-5 links", value: "2-5" },
-    { label: "6-20 links", value: "6-20" },
-    { label: "20+ links", value: "20+" },
+    { labelKey: "filterAll", value: "all" },
+    { labelKey: "refFilterLinks1", value: "1" },
+    { labelKey: "refFilterLinks2to5", value: "2-5" },
+    { labelKey: "refFilterLinks6to20", value: "6-20" },
+    { labelKey: "refFilterLinks20plus", value: "20+" },
 ];
 
 const DOFOLLOW_RATIO_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "All Dofollow (100%)", value: "all_df" },
-    { label: "Mostly Dofollow (>75%)", value: "mostly_df" },
-    { label: "Mixed (25-75%)", value: "mixed" },
-    { label: "Mostly Nofollow (<25%)", value: "mostly_nf" },
+    { labelKey: "filterAll", value: "all" },
+    { labelKey: "refFilterDfAll", value: "all_df" },
+    { labelKey: "refFilterDfMostly", value: "mostly_df" },
+    { labelKey: "refFilterDfMixed", value: "mixed" },
+    { labelKey: "refFilterNfMostly", value: "mostly_nf" },
 ];
 
 const PAGE_SIZE = 25;
@@ -102,18 +103,18 @@ interface ColumnVisibility {
     lastSeen: boolean;
 }
 
-const COLUMN_LABELS: Record<keyof ColumnVisibility, string> = {
-    domain: "Domain",
-    linkCount: "Links",
-    dofollow: "Dofollow",
-    dofollowPercent: "Dofollow %",
-    domainRank: "Domain Rank",
-    spamScore: "Spam Score",
-    quality: "Quality",
-    topAnchors: "Top Anchors",
-    country: "Country",
-    firstSeen: "First Seen",
-    lastSeen: "Last Seen",
+const COLUMN_LABEL_KEYS: Record<keyof ColumnVisibility, string> = {
+    domain: "columnDomain",
+    linkCount: "refColLinks",
+    dofollow: "dofollow",
+    dofollowPercent: "columnDofollowRatio",
+    domainRank: "columnDomainRank",
+    spamScore: "columnSpamScore",
+    quality: "columnQualityScore",
+    topAnchors: "refColTopAnchors",
+    country: "columnCountry",
+    firstSeen: "refColFirstSeen",
+    lastSeen: "refColLastSeen",
 };
 
 const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = {
@@ -131,6 +132,7 @@ const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = {
 };
 
 export function ReferringDomainsTable({ domainId }: ReferringDomainsTableProps) {
+    const t = useTranslations('backlinks');
     const data = useQuery(api.backlinkAnalysis_queries.getReferringDomainIntelligence, { domainId });
 
     const [search, setSearch] = useState("");
@@ -313,8 +315,8 @@ export function ReferringDomainsTable({ domainId }: ReferringDomainsTableProps) 
                     <div className="flex items-center gap-2">
                         <Globe01 className="h-5 w-5 text-fg-brand-primary" />
                         <div>
-                            <h3 className="text-md font-semibold text-primary">Referring Domains</h3>
-                            <p className="text-sm text-tertiary">{data.totalDomains} unique domains linking to your site.</p>
+                            <h3 className="text-md font-semibold text-primary">{t('referringDomainsTitle')}</h3>
+                            <p className="text-sm text-tertiary">{t('referringDomainsSubtitle', { count: data.totalDomains })}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-tertiary">
@@ -329,7 +331,7 @@ export function ReferringDomainsTable({ domainId }: ReferringDomainsTableProps) 
                         <SearchLg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-fg-quaternary" />
                         <input
                             type="text"
-                            placeholder="Search domains or anchors..."
+                            placeholder={t('searchDomainsOrAnchors')}
                             value={search}
                             onChange={(e) => { setSearch(e.target.value); resetPage(); }}
                             className="w-full rounded-lg border border-primary bg-primary pl-9 pr-3 py-2 text-sm text-primary placeholder:text-placeholder focus:outline-none focus:ring-2 focus:ring-brand-600"
@@ -341,7 +343,7 @@ export function ReferringDomainsTable({ domainId }: ReferringDomainsTableProps) 
                         className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${showFilters || hasActiveFilters ? "border-brand-600 bg-utility-brand-50 text-brand-600" : "border-primary bg-primary text-tertiary hover:bg-secondary"}`}
                     >
                         <FilterLines className="h-4 w-4" />
-                        Filters
+                        {t('filters')}
                         {hasActiveFilters && !showFilters && (
                             <span className="ml-1 rounded-full bg-brand-600 px-1.5 text-[10px] font-medium text-white">
                                 {[qualityFilter !== "all", spamFilter !== "all", drFilter !== "all", linkCountFilter !== "all", dofollowRatioFilter !== "all"].filter(Boolean).length}
@@ -356,7 +358,7 @@ export function ReferringDomainsTable({ domainId }: ReferringDomainsTableProps) 
                             className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${showColumnPicker ? "border-brand-600 bg-utility-brand-50 text-brand-600" : "border-primary bg-primary text-tertiary hover:bg-secondary"}`}
                         >
                             <Settings01 className="h-4 w-4" />
-                            Columns
+                            {t('refColumns')}
                         </button>
                         {showColumnPicker && (
                             <div className="absolute right-0 top-full z-10 mt-2 w-48 rounded-lg border border-secondary bg-primary p-2 shadow-lg">
@@ -372,7 +374,7 @@ export function ReferringDomainsTable({ domainId }: ReferringDomainsTableProps) 
                                                 onChange={() => toggleColumn(key)}
                                                 className="h-4 w-4 rounded border-gray-300"
                                             />
-                                            <span className="text-primary">{COLUMN_LABELS[key]}</span>
+                                            <span className="text-primary">{t(COLUMN_LABEL_KEYS[key])}</span>
                                         </label>
                                     ))}
                                 </div>
@@ -386,7 +388,7 @@ export function ReferringDomainsTable({ domainId }: ReferringDomainsTableProps) 
                             className="flex items-center gap-1 text-sm text-tertiary hover:text-primary"
                         >
                             <XClose className="h-3.5 w-3.5" />
-                            Clear
+                            {t('clear')}
                         </button>
                     )}
                 </div>
@@ -394,11 +396,11 @@ export function ReferringDomainsTable({ domainId }: ReferringDomainsTableProps) 
                 {/* Filters row */}
                 {showFilters && (
                     <div className="flex flex-wrap gap-3">
-                        <FilterSelect label="Quality" value={qualityFilter} options={QUALITY_FILTERS} onChange={(v) => { setQualityFilter(v); resetPage(); }} />
-                        <FilterSelect label="Spam Risk" value={spamFilter} options={SPAM_FILTERS} onChange={(v) => { setSpamFilter(v); resetPage(); }} />
-                        <FilterSelect label="Domain Rank" value={drFilter} options={DR_FILTERS} onChange={(v) => { setDrFilter(v); resetPage(); }} />
-                        <FilterSelect label="Link Count" value={linkCountFilter} options={LINK_COUNT_FILTERS} onChange={(v) => { setLinkCountFilter(v); resetPage(); }} />
-                        <FilterSelect label="Dofollow" value={dofollowRatioFilter} options={DOFOLLOW_RATIO_FILTERS} onChange={(v) => { setDofollowRatioFilter(v); resetPage(); }} />
+                        <FilterSelect label={t('refFilterQualityLabel')} value={qualityFilter} options={QUALITY_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setQualityFilter(v); resetPage(); }} />
+                        <FilterSelect label={t('refFilterSpamLabel')} value={spamFilter} options={SPAM_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setSpamFilter(v); resetPage(); }} />
+                        <FilterSelect label={t('refFilterDrLabel')} value={drFilter} options={DR_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setDrFilter(v); resetPage(); }} />
+                        <FilterSelect label={t('refFilterLinksLabel')} value={linkCountFilter} options={LINK_COUNT_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setLinkCountFilter(v); resetPage(); }} />
+                        <FilterSelect label={t('dofollow')} value={dofollowRatioFilter} options={DOFOLLOW_RATIO_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setDofollowRatioFilter(v); resetPage(); }} />
                     </div>
                 )}
 
@@ -406,9 +408,9 @@ export function ReferringDomainsTable({ domainId }: ReferringDomainsTableProps) 
                 {filteredData.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12">
                         <Globe01 className="h-8 w-8 text-fg-quaternary mb-3" />
-                        <p className="text-sm font-medium text-primary mb-1">No domains match your filters</p>
+                        <p className="text-sm font-medium text-primary mb-1">{t('noDomainsMatch')}</p>
                         <p className="text-xs text-tertiary text-center max-w-xs">
-                            Try adjusting your search or filter criteria to see more results.
+                            {t('noDomainsMatchHint')}
                         </p>
                     </div>
                 ) : (
@@ -419,48 +421,48 @@ export function ReferringDomainsTable({ domainId }: ReferringDomainsTableProps) 
                                     <tr className="border-b border-secondary">
                                         {columnVisibility.domain && (
                                             <th className="cursor-pointer px-3 py-2.5 font-medium text-tertiary" onClick={() => handleSort("domain")}>
-                                                <div className="flex items-center gap-1">Domain <SortIcon column="domain" /></div>
+                                                <div className="flex items-center gap-1">{t('columnDomain')} <SortIcon column="domain" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.linkCount && (
                                             <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("linkCount")}>
-                                                <div className="flex items-center justify-end gap-1">Links <SortIcon column="linkCount" /></div>
+                                                <div className="flex items-center justify-end gap-1">{t('refColLinks')} <SortIcon column="linkCount" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.dofollow && (
-                                            <th className="px-3 py-2.5 text-right font-medium text-tertiary">Dofollow</th>
+                                            <th className="px-3 py-2.5 text-right font-medium text-tertiary">{t('dofollow')}</th>
                                         )}
                                         {columnVisibility.dofollowPercent && (
                                             <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("dofollowPercent")}>
-                                                <div className="flex items-center justify-end gap-1">DF% <SortIcon column="dofollowPercent" /></div>
+                                                <div className="flex items-center justify-end gap-1">{t('refColDfPercent')} <SortIcon column="dofollowPercent" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.domainRank && (
                                             <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("avgDomainRank")}>
-                                                <div className="flex items-center justify-end gap-1">DR <SortIcon column="avgDomainRank" /></div>
+                                                <div className="flex items-center justify-end gap-1">{t('refColDr')} <SortIcon column="avgDomainRank" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.spamScore && (
                                             <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("avgSpamScore")}>
-                                                <div className="flex items-center justify-end gap-1">Spam <SortIcon column="avgSpamScore" /></div>
+                                                <div className="flex items-center justify-end gap-1">{t('refColSpam')} <SortIcon column="avgSpamScore" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.quality && (
                                             <th className="cursor-pointer px-3 py-2.5 text-center font-medium text-tertiary" onClick={() => handleSort("qualityScore")}>
-                                                <div className="flex items-center justify-center gap-1">Quality <SortIcon column="qualityScore" /></div>
+                                                <div className="flex items-center justify-center gap-1">{t('columnQualityScore')} <SortIcon column="qualityScore" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.topAnchors && (
-                                            <th className="px-3 py-2.5 font-medium text-tertiary">Top Anchors</th>
+                                            <th className="px-3 py-2.5 font-medium text-tertiary">{t('refColTopAnchors')}</th>
                                         )}
                                         {columnVisibility.country && (
-                                            <th className="px-3 py-2.5 text-center font-medium text-tertiary">Country</th>
+                                            <th className="px-3 py-2.5 text-center font-medium text-tertiary">{t('columnCountry')}</th>
                                         )}
                                         {columnVisibility.firstSeen && (
-                                            <th className="px-3 py-2.5 text-center font-medium text-tertiary">First Seen</th>
+                                            <th className="px-3 py-2.5 text-center font-medium text-tertiary">{t('refColFirstSeen')}</th>
                                         )}
                                         {columnVisibility.lastSeen && (
-                                            <th className="px-3 py-2.5 text-center font-medium text-tertiary">Last Seen</th>
+                                            <th className="px-3 py-2.5 text-center font-medium text-tertiary">{t('refColLastSeen')}</th>
                                         )}
                                     </tr>
                                 </thead>
@@ -515,7 +517,7 @@ export function ReferringDomainsTable({ domainId }: ReferringDomainsTableProps) 
                                                 {columnVisibility.quality && (
                                                     <td className="px-3 py-2.5 text-center">
                                                         <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${badge.bg} ${badge.text}`}>
-                                                            {badge.label}
+                                                            {t(badge.labelKey)}
                                                         </span>
                                                     </td>
                                                 )}
@@ -557,7 +559,7 @@ export function ReferringDomainsTable({ domainId }: ReferringDomainsTableProps) 
                         {totalPages > 1 && (
                             <div className="flex items-center justify-between pt-2">
                                 <p className="text-sm text-tertiary">
-                                    Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filteredData.length)} of {filteredData.length}
+                                    {t('paginationShowing', { from: page * PAGE_SIZE + 1, to: Math.min((page + 1) * PAGE_SIZE, filteredData.length), total: filteredData.length })}
                                 </p>
                                 <div className="flex items-center gap-1">
                                     <button

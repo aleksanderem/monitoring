@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useMemo } from "react";
 import { useQuery } from "convex/react";
 import {
@@ -31,6 +32,16 @@ interface OnSitePagesTableProps {
 type SortColumn = "url" | "score" | "statusCode" | "wordCount" | "performance" | "issueCount";
 type SortDirection = "asc" | "desc";
 
+function getGradeBg(grade: string) {
+  switch (grade) {
+    case "A": return "bg-utility-success-50 text-utility-success-700";
+    case "B": return "bg-utility-success-50 text-utility-success-600";
+    case "C": return "bg-utility-warning-50 text-utility-warning-700";
+    case "D": return "bg-utility-warning-50 text-utility-warning-600";
+    default: return "bg-utility-error-50 text-utility-error-700";
+  }
+}
+
 function getScoreBg(score: number) {
   if (score >= 80) return "bg-utility-success-50 text-utility-success-600";
   if (score >= 60) return "bg-utility-warning-50 text-utility-warning-600";
@@ -43,7 +54,16 @@ function getStatusCodeColor(code: number) {
   return "bg-utility-error-50 text-utility-error-600";
 }
 
+function getEffectiveScore(page: any): number {
+  return page.pageScore?.composite ?? page.onpageScore ?? -1;
+}
+
+function getEffectiveGrade(page: any): string | null {
+  return page.pageScore?.grade ?? null;
+}
+
 export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
+  const t = useTranslations('onsite');
   const [sortColumn, setSortColumn] = useState<SortColumn>("score");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [searchQuery, setSearchQuery] = useState("");
@@ -56,6 +76,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
   const [issuesFilter, setIssuesFilter] = useState<string>("all");
   const [scoreFilter, setScoreFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [gradeFilter, setGradeFilter] = useState<string>("all");
 
   const pagesData = useQuery(api.seoAudit_queries.getPagesList, {
     domainId,
@@ -92,16 +113,24 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
       );
     }
 
-    // Score filter
+    // Score filter (uses composite)
     if (scoreFilter === "good") {
-      result = result.filter((p) => (p.onpageScore ?? 0) >= 80);
+      result = result.filter((p) => getEffectiveScore(p) >= 80);
     } else if (scoreFilter === "needs_work") {
       result = result.filter((p) => {
-        const s = p.onpageScore ?? 0;
+        const s = getEffectiveScore(p);
         return s >= 50 && s < 80;
       });
     } else if (scoreFilter === "poor") {
-      result = result.filter((p) => (p.onpageScore ?? 100) < 50);
+      result = result.filter((p) => {
+        const s = getEffectiveScore(p);
+        return s >= 0 && s < 50;
+      });
+    }
+
+    // Grade filter
+    if (gradeFilter !== "all") {
+      result = result.filter((p) => getEffectiveGrade(p) === gradeFilter);
     }
 
     // Status code filter
@@ -125,8 +154,8 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
             ? a.url.localeCompare(b.url)
             : b.url.localeCompare(a.url);
         case "score":
-          aVal = a.onpageScore ?? -1;
-          bVal = b.onpageScore ?? -1;
+          aVal = getEffectiveScore(a);
+          bVal = getEffectiveScore(b);
           break;
         case "statusCode":
           aVal = a.statusCode;
@@ -152,7 +181,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
     });
 
     return result;
-  }, [allPages, searchQuery, issuesFilter, scoreFilter, statusFilter, sortColumn, sortDirection]);
+  }, [allPages, searchQuery, issuesFilter, scoreFilter, gradeFilter, statusFilter, sortColumn, sortDirection]);
 
   const totalPages = Math.ceil(sortedAndFiltered.length / itemsPerPage);
   const paginatedPages = sortedAndFiltered.slice(
@@ -170,12 +199,13 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
   };
 
   const hasActiveFilters =
-    searchQuery !== "" || issuesFilter !== "all" || scoreFilter !== "all" || statusFilter !== "all";
+    searchQuery !== "" || issuesFilter !== "all" || scoreFilter !== "all" || statusFilter !== "all" || gradeFilter !== "all";
 
   const clearFilters = () => {
     setSearchQuery("");
     setIssuesFilter("all");
     setScoreFilter("all");
+    setGradeFilter("all");
     setStatusFilter("all");
     setCurrentPage(1);
   };
@@ -197,9 +227,9 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
         <AlertCircle className="mx-auto h-12 w-12 text-fg-quaternary" />
-        <h3 className="mt-4 text-sm font-semibold text-primary">No Page Data Available</h3>
+        <h3 className="mt-4 text-sm font-semibold text-primary">{t('noPageDataAvailable')}</h3>
         <p className="mt-1 text-sm text-tertiary">
-          Run a full site scan to see page-level SEO audit results.
+          {t('noPageDataDescription')}
         </p>
       </div>
     );
@@ -211,16 +241,16 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-primary">Analyzed Pages</h3>
+            <h3 className="text-lg font-semibold text-primary">{t('analyzedPages')}</h3>
             <p className="text-sm text-tertiary">
               {sortedAndFiltered.length} of {allPages.length} pages
-              {hasActiveFilters && " (filtered)"} — click a row for full details
+              {hasActiveFilters && ` (${t('filtered')})`} — {t('clickRowForDetails')}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-64">
               <Input
-                placeholder="Search URL or title..."
+                placeholder={t('searchUrlOrTitle')}
                 value={searchQuery}
                 onChange={(value) => { setSearchQuery(value); setCurrentPage(1); }}
                 icon={SearchLg}
@@ -232,7 +262,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
               iconLeading={FilterLines}
               onClick={() => setShowFilters(!showFilters)}
             >
-              Filters
+              {t('filters')}
             </Button>
           </div>
         </div>
@@ -241,52 +271,68 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
         {showFilters && (
           <div className="flex flex-wrap items-center gap-4 rounded-lg border border-secondary bg-secondary/30 p-4">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-secondary">Issues:</label>
+              <label className="text-sm font-medium text-secondary">{t('filterIssues')}:</label>
               <select
                 value={issuesFilter}
                 onChange={(e) => { setIssuesFilter(e.target.value); setCurrentPage(1); }}
                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
               >
-                <option value="all">All</option>
-                <option value="has_issues">Has Issues</option>
-                <option value="no_issues">No Issues</option>
-                <option value="critical">Critical Only</option>
-                <option value="warning">Warnings Only</option>
+                <option value="all">{t('filterAll')}</option>
+                <option value="has_issues">{t('filterHasIssues')}</option>
+                <option value="no_issues">{t('filterNoIssues')}</option>
+                <option value="critical">{t('filterCriticalOnly')}</option>
+                <option value="warning">{t('filterWarningsOnly')}</option>
               </select>
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-secondary">Score:</label>
+              <label className="text-sm font-medium text-secondary">{t('filterGrade')}:</label>
+              <select
+                value={gradeFilter}
+                onChange={(e) => { setGradeFilter(e.target.value); setCurrentPage(1); }}
+                className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
+              >
+                <option value="all">{t('filterAll')}</option>
+                <option value="A">{t('filterGradeA')}</option>
+                <option value="B">{t('filterGradeB')}</option>
+                <option value="C">{t('filterGradeC')}</option>
+                <option value="D">{t('filterGradeD')}</option>
+                <option value="F">{t('filterGradeF')}</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-secondary">{t('filterScore')}:</label>
               <select
                 value={scoreFilter}
                 onChange={(e) => { setScoreFilter(e.target.value); setCurrentPage(1); }}
                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
               >
-                <option value="all">All</option>
-                <option value="good">Good (80+)</option>
-                <option value="needs_work">Needs Work (50-79)</option>
-                <option value="poor">Poor (&lt;50)</option>
+                <option value="all">{t('filterAll')}</option>
+                <option value="good">{t('filterGood80')}</option>
+                <option value="needs_work">{t('filterNeedsWork50')}</option>
+                <option value="poor">{t('filterPoorBelow50')}</option>
               </select>
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-secondary">Status:</label>
+              <label className="text-sm font-medium text-secondary">{t('filterStatus')}:</label>
               <select
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
               >
-                <option value="all">All</option>
-                <option value="2xx">2xx OK</option>
-                <option value="3xx">3xx Redirect</option>
-                <option value="4xx">4xx Error</option>
-                <option value="5xx">5xx Server</option>
+                <option value="all">{t('filterAll')}</option>
+                <option value="2xx">{t('filter2xxOk')}</option>
+                <option value="3xx">{t('filter3xxRedirect')}</option>
+                <option value="4xx">{t('filter4xxError')}</option>
+                <option value="5xx">{t('filter5xxServer')}</option>
               </select>
             </div>
 
             {hasActiveFilters && (
               <Button size="sm" color="secondary" onClick={clearFilters}>
-                Clear All
+                {t('clearAll')}
               </Button>
             )}
           </div>
@@ -302,16 +348,16 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
                   onClick={() => toggleSort("url")}
                 >
                   <div className="flex items-center gap-2">
-                    Page
+                    {t('colPage')}
                     <SortIcon column="url" />
                   </div>
                 </th>
                 <th
-                  className="cursor-pointer px-4 py-3 text-center text-xs font-medium text-tertiary transition-colors hover:bg-secondary/70 w-20"
+                  className="cursor-pointer px-4 py-3 text-center text-xs font-medium text-tertiary transition-colors hover:bg-secondary/70 w-24"
                   onClick={() => toggleSort("score")}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    Score
+                    {t('colScore')}
                     <SortIcon column="score" />
                   </div>
                 </th>
@@ -320,7 +366,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
                   onClick={() => toggleSort("statusCode")}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    Status
+                    {t('colStatus')}
                     <SortIcon column="statusCode" />
                   </div>
                 </th>
@@ -329,7 +375,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
                   onClick={() => toggleSort("wordCount")}
                 >
                   <div className="flex items-center justify-end gap-2">
-                    Words
+                    {t('colWords')}
                     <SortIcon column="wordCount" />
                   </div>
                 </th>
@@ -338,7 +384,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
                   onClick={() => toggleSort("performance")}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    Perf.
+                    {t('colPerf')}
                     <SortIcon column="performance" />
                   </div>
                 </th>
@@ -347,7 +393,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
                   onClick={() => toggleSort("issueCount")}
                 >
                   <div className="flex items-center gap-2">
-                    Issues
+                    {t('colIssues')}
                     <SortIcon column="issueCount" />
                   </div>
                 </th>
@@ -355,8 +401,9 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
             </thead>
             <tbody className="divide-y divide-secondary">
               {paginatedPages.map((page) => {
-                const hasScore = page.onpageScore != null;
-                const score = page.onpageScore ?? 0;
+                const score = getEffectiveScore(page);
+                const grade = getEffectiveGrade(page);
+                const hasScore = score >= 0;
                 const issues = (page.issues || []) as Array<{
                   type: string;
                   category: string;
@@ -401,12 +448,19 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
                       )}
                     </td>
 
-                    {/* Score */}
+                    {/* Score + Grade */}
                     <td className="px-4 py-3 text-center">
                       {hasScore ? (
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getScoreBg(score)}`}>
-                          {score}
-                        </span>
+                        <div className="flex items-center justify-center gap-1.5">
+                          {grade && (
+                            <span className={`inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[11px] font-bold ${getGradeBg(grade)}`}>
+                              {grade}
+                            </span>
+                          )}
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ${getScoreBg(score)}`}>
+                            {score}
+                          </span>
+                        </div>
                       ) : (
                         <span className="text-sm text-tertiary">—</span>
                       )}
@@ -452,7 +506,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
                       {issues.length === 0 ? (
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-utility-success-600">
                           <CheckCircle className="w-3.5 h-3.5" />
-                          No issues
+                          {t('noIssues')}
                         </span>
                       ) : (
                         <div className="flex items-center gap-1.5">
@@ -488,17 +542,17 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
               {hasActiveFilters ? (
                 <>
                   <FilterLines className="mx-auto h-10 w-10 text-fg-quaternary" />
-                  <h3 className="mt-3 text-sm font-semibold text-primary">No matching pages</h3>
-                  <p className="mt-1 text-sm text-tertiary">Try adjusting your filters.</p>
+                  <h3 className="mt-3 text-sm font-semibold text-primary">{t('noMatchingPages')}</h3>
+                  <p className="mt-1 text-sm text-tertiary">{t('tryAdjustingFilters')}</p>
                   <Button size="sm" color="secondary" onClick={clearFilters} className="mt-3">
-                    Clear All Filters
+                    {t('clearAllFilters')}
                   </Button>
                 </>
               ) : (
                 <>
                   <AlertCircle className="mx-auto h-10 w-10 text-fg-quaternary" />
-                  <h3 className="mt-3 text-sm font-semibold text-primary">No Page Data Available</h3>
-                  <p className="mt-1 text-sm text-tertiary">Run a full site scan to see page-level SEO audit results.</p>
+                  <h3 className="mt-3 text-sm font-semibold text-primary">{t('noPageDataAvailable')}</h3>
+                  <p className="mt-1 text-sm text-tertiary">{t('noPageDataDescription')}</p>
                 </>
               )}
             </div>
@@ -509,7 +563,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-secondary pt-4">
             <p className="text-sm text-secondary">
-              Page {currentPage} of {totalPages} ({sortedAndFiltered.length} results)
+              {t('paginationInfo', { current: currentPage, total: totalPages, count: sortedAndFiltered.length })}
             </p>
             <div className="flex gap-2">
               <Button
@@ -519,7 +573,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
               >
-                Previous
+                {t('previous')}
               </Button>
               <Button
                 size="sm"
@@ -528,7 +582,7 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
               >
-                Next
+                {t('next')}
               </Button>
             </div>
           </div>

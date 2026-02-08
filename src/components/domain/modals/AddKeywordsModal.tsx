@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/base/buttons/button";
 import { toast } from "sonner";
 import { X, Plus, Stars01 } from "@untitledui/icons";
@@ -16,6 +17,8 @@ interface AddKeywordsModalProps {
 }
 
 export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModalProps) {
+  const t = useTranslations('keywords');
+  const tc = useTranslations('common');
   useEscapeClose(onClose, isOpen);
   const [keywordsText, setKeywordsText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,18 +36,18 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
       .filter(line => line.length > 0);
 
     if (phrases.length === 0) {
-      toast.error("Please enter at least one keyword");
+      toast.error(t('pleaseEnterKeyword'));
       return;
     }
 
     try {
       setIsSubmitting(true);
       await addKeywordsMutation({ domainId, phrases });
-      toast.success(`Added ${phrases.length} keyword${phrases.length > 1 ? 's' : ''} to monitoring`);
+      toast.success(t('addedKeywordsToMonitoring', { count: phrases.length }));
       setKeywordsText("");
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to add keywords");
+      toast.error(error instanceof Error ? error.message : t('failedToAddKeywords'));
     } finally {
       setIsSubmitting(false);
     }
@@ -72,13 +75,13 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
       .map(kw => kw.keyword);
 
     if (suggested.length === 0) {
-      toast.info("No keyword suggestions available. Try refreshing visibility data first.");
+      toast.info(t('noSuggestionsAvailable'));
       setIsLoadingSuggestions(false);
       return;
     }
 
     setKeywordsText(suggested.join("\n"));
-    toast.success(`Suggested ${suggested.length} keywords based on rankings and volume`);
+    toast.success(t('suggestedKeywords', { count: suggested.length }));
     setIsLoadingSuggestions(false);
   };
 
@@ -96,8 +99,8 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-secondary">
             <div>
-              <h2 className="text-lg font-semibold text-primary">Add Keywords to Monitor</h2>
-              <p className="text-sm text-tertiary mt-1">Enter keywords manually or get AI suggestions</p>
+              <h2 className="text-lg font-semibold text-primary">{t('addKeywordsToMonitor')}</h2>
+              <p className="text-sm text-tertiary mt-1">{t('addKeywordsDescription')}</p>
             </div>
             <button
               onClick={onClose}
@@ -112,7 +115,7 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
             {/* Suggestions Button */}
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-primary">
-                Keywords (one per line)
+                {t('keywordsOnePerLine')}
               </label>
               <Button
                 size="sm"
@@ -121,7 +124,7 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
                 onClick={handleSuggestKeywords}
                 disabled={isLoadingSuggestions || !discoveredKeywords}
               >
-                {isLoadingSuggestions ? "Loading..." : "Suggest Keywords"}
+                {isLoadingSuggestions ? tc('loading') : t('suggestKeywords')}
               </Button>
             </div>
 
@@ -129,15 +132,14 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
             <textarea
               value={keywordsText}
               onChange={(e) => setKeywordsText(e.target.value)}
-              placeholder="Enter keywords, one per line:&#10;example keyword 1&#10;example keyword 2&#10;example keyword 3"
+              placeholder={t('keywordsPlaceholder')}
               className="w-full h-64 px-3 py-2 rounded-lg border border-secondary bg-primary text-primary placeholder-tertiary resize-none focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
 
             {/* Info */}
             <div className="rounded-lg border border-utility-blue-200 bg-utility-blue-50 p-3">
               <p className="text-xs text-utility-blue-900">
-                <strong>Suggested keywords</strong> are based on your current rankings (top 20 positions) and search volume.
-                These keywords are already performing well and worth monitoring closely.
+                {t('suggestedKeywordsInfo')}
               </p>
             </div>
           </div>
@@ -150,7 +152,7 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
               onClick={onClose}
               disabled={isSubmitting}
             >
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button
               size="md"
@@ -159,7 +161,7 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
               onClick={handleSubmit}
               disabled={isSubmitting || keywordsText.trim().length === 0}
             >
-              {isSubmitting ? "Adding..." : "Add Keywords"}
+              {isSubmitting ? t('adding') : t('addKeywords')}
             </Button>
           </div>
         </div>

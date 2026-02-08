@@ -14,25 +14,28 @@ import { NavItemButton } from "./base-components/nav-item-button";
 import { SlideoutMenu } from "@/components/application/slideout-menus/slideout-menu";
 import { FeedItem, type FeedItemType } from "@/components/application/activity-feed/activity-feed";
 import { Button } from "@/components/base/buttons/button";
+import { LanguageSwitcher } from "./LanguageSwitcher";
+import { useTranslations } from "next-intl";
 
 interface TopBarProps {
   activeUrl?: string;
 }
 
-function formatRelativeTime(timestamp: number): string {
+function formatRelativeTime(timestamp: number, tc: (key: string, params?: Record<string, string | number | Date>) => string): string {
   const now = Date.now();
   const diff = now - timestamp;
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return tc("justNow");
+  if (minutes < 60) return tc("minutesAgo", { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return tc("hoursAgo", { count: hours });
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return tc("daysAgo", { count: days });
   return new Date(timestamp).toLocaleDateString();
 }
 
 function DomainSelector() {
+  const t = useTranslations("nav");
   const domains = useQuery(api.domains.list);
   const pathname = usePathname();
   const router = useRouter();
@@ -67,7 +70,7 @@ function DomainSelector() {
       >
         <Globe01 className="w-4 h-4 text-tertiary" />
         <span className="max-w-[200px] truncate">
-          {currentDomain ? (currentDomain as any).domain : "Select domain"}
+          {currentDomain ? (currentDomain as any).domain : t("selectDomain")}
         </span>
         <ChevronDown className="w-3.5 h-3.5 text-quaternary" />
       </button>
@@ -104,6 +107,8 @@ function DomainSelector() {
 }
 
 export function TopBar({ activeUrl }: TopBarProps) {
+  const t = useTranslations("nav");
+  const tc = useTranslations("common");
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isJobsOpen, setIsJobsOpen] = useState(false);
   const currentUser = useQuery(api.auth.getCurrentUser);
@@ -126,10 +131,10 @@ export function TopBar({ activeUrl }: TopBarProps) {
     return notifications.map((n) => ({
       id: n._id,
       unseen: !n.isRead,
-      date: formatRelativeTime(n.createdAt),
+      date: formatRelativeTime(n.createdAt, tc),
       user: {
         avatarUrl: "",
-        name: "System",
+        name: t("system"),
         href: "#",
       },
       action: {
@@ -139,7 +144,7 @@ export function TopBar({ activeUrl }: TopBarProps) {
       },
       message: n.message,
     }));
-  }, [notifications]);
+  }, [notifications, t, tc]);
 
   const userName = currentUser?.name || null;
   const userEmail = currentUser?.email || null;
@@ -155,6 +160,8 @@ export function TopBar({ activeUrl }: TopBarProps) {
 
         {/* Right side: Jobs, Settings, Notifications, User */}
         <div className="flex items-center gap-3">
+          <LanguageSwitcher />
+
           <div className="flex gap-0.5">
             {/* Active jobs slideout */}
             {(activeJobs?.length ?? 0) > 0 && (
@@ -164,7 +171,7 @@ export function TopBar({ activeUrl }: TopBarProps) {
                     current={false}
                     size="md"
                     icon={RefreshCw01}
-                    label="Running Jobs"
+                    label={t("runningJobs")}
                     tooltipPlacement="bottom"
                     onClick={(e) => {
                       e.preventDefault();
@@ -178,8 +185,8 @@ export function TopBar({ activeUrl }: TopBarProps) {
                 </div>
                 <SlideoutMenu isDismissable>
                   <SlideoutMenu.Header onClose={() => setIsJobsOpen(false)} className="relative flex w-full items-center justify-between gap-0.5 px-4 pt-6 md:px-6">
-                    <h1 className="text-md font-semibold text-primary md:text-lg">Running Jobs</h1>
-                    <span className="text-xs text-tertiary">{activeJobs!.length} active</span>
+                    <h1 className="text-md font-semibold text-primary md:text-lg">{t("runningJobs")}</h1>
+                    <span className="text-xs text-tertiary">{activeJobs!.length} {t("active")}</span>
                   </SlideoutMenu.Header>
                   <SlideoutMenu.Content className="pb-6">
                     <div className="space-y-3 px-4 pt-4 md:px-6">
@@ -204,7 +211,7 @@ export function TopBar({ activeUrl }: TopBarProps) {
                                 } catch { /* ignore */ }
                               }}
                               className="shrink-0 rounded-md p-1.5 text-quaternary transition-colors hover:bg-utility-error-50 hover:text-utility-error-600"
-                              title="Cancel job"
+                              title={t("cancelJob")}
                             >
                               <XCircle className="h-4 w-4" />
                             </button>
@@ -219,8 +226,8 @@ export function TopBar({ activeUrl }: TopBarProps) {
                               </div>
                               <div className="mt-1 flex items-center justify-between text-xs text-quaternary">
                                 <span>{job.progress}%</span>
-                                <span className={cx("capitalize", job.status === "processing" ? "text-brand-600" : "text-quaternary")}>
-                                  {job.status}
+                                <span className={cx(job.status === "processing" ? "text-brand-600" : "text-quaternary")}>
+                                  {tc(`status${job.status.charAt(0).toUpperCase()}${job.status.slice(1)}` as any)}
                                 </span>
                               </div>
                             </div>
@@ -228,7 +235,7 @@ export function TopBar({ activeUrl }: TopBarProps) {
                           {job.progress == null && (
                             <div className="mt-2 flex items-center gap-2">
                               <RefreshCw01 className={cx("h-3 w-3", job.status === "processing" ? "animate-spin text-brand-600" : "text-quaternary")} />
-                              <span className="text-xs text-tertiary capitalize">{job.status}</span>
+                              <span className="text-xs text-tertiary">{tc(`status${job.status.charAt(0).toUpperCase()}${job.status.slice(1)}` as any)}</span>
                             </div>
                           )}
                         </div>
@@ -243,7 +250,7 @@ export function TopBar({ activeUrl }: TopBarProps) {
               current={activeUrl === "/settings"}
               size="md"
               icon={Settings01}
-              label="Settings"
+              label={t("settings")}
               href="/settings"
               tooltipPlacement="bottom"
             />
@@ -255,7 +262,7 @@ export function TopBar({ activeUrl }: TopBarProps) {
                   current={false}
                   size="md"
                   icon={Bell01}
-                  label="Notifications"
+                  label={t("notifications")}
                   tooltipPlacement="bottom"
                   onClick={(e) => {
                     e.preventDefault();
@@ -270,7 +277,7 @@ export function TopBar({ activeUrl }: TopBarProps) {
               </div>
               <SlideoutMenu isDismissable>
                 <SlideoutMenu.Header onClose={() => setIsNotificationsOpen(false)} className="relative flex w-full items-center justify-between gap-0.5 px-4 pt-6 md:px-6">
-                  <h1 className="text-md font-semibold text-primary md:text-lg">Notifications</h1>
+                  <h1 className="text-md font-semibold text-primary md:text-lg">{t("notifications")}</h1>
                   {(unreadCount ?? 0) > 0 && (
                     <Button
                       color="link-gray"
@@ -278,7 +285,7 @@ export function TopBar({ activeUrl }: TopBarProps) {
                       iconLeading={CheckDone01}
                       onClick={() => markAllAsRead({})}
                     >
-                      Mark all read
+                      {t("markAllRead")}
                     </Button>
                   )}
                 </SlideoutMenu.Header>
@@ -294,8 +301,8 @@ export function TopBar({ activeUrl }: TopBarProps) {
                   ) : (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
                       <Bell01 className="h-8 w-8 text-quaternary mx-auto mb-3" />
-                      <p className="text-sm text-tertiary">No notifications yet</p>
-                      <p className="text-xs text-quaternary mt-1">Job completions and alerts will appear here</p>
+                      <p className="text-sm text-tertiary">{t("noNotificationsYet")}</p>
+                      <p className="text-xs text-quaternary mt-1">{t("jobCompletionsWillAppearHere")}</p>
                     </div>
                   )}
                 </SlideoutMenu.Content>
@@ -312,7 +319,7 @@ export function TopBar({ activeUrl }: TopBarProps) {
                 )
               }
             >
-              <Avatar alt={userName || userEmail || "User"} src={userImage ?? undefined} size="md" />
+              <Avatar alt={userName || userEmail || t("user")} src={userImage ?? undefined} size="md" />
             </AriaButton>
             <Popover
               placement="bottom right"

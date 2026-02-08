@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { AlertTriangle, ShieldOff } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
@@ -16,6 +17,7 @@ function getSpamBadgeClass(score: number): string {
 }
 
 export function ToxicLinksTable({ domainId }: ToxicLinksTableProps) {
+    const t = useTranslations('backlinks');
     const data = useQuery(api.backlinkAnalysis_queries.getToxicLinks, { domainId });
 
     if (data === undefined) {
@@ -35,40 +37,34 @@ export function ToxicLinksTable({ domainId }: ToxicLinksTableProps) {
                 <div className="flex items-center gap-2">
                     <ShieldOff className="h-5 w-5 text-fg-error-primary" />
                     <div>
-                        <h3 className="text-md font-semibold text-primary">Toxic Links</h3>
+                        <h3 className="text-md font-semibold text-primary">{t('toxicLinksTitle')}</h3>
                         <p className="text-sm text-tertiary">
-                            {data.toxicCount} toxic links detected ({data.toxicPercentage}% of analyzed)
+                            {t('toxicLinksSubtitle', { toxicCount: data.toxicCount, toxicPercentage: data.toxicPercentage })}
                         </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-tertiary">Avg spam score:</span>
-                        <span className="font-medium text-primary">{data.avgSpamScore}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-tertiary">Analyzed:</span>
-                        <span className="font-medium text-primary">{data.totalAnalyzed}</span>
-                    </div>
+                    <span className="text-tertiary">{t('toxicAvgSpamScore', { score: data.avgSpamScore })}</span>
+                    <span className="text-tertiary">{t('toxicAnalyzed', { count: data.totalAnalyzed })}</span>
                 </div>
             </div>
 
             {data.items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8">
-                    <p className="text-sm text-utility-success-600">No toxic links detected above threshold</p>
-                    <p className="mt-1 text-xs text-tertiary">Links with spam score 70+ are flagged as toxic</p>
+                    <p className="text-sm text-utility-success-600">{t('toxicEmpty')}</p>
+                    <p className="mt-1 text-xs text-tertiary">{t('toxicEmptyHint')}</p>
                 </div>
             ) : (
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead>
                             <tr className="border-b border-secondary">
-                                <th className="px-3 py-2.5 font-medium text-tertiary">Source URL</th>
-                                <th className="px-3 py-2.5 font-medium text-tertiary">Domain</th>
-                                <th className="px-3 py-2.5 font-medium text-tertiary">Anchor</th>
-                                <th className="px-3 py-2.5 text-center font-medium text-tertiary">Spam Score</th>
-                                <th className="px-3 py-2.5 text-center font-medium text-tertiary">Type</th>
-                                <th className="px-3 py-2.5 text-right font-medium text-tertiary">Domain Rank</th>
+                                <th className="px-3 py-2.5 font-medium text-tertiary">{t('columnSourceUrl')}</th>
+                                <th className="px-3 py-2.5 font-medium text-tertiary">{t('columnDomain')}</th>
+                                <th className="px-3 py-2.5 font-medium text-tertiary">{t('columnAnchorText')}</th>
+                                <th className="px-3 py-2.5 text-center font-medium text-tertiary">{t('columnSpamScore')}</th>
+                                <th className="px-3 py-2.5 text-center font-medium text-tertiary">{t('columnType')}</th>
+                                <th className="px-3 py-2.5 text-right font-medium text-tertiary">{t('columnDomainRank')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -89,9 +85,9 @@ export function ToxicLinksTable({ domainId }: ToxicLinksTableProps) {
                                     </td>
                                     <td className="px-3 py-2.5 text-center">
                                         {item.dofollow ? (
-                                            <span className="rounded-full bg-utility-success-50 px-2 py-0.5 text-xs font-medium text-utility-success-600">dofollow</span>
+                                            <span className="rounded-full bg-utility-success-50 px-2 py-0.5 text-xs font-medium text-utility-success-600">{t('dofollow')}</span>
                                         ) : (
-                                            <span className="rounded-full bg-utility-gray-50 px-2 py-0.5 text-xs font-medium text-utility-gray-600">nofollow</span>
+                                            <span className="rounded-full bg-utility-gray-50 px-2 py-0.5 text-xs font-medium text-utility-gray-600">{t('nofollow')}</span>
                                         )}
                                     </td>
                                     <td className="px-3 py-2.5 text-right text-sm text-primary">{item.domainFromRank ?? "—"}</td>

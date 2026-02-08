@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { Globe01, Hash01, TrendUp02, Link03, BarChart03, Target04 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useTranslations } from "next-intl";
 
 interface ProjectOverviewSectionProps {
     projectId: Id<"projects">;
@@ -16,6 +17,7 @@ function formatNumber(num: number): string {
 }
 
 export function ProjectOverviewSection({ projectId }: ProjectOverviewSectionProps) {
+    const t = useTranslations("projects");
     const overview = useQuery(api.projectDashboard_queries.getProjectOverview, { projectId });
 
     if (overview === undefined) {
@@ -34,12 +36,12 @@ export function ProjectOverviewSection({ projectId }: ProjectOverviewSectionProp
     if (!overview) return null;
 
     const cards = [
-        { label: "Domains", value: overview.totalDomains, icon: Globe01, subtext: null },
-        { label: "Monitored Keywords", value: formatNumber(overview.totalMonitored), icon: Hash01, subtext: `${formatNumber(overview.totalDiscoveredKeywords)} discovered` },
-        { label: "Avg Position", value: overview.avgPosition ?? "—", icon: Target04, subtext: null },
-        { label: "Est. Traffic", value: formatNumber(overview.totalEstimatedTraffic), icon: TrendUp02, subtext: "monthly ETV" },
-        { label: "Total Backlinks", value: formatNumber(overview.totalBacklinks), icon: Link03, subtext: `${formatNumber(overview.totalReferringDomains)} domains` },
-        { label: "Discovered KWs", value: formatNumber(overview.totalDiscoveredKeywords), icon: BarChart03, subtext: null },
+        { label: t("overviewDomains"), value: overview.totalDomains, icon: Globe01, subtext: null },
+        { label: t("overviewMonitoredKeywords"), value: formatNumber(overview.totalMonitored), icon: Hash01, subtext: t("overviewDiscovered", { count: formatNumber(overview.totalDiscoveredKeywords) }) },
+        { label: t("overviewAvgPosition"), value: overview.avgPosition ?? "—", icon: Target04, subtext: null },
+        { label: t("overviewEstTraffic"), value: formatNumber(overview.totalEstimatedTraffic), icon: TrendUp02, subtext: t("overviewMonthlyEtv") },
+        { label: t("overviewTotalBacklinks"), value: formatNumber(overview.totalBacklinks), icon: Link03, subtext: t("overviewRefDomains", { count: formatNumber(overview.totalReferringDomains) }) },
+        { label: t("overviewDiscoveredKws"), value: formatNumber(overview.totalDiscoveredKeywords), icon: BarChart03, subtext: null },
     ];
 
     return (

@@ -14,6 +14,7 @@ import {
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useTranslations } from "next-intl";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { Input } from "@/components/base/input/input";
 import { Button } from "@/components/base/buttons/button";
@@ -49,6 +50,8 @@ function formatNumber(num: number): string {
 }
 
 export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
+  const t = useTranslations('keywords');
+  const tc = useTranslations('common');
   const [sortColumn, setSortColumn] = useState<SortColumn>("position");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [searchQuery, setSearchQuery] = useState("");
@@ -188,7 +191,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
         <SearchLg className="mx-auto h-12 w-12 text-fg-quaternary" />
-        <p className="mt-4 text-sm text-tertiary">No keywords found for this domain</p>
+        <p className="mt-4 text-sm text-tertiary">{t('noKeywordsFound')}</p>
       </div>
     );
   }
@@ -215,16 +218,16 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-primary">All Keywords</h3>
+          <h3 className="text-lg font-semibold text-primary">{t('allKeywords')}</h3>
           <p className="text-sm text-tertiary">
-            Complete keyword inventory ({sortedAndFilteredKeywords.length} total) including monitored, discovered, and competitor keywords.
+            {t('allKeywordsDescription', { count: sortedAndFilteredKeywords.length })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {/* Search */}
           <div className="w-64">
             <Input
-              placeholder="Search keywords..."
+              placeholder={t('searchKeywords')}
               value={searchQuery}
               onChange={(value) => {
                 setSearchQuery(value);
@@ -241,7 +244,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
             iconLeading={FilterLines}
             onClick={() => setShowFilters(!showFilters)}
           >
-            Filters
+            {t('filters')}
           </Button>
 
           {/* Column picker */}
@@ -252,7 +255,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
               iconLeading={Settings01}
               onClick={() => setShowColumnPicker(!showColumnPicker)}
             >
-              Columns
+              {tc('columns')}
             </Button>
             {showColumnPicker && (
               <div className="absolute right-0 top-full z-10 mt-2 w-48 rounded-lg border border-secondary bg-primary p-2 shadow-lg">
@@ -270,14 +273,14 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
                       />
                       <span className="text-primary">
                         {key === "phrase"
-                          ? "Keyword"
+                          ? t('columnKeyword')
                           : key === "position"
-                            ? "Position"
+                            ? t('columnPosition')
                             : key === "change"
-                              ? "Change"
+                              ? t('columnChange')
                               : key === "volume"
-                                ? "Volume"
-                                : "Actions"}
+                                ? t('columnVolume')
+                                : tc('actions')}
                       </span>
                     </label>
                   ))}
@@ -293,7 +296,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
         <div className="flex flex-wrap items-center gap-4 rounded-lg border border-secondary bg-secondary/30 p-4">
           {/* Position filter */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-secondary">Position:</label>
+            <label className="text-sm font-medium text-secondary">{t('columnPosition')}:</label>
             <select
               value={positionFilter}
               onChange={(e) => {
@@ -302,19 +305,19 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
               }}
               className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
             >
-              <option value="all">All</option>
-              <option value="top3">Top 3</option>
-              <option value="top10">Top 10</option>
-              <option value="top20">Top 20</option>
-              <option value="top50">Top 50</option>
-              <option value="below50">Below 50</option>
-              <option value="unknown">Unknown</option>
+              <option value="all">{tc('all')}</option>
+              <option value="top3">{t('filterTop3')}</option>
+              <option value="top10">{t('filterTop10')}</option>
+              <option value="top20">{t('filterTop20')}</option>
+              <option value="top50">{t('filterTop50')}</option>
+              <option value="below50">{t('filterBelow50')}</option>
+              <option value="unknown">{t('filterUnknown')}</option>
             </select>
           </div>
 
           {/* Change filter */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-secondary">Change:</label>
+            <label className="text-sm font-medium text-secondary">{t('columnChange')}:</label>
             <select
               value={changeFilter}
               onChange={(e) => {
@@ -323,10 +326,10 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
               }}
               className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
             >
-              <option value="all">All</option>
-              <option value="improved">Improved</option>
-              <option value="declined">Declined</option>
-              <option value="nochange">No Change</option>
+              <option value="all">{tc('all')}</option>
+              <option value="improved">{t('filterImproved')}</option>
+              <option value="declined">{t('filterDeclined')}</option>
+              <option value="nochange">{t('filterNoChange')}</option>
             </select>
           </div>
 
@@ -342,7 +345,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
                 setCurrentPage(1);
               }}
             >
-              Clear All
+              {t('clearAll')}
             </Button>
           )}
         </div>
@@ -358,7 +361,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
                   onClick={() => toggleSort("phrase")}
                 >
                   <div className="flex items-center gap-2">
-                    Keyword
+                    {t('columnKeyword')}
                     <SortIcon column="phrase" />
                   </div>
                 </th>
@@ -369,7 +372,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
                   onClick={() => toggleSort("position")}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    Position
+                    {t('columnPosition')}
                     <SortIcon column="position" />
                   </div>
                 </th>
@@ -380,7 +383,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
                   onClick={() => toggleSort("change")}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    Change
+                    {t('columnChange')}
                     <SortIcon column="change" />
                   </div>
                 </th>
@@ -391,14 +394,14 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
                   onClick={() => toggleSort("volume")}
                 >
                   <div className="flex items-center justify-end gap-2">
-                    Volume
+                    {t('columnVolume')}
                     <SortIcon column="volume" />
                   </div>
                 </th>
               )}
               {columnVisibility.actions && (
                 <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
-                  Actions
+                  {tc('actions')}
                 </th>
               )}
             </tr>
@@ -453,7 +456,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
                     <td className="px-4 py-3 text-center">
                       {isAlreadyMonitored(keyword.phrase) ? (
                         <Button size="sm" color="secondary" disabled>
-                          W monitoringu
+                          {t('inMonitoring')}
                         </Button>
                       ) : (
                         <Button
@@ -461,7 +464,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
                           color="secondary"
                           onClick={() => handleAddToMonitoring(keyword)}
                         >
-                          Dodaj do monitoringu
+                          {t('addToMonitoring')}
                         </Button>
                       )}
                     </td>
@@ -477,7 +480,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
       {totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-secondary pt-4">
           <p className="text-sm text-secondary">
-            Page {currentPage} of {totalPages} ({sortedAndFilteredKeywords.length} results)
+            {t('paginationInfo', { current: currentPage, total: totalPages, count: sortedAndFilteredKeywords.length })}
           </p>
           <div className="flex gap-2">
             <Button
@@ -487,7 +490,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
             >
-              Previous
+              {tc('previous')}
             </Button>
             <Button
               size="sm"
@@ -496,7 +499,7 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
             >
-              Next
+              {tc('next')}
             </Button>
           </div>
         </div>

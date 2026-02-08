@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { XClose } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { KeywordDetailCard } from "../cards/KeywordDetailCard";
@@ -13,6 +14,8 @@ interface KeywordDetailModalProps {
 }
 
 export function KeywordDetailModal({ keyword, isOpen, onClose }: KeywordDetailModalProps) {
+  const t = useTranslations('keywords');
+  const tc = useTranslations('common');
   useEscapeClose(onClose, isOpen);
   if (!isOpen) return null;
 
@@ -34,12 +37,12 @@ export function KeywordDetailModal({ keyword, isOpen, onClose }: KeywordDetailMo
               <div className="flex items-center gap-3 mt-2">
                 {keyword.bestPosition !== null && keyword.bestPosition !== 999 && (
                   <span className="inline-flex items-center rounded-full bg-utility-success-50 px-3 py-1 text-sm font-medium text-utility-success-700">
-                    Position #{keyword.bestPosition}
+                    {t('positionHash', { position: keyword.bestPosition })}
                   </span>
                 )}
                 {keyword.searchVolume && (
                   <span className="text-sm text-tertiary">
-                    {keyword.searchVolume.toLocaleString()} monthly searches
+                    {t('monthlySearches', { count: keyword.searchVolume.toLocaleString() })}
                   </span>
                 )}
               </div>
@@ -50,7 +53,7 @@ export function KeywordDetailModal({ keyword, isOpen, onClose }: KeywordDetailMo
               iconLeading={XClose}
               onClick={onClose}
             >
-              Close
+              {tc('close')}
             </Button>
           </div>
 
@@ -59,21 +62,21 @@ export function KeywordDetailModal({ keyword, isOpen, onClose }: KeywordDetailMo
             {/* Monthly Search Trend Chart */}
             {keyword.monthlySearches && keyword.monthlySearches.length > 0 && (
               <div>
-                <h3 className="text-base font-semibold text-primary mb-4">Search Volume Trend</h3>
+                <h3 className="text-base font-semibold text-primary mb-4">{t('searchVolumeTrend')}</h3>
                 <MonthlySearchTrendChart monthlySearches={keyword.monthlySearches} />
               </div>
             )}
 
             {/* Keyword Detail Cards */}
             <div>
-              <h3 className="text-base font-semibold text-primary mb-4">Keyword Metrics</h3>
+              <h3 className="text-base font-semibold text-primary mb-4">{t('keywordMetrics')}</h3>
               <KeywordDetailCard keyword={keyword} />
             </div>
 
             {/* URL if available */}
             {keyword.url && (
               <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                <p className="text-xs font-medium text-tertiary mb-1">Ranking URL</p>
+                <p className="text-xs font-medium text-tertiary mb-1">{t('rankingUrl')}</p>
                 <a
                   href={keyword.url}
                   target="_blank"
@@ -88,16 +91,16 @@ export function KeywordDetailModal({ keyword, isOpen, onClose }: KeywordDetailMo
             {/* SERP Title & Description */}
             {(keyword.title || keyword.description) && (
               <div className="rounded-lg border border-secondary bg-secondary/30 p-4 space-y-3">
-                <h4 className="text-sm font-semibold text-primary">SERP Preview</h4>
+                <h4 className="text-sm font-semibold text-primary">{t('serpPreview')}</h4>
                 {keyword.title && (
                   <div>
-                    <p className="text-xs font-medium text-tertiary mb-1">Title</p>
+                    <p className="text-xs font-medium text-tertiary mb-1">{t('serpTitle')}</p>
                     <p className="text-sm text-primary">{keyword.title}</p>
                   </div>
                 )}
                 {keyword.description && (
                   <div>
-                    <p className="text-xs font-medium text-tertiary mb-1">Description</p>
+                    <p className="text-xs font-medium text-tertiary mb-1">{tc('description')}</p>
                     <p className="text-sm text-tertiary">{keyword.description}</p>
                   </div>
                 )}

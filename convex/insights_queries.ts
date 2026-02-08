@@ -115,10 +115,10 @@ export const getDomainHealthScore = query({
             totalScore,
             maxScore: 100,
             breakdown: {
-                keywords: { score: keywordScore, max: 30, label: "Keywords" },
-                backlinks: { score: backlinkScore, max: 30, label: "Backlinks" },
-                onsite: { score: onsiteScore, max: 20, label: "On-Site" },
-                content: { score: contentScore, max: 20, label: "Content" },
+                keywords: { score: keywordScore, max: 30, labelKey: "breakdownKeywords" },
+                backlinks: { score: backlinkScore, max: 30, labelKey: "breakdownBacklinks" },
+                onsite: { score: onsiteScore, max: 20, labelKey: "breakdownOnSite" },
+                content: { score: contentScore, max: 20, labelKey: "breakdownContent" },
             },
             stats: {
                 totalKeywords: activeKeywords.length,
@@ -287,9 +287,10 @@ export const getRecommendations = query({
         const recommendations: Array<{
             priority: "high" | "medium" | "low";
             category: "keywords" | "backlinks" | "onsite" | "content";
-            title: string;
-            description: string;
-            metric?: string;
+            titleKey: string;
+            descriptionKey: string;
+            metricKey?: string;
+            params: Record<string, string | number>;
         }> = [];
 
         // 1. Check keyword health
@@ -331,17 +332,19 @@ export const getRecommendations = query({
             recommendations.push({
                 priority: "high",
                 category: "keywords",
-                title: "Significant ranking drops detected",
-                description: `${droppingCount} keywords lost 5+ positions in the last 7 days. Review content freshness and technical issues.`,
-                metric: `${droppingCount} keywords`,
+                titleKey: "recSignificantRankingDrops",
+                descriptionKey: "recSignificantRankingDropsDesc",
+                metricKey: "recKeywordsMetric",
+                params: { count: droppingCount },
             });
         } else if (droppingCount > 0) {
             recommendations.push({
                 priority: "medium",
                 category: "keywords",
-                title: "Some rankings declining",
-                description: `${droppingCount} keywords dropped positions this week. Monitor for continued decline.`,
-                metric: `${droppingCount} keywords`,
+                titleKey: "recSomeRankingsDeclining",
+                descriptionKey: "recSomeRankingsDecliningDesc",
+                metricKey: "recKeywordsMetric",
+                params: { count: droppingCount },
             });
         }
 
@@ -349,9 +352,10 @@ export const getRecommendations = query({
             recommendations.push({
                 priority: "medium",
                 category: "keywords",
-                title: "Keywords near page 1",
-                description: `${nearPage1Count} keywords rank on page 2 (positions 11-20). Targeted optimization could push these to page 1.`,
-                metric: `${nearPage1Count} keywords`,
+                titleKey: "recKeywordsNearPage1",
+                descriptionKey: "recKeywordsNearPage1Desc",
+                metricKey: "recKeywordsMetric",
+                params: { count: nearPage1Count },
             });
         }
 
@@ -367,17 +371,19 @@ export const getRecommendations = query({
             recommendations.push({
                 priority: "high",
                 category: "backlinks",
-                title: "Toxic backlinks detected",
-                description: `${toxicCount} backlinks have high spam scores. Consider disavowing to protect rankings.`,
-                metric: `${toxicCount} toxic links`,
+                titleKey: "recToxicBacklinks",
+                descriptionKey: "recToxicBacklinksDesc",
+                metricKey: "recToxicLinksMetric",
+                params: { count: toxicCount },
             });
         } else if (toxicCount > 0) {
             recommendations.push({
                 priority: "low",
                 category: "backlinks",
-                title: "Minor toxic backlinks",
-                description: `${toxicCount} backlinks flagged. Review in Backlinks tab for potential disavow.`,
-                metric: `${toxicCount} toxic links`,
+                titleKey: "recMinorToxicBacklinks",
+                descriptionKey: "recMinorToxicBacklinksDesc",
+                metricKey: "recToxicLinksMetric",
+                params: { count: toxicCount },
             });
         }
 
@@ -392,9 +398,10 @@ export const getRecommendations = query({
             recommendations.push({
                 priority: "medium",
                 category: "backlinks",
-                title: "Link building opportunities available",
-                description: `${identifiedProspects} link prospects identified. Review in Link Building tab to start outreach.`,
-                metric: `${identifiedProspects} prospects`,
+                titleKey: "recLinkBuildingOpportunities",
+                descriptionKey: "recLinkBuildingOpportunitiesDesc",
+                metricKey: "recProspectsMetric",
+                params: { count: identifiedProspects },
             });
         }
 
@@ -410,17 +417,19 @@ export const getRecommendations = query({
                 recommendations.push({
                     priority: "high",
                     category: "onsite",
-                    title: "Low on-page score",
-                    description: `On-page score is ${latestAnalysis.healthScore}/100. Fix critical issues in the On-Site tab.`,
-                    metric: `${latestAnalysis.healthScore}/100`,
+                    titleKey: "recLowOnPageScore",
+                    descriptionKey: "recLowOnPageScoreDesc",
+                    metricKey: "recScoreMetric",
+                    params: { score: latestAnalysis.healthScore },
                 });
             }
         } else {
             recommendations.push({
                 priority: "medium",
                 category: "onsite",
-                title: "No on-site scan performed",
-                description: "Run an on-site scan to identify technical SEO issues and optimization opportunities.",
+                titleKey: "recNoOnsiteScan",
+                descriptionKey: "recNoOnsiteScanDesc",
+                params: {},
             });
         }
 
@@ -436,17 +445,19 @@ export const getRecommendations = query({
             recommendations.push({
                 priority: "high",
                 category: "content",
-                title: "High-priority content gaps",
-                description: `${highPriorityGaps} high-priority content gaps found. Create content targeting these keywords to capture competitor traffic.`,
-                metric: `${highPriorityGaps} gaps`,
+                titleKey: "recHighPriorityContentGaps",
+                descriptionKey: "recHighPriorityContentGapsDesc",
+                metricKey: "recGapsMetric",
+                params: { count: highPriorityGaps },
             });
         } else if (highPriorityGaps > 0) {
             recommendations.push({
                 priority: "medium",
                 category: "content",
-                title: "Content opportunities available",
-                description: `${highPriorityGaps} high-priority gaps identified. Review in Content Gaps tab.`,
-                metric: `${highPriorityGaps} gaps`,
+                titleKey: "recContentOpportunitiesAvailable",
+                descriptionKey: "recContentOpportunitiesAvailableDesc",
+                metricKey: "recGapsMetric",
+                params: { count: highPriorityGaps },
             });
         }
 
@@ -454,8 +465,9 @@ export const getRecommendations = query({
             recommendations.push({
                 priority: "low",
                 category: "content",
-                title: "No content gap analysis",
-                description: "Run content gap analysis from the Competitors tab to find keyword opportunities.",
+                titleKey: "recNoContentGapAnalysis",
+                descriptionKey: "recNoContentGapAnalysisDesc",
+                params: {},
             });
         }
 

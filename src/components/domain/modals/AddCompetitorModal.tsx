@@ -5,6 +5,7 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { SearchLg, Globe01, Plus } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Dialog, Modal, ModalOverlay, DialogTrigger } from "@/components/application/modals/modal";
 import { CloseButton } from "@/components/base/buttons/close-button";
@@ -26,6 +27,8 @@ export function AddCompetitorModal({
   onClose,
   onCompetitorAdded,
 }: AddCompetitorModalProps) {
+  const t = useTranslations('competitors');
+  const tc = useTranslations('common');
   const [addTab, setAddTab] = useState<"serp" | "dfs" | "manual">("serp");
   const [competitorDomain, setCompetitorDomain] = useState("");
   const [competitorName, setCompetitorName] = useState("");
@@ -67,10 +70,10 @@ export function AddCompetitorModal({
       if (result.success) {
         setDfsSuggestions(result.competitors);
       } else {
-        toast.error(result.error || "Failed to fetch suggestions");
+        toast.error(result.error || t('addCompetitorToastFailed'));
       }
     } catch (error: any) {
-      toast.error(error?.message || "Failed to fetch suggestions");
+      toast.error(error?.message || t('addCompetitorToastFailed'));
     } finally {
       setDfsLoading(false);
     }
@@ -83,10 +86,10 @@ export function AddCompetitorModal({
         domainId,
         competitorDomain: domain,
       });
-      toast.success(`${domain} added`);
+      toast.success(t('addCompetitorToastAdded'));
       onCompetitorAdded?.(competitorId, domain);
     } catch (error: any) {
-      toast.error(error?.message || "Failed to add competitor");
+      toast.error(error?.message || t('addCompetitorToastFailed'));
     } finally {
       setAddingSuggestion(null);
     }
@@ -94,7 +97,7 @@ export function AddCompetitorModal({
 
   async function handleAddManual() {
     if (!competitorDomain.trim()) {
-      toast.error("Please enter a competitor domain");
+      toast.error(t('addCompetitorToastFailed'));
       return;
     }
     try {
@@ -103,13 +106,13 @@ export function AddCompetitorModal({
         competitorDomain: competitorDomain.trim(),
         name: competitorName.trim() || undefined,
       });
-      toast.success("Competitor added");
+      toast.success(t('addCompetitorToastAdded'));
       setCompetitorDomain("");
       setCompetitorName("");
       handleClose();
       onCompetitorAdded?.(competitorId, competitorDomain.trim());
     } catch (error: any) {
-      toast.error(error?.message || "Failed to add competitor");
+      toast.error(error?.message || t('addCompetitorToastFailed'));
     }
   }
 
@@ -127,19 +130,19 @@ export function AddCompetitorModal({
               />
               <div className="border-b border-secondary px-6 py-4">
                 <Heading slot="title" className="text-lg font-semibold text-primary">
-                  Add Competitor
+                  {t('addCompetitorTitle')}
                 </Heading>
                 <p className="mt-1 text-sm text-tertiary">
-                  Discover competitors from your data or add one manually
+                  {t('addCompetitorSubtitle')}
                 </p>
               </div>
 
               {/* Tabs */}
               <div className="flex border-b border-secondary">
                 {([
-                  { key: "serp" as const, label: "SERP Discovery", Icon: SearchLg },
-                  { key: "dfs" as const, label: "Suggest Competitors", Icon: Globe01 },
-                  { key: "manual" as const, label: "Add Manually", Icon: Plus },
+                  { key: "serp" as const, label: t('addCompetitorTabSerp'), Icon: SearchLg },
+                  { key: "dfs" as const, label: t('addCompetitorTabSuggest'), Icon: Globe01 },
+                  { key: "manual" as const, label: t('addCompetitorTabManual'), Icon: Plus },
                 ]).map((tab) => (
                   <button
                     key={tab.key}
@@ -162,7 +165,7 @@ export function AddCompetitorModal({
                 {addTab === "serp" && (
                   <div className="px-6 py-4">
                     <p className="mb-3 text-sm text-tertiary">
-                      Domains that rank for your monitored keywords.
+                      {t('addCompetitorSerpDesc')}
                     </p>
                     {serpSuggestions === undefined ? (
                       <div className="space-y-2">
@@ -173,8 +176,8 @@ export function AddCompetitorModal({
                     ) : serpSuggestions.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12">
                         <SearchLg className="mb-2 h-8 w-8 text-fg-quaternary" />
-                        <p className="text-sm text-tertiary">No competitors found in SERP data yet</p>
-                        <p className="mt-1 text-xs text-quaternary">Monitor more keywords to discover competitors</p>
+                        <p className="text-sm text-tertiary">{t('addCompetitorSerpEmpty')}</p>
+                        <p className="mt-1 text-xs text-quaternary">{t('addCompetitorSerpEmptyHint')}</p>
                       </div>
                     ) : (
                       <div className="max-h-[340px] space-y-1 overflow-y-auto">
@@ -208,7 +211,7 @@ export function AddCompetitorModal({
                               isDisabled={addingSuggestion === s.domain}
                               className="ml-3 shrink-0"
                             >
-                              {addingSuggestion === s.domain ? "Adding..." : "Add"}
+                              {addingSuggestion === s.domain ? tc('loading') : tc('add')}
                             </Button>
                           </div>
                         ))}
@@ -221,15 +224,15 @@ export function AddCompetitorModal({
                 {addTab === "dfs" && (
                   <div className="px-6 py-4">
                     <p className="mb-3 text-sm text-tertiary">
-                      Domains that compete for the same organic keywords as you.
+                      {t('addCompetitorSuggestDesc')}
                     </p>
                     {!dfsSuggestions && !dfsLoading && (
                       <div className="flex flex-col items-center justify-center py-12">
                         <Globe01 className="mb-2 h-8 w-8 text-fg-quaternary" />
-                        <p className="mb-3 text-sm text-tertiary">Click below to discover your organic search competitors</p>
+                        <p className="mb-3 text-sm text-tertiary">{t('clickToDiscoverCompetitors')}</p>
                         <Button color="primary" size="md" onClick={handleFetchDfsSuggestions}>
                           <SearchLg className="h-4 w-4" />
-                          Find Competitors
+                          {t('addCompetitorSuggestFind')}
                         </Button>
                       </div>
                     )}
@@ -238,12 +241,12 @@ export function AddCompetitorModal({
                         {[1, 2, 3, 4].map((i) => (
                           <div key={i} className="h-10 animate-pulse rounded-lg bg-gray-50" />
                         ))}
-                        <p className="mt-2 text-center text-xs text-tertiary">Analyzing organic search overlap...</p>
+                        <p className="mt-2 text-center text-xs text-tertiary">{t('addCompetitorSuggestAnalyzing')}</p>
                       </div>
                     )}
                     {dfsSuggestions && dfsSuggestions.length === 0 && (
                       <div className="flex flex-col items-center justify-center py-12">
-                        <p className="text-sm text-tertiary">No competitor suggestions found</p>
+                        <p className="text-sm text-tertiary">{t('addCompetitorSuggestEmpty')}</p>
                       </div>
                     )}
                     {dfsSuggestions && dfsSuggestions.length > 0 && (
@@ -272,7 +275,7 @@ export function AddCompetitorModal({
                               isDisabled={addingSuggestion === s.domain}
                               className="ml-3 shrink-0"
                             >
-                              {addingSuggestion === s.domain ? "Adding..." : "Add"}
+                              {addingSuggestion === s.domain ? tc('loading') : tc('add')}
                             </Button>
                           </div>
                         ))}
@@ -285,32 +288,32 @@ export function AddCompetitorModal({
                 {addTab === "manual" && (
                   <div className="px-6 py-4">
                     <p className="mb-4 text-sm text-tertiary">
-                      Enter a competitor domain to add it directly.
+                      {t('addCompetitorManualDesc')}
                     </p>
                     <div className="space-y-3">
                       <Input
                         size="md"
-                        label="Competitor Domain"
-                        placeholder="example.com"
+                        label={t('addCompetitorManualDomain')}
+                        placeholder={t('addCompetitorManualDomainHint')}
                         value={competitorDomain}
                         onChange={(value: string) => setCompetitorDomain(value)}
-                        hint="Enter the domain without http:// or www."
+                        hint={t('addCompetitorManualDomainNote')}
                         isRequired
                       />
                       <Input
                         size="md"
-                        label="Display Name (optional)"
-                        placeholder="Leave empty to use domain"
+                        label={t('addCompetitorManualDisplayName')}
+                        placeholder={t('addCompetitorManualDisplayNameHint')}
                         value={competitorName}
                         onChange={(value: string) => setCompetitorName(value)}
                       />
                     </div>
                     <div className="mt-4 flex items-center justify-end gap-3">
                       <Button color="secondary" size="md" onClick={handleClose}>
-                        Cancel
+                        {tc('cancel')}
                       </Button>
                       <Button color="primary" size="md" onClick={handleAddManual}>
-                        Add Competitor
+                        {t('competitorMgmtAddCompetitor')}
                       </Button>
                     </div>
                   </div>

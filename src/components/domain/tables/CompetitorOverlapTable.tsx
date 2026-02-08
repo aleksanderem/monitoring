@@ -15,6 +15,7 @@ import {
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useTranslations } from "next-intl";
 
 interface CompetitorOverlapTableProps {
     domainId: Id<"domains">;
@@ -39,18 +40,18 @@ type SortColumn = "keyword" | "yourPosition" | string; // string for competitor 
 type SortDirection = "asc" | "desc";
 
 const YOUR_POSITION_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "Ranking", value: "ranking" },
-    { label: "Not ranking", value: "not-ranking" },
-    { label: "Top 10", value: "top10" },
-    { label: "Top 20", value: "top20" },
+    { labelKey: "overlapFilterAll", value: "all" },
+    { labelKey: "overlapFilterRanking", value: "ranking" },
+    { labelKey: "overlapFilterNotRanking", value: "not-ranking" },
+    { labelKey: "overlapFilterTop10", value: "top10" },
+    { labelKey: "overlapFilterTop20", value: "top20" },
 ];
 
 const OVERLAP_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "Both ranking", value: "both" },
-    { label: "You ahead", value: "you-ahead" },
-    { label: "Competitor ahead", value: "comp-ahead" },
+    { labelKey: "overlapFilterAll", value: "all" },
+    { labelKey: "overlapFilterBothRanking", value: "both" },
+    { labelKey: "overlapFilterYouAhead", value: "you-ahead" },
+    { labelKey: "overlapFilterCompetitorAhead", value: "comp-ahead" },
 ];
 
 const PAGE_SIZE = 25;
@@ -60,6 +61,7 @@ const COL1_WIDTH = 200; // keyword column
 const COL2_WIDTH = 80;  // your position column
 
 export function CompetitorOverlapTable({ domainId }: CompetitorOverlapTableProps) {
+    const t = useTranslations('competitors');
     const overlapData = useQuery(api.keywordMap_queries.getCompetitorOverlapMatrix, { domainId });
 
     const [search, setSearch] = useState("");
@@ -182,12 +184,12 @@ export function CompetitorOverlapTable({ domainId }: CompetitorOverlapTableProps
                 <div className="flex items-center gap-2">
                     <Users01 className="h-5 w-5 text-fg-quaternary" />
                     <div>
-                        <h3 className="text-md font-semibold text-primary">Competitor Overlap Matrix</h3>
-                        <p className="text-sm text-tertiary">SERP position comparison across competitors</p>
+                        <h3 className="text-md font-semibold text-primary">{t('overlapTitle')}</h3>
+                        <p className="text-sm text-tertiary">{t('overlapSubtitle')}</p>
                     </div>
                 </div>
                 <div className="flex flex-col items-center justify-center py-8">
-                    <p className="text-sm text-tertiary">Add competitors and monitor keywords to see overlap data</p>
+                    <p className="text-sm text-tertiary">{t('overlapEmpty')}</p>
                 </div>
             </div>
         );
@@ -204,9 +206,9 @@ export function CompetitorOverlapTable({ domainId }: CompetitorOverlapTableProps
                 <div className="flex items-center gap-2">
                     <Users01 className="h-5 w-5 text-fg-brand-primary" />
                     <div>
-                        <h3 className="text-md font-semibold text-primary">Competitor Overlap Matrix</h3>
+                        <h3 className="text-md font-semibold text-primary">{t('overlapTitle')}</h3>
                         <p className="text-sm text-tertiary">
-                            {totalKeywords} keywords across {overlapData.competitors.length} competitor(s) · You rank for {youRanking}
+                            {t('overlapSummary', { totalKeywords, competitorCount: overlapData.competitors.length, youRanking })}
                         </p>
                     </div>
                 </div>
@@ -218,7 +220,7 @@ export function CompetitorOverlapTable({ domainId }: CompetitorOverlapTableProps
                     <SearchLg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-fg-quaternary" />
                     <input
                         type="text"
-                        placeholder="Search keywords..."
+                        placeholder={t('overlapSearchKeywords')}
                         value={search}
                         onChange={(e) => { setSearch(e.target.value); resetPage(); }}
                         className="w-full rounded-lg border border-primary bg-primary pl-9 pr-3 py-2 text-sm text-primary placeholder:text-placeholder focus:outline-none focus:ring-2 focus:ring-brand-600"
@@ -230,7 +232,7 @@ export function CompetitorOverlapTable({ domainId }: CompetitorOverlapTableProps
                     className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${showFilters || hasActiveFilters ? "border-brand-600 bg-utility-brand-50 text-brand-600" : "border-primary bg-primary text-tertiary hover:bg-secondary"}`}
                 >
                     <FilterLines className="h-4 w-4" />
-                    Filters
+                    {t('overlapFilters')}
                     {hasActiveFilters && !showFilters && (
                         <span className="ml-1 rounded-full bg-brand-600 px-1.5 text-[10px] font-medium text-white">
                             {[yourPositionFilter !== "all", overlapFilter !== "all"].filter(Boolean).length}
@@ -241,7 +243,7 @@ export function CompetitorOverlapTable({ domainId }: CompetitorOverlapTableProps
                 {hasActiveFilters && (
                     <button onClick={clearFilters} className="flex items-center gap-1 text-sm text-tertiary hover:text-primary">
                         <XClose className="h-3.5 w-3.5" />
-                        Clear
+                        {t('overlapClear')}
                     </button>
                 )}
             </div>
@@ -249,8 +251,8 @@ export function CompetitorOverlapTable({ domainId }: CompetitorOverlapTableProps
             {/* Filters */}
             {showFilters && (
                 <div className="flex flex-wrap gap-3">
-                    <FilterSelect label="Your position" value={yourPositionFilter} options={YOUR_POSITION_FILTERS} onChange={(v) => { setYourPositionFilter(v); resetPage(); }} />
-                    <FilterSelect label="Overlap" value={overlapFilter} options={OVERLAP_FILTERS} onChange={(v) => { setOverlapFilter(v); resetPage(); }} />
+                    <FilterSelect label={t('overlapFilterYourPositionLabel')} value={yourPositionFilter} options={YOUR_POSITION_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setYourPositionFilter(v); resetPage(); }} />
+                    <FilterSelect label={t('overlapFilterOverlapLabel')} value={overlapFilter} options={OVERLAP_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setOverlapFilter(v); resetPage(); }} />
                 </div>
             )}
 
@@ -258,8 +260,8 @@ export function CompetitorOverlapTable({ domainId }: CompetitorOverlapTableProps
             {filteredData.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12">
                     <Users01 className="h-8 w-8 text-fg-quaternary mb-3" />
-                    <p className="text-sm font-medium text-primary mb-1">No matching keywords</p>
-                    <p className="text-xs text-tertiary">Try adjusting your search or filters.</p>
+                    <p className="text-sm font-medium text-primary mb-1">{t('overlapNoMatch')}</p>
+                    <p className="text-xs text-tertiary">{t('overlapNoMatchHint')}</p>
                 </div>
             ) : (
                 <>
@@ -273,7 +275,7 @@ export function CompetitorOverlapTable({ domainId }: CompetitorOverlapTableProps
                                         style={{ width: COL1_WIDTH, minWidth: COL1_WIDTH }}
                                         onClick={() => handleSort("keyword")}
                                     >
-                                        <div className="flex items-center gap-1">Keyword <SortIcon column="keyword" /></div>
+                                        <div className="flex items-center gap-1">{t('columnKeyword')} <SortIcon column="keyword" /></div>
                                     </th>
                                     {/* Frozen: You */}
                                     <th
@@ -281,7 +283,7 @@ export function CompetitorOverlapTable({ domainId }: CompetitorOverlapTableProps
                                         style={{ width: COL2_WIDTH, minWidth: COL2_WIDTH, left: COL1_WIDTH }}
                                         onClick={() => handleSort("yourPosition")}
                                     >
-                                        <div className="flex items-center justify-center gap-1">You <SortIcon column="yourPosition" /></div>
+                                        <div className="flex items-center justify-center gap-1">{t('columnYou')} <SortIcon column="yourPosition" /></div>
                                     </th>
                                     {/* Competitor columns */}
                                     {overlapData.competitors.map((comp) => (
@@ -354,7 +356,7 @@ export function CompetitorOverlapTable({ domainId }: CompetitorOverlapTableProps
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between pt-2">
                             <p className="text-sm text-tertiary">
-                                Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filteredData.length)} of {filteredData.length}
+                                {t('contentGapPagination', { currentPage: page + 1, totalPages, total: filteredData.length })}
                             </p>
                             <div className="flex items-center gap-1">
                                 <button
@@ -402,11 +404,11 @@ export function CompetitorOverlapTable({ domainId }: CompetitorOverlapTableProps
             <div className="flex items-center gap-4 text-xs text-tertiary">
                 <span className="flex items-center gap-1.5">
                     <span className="inline-block w-3 h-3 rounded bg-utility-error-500 dark:bg-utility-error-400" />
-                    Competitor ahead
+                    {t('overlapLegendCompetitorAhead')}
                 </span>
                 <span className="flex items-center gap-1.5">
                     <span className="inline-block w-3 h-3 rounded bg-utility-success-500 dark:bg-utility-success-400" />
-                    You ahead
+                    {t('overlapLegendYouAhead')}
                 </span>
             </div>
         </div>

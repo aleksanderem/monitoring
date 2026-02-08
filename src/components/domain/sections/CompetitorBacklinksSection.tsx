@@ -8,12 +8,14 @@ import { Badge } from "@/components/base/badges/badges";
 import { Select } from "@/components/base/select/select";
 import type { SelectItemType } from "@/components/base/select/select";
 import { Link03, TrendUp02, TrendDown02, Globe01, CheckCircle, XCircle } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 
 interface CompetitorBacklinksSectionProps {
   domainId: Id<"domains">;
 }
 
 export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSectionProps) {
+  const t = useTranslations('backlinks');
   const [selectedCompetitor, setSelectedCompetitor] = useState<Id<"competitors"> | null>(null);
 
   const competitors = useQuery(api.competitors.getCompetitors, { domainId });
@@ -44,7 +46,7 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
   if (competitors === undefined) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-6">
-        <div className="text-center py-8 text-tertiary">Loading...</div>
+        <div className="text-center py-8 text-tertiary">{t('compBacklinksLoading')}</div>
       </div>
     );
   }
@@ -54,9 +56,9 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
       <div className="rounded-xl border border-secondary bg-primary p-6">
         <div className="text-center py-12">
           <Link03 className="h-12 w-12 text-quaternary mx-auto mb-4" />
-          <p className="text-tertiary mb-2">No competitors added yet</p>
+          <p className="text-tertiary mb-2">{t('compBacklinksNoCompetitors')}</p>
           <p className="text-sm text-quaternary">
-            Add competitors above to compare backlink profiles
+            {t('compBacklinksNoCompetitorsHint')}
           </p>
         </div>
       </div>
@@ -69,9 +71,9 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
       <div className="border-b border-secondary p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-primary">Backlinks Comparison</h3>
+            <h3 className="text-lg font-semibold text-primary">{t('compBacklinksTitle')}</h3>
             <p className="text-sm text-tertiary">
-              Compare your backlink profile with competitors
+              {t('compBacklinksSubtitle')}
             </p>
           </div>
         </div>
@@ -83,7 +85,7 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
             items={competitorItems}
             selectedKey={selectedCompetitor}
             onSelectionChange={(key) => setSelectedCompetitor(key as Id<"competitors">)}
-            placeholder="Select a competitor"
+            placeholder={t('compBacklinksSelectCompetitor')}
           >
             {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}
           </Select>
@@ -98,7 +100,7 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
             {/* Total Backlinks */}
             <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-tertiary">Total Backlinks</p>
+                <p className="text-xs font-medium text-tertiary">{t('compBacklinksTotalBacklinks')}</p>
                 <Link03 className="h-4 w-4 text-quaternary" />
               </div>
               <div className="space-y-1">
@@ -106,13 +108,13 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
                   <p className="text-xl font-semibold text-primary">
                     {ownBacklinksSummary?.totalBacklinks.toLocaleString() || "—"}
                   </p>
-                  <span className="text-xs text-tertiary">you</span>
+                  <span className="text-xs text-tertiary">{t('compBacklinksYou')}</span>
                 </div>
                 <div className="flex items-baseline gap-2">
                   <p className="text-lg font-medium text-tertiary">
                     {competitorBacklinksSummary.totalBacklinks.toLocaleString()}
                   </p>
-                  <span className="text-xs text-quaternary">them</span>
+                  <span className="text-xs text-quaternary">{t('compBacklinksThem')}</span>
                 </div>
                 {ownBacklinksSummary && (
                   <div className="flex items-center gap-1 mt-1">
@@ -139,7 +141,7 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
             {/* Referring Domains */}
             <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-tertiary">Referring Domains</p>
+                <p className="text-xs font-medium text-tertiary">{t('compBacklinksReferringDomains')}</p>
                 <Globe01 className="h-4 w-4 text-quaternary" />
               </div>
               <div className="space-y-1">
@@ -147,13 +149,13 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
                   <p className="text-xl font-semibold text-primary">
                     {ownBacklinksSummary?.totalDomains.toLocaleString() || "—"}
                   </p>
-                  <span className="text-xs text-tertiary">you</span>
+                  <span className="text-xs text-tertiary">{t('compBacklinksYou')}</span>
                 </div>
                 <div className="flex items-baseline gap-2">
                   <p className="text-lg font-medium text-tertiary">
                     {competitorBacklinksSummary.totalDomains.toLocaleString()}
                   </p>
-                  <span className="text-xs text-quaternary">them</span>
+                  <span className="text-xs text-quaternary">{t('compBacklinksThem')}</span>
                 </div>
                 {ownBacklinksSummary && (
                   <div className="flex items-center gap-1 mt-1">
@@ -180,7 +182,7 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
             {/* Dofollow Links */}
             <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-tertiary">Dofollow Links</p>
+                <p className="text-xs font-medium text-tertiary">{t('compBacklinksDofollowLinks')}</p>
                 <CheckCircle className="h-4 w-4 text-quaternary" />
               </div>
               <div className="space-y-1">
@@ -188,13 +190,13 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
                   <p className="text-xl font-semibold text-primary">
                     {ownBacklinksSummary?.dofollow.toLocaleString() || "—"}
                   </p>
-                  <span className="text-xs text-tertiary">you</span>
+                  <span className="text-xs text-tertiary">{t('compBacklinksYou')}</span>
                 </div>
                 <div className="flex items-baseline gap-2">
                   <p className="text-lg font-medium text-tertiary">
                     {competitorBacklinksSummary.dofollow.toLocaleString()}
                   </p>
-                  <span className="text-xs text-quaternary">them</span>
+                  <span className="text-xs text-quaternary">{t('compBacklinksThem')}</span>
                 </div>
               </div>
             </div>
@@ -202,7 +204,7 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
             {/* Nofollow Links */}
             <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-tertiary">Nofollow Links</p>
+                <p className="text-xs font-medium text-tertiary">{t('compBacklinksNofollowLinks')}</p>
                 <XCircle className="h-4 w-4 text-quaternary" />
               </div>
               <div className="space-y-1">
@@ -210,13 +212,13 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
                   <p className="text-xl font-semibold text-primary">
                     {ownBacklinksSummary?.nofollow.toLocaleString() || "—"}
                   </p>
-                  <span className="text-xs text-tertiary">you</span>
+                  <span className="text-xs text-tertiary">{t('compBacklinksYou')}</span>
                 </div>
                 <div className="flex items-baseline gap-2">
                   <p className="text-lg font-medium text-tertiary">
                     {competitorBacklinksSummary.nofollow.toLocaleString()}
                   </p>
-                  <span className="text-xs text-quaternary">them</span>
+                  <span className="text-xs text-quaternary">{t('compBacklinksThem')}</span>
                 </div>
               </div>
             </div>
@@ -225,22 +227,22 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
           {/* Competitor Backlinks List */}
           {competitorBacklinks && competitorBacklinks.items.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-primary mb-3">Top Competitor Backlinks</h4>
+              <h4 className="text-sm font-semibold text-primary mb-3">{t('compBacklinksTopTable')}</h4>
               <div className="rounded-lg border border-secondary overflow-hidden">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-secondary bg-secondary/30">
                       <th className="text-left text-xs font-medium text-tertiary uppercase tracking-wider px-4 py-3">
-                        From Domain
+                        {t('compBacklinksTopTableSource')}
                       </th>
                       <th className="text-left text-xs font-medium text-tertiary uppercase tracking-wider px-4 py-3">
-                        Anchor
+                        {t('compBacklinksTopTableAnchor')}
                       </th>
                       <th className="text-left text-xs font-medium text-tertiary uppercase tracking-wider px-4 py-3">
-                        Type
+                        {t('compBacklinksTopTableType')}
                       </th>
                       <th className="text-left text-xs font-medium text-tertiary uppercase tracking-wider px-4 py-3">
-                        Rank
+                        {t('compBacklinksTopTableRank')}
                       </th>
                     </tr>
                   </thead>
@@ -262,7 +264,7 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
                         </td>
                         <td className="px-4 py-3">
                           <Badge color={backlink.dofollow ? "success" : "gray"} size="sm">
-                            {backlink.dofollow ? "Dofollow" : "Nofollow"}
+                            {backlink.dofollow ? t('dofollow') : t('nofollow')}
                           </Badge>
                         </td>
                         <td className="px-4 py-3">
@@ -276,16 +278,16 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
                 </table>
               </div>
               <p className="text-xs text-tertiary mt-2">
-                Showing top {competitorBacklinks.items.length} of {competitorBacklinks.total.toLocaleString()} backlinks
+                {t('compBacklinksShowingTop', { count: competitorBacklinks.items.length, total: competitorBacklinks.total.toLocaleString() })}
               </p>
             </div>
           )}
 
           {competitorBacklinks && competitorBacklinks.items.length === 0 && (
             <div className="text-center py-8 text-tertiary">
-              <p>No backlinks data available for this competitor</p>
+              <p>{t('compBacklinksNoData')}</p>
               <p className="text-sm text-quaternary mt-1">
-                Click "Backlinks" button above to fetch backlinks
+                {t('compBacklinksNoDataHint')}
               </p>
             </div>
           )}
@@ -293,14 +295,14 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
       ) : selectedCompetitor && !competitorBacklinksSummary ? (
         <div className="text-center py-12 text-tertiary">
           <Link03 className="h-12 w-12 text-quaternary mx-auto mb-4" />
-          <p className="mb-2">No backlinks data available</p>
+          <p className="mb-2">{t('compBacklinksNoDataFull')}</p>
           <p className="text-sm text-quaternary">
-            Click "Backlinks" button in the competitor list above to fetch backlinks
+            {t('compBacklinksNoDataFullHint')}
           </p>
         </div>
       ) : (
         <div className="text-center py-12 text-tertiary">
-          <p>Select a competitor to view backlinks comparison</p>
+          <p>{t('compBacklinksSelectPrompt')}</p>
         </div>
       )}
     </div>

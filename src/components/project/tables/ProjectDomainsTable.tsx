@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Globe01 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useTranslations } from "next-intl";
 
 interface ProjectDomainsTableProps {
     projectId: Id<"projects">;
@@ -17,6 +18,7 @@ function formatNumber(num: number): string {
 }
 
 export function ProjectDomainsTable({ projectId }: ProjectDomainsTableProps) {
+    const t = useTranslations("projects");
     const domains = useQuery(api.projectDashboard_queries.getProjectDomainsWithMetrics, { projectId });
     const router = useRouter();
 
@@ -33,28 +35,28 @@ export function ProjectDomainsTable({ projectId }: ProjectDomainsTableProps) {
         return (
             <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary p-8">
                 <Globe01 className="h-12 w-12 text-fg-quaternary" />
-                <p className="mt-3 text-sm font-medium text-primary">No domains yet</p>
-                <p className="text-sm text-tertiary">Add domains to this project to see metrics</p>
+                <p className="mt-3 text-sm font-medium text-primary">{t("noDomainsYet")}</p>
+                <p className="text-sm text-tertiary">{t("noDomainsDescription")}</p>
             </div>
         );
     }
 
     return (
         <div className="rounded-xl border border-secondary bg-primary p-6">
-            <h3 className="text-md font-semibold text-primary">Domains</h3>
-            <p className="mb-4 text-sm text-tertiary">{domains.length} domains in this project</p>
+            <h3 className="text-md font-semibold text-primary">{t("columnDomains")}</h3>
+            <p className="mb-4 text-sm text-tertiary">{t("domainsInProject", { count: domains.length })}</p>
 
             <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                     <thead>
                         <tr className="border-b border-secondary">
-                            <th className="px-3 py-2.5 font-medium text-tertiary">Domain</th>
-                            <th className="px-3 py-2.5 text-right font-medium text-tertiary">Monitored</th>
-                            <th className="px-3 py-2.5 text-right font-medium text-tertiary">Discovered</th>
-                            <th className="px-3 py-2.5 text-right font-medium text-tertiary">Avg Position</th>
-                            <th className="px-3 py-2.5 text-right font-medium text-tertiary">Est. Traffic</th>
-                            <th className="px-3 py-2.5 text-right font-medium text-tertiary">Backlinks</th>
-                            <th className="px-3 py-2.5 text-right font-medium text-tertiary">Ref. Domains</th>
+                            <th className="px-3 py-2.5 font-medium text-tertiary">{t("domainColumnDomain")}</th>
+                            <th className="px-3 py-2.5 text-right font-medium text-tertiary">{t("domainColumnMonitored")}</th>
+                            <th className="px-3 py-2.5 text-right font-medium text-tertiary">{t("domainColumnDiscovered")}</th>
+                            <th className="px-3 py-2.5 text-right font-medium text-tertiary">{t("domainColumnAvgPosition")}</th>
+                            <th className="px-3 py-2.5 text-right font-medium text-tertiary">{t("domainColumnEstTraffic")}</th>
+                            <th className="px-3 py-2.5 text-right font-medium text-tertiary">{t("domainColumnBacklinks")}</th>
+                            <th className="px-3 py-2.5 text-right font-medium text-tertiary">{t("domainColumnRefDomains")}</th>
                         </tr>
                     </thead>
                     <tbody>

@@ -16,6 +16,7 @@ import {
   Settings01,
   FilterLines,
 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 
 interface Backlink {
   _id: string;
@@ -71,14 +72,16 @@ function formatDate(dateStr?: string): string {
   });
 }
 
-function getSpamBadge(score?: number): { label: string; color: "error" | "warning" | "success" | "gray" } {
-  if (score === undefined || score === null) return { label: "—", color: "gray" };
-  if (score >= 70) return { label: `${score}% High`, color: "error" };
-  if (score >= 40) return { label: `${score}% Medium`, color: "warning" };
-  return { label: `${score}% Low`, color: "success" };
+function getSpamBadge(score?: number): { score: number | null; labelKey: string; color: "error" | "warning" | "success" | "gray" } {
+  if (score === undefined || score === null) return { score: null, labelKey: "", color: "gray" };
+  if (score >= 70) return { score, labelKey: "spamBadgeHigh", color: "error" };
+  if (score >= 40) return { score, labelKey: "spamBadgeMedium", color: "warning" };
+  return { score, labelKey: "spamBadgeLow", color: "success" };
 }
 
 export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
+  const t = useTranslations('backlinks');
+  const tc = useTranslations('common');
   const [sortColumn, setSortColumn] = useState<SortColumn>("lastSeen");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [searchQuery, setSearchQuery] = useState("");
@@ -252,7 +255,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
         <Link01 className="mx-auto h-12 w-12 text-fg-quaternary" />
-        <p className="mt-4 text-sm text-tertiary">No backlinks found</p>
+        <p className="mt-4 text-sm text-tertiary">{t('noBacklinksFound')}</p>
       </div>
     );
   }
@@ -262,16 +265,16 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
       {/* Header with controls */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-primary">Backlinks</h3>
+          <h3 className="text-lg font-semibold text-primary">{t('backlinksTitle')}</h3>
           <p className="text-sm text-tertiary">
-            {filteredAndSortedBacklinks.length} of {backlinks.total} inbound links from external sites. Monitor link quality, anchor text diversity, and referring domain authority.
+            {t('backlinksSubtitle', { total: backlinks.total, domains: backlinks.stats?.totalDofollow ?? 0 })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {/* Search */}
           <div className="w-64">
             <Input
-              placeholder="Search backlinks..."
+              placeholder={t('searchBacklinks')}
               value={searchQuery}
               onChange={(value) => {
                 setSearchQuery(value);
@@ -288,7 +291,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
             iconLeading={FilterLines}
             onClick={() => setShowFilters(!showFilters)}
           >
-            Filters
+            {t('filters')}
           </Button>
 
           {/* Column picker */}
@@ -299,7 +302,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
               iconLeading={Settings01}
               onClick={() => setShowColumnPicker(!showColumnPicker)}
             >
-              Columns
+              {tc('columns')}
             </Button>
             {showColumnPicker && (
               <div className="absolute right-0 top-full z-10 mt-2 w-56 rounded-lg border border-secondary bg-primary p-2 shadow-lg">
@@ -317,18 +320,18 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
                       />
                       <span className="text-primary">
                         {key === "domainFrom"
-                          ? "Referring Domain"
+                          ? t('columnReferringDomain')
                           : key === "anchor"
-                            ? "Anchor Text"
+                            ? t('columnAnchorText')
                             : key === "itemType"
-                              ? "Type"
+                              ? t('columnType')
                               : key === "linkType"
-                                ? "Link Type"
+                                ? t('columnLinkType')
                                 : key === "rank"
-                                  ? "Rank"
+                                  ? t('columnRank')
                                   : key === "spamScore"
-                                    ? "Spam Score"
-                                    : "Last Seen"}
+                                    ? t('columnSpamScore')
+                                    : t('columnLastSeen')}
                       </span>
                     </label>
                   ))}
@@ -344,7 +347,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
         <div className="flex flex-wrap items-center gap-4 rounded-lg border border-secondary bg-secondary/30 p-4">
           {/* Type filter */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-secondary">Type:</label>
+            <label className="text-sm font-medium text-secondary">{t('columnType')}:</label>
             <select
               value={typeFilter}
               onChange={(e) => {
@@ -353,7 +356,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
               }}
               className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
             >
-              <option value="all">All</option>
+              <option value="all">{t('filterAll')}</option>
               {uniqueTypes.map((type) => (
                 <option key={type} value={type}>
                   {type}
@@ -364,7 +367,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
 
           {/* Link type filter */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-secondary">Link Type:</label>
+            <label className="text-sm font-medium text-secondary">{t('columnLinkType')}:</label>
             <select
               value={linkTypeFilter}
               onChange={(e) => {
@@ -373,15 +376,15 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
               }}
               className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
             >
-              <option value="all">All</option>
-              <option value="dofollow">Dofollow</option>
-              <option value="nofollow">Nofollow</option>
+              <option value="all">{t('filterAll')}</option>
+              <option value="dofollow">{t('filterDofollow')}</option>
+              <option value="nofollow">{t('filterNofollow')}</option>
             </select>
           </div>
 
           {/* Spam score filter */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-secondary">Spam Score:</label>
+            <label className="text-sm font-medium text-secondary">{t('columnSpamScore')}:</label>
             <select
               value={spamScoreFilter}
               onChange={(e) => {
@@ -390,11 +393,11 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
               }}
               className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
             >
-              <option value="all">All</option>
-              <option value="low">Low (&lt; 40%)</option>
-              <option value="medium">Medium (40-69%)</option>
-              <option value="high">High (&ge; 70%)</option>
-              <option value="unknown">Unknown</option>
+              <option value="all">{t('filterAll')}</option>
+              <option value="low">{t('filterSpamLow')}</option>
+              <option value="medium">{t('filterSpamMedium')}</option>
+              <option value="high">{t('filterSpamHigh')}</option>
+              <option value="unknown">{t('filterSpamUnknown')}</option>
             </select>
           </div>
 
@@ -411,7 +414,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
                 setCurrentPage(1);
               }}
             >
-              Clear All
+              {t('clearAll')}
             </Button>
           )}
         </div>
@@ -428,7 +431,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
                   onClick={() => toggleSort("domainFrom")}
                 >
                   <div className="flex items-center gap-2">
-                    Referring Domain
+                    {t('columnReferringDomain')}
                     <SortIcon column="domainFrom" />
                   </div>
                 </th>
@@ -439,7 +442,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
                   onClick={() => toggleSort("anchor")}
                 >
                   <div className="flex items-center gap-2">
-                    Anchor Text
+                    {t('columnAnchorText')}
                     <SortIcon column="anchor" />
                   </div>
                 </th>
@@ -450,7 +453,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
                   onClick={() => toggleSort("itemType")}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    Type
+                    {t('columnType')}
                     <SortIcon column="itemType" />
                   </div>
                 </th>
@@ -461,7 +464,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
                   onClick={() => toggleSort("linkType")}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    Link Type
+                    {t('columnLinkType')}
                     <SortIcon column="linkType" />
                   </div>
                 </th>
@@ -472,7 +475,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
                   onClick={() => toggleSort("rank")}
                 >
                   <div className="flex items-center justify-end gap-2">
-                    Rank
+                    {t('columnRank')}
                     <SortIcon column="rank" />
                   </div>
                 </th>
@@ -483,7 +486,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
                   onClick={() => toggleSort("spamScore")}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    Spam Score
+                    {t('columnSpamScore')}
                     <SortIcon column="spamScore" />
                   </div>
                 </th>
@@ -494,7 +497,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
                   onClick={() => toggleSort("lastSeen")}
                 >
                   <div className="flex items-center justify-end gap-2">
-                    Last Seen
+                    {t('columnLastSeen')}
                     <SortIcon column="lastSeen" />
                   </div>
                 </th>
@@ -540,7 +543,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
                   {columnVisibility.linkType && (
                     <td className="px-4 py-3 text-center">
                       <Badge size="sm" color={backlink.dofollow ? "success" : "gray"}>
-                        {backlink.dofollow ? "Dofollow" : "Nofollow"}
+                        {backlink.dofollow ? t('dofollow') : t('nofollow')}
                       </Badge>
                     </td>
                   )}
@@ -554,7 +557,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
                   {columnVisibility.spamScore && (
                     <td className="px-4 py-3 text-center">
                       <Badge size="sm" color={spamBadge.color}>
-                        {spamBadge.label}
+                        {spamBadge.score !== null ? `${spamBadge.score}% ${t(spamBadge.labelKey)}` : "—"}
                       </Badge>
                     </td>
                   )}
@@ -574,7 +577,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
       {totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-secondary pt-4">
           <p className="text-sm text-secondary">
-            Page {currentPage} of {totalPages} ({filteredAndSortedBacklinks.length} results)
+            {tc('pageOf', { current: currentPage, total: totalPages })} ({filteredAndSortedBacklinks.length} {tc('results')})
           </p>
           <div className="flex gap-2">
             <Button
@@ -584,7 +587,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
             >
-              Previous
+              {tc('previous')}
             </Button>
             <Button
               size="sm"
@@ -593,7 +596,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
             >
-              Next
+              {tc('next')}
             </Button>
           </div>
         </div>

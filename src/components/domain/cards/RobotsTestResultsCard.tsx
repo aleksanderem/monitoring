@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -11,6 +12,7 @@ interface RobotsTestResultsCardProps {
 }
 
 export function RobotsTestResultsCard({ domainId }: RobotsTestResultsCardProps) {
+  const t = useTranslations('onsite');
   const robotsData = useQuery(api.seoAudit_queries.getRobotsTestResults, { domainId });
 
   const groupedResults = useMemo(() => {
@@ -35,7 +37,7 @@ export function RobotsTestResultsCard({ domainId }: RobotsTestResultsCardProps) 
   return (
     <div className="space-y-4">
       <div className="text-sm text-tertiary">
-        Robots.txt: <strong className="text-primary">{robotsData.robotstxtUrl}</strong>
+        {t('robotsTxtLabel')}: <strong className="text-primary">{robotsData.robotstxtUrl}</strong>
       </div>
 
       {userAgents.map((ua) => {
@@ -47,9 +49,9 @@ export function RobotsTestResultsCard({ domainId }: RobotsTestResultsCardProps) 
             <div className="bg-secondary px-4 py-2 flex items-center justify-between">
               <span className="text-sm font-medium text-primary">{ua}</span>
               <div className="flex items-center gap-3 text-xs text-tertiary">
-                <span className="text-success-600">{results.length - blockedCount} allowed</span>
+                <span className="text-success-600">{results.length - blockedCount} {t('allowed')}</span>
                 {blockedCount > 0 && (
-                  <span className="text-error-600">{blockedCount} blocked</span>
+                  <span className="text-error-600">{blockedCount} {t('blocked')}</span>
                 )}
               </div>
             </div>
@@ -78,7 +80,7 @@ export function RobotsTestResultsCard({ domainId }: RobotsTestResultsCardProps) 
 
       {userAgents.length === 0 && (
         <div className="text-center py-8 text-sm text-tertiary">
-          No robots test results available
+          {t('noRobotsTestResults')}
         </div>
       )}
     </div>

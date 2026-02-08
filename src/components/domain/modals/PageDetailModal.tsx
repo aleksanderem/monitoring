@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   XClose,
   ArrowUpRight,
@@ -16,6 +18,9 @@ import {
   ShieldTick,
   BarChart01,
   Type01,
+  Star01,
+  ChevronDown,
+  ChevronUp,
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { useEscapeClose } from "@/hooks/useEscapeClose";
@@ -94,6 +99,28 @@ interface PageData {
     seo: number;
   };
   onpageScore?: number;
+  pageScore?: {
+    composite: number;
+    grade: string;
+    technical: {
+      score: number;
+      subScores: Array<{ id: string; label: string; score: number; weight: number; status: string; explanation: string }>;
+    };
+    content: {
+      score: number;
+      subScores: Array<{ id: string; label: string; score: number; weight: number; status: string; explanation: string }>;
+    };
+    seoPerformance: {
+      score: number;
+      subScores: Array<{ id: string; label: string; score: number; weight: number; status: string; explanation: string }>;
+    };
+    strategic: {
+      score: number;
+      subScores: Array<{ id: string; label: string; score: number; weight: number; status: string; explanation: string }>;
+    };
+    scoredAt: number;
+    dataCompleteness: number;
+  };
   resourceErrors?: {
     hasErrors: boolean;
     hasWarnings: boolean;
@@ -119,6 +146,46 @@ function getScoreBg(score: number) {
   if (score >= 80) return "bg-utility-success-50 text-utility-success-700";
   if (score >= 60) return "bg-utility-warning-50 text-utility-warning-700";
   return "bg-utility-error-50 text-utility-error-700";
+}
+
+function getGradeBg(grade: string) {
+  switch (grade) {
+    case "A": return "bg-utility-success-50 text-utility-success-700";
+    case "B": return "bg-utility-success-50 text-utility-success-600";
+    case "C": return "bg-utility-warning-50 text-utility-warning-700";
+    case "D": return "bg-utility-warning-50 text-utility-warning-600";
+    default: return "bg-utility-error-50 text-utility-error-700";
+  }
+}
+
+function getSubScoreStatusColor(status: string) {
+  switch (status) {
+    case "good": return "text-utility-success-600";
+    case "warning": return "text-utility-warning-600";
+    case "critical": return "text-utility-error-600";
+    default: return "text-fg-quaternary";
+  }
+}
+
+function getSubScoreStatusBg(status: string) {
+  switch (status) {
+    case "good": return "bg-utility-success-500";
+    case "warning": return "bg-utility-warning-500";
+    case "critical": return "bg-utility-error-500";
+    default: return "bg-fg-quaternary";
+  }
+}
+
+function getAxisColor(score: number) {
+  if (score >= 80) return "text-utility-success-600";
+  if (score >= 60) return "text-utility-warning-600";
+  return "text-utility-error-600";
+}
+
+function getAxisBarColor(score: number) {
+  if (score >= 80) return "bg-utility-success-500";
+  if (score >= 60) return "bg-utility-warning-500";
+  return "bg-utility-error-500";
 }
 
 function getStatusBg(code: number) {
@@ -259,7 +326,135 @@ function CwvCard({ label, fullName, value, unit, target, metric, rawValue }: {
   );
 }
 
+const AXIS_CONFIG = [
+  { key: "technical" as const, weight: 10 },
+  { key: "content" as const, weight: 35 },
+  { key: "seoPerformance" as const, weight: 35 },
+  { key: "strategic" as const, weight: 20 },
+] as const;
+
+const AXIS_LABELS: Record<string, string> = {
+  technical: "axisTechnical",
+  content: "axisContent",
+  seoPerformance: "axisSeoPerformance",
+  strategic: "axisStrategic",
+};
+
+function PageScoreBreakdown({ pageScore }: { pageScore: NonNullable<PageData["pageScore"]> }) {
+  const t = useTranslations('onsite');
+  const [expandedAxis, setExpandedAxis] = useState<string | null>(null);
+
+  const toggleAxis = (key: string) => {
+    setExpandedAxis(expandedAxis === key ? null : key);
+  };
+
+  return (
+    <div>
+      <SectionHeader icon={Star01} title={t('pageScoreSection')} />
+
+      {/* Composite + Grade hero */}
+      <div className="flex items-center gap-6 rounded-lg border border-secondary bg-secondary/20 p-4 mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${getGradeBg(pageScore.grade)}`}>
+            <span className="text-2xl font-bold">{pageScore.grade}</span>
+          </div>
+          <div>
+            <div className={`text-3xl font-bold tabular-nums ${getAxisColor(pageScore.composite)}`}>
+              {pageScore.composite}
+              <span className="text-base font-medium text-tertiary">/100</span>
+            </div>
+            <p className="text-xs text-tertiary">
+              {t('dataCompleteness', { pct: Math.round(pageScore.dataCompleteness * 100) })}
+            </p>
+          </div>
+        </div>
+
+        {/* Mini axis bars */}
+        <div className="flex-1 grid grid-cols-4 gap-3">
+          {AXIS_CONFIG.map(({ key, weight }) => {
+            const axis = pageScore[key];
+            return (
+              <div key={key} className="text-center">
+                <span className="text-[10px] font-medium text-tertiary uppercase tracking-wider block mb-1">
+                  {t(AXIS_LABELS[key])}
+                </span>
+                <span className={`text-lg font-bold tabular-nums ${getAxisColor(axis.score)}`}>
+                  {axis.score}
+                </span>
+                <div className="w-full h-1.5 bg-secondary rounded-full mt-1">
+                  <div
+                    className={`h-full rounded-full transition-all ${getAxisBarColor(axis.score)}`}
+                    style={{ width: `${axis.score}%` }}
+                  />
+                </div>
+                <span className="text-[9px] text-quaternary">{t('axisWeight', { weight })}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Expandable axis details */}
+      <div className="space-y-2">
+        {AXIS_CONFIG.map(({ key, weight }) => {
+          const axis = pageScore[key];
+          const isExpanded = expandedAxis === key;
+          return (
+            <div key={key} className="rounded-lg border border-secondary overflow-hidden">
+              <button
+                onClick={() => toggleAxis(key)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-secondary/20 hover:bg-secondary/40 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold ${getAxisBarColor(axis.score)} text-white`}>
+                    {axis.score}
+                  </span>
+                  <span className="text-sm font-semibold text-primary">{t(AXIS_LABELS[key])}</span>
+                  <span className="text-xs text-tertiary">({t('axisWeight', { weight })})</span>
+                </div>
+                {isExpanded ? <ChevronUp className="w-4 h-4 text-fg-quaternary" /> : <ChevronDown className="w-4 h-4 text-fg-quaternary" />}
+              </button>
+              {isExpanded && (
+                <div className="p-4 space-y-2 bg-primary">
+                  {axis.subScores.map((sub) => (
+                    <div key={sub.id} className="flex items-center gap-3">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getSubScoreStatusBg(sub.status)}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-primary">
+                            {sub.id}: {sub.label}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-quaternary">{Math.round(sub.weight * 100)}%</span>
+                            <span className={`text-xs font-bold tabular-nums ${getSubScoreStatusColor(sub.status)}`}>
+                              {sub.score}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="w-full h-1 bg-secondary rounded-full mt-1">
+                          <div
+                            className={`h-full rounded-full ${getSubScoreStatusBg(sub.status)}`}
+                            style={{ width: `${sub.score}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-tertiary mt-0.5 truncate" title={sub.explanation}>
+                          {sub.explanation}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps) {
+  const t = useTranslations('onsite');
   useEscapeClose(onClose, isOpen);
 
   if (!isOpen || !page) return null;
@@ -303,11 +498,20 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
                 </a>
               </div>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
-                {page.onpageScore != null && (
+                {page.pageScore ? (
+                  <>
+                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${getGradeBg(page.pageScore.grade)}`}>
+                      {page.pageScore.grade}
+                    </span>
+                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold tabular-nums ${getScoreBg(page.pageScore.composite)}`}>
+                      {page.pageScore.composite}/100
+                    </span>
+                  </>
+                ) : page.onpageScore != null ? (
                   <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${getScoreBg(page.onpageScore)}`}>
-                    Score: {page.onpageScore}
+                    {t('scoreValue', { score: page.onpageScore })}
                   </span>
-                )}
+                ) : null}
                 <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${getStatusBg(page.statusCode)}`}>
                   HTTP {page.statusCode}
                 </span>
@@ -330,11 +534,11 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
                 )}
                 {issues.length === 0 ? (
                   <span className="inline-flex items-center gap-1 text-sm text-utility-success-600">
-                    <CheckCircle className="w-4 h-4" /> No issues
+                    <CheckCircle className="w-4 h-4" /> {t('noIssues')}
                   </span>
                 ) : (
                   <span className="text-sm text-tertiary">
-                    {issues.length} issue{issues.length !== 1 ? "s" : ""}
+                    {t('issueCount', { count: issues.length })}
                   </span>
                 )}
               </div>
@@ -345,21 +549,24 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
               iconLeading={XClose}
               onClick={onClose}
             >
-              Close
+              {t('close')}
             </Button>
           </div>
 
           {/* Content */}
           <div className="p-6 space-y-6">
+            {/* Page Score Breakdown */}
+            {page.pageScore && <PageScoreBreakdown pageScore={page.pageScore} />}
+
             {/* Issues Section */}
             {issues.length > 0 && (
               <div>
-                <SectionHeader icon={AlertCircle} title={`Issues (${issues.length})`} />
+                <SectionHeader icon={AlertCircle} title={t('issuesWithCount', { count: issues.length })} />
                 <div className="space-y-4">
                   {criticalIssues.length > 0 && (
                     <div>
                       <p className="text-xs font-medium text-utility-error-600 mb-1.5">
-                        Critical ({criticalIssues.length})
+                        {t('criticalWithCount', { count: criticalIssues.length })}
                       </p>
                       <div className="space-y-1">
                         {criticalIssues.map((issue, idx) => (
@@ -377,7 +584,7 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
                   {warningIssues.length > 0 && (
                     <div>
                       <p className="text-xs font-medium text-utility-warning-600 mb-1.5">
-                        Warnings ({warningIssues.length})
+                        {t('warningsWithCount', { count: warningIssues.length })}
                       </p>
                       <div className="space-y-1">
                         {warningIssues.map((issue, idx) => (
@@ -395,7 +602,7 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
                   {recIssues.length > 0 && (
                     <div>
                       <p className="text-xs font-medium text-utility-blue-600 mb-1.5">
-                        Recommendations ({recIssues.length})
+                        {t('recommendationsWithCount', { count: recIssues.length })}
                       </p>
                       <div className="space-y-1">
                         {recIssues.map((issue, idx) => (
@@ -417,20 +624,20 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
             {/* SEO Meta */}
             {(page.title || page.metaDescription || page.h1 || page.canonical) && (
               <div>
-                <SectionHeader icon={Globe01} title="SEO Meta" />
+                <SectionHeader icon={Globe01} title={t('seoMeta')} />
                 <div className="rounded-lg border border-secondary bg-secondary/20 p-4 space-y-3">
                   {page.title && (
                     <div>
-                      <span className="text-[10px] font-medium text-tertiary uppercase tracking-wider block mb-0.5">Title</span>
+                      <span className="text-[10px] font-medium text-tertiary uppercase tracking-wider block mb-0.5">{t('title')}</span>
                       <p className="text-sm text-primary">{page.title}</p>
-                      <span className="text-[10px] text-quaternary">{page.title.length} chars</span>
+                      <span className="text-[10px] text-quaternary">{t('charCount', { count: page.title.length })}</span>
                     </div>
                   )}
                   {page.metaDescription && (
                     <div>
-                      <span className="text-[10px] font-medium text-tertiary uppercase tracking-wider block mb-0.5">Meta Description</span>
+                      <span className="text-[10px] font-medium text-tertiary uppercase tracking-wider block mb-0.5">{t('metaDescription')}</span>
                       <p className="text-sm text-primary">{page.metaDescription}</p>
-                      <span className="text-[10px] text-quaternary">{page.metaDescription.length} chars</span>
+                      <span className="text-[10px] text-quaternary">{t('charCount', { count: page.metaDescription.length })}</span>
                     </div>
                   )}
                   {page.h1 && (
@@ -441,7 +648,7 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
                   )}
                   {page.canonical && (
                     <div>
-                      <span className="text-[10px] font-medium text-tertiary uppercase tracking-wider block mb-0.5">Canonical</span>
+                      <span className="text-[10px] font-medium text-tertiary uppercase tracking-wider block mb-0.5">{t('canonical')}</span>
                       <a href={page.canonical} target="_blank" rel="noopener noreferrer" className="text-sm text-utility-blue-600 hover:underline break-all">
                         {page.canonical}
                       </a>
@@ -453,30 +660,30 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
 
             {/* Content Metrics */}
             <div>
-              <SectionHeader icon={Type01} title="Content" />
+              <SectionHeader icon={Type01} title={t('content')} />
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <MetricBox label="Word Count" value={page.wordCount.toLocaleString()} warn={page.wordCount < 300} />
+                <MetricBox label={t('wordCount')} value={page.wordCount.toLocaleString()} warn={page.wordCount < 300} />
                 {page.pageSize != null && (
-                  <MetricBox label="Page Size" value={formatBytes(page.pageSize)} warn={page.pageSize > 3 * 1024 * 1024} />
+                  <MetricBox label={t('pageSize')} value={formatBytes(page.pageSize)} warn={page.pageSize > 3 * 1024 * 1024} />
                 )}
                 {page.plainTextRate != null && (
-                  <MetricBox label="Text/HTML Ratio" value={`${(page.plainTextRate * 100).toFixed(1)}%`} warn={page.plainTextRate < 0.1} />
+                  <MetricBox label={t('textHtmlRatio')} value={`${(page.plainTextRate * 100).toFixed(1)}%`} warn={page.plainTextRate < 0.1} />
                 )}
                 {page.totalDomSize != null && (
-                  <MetricBox label="DOM Size" value={page.totalDomSize.toLocaleString()} warn={page.totalDomSize > 1500} />
+                  <MetricBox label={t('domSize')} value={page.totalDomSize.toLocaleString()} warn={page.totalDomSize > 1500} />
                 )}
               </div>
 
               {/* Readability */}
               {page.readabilityScores && (
                 <div className="mt-3">
-                  <p className="text-[10px] font-medium text-tertiary uppercase tracking-wider mb-2">Readability Scores</p>
+                  <p className="text-[10px] font-medium text-tertiary uppercase tracking-wider mb-2">{t('readabilityScores')}</p>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    <MetricBox label="Flesch-Kincaid" value={page.readabilityScores.fleschKincaidIndex.toFixed(1)} />
-                    <MetricBox label="Coleman-Liau" value={page.readabilityScores.colemanLiauIndex.toFixed(1)} />
+                    <MetricBox label={t('fleschKincaid')} value={page.readabilityScores.fleschKincaidIndex.toFixed(1)} />
+                    <MetricBox label={t('colemanLiau')} value={page.readabilityScores.colemanLiauIndex.toFixed(1)} />
                     <MetricBox label="Dale-Chall" value={page.readabilityScores.daleChallIndex.toFixed(1)} />
                     <MetricBox label="SMOG" value={page.readabilityScores.smogIndex.toFixed(1)} />
-                    <MetricBox label="ARI" value={page.readabilityScores.automatedReadabilityIndex.toFixed(1)} />
+                    <MetricBox label={t('automatedReadability')} value={page.readabilityScores.automatedReadabilityIndex.toFixed(1)} />
                   </div>
                 </div>
               )}
@@ -484,10 +691,10 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
               {/* Content Consistency */}
               {page.contentConsistency && (
                 <div className="mt-3">
-                  <p className="text-[10px] font-medium text-tertiary uppercase tracking-wider mb-2">Content Consistency</p>
+                  <p className="text-[10px] font-medium text-tertiary uppercase tracking-wider mb-2">{t('contentConsistency')}</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <MetricBox label="Title to Content" value={`${(page.contentConsistency.titleToContent * 100).toFixed(0)}%`} warn={page.contentConsistency.titleToContent < 0.3} />
-                    <MetricBox label="Description to Content" value={`${(page.contentConsistency.descriptionToContent * 100).toFixed(0)}%`} warn={page.contentConsistency.descriptionToContent < 0.3} />
+                    <MetricBox label={t('titleToContent')} value={`${(page.contentConsistency.titleToContent * 100).toFixed(0)}%`} warn={page.contentConsistency.titleToContent < 0.3} />
+                    <MetricBox label={t('descriptionToContent')} value={`${(page.contentConsistency.descriptionToContent * 100).toFixed(0)}%`} warn={page.contentConsistency.descriptionToContent < 0.3} />
                   </div>
                 </div>
               )}
@@ -496,13 +703,13 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
             {/* Heading Structure — table format */}
             {page.htags && (page.htags.h1.length > 0 || page.htags.h2.length > 0) && (
               <div>
-                <SectionHeader icon={FileCode02} title="Heading Structure" />
+                <SectionHeader icon={FileCode02} title={t('headingStructure')} />
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-secondary">
                     <thead className="bg-secondary">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-quaternary uppercase w-16">Tag</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-quaternary uppercase">Content</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-quaternary uppercase w-16">{t('tagColumn')}</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-quaternary uppercase">{t('contentColumn')}</th>
                       </tr>
                     </thead>
                     <tbody className="bg-primary divide-y divide-secondary">
@@ -527,7 +734,7 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
                       {page.htags.h3 && page.htags.h3.length > 10 && (
                         <tr>
                           <td className="px-4 py-2 text-xs text-quaternary" />
-                          <td className="px-4 py-2 text-[10px] text-quaternary">+{page.htags.h3.length - 10} more H3 headings</td>
+                          <td className="px-4 py-2 text-[10px] text-quaternary">{t('moreH3Headings', { count: page.htags.h3.length - 10 })}</td>
                         </tr>
                       )}
                     </tbody>
@@ -539,28 +746,28 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
             {/* Links & Images */}
             {(page.internalLinksCount != null || page.externalLinksCount != null || page.imagesCount != null) && (
               <div>
-                <SectionHeader icon={Link01} title="Links & Images" />
+                <SectionHeader icon={Link01} title={t('linksAndImages')} />
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {page.internalLinksCount != null && (
-                    <MetricBox label="Internal Links" value={page.internalLinksCount} />
+                    <MetricBox label={t('internalLinksLabel')} value={page.internalLinksCount} />
                   )}
                   {page.externalLinksCount != null && (
-                    <MetricBox label="External Links" value={page.externalLinksCount} />
+                    <MetricBox label={t('externalLinksLabel')} value={page.externalLinksCount} />
                   )}
                   {page.inboundLinksCount != null && (
-                    <MetricBox label="Inbound Links" value={page.inboundLinksCount} />
+                    <MetricBox label={t('inboundLinksLabel')} value={page.inboundLinksCount} />
                   )}
                   {page.imagesCount != null && (
-                    <MetricBox label="Total Images" value={page.imagesCount} />
+                    <MetricBox label={t('imagesLabel')} value={page.imagesCount} />
                   )}
                   {page.imagesCount != null && page.imagesMissingAlt != null && (
                     <MetricBox
-                      label="With Alt"
+                      label={t('withAlt')}
                       value={`${page.imagesCount - page.imagesMissingAlt} / ${page.imagesCount}`}
                     />
                   )}
                   {page.imagesMissingAlt != null && (
-                    <MetricBox label="Missing Alt" value={page.imagesMissingAlt} warn={page.imagesMissingAlt > 0} />
+                    <MetricBox label={t('missingAlt')} value={page.imagesMissingAlt} warn={page.imagesMissingAlt > 0} />
                   )}
                 </div>
 
@@ -568,15 +775,15 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
                 {page.imageAlts && page.imageAlts.length > 0 && (
                   <details className="mt-3">
                     <summary className="cursor-pointer text-xs font-medium text-tertiary hover:text-primary transition-colors">
-                      Image Details ({page.imageAlts.length})
+                      {t('imageDetails')} ({page.imageAlts.length})
                     </summary>
                     <div className="mt-2 overflow-x-auto">
                       <table className="min-w-full divide-y divide-secondary">
                         <thead className="bg-secondary">
                           <tr>
-                            <th className="px-3 py-2 text-left text-[10px] font-medium text-quaternary uppercase">File</th>
-                            <th className="px-3 py-2 text-left text-[10px] font-medium text-quaternary uppercase">Alt Text</th>
-                            <th className="px-3 py-2 text-center text-[10px] font-medium text-quaternary uppercase">Keyword</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-medium text-quaternary uppercase">{t('fileColumn')}</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-medium text-quaternary uppercase">{t('colAltText')}</th>
+                            <th className="px-3 py-2 text-center text-[10px] font-medium text-quaternary uppercase">{t('keywordColumn')}</th>
                           </tr>
                         </thead>
                         <tbody className="bg-primary divide-y divide-secondary">
@@ -589,7 +796,7 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
                                 {img.hasAlt ? (
                                   <span className="text-primary">{img.alt}</span>
                                 ) : (
-                                  <span className="text-utility-warning-600 italic">Missing alt text</span>
+                                  <span className="text-utility-warning-600 italic">{t('missingAltText')}</span>
                                 )}
                               </td>
                               <td className="px-3 py-2 text-center">
@@ -614,11 +821,11 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
             {/* Core Web Vitals — above Performance/Lighthouse */}
             {page.coreWebVitals && (
               <div>
-                <SectionHeader icon={Zap} title="Core Web Vitals" />
+                <SectionHeader icon={Zap} title={t('coreWebVitals')} />
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <CwvCard
-                    label="LCP"
-                    fullName="Largest Contentful Paint"
+                    label={t('labelLcp')}
+                    fullName={t('metricLcp')}
                     value={fmtCwv(page.coreWebVitals.largestContentfulPaint).val}
                     unit={fmtCwv(page.coreWebVitals.largestContentfulPaint).unit}
                     target="\u2264 2.5s"
@@ -626,8 +833,8 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
                     rawValue={page.coreWebVitals.largestContentfulPaint}
                   />
                   <CwvCard
-                    label="FID / TBT"
-                    fullName="First Input Delay"
+                    label={t('labelFidTbt')}
+                    fullName={t('metricFid')}
                     value={fmtCwv(page.coreWebVitals.firstInputDelay).val}
                     unit={fmtCwv(page.coreWebVitals.firstInputDelay).unit}
                     target="\u2264 100ms"
@@ -635,8 +842,8 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
                     rawValue={page.coreWebVitals.firstInputDelay}
                   />
                   <CwvCard
-                    label="TTI"
-                    fullName="Time to Interactive"
+                    label={t('labelTti')}
+                    fullName={t('metricTti')}
                     value={fmtCwv(page.coreWebVitals.timeToInteractive).val}
                     unit={fmtCwv(page.coreWebVitals.timeToInteractive).unit}
                     target="\u2264 3.8s"
@@ -645,8 +852,8 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
                   />
                   {page.coreWebVitals.cumulativeLayoutShift != null && (
                     <CwvCard
-                      label="CLS"
-                      fullName="Cumulative Layout Shift"
+                      label={t('labelClsShort')}
+                      fullName={t('metricCls')}
                       value={page.coreWebVitals.cumulativeLayoutShift.toFixed(3)}
                       unit=""
                       target="\u2264 0.1"
@@ -658,24 +865,24 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
                 {/* Additional metrics */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
                   {page.loadTime != null && (
-                    <MetricBox label="Load Time" value={`${page.loadTime.toFixed(2)}s`} warn={page.loadTime > 3} />
+                    <MetricBox label={t('loadTimeLabel')} value={`${page.loadTime.toFixed(2)}s`} warn={page.loadTime > 3} />
                   )}
-                  <MetricBox label="DOM Complete" value={`${page.coreWebVitals.domComplete.toFixed(2)}s`} warn={page.coreWebVitals.domComplete > 4} />
+                  <MetricBox label={t('labelDomComplete')} value={`${page.coreWebVitals.domComplete.toFixed(2)}s`} warn={page.coreWebVitals.domComplete > 4} />
                 </div>
                 {/* Status guide */}
                 <div className="flex items-center gap-6 mt-3 pt-2 border-t border-secondary">
-                  <span className="text-[10px] text-quaternary uppercase tracking-wider">Status:</span>
+                  <span className="text-[10px] text-quaternary uppercase tracking-wider">{t('statusGuide')}:</span>
                   <div className="flex items-center gap-1.5">
                     <CwvStatusDot status="good" />
-                    <span className="text-[10px] text-tertiary">Good</span>
+                    <span className="text-[10px] text-tertiary">{t('statusGood')}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <CwvStatusDot status="needs-improvement" />
-                    <span className="text-[10px] text-tertiary">Needs Improvement</span>
+                    <span className="text-[10px] text-tertiary">{t('statusNeedsImprovement')}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <CwvStatusDot status="poor" />
-                    <span className="text-[10px] text-tertiary">Poor</span>
+                    <span className="text-[10px] text-tertiary">{t('statusPoor')}</span>
                   </div>
                 </div>
               </div>
@@ -684,9 +891,9 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
             {/* Performance (load time only, when no CWV) */}
             {!page.coreWebVitals && page.loadTime != null && (
               <div>
-                <SectionHeader icon={Zap} title="Performance" />
+                <SectionHeader icon={Zap} title={t('performance')} />
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <MetricBox label="Load Time" value={`${page.loadTime.toFixed(2)}s`} warn={page.loadTime > 3} />
+                  <MetricBox label={t('loadTimeLabel')} value={`${page.loadTime.toFixed(2)}s`} warn={page.loadTime > 3} />
                 </div>
               </div>
             )}
@@ -694,25 +901,25 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
             {/* Lighthouse Scores */}
             {page.lighthouseScores && (
               <div>
-                <SectionHeader icon={BarChart01} title="Lighthouse Scores" />
+                <SectionHeader icon={BarChart01} title={t('lighthouseScores')} />
                 <div className="flex items-center justify-around py-3 rounded-lg border border-secondary bg-secondary/10">
-                  <LhScoreCircle score={page.lighthouseScores.performance} label="Performance" />
-                  <LhScoreCircle score={page.lighthouseScores.accessibility} label="Accessibility" />
-                  <LhScoreCircle score={page.lighthouseScores.bestPractices} label="Best Practices" />
-                  <LhScoreCircle score={page.lighthouseScores.seo} label="SEO" />
+                  <LhScoreCircle score={page.lighthouseScores.performance} label={t('labelPerformance')} />
+                  <LhScoreCircle score={page.lighthouseScores.accessibility} label={t('labelAccessibility')} />
+                  <LhScoreCircle score={page.lighthouseScores.bestPractices} label={t('labelBestPractices')} />
+                  <LhScoreCircle score={page.lighthouseScores.seo} label={t('labelSeo')} />
                 </div>
                 <div className="flex items-center justify-center gap-6 mt-2">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-utility-success-500" />
-                    <span className="text-[10px] text-tertiary">90-100: Good</span>
+                    <span className="text-[10px] text-tertiary">{t('scoreGuideGood')}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-utility-warning-500" />
-                    <span className="text-[10px] text-tertiary">50-89: Needs Improvement</span>
+                    <span className="text-[10px] text-tertiary">{t('scoreGuideNeedsImprovement')}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-utility-error-500" />
-                    <span className="text-[10px] text-tertiary">0-49: Poor</span>
+                    <span className="text-[10px] text-tertiary">{t('scoreGuidePoor')}</span>
                   </div>
                 </div>
               </div>
@@ -721,24 +928,24 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
             {/* Technical */}
             {(page.scriptsCount != null || page.cacheControl || page.resourceErrors) && (
               <div>
-                <SectionHeader icon={Clock} title="Technical" />
+                <SectionHeader icon={Clock} title={t('technical')} />
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {page.scriptsCount != null && (
-                    <MetricBox label="Scripts" value={page.scriptsCount} />
+                    <MetricBox label={t('scriptsLabel')} value={page.scriptsCount} />
                   )}
                   {page.renderBlockingScriptsCount != null && (
-                    <MetricBox label="Render Blocking" value={page.renderBlockingScriptsCount} warn={page.renderBlockingScriptsCount > 0} />
+                    <MetricBox label={t('renderBlockingLabel')} value={page.renderBlockingScriptsCount} warn={page.renderBlockingScriptsCount > 0} />
                   )}
                   {page.cacheControl && (
                     <>
-                      <MetricBox label="Cacheable" value={page.cacheControl.cachable ? "Yes" : "No"} warn={!page.cacheControl.cachable} />
-                      <MetricBox label="Cache TTL" value={page.cacheControl.ttl > 0 ? `${page.cacheControl.ttl}s` : "None"} />
+                      <MetricBox label={t('cacheableLabel')} value={page.cacheControl.cachable ? t('cacheYes') : t('cacheNo')} warn={!page.cacheControl.cachable} />
+                      <MetricBox label={t('cacheTtlLabel')} value={page.cacheControl.ttl > 0 ? `${page.cacheControl.ttl}s` : t('noneValue')} />
                     </>
                   )}
                   {page.resourceErrors && (
                     <>
-                      <MetricBox label="Resource Errors" value={page.resourceErrors.errorCount} warn={page.resourceErrors.errorCount > 0} />
-                      <MetricBox label="Resource Warnings" value={page.resourceErrors.warningCount} warn={page.resourceErrors.warningCount > 0} />
+                      <MetricBox label={t('resourceErrorsLabel')} value={page.resourceErrors.errorCount} warn={page.resourceErrors.errorCount > 0} />
+                      <MetricBox label={t('resourceWarningsLabel')} value={page.resourceErrors.warningCount} warn={page.resourceErrors.warningCount > 0} />
                     </>
                   )}
                 </div>
@@ -748,56 +955,56 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
             {/* Social & Flags */}
             {(page.socialMediaTags || page.brokenLinks || page.brokenResources || page.duplicateTitle || page.duplicateDescription || page.duplicateContent) && (
               <div>
-                <SectionHeader icon={ShieldTick} title="Status Flags" />
+                <SectionHeader icon={ShieldTick} title={t('statusFlags')} />
                 <div className="flex flex-wrap gap-2">
                   {page.socialMediaTags?.hasOgTags && (
                     <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-utility-success-50 text-utility-success-700">
-                      <CheckCircle className="w-3 h-3" /> OG Tags
+                      <CheckCircle className="w-3 h-3" /> {t('ogTags')}
                     </span>
                   )}
                   {page.socialMediaTags && !page.socialMediaTags.hasOgTags && (
                     <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-utility-warning-50 text-utility-warning-700">
-                      <AlertTriangle className="w-3 h-3" /> No OG Tags
+                      <AlertTriangle className="w-3 h-3" /> {t('noOgTags')}
                     </span>
                   )}
                   {page.socialMediaTags?.hasTwitterCard && (
                     <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-utility-success-50 text-utility-success-700">
-                      <CheckCircle className="w-3 h-3" /> Twitter Card
+                      <CheckCircle className="w-3 h-3" /> {t('twitterCard')}
                     </span>
                   )}
                   {page.socialMediaTags && !page.socialMediaTags.hasTwitterCard && (
                     <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-utility-warning-50 text-utility-warning-700">
-                      <AlertTriangle className="w-3 h-3" /> No Twitter Card
+                      <AlertTriangle className="w-3 h-3" /> {t('noTwitterCard')}
                     </span>
                   )}
                   {page.brokenLinks && (
                     <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-utility-error-50 text-utility-error-700">
-                      <AlertCircle className="w-3 h-3" /> Broken Links
+                      <AlertCircle className="w-3 h-3" /> {t('brokenLinks')}
                     </span>
                   )}
                   {page.brokenResources && (
                     <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-utility-error-50 text-utility-error-700">
-                      <AlertCircle className="w-3 h-3" /> Broken Resources
+                      <AlertCircle className="w-3 h-3" /> {t('brokenResources')}
                     </span>
                   )}
                   {page.duplicateTitle && (
                     <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-utility-warning-50 text-utility-warning-700">
-                      <AlertTriangle className="w-3 h-3" /> Duplicate Title
+                      <AlertTriangle className="w-3 h-3" /> {t('duplicateTitle')}
                     </span>
                   )}
                   {page.duplicateDescription && (
                     <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-utility-warning-50 text-utility-warning-700">
-                      <AlertTriangle className="w-3 h-3" /> Duplicate Description
+                      <AlertTriangle className="w-3 h-3" /> {t('duplicateDescription')}
                     </span>
                   )}
                   {page.duplicateContent && (
                     <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-utility-error-50 text-utility-error-700">
-                      <AlertCircle className="w-3 h-3" /> Duplicate Content
+                      <AlertCircle className="w-3 h-3" /> {t('duplicateContent')}
                     </span>
                   )}
                   {!page.brokenLinks && !page.brokenResources && !page.duplicateTitle && !page.duplicateDescription && !page.duplicateContent && (
                     <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-utility-success-50 text-utility-success-700">
-                      <CheckCircle className="w-3 h-3" /> No duplicate/broken flags
+                      <CheckCircle className="w-3 h-3" /> {t('noDuplicateFlags')}
                     </span>
                   )}
                 </div>

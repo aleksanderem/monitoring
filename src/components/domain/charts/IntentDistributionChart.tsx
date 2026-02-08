@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
@@ -17,12 +18,12 @@ const INTENT_COLORS: Record<string, string> = {
     unknown: "#9ca3af",
 };
 
-const INTENT_LABELS: Record<string, string> = {
-    commercial: "Commercial",
-    informational: "Informational",
-    navigational: "Navigational",
-    transactional: "Transactional",
-    unknown: "Unknown",
+const INTENT_LABEL_KEYS: Record<string, string> = {
+    commercial: "intentCommercial",
+    informational: "intentInformational",
+    navigational: "intentNavigational",
+    transactional: "intentTransactional",
+    unknown: "intentUnknown",
 };
 
 function formatNumber(num: number): string {
@@ -32,6 +33,7 @@ function formatNumber(num: number): string {
 }
 
 export function IntentDistributionChart({ domainId }: IntentDistributionChartProps) {
+    const t = useTranslations('keywords');
     const intentData = useQuery(api.keywordMap_queries.getIntentDistribution, { domainId });
 
     if (intentData === undefined) {
@@ -46,7 +48,7 @@ export function IntentDistributionChart({ domainId }: IntentDistributionChartPro
     const chartData = Object.entries(intentData)
         .filter(([, data]) => data.count > 0)
         .map(([intent, data]) => ({
-            name: INTENT_LABELS[intent] || intent,
+            name: INTENT_LABEL_KEYS[intent] ? t(INTENT_LABEL_KEYS[intent]) : intent,
             value: data.count,
             volume: data.totalVolume,
             avgPosition: data.avgPosition,
@@ -56,7 +58,7 @@ export function IntentDistributionChart({ domainId }: IntentDistributionChartPro
     if (chartData.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-secondary bg-primary p-6 py-12">
-                <p className="text-sm text-tertiary">No intent data available</p>
+                <p className="text-sm text-tertiary">{t('noIntentDataAvailable')}</p>
             </div>
         );
     }
@@ -64,8 +66,8 @@ export function IntentDistributionChart({ domainId }: IntentDistributionChartPro
     return (
         <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
             <div>
-                <h3 className="text-md font-semibold text-primary">Search Intent Distribution</h3>
-                <p className="text-sm text-tertiary">Breakdown of keywords by user search intent — informational, commercial, transactional, or navigational.</p>
+                <h3 className="text-md font-semibold text-primary">{t('searchIntentDistribution')}</h3>
+                <p className="text-sm text-tertiary">{t('searchIntentDistributionDescription')}</p>
             </div>
 
             <div className="flex items-center gap-6">
@@ -78,7 +80,7 @@ export function IntentDistributionChart({ domainId }: IntentDistributionChartPro
                         </Pie>
                         <Tooltip
                             formatter={(value: any, name: any, props: any) => [
-                                `${value} keywords (${formatNumber(props.payload.volume)} vol)`,
+                                t('intentTooltip', { count: value, volume: formatNumber(props.payload.volume) }),
                                 name,
                             ]}
                         />
@@ -94,8 +96,8 @@ export function IntentDistributionChart({ domainId }: IntentDistributionChartPro
                             </div>
                             <div className="flex items-center gap-3">
                                 <span className="text-sm font-medium text-primary">{item.value}</span>
-                                <span className="text-xs text-tertiary">{formatNumber(item.volume)} vol</span>
-                                <span className="text-xs text-quaternary">avg #{item.avgPosition}</span>
+                                <span className="text-xs text-tertiary">{formatNumber(item.volume)} {t('vol')}</span>
+                                <span className="text-xs text-quaternary">{t('avgHash', { position: item.avgPosition })}</span>
                             </div>
                         </div>
                     ))}

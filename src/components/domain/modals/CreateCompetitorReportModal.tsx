@@ -11,6 +11,7 @@ import { Badge } from "@/components/base/badges/badges";
 import { FileSearch02, CheckCircle } from "@untitledui/icons";
 import { toast } from "sonner";
 import { Heading } from "react-aria-components";
+import { useTranslations } from "next-intl";
 
 interface CreateCompetitorReportModalProps {
   domainId: Id<"domains">;
@@ -29,6 +30,8 @@ export function CreateCompetitorReportModal({
   onClose,
   onReportCreated,
 }: CreateCompetitorReportModalProps) {
+  const t = useTranslations("competitors");
+  const tc = useTranslations("common");
   const [selectedCompetitors, setSelectedCompetitors] = useState<Set<string>>(new Set());
   const [isCreating, setIsCreating] = useState(false);
 
@@ -49,7 +52,7 @@ export function CreateCompetitorReportModal({
     } else {
       // Limit to 3 competitors max
       if (newSelected.size >= 3) {
-        toast.error("Maximum 3 competitors can be selected");
+        toast.error(t("maxCompetitorsSelected"));
         return;
       }
       newSelected.add(key);
@@ -60,7 +63,7 @@ export function CreateCompetitorReportModal({
 
   const handleCreateReport = async () => {
     if (selectedCompetitors.size === 0) {
-      toast.error("Please select at least 1 competitor");
+      toast.error(t("selectAtLeastOneCompetitor"));
       return;
     }
 
@@ -89,12 +92,12 @@ export function CreateCompetitorReportModal({
         userPage,
       });
 
-      toast.success(`Report created! Analyzing ${selectedCompetitors.size} competitors...`);
+      toast.success(t("reportCreatedAnalyzing", { count: selectedCompetitors.size }));
       setSelectedCompetitors(new Set());
       onClose();
       onReportCreated?.();
     } catch (error: any) {
-      toast.error(error.message || "Failed to create report");
+      toast.error(error.message || t("reportCreateFailed"));
     } finally {
       setIsCreating(false);
     }
@@ -120,26 +123,26 @@ export function CreateCompetitorReportModal({
             {/* Header */}
             <div className="border-b border-secondary px-6 py-4">
               <Heading slot="title" className="text-lg font-semibold text-primary">
-                Create Competitor Analysis Report
+                {t("createReportTitle")}
               </Heading>
               <p className="mt-1 text-sm text-tertiary">
-                For keyword: <span className="font-medium text-primary">{keyword}</span>
+                {t("createReportForKeyword")}: <span className="font-medium text-primary">{keyword}</span>
               </p>
               <p className="mt-1 text-xs text-tertiary">
-                Select 1-3 competitors from SERP to analyze what makes them rank well
+                {t("createReportSelectHint")}
               </p>
             </div>
 
             {/* Content */}
             <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
               {!serpResults ? (
-                <div className="text-center py-8 text-tertiary">Loading SERP results...</div>
+                <div className="text-center py-8 text-tertiary">{t("createReportLoadingSerp")}</div>
               ) : serpResults.results.length === 0 ? (
                 <div className="text-center py-12">
                   <FileSearch02 className="h-12 w-12 text-quaternary mx-auto mb-4" />
-                  <p className="text-tertiary mb-2">No SERP results found</p>
+                  <p className="text-tertiary mb-2">{t("createReportNoSerpResults")}</p>
                   <p className="text-sm text-quaternary">
-                    Fetch SERP data for this keyword first
+                    {t("createReportFetchSerpFirst")}
                   </p>
                 </div>
               ) : (
@@ -189,7 +192,7 @@ export function CreateCompetitorReportModal({
                                   {result.domain}
                                 </span>
                                 {result.isFeaturedSnippet && (
-                                  <Badge color="brand" size="sm">Featured Snippet</Badge>
+                                  <Badge color="brand" size="sm">{t("featuredSnippetBadge")}</Badge>
                                 )}
                               </div>
 
@@ -228,13 +231,13 @@ export function CreateCompetitorReportModal({
               <div className="text-sm text-tertiary">
                 {selectedCompetitors.size > 0 && (
                   <span className="font-medium text-primary">
-                    {selectedCompetitors.size} competitor{selectedCompetitors.size > 1 ? 's' : ''} selected
+                    {t("createReportCompetitorsSelected", { count: selectedCompetitors.size })}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-3">
                 <Button color="secondary" size="md" onClick={onClose}>
-                  Cancel
+                  {tc("cancel")}
                 </Button>
                 <Button
                   color="primary"
@@ -242,7 +245,7 @@ export function CreateCompetitorReportModal({
                   onClick={handleCreateReport}
                   isDisabled={selectedCompetitors.size === 0 || isCreating}
                 >
-                  {isCreating ? "Creating..." : "Create Report"}
+                  {isCreating ? t("createReportCreating") : t("createReportButton")}
                 </Button>
               </div>
             </div>

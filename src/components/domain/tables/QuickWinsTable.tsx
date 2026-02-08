@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useQuery } from "convex/react";
 import {
     ChevronUp,
@@ -105,6 +106,7 @@ const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = {
 };
 
 export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
+    const t = useTranslations('onsite');
     const quickWins = useQuery(api.keywordMap_queries.getQuickWins, { domainId, limit: 200 });
 
     const [search, setSearch] = useState("");
@@ -239,12 +241,12 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
                     <div className="flex items-center gap-2">
                         <Zap className="h-5 w-5 text-fg-warning-primary" />
                         <div>
-                            <h3 className="text-md font-semibold text-primary">Quick Wins</h3>
-                            <p className="text-sm text-tertiary">Keywords in striking distance — low difficulty, decent volume, positions 4-30</p>
+                            <h3 className="text-md font-semibold text-primary">{t('quickWins')}</h3>
+                            <p className="text-sm text-tertiary">{t('quickWinsDescription')}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-tertiary">
-                        {quickWins.length} keywords
+                        {quickWins.length} {t('keywords')}
                     </div>
                 </div>
 
@@ -255,7 +257,7 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
                         <SearchLg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-fg-quaternary" />
                         <input
                             type="text"
-                            placeholder="Search keywords..."
+                            placeholder={t('searchKeywords')}
                             value={search}
                             onChange={(e) => { setSearch(e.target.value); resetPage(); }}
                             className="w-full rounded-lg border border-primary bg-primary pl-9 pr-3 py-2 text-sm text-primary placeholder:text-placeholder focus:outline-none focus:ring-2 focus:ring-brand-600"
@@ -267,7 +269,7 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
                         className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${showFilters || hasActiveFilters ? "border-brand-600 bg-utility-brand-50 text-brand-600" : "border-primary bg-primary text-tertiary hover:bg-secondary"}`}
                     >
                         <FilterLines className="h-4 w-4" />
-                        Filters
+                        {t('filters')}
                         {hasActiveFilters && !showFilters && (
                             <span className="ml-1 rounded-full bg-brand-600 px-1.5 text-[10px] font-medium text-white">
                                 {[positionFilter !== "all", difficultyFilter !== "all", intentFilter !== "all"].filter(Boolean).length}
@@ -282,7 +284,7 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
                             className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${showColumnPicker ? "border-brand-600 bg-utility-brand-50 text-brand-600" : "border-primary bg-primary text-tertiary hover:bg-secondary"}`}
                         >
                             <Settings01 className="h-4 w-4" />
-                            Columns
+                            {t('columns')}
                         </button>
                         {showColumnPicker && (
                             <div className="absolute right-0 top-full z-10 mt-2 w-48 rounded-lg border border-secondary bg-primary p-2 shadow-lg">
@@ -312,7 +314,7 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
                             className="flex items-center gap-1 text-sm text-tertiary hover:text-primary"
                         >
                             <XClose className="h-3.5 w-3.5" />
-                            Clear
+                            {t('clear')}
                         </button>
                     )}
                 </div>
@@ -330,11 +332,11 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
                 {filteredData.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12">
                         <Zap className="h-8 w-8 text-fg-quaternary mb-3" />
-                        <p className="text-sm font-medium text-primary mb-1">No quick wins found</p>
+                        <p className="text-sm font-medium text-primary mb-1">{t('noQuickWinsFound')}</p>
                         <p className="text-xs text-tertiary text-center max-w-xs">
                             {hasActiveFilters
-                                ? "Try adjusting your filters to see more results."
-                                : "Quick wins are keywords in positions 4-30 with difficulty below 50 and monthly volume of 100+."}
+                                ? t('tryAdjustingFilters')
+                                : t('noQuickWinsDescription')}
                         </p>
                     </div>
                 ) : (
@@ -345,40 +347,40 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
                                     <tr className="border-b border-secondary">
                                         {columnVisibility.keyword && (
                                             <th className="cursor-pointer px-3 py-2.5 font-medium text-tertiary" onClick={() => handleSort("keyword")}>
-                                                <div className="flex items-center gap-1">Keyword <SortIcon column="keyword" /></div>
+                                                <div className="flex items-center gap-1">{t('quickWinColKeyword')} <SortIcon column="keyword" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.position && (
                                             <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("position")}>
-                                                <div className="flex items-center justify-end gap-1">Position <SortIcon column="position" /></div>
+                                                <div className="flex items-center justify-end gap-1">{t('quickWinColPosition')} <SortIcon column="position" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.volume && (
                                             <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("searchVolume")}>
-                                                <div className="flex items-center justify-end gap-1">Volume <SortIcon column="searchVolume" /></div>
+                                                <div className="flex items-center justify-end gap-1">{t('quickWinColVolume')} <SortIcon column="searchVolume" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.difficulty && (
                                             <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("difficulty")}>
-                                                <div className="flex items-center justify-end gap-1">Difficulty <SortIcon column="difficulty" /></div>
+                                                <div className="flex items-center justify-end gap-1">{t('quickWinColDifficulty')} <SortIcon column="difficulty" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.cpc && (
                                             <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("cpc")}>
-                                                <div className="flex items-center justify-end gap-1">CPC <SortIcon column="cpc" /></div>
+                                                <div className="flex items-center justify-end gap-1">{t('quickWinColCpc')} <SortIcon column="cpc" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.intent && (
-                                            <th className="px-3 py-2.5 text-center font-medium text-tertiary">Intent</th>
+                                            <th className="px-3 py-2.5 text-center font-medium text-tertiary">{t('quickWinColIntent')}</th>
                                         )}
                                         {columnVisibility.referringDomains && (
                                             <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("referringDomains")}>
-                                                <div className="flex items-center justify-end gap-1">Ref. Domains <SortIcon column="referringDomains" /></div>
+                                                <div className="flex items-center justify-end gap-1">{t('quickWinColRefDomains')} <SortIcon column="referringDomains" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.score && (
                                             <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("quickWinScore")}>
-                                                <div className="flex items-center justify-end gap-1">Score <SortIcon column="quickWinScore" /></div>
+                                                <div className="flex items-center justify-end gap-1">{t('quickWinColScore')} <SortIcon column="quickWinScore" /></div>
                                             </th>
                                         )}
                                     </tr>
@@ -473,7 +475,7 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
                         {totalPages > 1 && (
                             <div className="flex items-center justify-between pt-2">
                                 <p className="text-sm text-tertiary">
-                                    Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filteredData.length)} of {filteredData.length}
+                                    {t('showingRange', { start: page * PAGE_SIZE + 1, end: Math.min((page + 1) * PAGE_SIZE, filteredData.length), total: filteredData.length })}
                                 </p>
                                 <div className="flex items-center gap-1">
                                     <button

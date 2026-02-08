@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 interface CoreWebVitalsCardProps {
   vitals?: {
     largestContentfulPaint: number;
@@ -57,14 +59,15 @@ function CwvMetricCard({ label, fullName, num, unit, target, metric, rawValue }:
 }
 
 export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
+  const t = useTranslations('onsite');
   if (!vitals) {
     return (
       <div className="bg-primary rounded-lg border border-secondary p-6">
         <h3 className="text-md font-semibold text-primary mb-4">
-          Core Web Vitals
+          {t('coreWebVitals')}
         </h3>
         <p className="text-sm text-tertiary">
-          No Core Web Vitals data available. Run an Instant Pages scan to get performance metrics.
+          {t('noCwvData')}
         </p>
       </div>
     );
@@ -79,28 +82,28 @@ export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
   const metrics = [
     {
       label: "LCP",
-      fullName: "Largest Contentful Paint",
+      fullName: t('metricLcp'),
       key: "lcp",
       value: vitals.largestContentfulPaint,
       target: "\u2264 2.5s",
     },
     {
       label: "FID",
-      fullName: "First Input Delay",
+      fullName: t('metricFid'),
       key: "fid",
       value: vitals.firstInputDelay,
       target: "\u2264 100ms",
     },
     {
       label: "TTI",
-      fullName: "Time to Interactive",
+      fullName: t('metricTti'),
       key: "tti",
       value: vitals.timeToInteractive,
       target: "\u2264 3.8s",
     },
     {
       label: "CLS",
-      fullName: "Cumulative Layout Shift",
+      fullName: t('metricCls'),
       key: "cls",
       value: vitals.cumulativeLayoutShift ?? 0,
       target: "\u2264 0.1",
@@ -111,7 +114,7 @@ export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
     <div className="bg-primary rounded-lg border border-secondary p-6">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-md font-semibold text-primary">
-          Core Web Vitals
+          {t('coreWebVitals')}
         </h3>
         <a
           href="https://web.dev/vitals/"
@@ -119,7 +122,7 @@ export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
           rel="noopener noreferrer"
           className="text-xs text-brand-600 hover:text-brand-700"
         >
-          Learn more
+          {t('learnMore')}
         </a>
       </div>
 
@@ -142,19 +145,19 @@ export function CoreWebVitalsCard({ vitals }: CoreWebVitalsCardProps) {
       </div>
 
       <div className="mt-6 pt-4 border-t border-secondary">
-        <p className="text-xs font-medium text-tertiary mb-2">Status Guide:</p>
+        <p className="text-xs font-medium text-tertiary mb-2">{t('statusGuide')}</p>
         <div className="flex flex-wrap gap-4 text-xs text-tertiary">
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-utility-success-500" />
-            Good
+            {t('statusGood')}
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-utility-warning-500" />
-            Needs Improvement
+            {t('statusNeedsImprovement')}
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-utility-error-500" />
-            Poor
+            {t('statusPoor')}
           </span>
         </div>
       </div>

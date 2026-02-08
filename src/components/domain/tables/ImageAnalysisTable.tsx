@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useMemo } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -11,6 +12,7 @@ interface ImageAnalysisTableProps {
 }
 
 export function ImageAnalysisTable({ domainId }: ImageAnalysisTableProps) {
+  const t = useTranslations('onsite');
   const imageData = useQuery(api.seoAudit_queries.getImageAnalysis, { domainId });
   const [missingAltOnly, setMissingAltOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -36,8 +38,8 @@ export function ImageAnalysisTable({ domainId }: ImageAnalysisTableProps) {
       {/* Summary */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4 text-sm text-tertiary">
-          <span>Total images: <strong className="text-primary">{imageData.totalImages}</strong></span>
-          <span>Missing alt: <strong className={imageData.missingAltCount > 0 ? "text-warning-600" : "text-success-600"}>{imageData.missingAltCount}</strong></span>
+          <span>{t('totalImages')}: <strong className="text-primary">{imageData.totalImages}</strong></span>
+          <span>{t('missingAltLabel')}: <strong className={imageData.missingAltCount > 0 ? "text-warning-600" : "text-success-600"}>{imageData.missingAltCount}</strong></span>
         </div>
         <label className="flex items-center gap-2 text-sm text-tertiary cursor-pointer">
           <input
@@ -46,7 +48,7 @@ export function ImageAnalysisTable({ domainId }: ImageAnalysisTableProps) {
             onChange={(e) => { setMissingAltOnly(e.target.checked); setCurrentPage(1); }}
             className="rounded"
           />
-          Missing alt only
+          {t('missingAltOnly')}
         </label>
       </div>
 
@@ -55,9 +57,9 @@ export function ImageAnalysisTable({ domainId }: ImageAnalysisTableProps) {
         <table className="min-w-full divide-y divide-secondary">
           <thead className="bg-secondary">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">Page URL</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">Image URL</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">Alt Text</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">{t('colPageUrl')}</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">{t('colImageUrl')}</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">{t('colAltText')}</th>
             </tr>
           </thead>
           <tbody className="bg-primary divide-y divide-secondary">
@@ -82,7 +84,7 @@ export function ImageAnalysisTable({ domainId }: ImageAnalysisTableProps) {
                   {img.missingAlt ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning-50 text-warning-700">
                       <AlertTriangle className="w-3 h-3" />
-                      Missing
+                      {t('missing')}
                     </span>
                   ) : (
                     <span className="text-tertiary max-w-[200px] truncate block" title={img.alt}>
@@ -95,7 +97,7 @@ export function ImageAnalysisTable({ domainId }: ImageAnalysisTableProps) {
           </tbody>
         </table>
         {paginatedImages.length === 0 && (
-          <div className="text-center py-8 text-sm text-tertiary">No images found</div>
+          <div className="text-center py-8 text-sm text-tertiary">{t('noImagesFound')}</div>
         )}
       </div>
 
@@ -109,7 +111,7 @@ export function ImageAnalysisTable({ domainId }: ImageAnalysisTableProps) {
               disabled={currentPage === 1}
               className="px-3 py-1 border border-secondary rounded-lg text-sm disabled:opacity-50 hover:bg-secondary"
             >
-              Previous
+              {t('previous')}
             </button>
             <span className="px-3 py-1 text-sm text-tertiary">{currentPage} / {totalPages}</span>
             <button
@@ -117,7 +119,7 @@ export function ImageAnalysisTable({ domainId }: ImageAnalysisTableProps) {
               disabled={currentPage === totalPages}
               className="px-3 py-1 border border-secondary rounded-lg text-sm disabled:opacity-50 hover:bg-secondary"
             >
-              Next
+              {t('next')}
             </button>
           </div>
         </div>

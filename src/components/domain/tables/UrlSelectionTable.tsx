@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
@@ -63,6 +64,7 @@ export function UrlSelectionTable({
   onToggleUrl,
   onToggleAll,
 }: UrlSelectionTableProps) {
+  const t = useTranslations('domains');
   const [sortColumn, setSortColumn] = useState<SortColumn>("url");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [searchQuery, setSearchQuery] = useState("");
@@ -202,7 +204,7 @@ export function UrlSelectionTable({
     return (
       <div className="rounded-lg border border-secondary bg-primary p-8 text-center">
         <Link01 className="mx-auto h-12 w-12 text-fg-quaternary" />
-        <p className="mt-4 text-sm text-tertiary">No URLs found</p>
+        <p className="mt-4 text-sm text-tertiary">{t('noUrlsFound')}</p>
       </div>
     );
   }
@@ -220,7 +222,7 @@ export function UrlSelectionTable({
           {/* Search */}
           <div className="w-64">
             <Input
-              placeholder="Search URLs..."
+              placeholder={t('searchUrls')}
               value={searchQuery}
               onChange={(value) => {
                 setSearchQuery(value);
@@ -237,7 +239,7 @@ export function UrlSelectionTable({
             iconLeading={FilterLines}
             onClick={() => setShowFilters(!showFilters)}
           >
-            Filters
+            {t('filters')}
           </Button>
 
           {/* Column picker */}
@@ -248,7 +250,7 @@ export function UrlSelectionTable({
               iconLeading={Settings01}
               onClick={() => setShowColumnPicker(!showColumnPicker)}
             >
-              Columns
+              {t('columns')}
             </Button>
             {showColumnPicker && (
               <div className="absolute right-0 top-full z-10 mt-2 w-56 rounded-lg border border-secondary bg-primary p-2 shadow-lg">
@@ -266,12 +268,12 @@ export function UrlSelectionTable({
                       />
                       <span className="text-primary">
                         {key === "url"
-                          ? "Full URL"
+                          ? t('colFullUrl')
                           : key === "domain"
-                            ? "Domain"
+                            ? t('colDomainHeader')
                             : key === "path"
-                              ? "Path"
-                              : "First Path Segment"}
+                              ? t('colPath')
+                              : t('colFirstPathSegment')}
                       </span>
                     </label>
                   ))}
@@ -284,8 +286,8 @@ export function UrlSelectionTable({
           {filteredAndSortedUrls.length > 0 && (
             <Button size="sm" color="secondary" onClick={handleToggleAllFiltered}>
               {filteredAndSortedUrls.every((url) => selectedUrls.has(url))
-                ? "Deselect All"
-                : "Select All"}
+                ? t('deselectAll')
+                : t('selectAll')}
             </Button>
           )}
         </div>
@@ -296,7 +298,7 @@ export function UrlSelectionTable({
         <div className="flex flex-col gap-3 rounded-lg border border-secondary bg-secondary/30 p-4">
           {/* Path segment filter with tags */}
           <div className="flex items-start gap-2">
-            <label className="text-sm font-medium text-secondary mt-2">Path:</label>
+            <label className="text-sm font-medium text-secondary mt-2">{t('pathLabel')}</label>
             <select
               value={pathFilterType}
               onChange={(e) => {
@@ -305,8 +307,8 @@ export function UrlSelectionTable({
               }}
               className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
             >
-              <option value="contains">contains</option>
-              <option value="not_contains">does not contain</option>
+              <option value="contains">{t('pathContains')}</option>
+              <option value="not_contains">{t('pathDoesNotContain')}</option>
             </select>
             <div className="flex-1">
               {/* Tags display */}
@@ -334,7 +336,7 @@ export function UrlSelectionTable({
               {/* Input for adding tags */}
               <input
                 type="text"
-                placeholder="Type and press Enter to add filter (e.g. blog, blob, products)..."
+                placeholder={t('typeAndPressEnter')}
                 value={pathInputValue}
                 onChange={(e) => setPathInputValue(e.target.value)}
                 onKeyDown={(e) => {
@@ -350,7 +352,7 @@ export function UrlSelectionTable({
                 className="w-full px-3 py-1.5 border border-secondary bg-primary rounded-md text-sm text-primary placeholder:text-quaternary focus:border-brand-600 focus:ring-1 focus:ring-brand-600"
               />
               <p className="text-xs text-quaternary mt-1">
-                Press Enter to add. Multiple tags use OR logic.
+                {t('pressEnterHint')}
               </p>
             </div>
           </div>
@@ -358,7 +360,7 @@ export function UrlSelectionTable({
           {/* Quick filter suggestions */}
           {uniquePathSegments.length > 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-quaternary">Quick add:</span>
+              <span className="text-xs text-quaternary">{t('quickAdd')}</span>
               {uniquePathSegments.slice(0, 6).map((segment) => (
                 <button
                   key={segment}
@@ -388,7 +390,7 @@ export function UrlSelectionTable({
                 setCurrentPage(1);
               }}
             >
-              Clear All Filters
+              {t('clearAllFilters')}
             </Button>
           )}
         </div>
@@ -418,7 +420,7 @@ export function UrlSelectionTable({
                   onClick={() => toggleSort("url")}
                 >
                   <div className="flex items-center gap-2">
-                    Full URL
+                    {t('colFullUrl')}
                     <SortIcon column="url" />
                   </div>
                 </th>
@@ -429,7 +431,7 @@ export function UrlSelectionTable({
                   onClick={() => toggleSort("domain")}
                 >
                   <div className="flex items-center gap-2">
-                    Domain
+                    {t('colDomainHeader')}
                     <SortIcon column="domain" />
                   </div>
                 </th>
@@ -440,7 +442,7 @@ export function UrlSelectionTable({
                   onClick={() => toggleSort("pathSegment")}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    First Path Segment
+                    {t('colFirstPathSegment')}
                     <SortIcon column="pathSegment" />
                   </div>
                 </th>
@@ -451,7 +453,7 @@ export function UrlSelectionTable({
                   onClick={() => toggleSort("path")}
                 >
                   <div className="flex items-center gap-2">
-                    Full Path
+                    {t('colFullPath')}
                     <SortIcon column="path" />
                   </div>
                 </th>
@@ -530,7 +532,7 @@ export function UrlSelectionTable({
       {totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-secondary pt-4">
           <p className="text-sm text-secondary">
-            Page {currentPage} of {totalPages} ({filteredAndSortedUrls.length} results)
+            {t('pageOfTotal', { current: currentPage, total: totalPages, count: filteredAndSortedUrls.length })}
           </p>
           <div className="flex gap-2">
             <Button
@@ -540,7 +542,7 @@ export function UrlSelectionTable({
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               isDisabled={currentPage === 1}
             >
-              Previous
+              {t('previous')}
             </Button>
             <Button
               size="sm"
@@ -549,7 +551,7 @@ export function UrlSelectionTable({
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               isDisabled={currentPage === totalPages}
             >
-              Next
+              {t('next')}
             </Button>
           </div>
         </div>

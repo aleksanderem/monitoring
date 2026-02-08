@@ -1,6 +1,7 @@
 "use client";
 
 import { TrendUp02 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 
 interface Keyword {
   _id: string;
@@ -29,6 +30,7 @@ function formatNumber(num: number): string {
 }
 
 export function Top10KeywordsSection({ keywords, isLoading }: Top10KeywordsSectionProps) {
+  const t = useTranslations("keywords");
   if (isLoading) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-6">
@@ -46,7 +48,7 @@ export function Top10KeywordsSection({ keywords, isLoading }: Top10KeywordsSecti
     return (
       <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
         <TrendUp02 className="mx-auto h-12 w-12 text-fg-quaternary" />
-        <p className="mt-4 text-sm text-tertiary">No top keywords found</p>
+        <p className="mt-4 text-sm text-tertiary">{t("noTopKeywordsFound")}</p>
       </div>
     );
   }
@@ -54,8 +56,8 @@ export function Top10KeywordsSection({ keywords, isLoading }: Top10KeywordsSecti
   return (
     <div className="rounded-xl border border-secondary bg-primary p-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-primary">Top 10 Keywords</h3>
-        <p className="text-sm text-tertiary">Best performing keywords by position</p>
+        <h3 className="text-lg font-semibold text-primary">{t("top10Keywords")}</h3>
+        <p className="text-sm text-tertiary">{t("bestPerformingByPosition")}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -106,7 +108,7 @@ export function Top10KeywordsSection({ keywords, isLoading }: Top10KeywordsSecti
                 {/* Volume */}
                 {keyword.volume && (
                   <div className="text-xs text-tertiary">
-                    {formatNumber(keyword.volume)} searches
+                    {t("searchesCount", { count: formatNumber(keyword.volume) })}
                   </div>
                 )}
               </div>

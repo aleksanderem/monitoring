@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { XClose, HelpCircle, TrendUp02, SearchLg, Target04 } from "@untitledui/icons";
 import { Badge } from "@/components/base/badges/badges";
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
@@ -52,11 +53,11 @@ function getDifficultyBg(d: number): string {
     return "bg-utility-error-50";
 }
 
-function getDifficultyLabel(d: number): string {
-    if (d < 30) return "Easy";
-    if (d < 50) return "Moderate";
-    if (d < 70) return "Hard";
-    return "Very Hard";
+function getDifficultyLabelKey(d: number): string {
+    if (d < 30) return "difficultyLabelEasy";
+    if (d < 50) return "difficultyLabelModerate";
+    if (d < 70) return "difficultyLabelHard";
+    return "difficultyLabelVeryHard";
 }
 
 function getScoreColor(score: number): "success" | "warning" | "gray" {
@@ -66,6 +67,12 @@ function getScoreColor(score: number): "success" | "warning" | "gray" {
 }
 
 export function TopicClusterDetailModal({ cluster, onClose }: TopicClusterDetailModalProps) {
+    const t = useTranslations('keywords');
+    const tc = useTranslations('common');
+    const translateStatus = (status: string) => {
+        const key = `status${status.charAt(0).toUpperCase()}${status.slice(1)}` as any;
+        try { return tc(key); } catch { return status; }
+    };
     useEscapeClose(onClose);
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -79,7 +86,7 @@ export function TopicClusterDetailModal({ cluster, onClose }: TopicClusterDetail
                             <Badge color="brand" size="sm">{cluster.gapCount} keywords</Badge>
                         </div>
                         <p className="mt-1 text-sm text-tertiary">
-                            Topic cluster with {cluster.gapCount} content gap opportunities
+                            {t('topicClusterWithGaps', { count: cluster.gapCount })}
                         </p>
                     </div>
                     <button
@@ -94,28 +101,28 @@ export function TopicClusterDetailModal({ cluster, onClose }: TopicClusterDetail
                     {/* Summary metrics */}
                     <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                         <MetricCard
-                            label="Total Volume"
+                            label={t('totalVolume')}
                             value={formatNumber(cluster.totalSearchVolume)}
-                            tooltip="Combined monthly search volume across all keywords in this cluster"
+                            tooltip={t('totalVolumeTooltip')}
                         />
                         <MetricCard
-                            label="Est. Traffic"
+                            label={t('estTraffic')}
                             value={formatNumber(cluster.totalEstimatedValue)}
-                            tooltip="Estimated monthly visits if you ranked for these keywords (~30% CTR assumed)"
+                            tooltip={t('estTrafficTooltip')}
                         />
                         <MetricCard
-                            label="Avg Score"
+                            label={t('avgScore')}
                             value={Math.round(cluster.avgOpportunityScore).toString()}
-                            tooltip="Average opportunity score: higher means better ROI potential"
-                            badge={<Badge color={getScoreColor(cluster.avgOpportunityScore)} size="sm">{cluster.avgOpportunityScore >= 70 ? "High" : cluster.avgOpportunityScore >= 40 ? "Medium" : "Low"}</Badge>}
+                            tooltip={t('avgScoreTooltip')}
+                            badge={<Badge color={getScoreColor(cluster.avgOpportunityScore)} size="sm">{cluster.avgOpportunityScore >= 70 ? t('scoreHigh') : cluster.avgOpportunityScore >= 40 ? t('scoreMedium') : t('scoreLow')}</Badge>}
                         />
                         <MetricCard
-                            label="Avg Difficulty"
+                            label={t('avgDifficulty')}
                             value={cluster.avgDifficulty.toString()}
-                            tooltip="Average keyword difficulty (0-100). Lower is easier to rank for"
+                            tooltip={t('avgDifficultyTooltip')}
                             badge={
                                 <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getDifficultyBg(cluster.avgDifficulty)} ${getDifficultyColor(cluster.avgDifficulty)}`}>
-                                    {getDifficultyLabel(cluster.avgDifficulty)}
+                                    {t(getDifficultyLabelKey(cluster.avgDifficulty))}
                                 </span>
                             }
                         />
@@ -124,29 +131,29 @@ export function TopicClusterDetailModal({ cluster, onClose }: TopicClusterDetail
                     {/* Strategy recommendation */}
                     <div className="rounded-lg border border-brand-200 bg-brand-25 p-4">
                         <h4 className="text-sm font-semibold text-brand-700 mb-1">
-                            Recommended Strategy
+                            {t('recommendedStrategy')}
                         </h4>
                         <p className="text-sm text-brand-600">
-                            {getClusterStrategy(cluster)}
+                            {getClusterStrategy(cluster, t)}
                         </p>
                     </div>
 
                     {/* Keywords table */}
                     <div>
                         <h3 className="text-sm font-semibold text-primary mb-3">
-                            Keywords in this cluster ({cluster.keywords.length}{cluster.keywords.length < cluster.gapCount ? ` of ${cluster.gapCount}` : ""})
+                            {t('keywordsInCluster', { shown: cluster.keywords.length, total: cluster.gapCount })}
                         </h3>
                         <div className="overflow-x-auto rounded-lg border border-secondary">
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b border-secondary bg-secondary-subtle">
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">Keyword</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">Score</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">Volume</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">Difficulty</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">Comp. Pos.</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">Est. Traffic</th>
-                                        <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">Status</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">{t('columnKeyword')}</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">{t('columnScore')}</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">{t('columnVolume')}</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">{t('columnDifficulty')}</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">{t('columnCompPos')}</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">{t('columnEstTraffic')}</th>
+                                        <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">{t('columnStatus')}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-secondary">
@@ -175,7 +182,7 @@ export function TopicClusterDetailModal({ cluster, onClose }: TopicClusterDetail
                                                     color={kw.status === "monitoring" ? "brand" : kw.status === "ranking" ? "success" : "gray"}
                                                     size="sm"
                                                 >
-                                                    {kw.status}
+                                                    {translateStatus(kw.status)}
                                                 </Badge>
                                             </td>
                                         </tr>
@@ -219,23 +226,23 @@ function MetricCard({
     );
 }
 
-function getClusterStrategy(cluster: ClusterData): string {
+function getClusterStrategy(cluster: ClusterData, t: any): string {
     const { avgDifficulty, gapCount, avgOpportunityScore, totalSearchVolume } = cluster;
 
     if (avgDifficulty < 30 && gapCount >= 5) {
-        return `This is a low-competition cluster with ${gapCount} easy keywords. Create a pillar page covering "${cluster.topic}" broadly, then interlink ${gapCount} supporting articles targeting each keyword. Quick wins with high topical authority potential.`;
+        return t('strategyLowCompetitionLarge', { gapCount, topic: cluster.topic });
     }
     if (avgDifficulty < 30) {
-        return `Low difficulty keywords — create targeted content for each. Start with the highest-volume keywords and work down. Internal linking between pieces will boost rankings.`;
+        return t('strategyLowDifficulty');
     }
     if (avgDifficulty < 50 && totalSearchVolume > 5000) {
-        return `Moderate difficulty with strong search volume (${formatNumber(totalSearchVolume)}/mo). Build a comprehensive content hub: one authority pillar page + supporting cluster articles. Focus on long-tail variations first to build momentum.`;
+        return t('strategyModerateHighVolume', { volume: formatNumber(totalSearchVolume) });
     }
     if (avgDifficulty < 50) {
-        return `Moderate competition. Prioritize keywords with the highest opportunity scores. Create detailed, well-researched content and ensure strong internal linking between related pages.`;
+        return t('strategyModerate');
     }
     if (avgOpportunityScore >= 70) {
-        return `High-value cluster despite competition. Build topical authority gradually: start with easier long-tail keywords, create expert-level content, and pursue backlinks. The traffic potential justifies the investment.`;
+        return t('strategyHighValue');
     }
-    return `Competitive cluster — approach strategically. Identify the 2-3 easiest keywords to start with, build authority content, then tackle harder terms as your domain gains strength in this topic.`;
+    return t('strategyCompetitive');
 }

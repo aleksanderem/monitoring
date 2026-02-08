@@ -1,6 +1,7 @@
 "use client";
 
 import { Lightbulb02, Target03, TrendUp01, Users01, HelpCircle } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 
 interface GapSummary {
@@ -17,6 +18,7 @@ interface GapSummaryCardsProps {
 }
 
 export function GapSummaryCards({ summary, isLoading }: GapSummaryCardsProps) {
+  const t = useTranslations('competitors');
   if (isLoading) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -47,50 +49,50 @@ export function GapSummaryCards({ summary, isLoading }: GapSummaryCardsProps) {
   };
 
   const formatDate = (timestamp: number | null) => {
-    if (!timestamp) return "Never";
+    if (!timestamp) return t('gapSummaryNever');
     const days = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
-    if (days === 0) return "Today";
-    if (days === 1) return "Yesterday";
-    if (days < 7) return `${days} days ago`;
-    return `${Math.floor(days / 7)} weeks ago`;
+    if (days === 0) return t('gapSummaryToday');
+    if (days === 1) return t('gapSummaryYesterday');
+    if (days < 7) return t('gapSummaryDaysAgo', { days });
+    return t('gapSummaryWeeksAgo', { weeks: Math.floor(days / 7) });
   };
 
   const metrics = [
     {
-      title: "Total Gaps",
+      title: t('gapSummaryTotalGaps'),
       value: summary.totalGaps.toString(),
       subtitle: formatDate(summary.lastAnalyzedAt),
       icon: Lightbulb02,
       color: "text-primary-600",
       bgColor: "bg-primary-50",
-      tooltip: "Total keywords where at least one competitor ranks but you don't. More gaps = more untapped opportunities.",
+      tooltip: t('gapSummaryTotalGapsTooltip'),
     },
     {
-      title: "High Priority",
+      title: t('gapSummaryHighPriority'),
       value: summary.highPriority.toString(),
-      subtitle: `${highPriorityPercentage}% of total`,
+      subtitle: t('gapSummaryOfTotal', { percentage: highPriorityPercentage }),
       icon: Target03,
       color: "text-orange-600",
       bgColor: "bg-orange-50",
-      tooltip: "Gaps scored 70+ out of 100, indicating high search volume, low difficulty, or competitor ranking in top positions. Best opportunities to pursue first.",
+      tooltip: t('gapSummaryHighPriorityTooltip'),
     },
     {
-      title: "Est. Traffic Value",
+      title: t('gapSummaryEstTrafficValue'),
       value: formatValue(summary.totalEstimatedValue),
-      subtitle: "monthly visits",
+      subtitle: t('gapSummaryMonthlyVisits'),
       icon: TrendUp01,
       color: "text-green-600",
       bgColor: "bg-green-50",
-      tooltip: "Estimated monthly visits you could gain by ranking for all gap keywords. Calculated assuming ~30% click-through rate for top positions.",
+      tooltip: t('gapSummaryEstTrafficTooltip'),
     },
     {
-      title: "Competitors",
+      title: t('gapSummaryCompetitors'),
       value: summary.competitorsAnalyzed.toString(),
-      subtitle: "analyzed",
+      subtitle: t('gapSummaryAnalyzed'),
       icon: Users01,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
-      tooltip: "Number of unique competitor domains analyzed in the content gap comparison.",
+      tooltip: t('gapSummaryCompetitorsTooltip'),
     },
   ];
 

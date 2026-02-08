@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
+import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
@@ -9,14 +10,22 @@ interface ReferringDomainQualityChartProps {
     domainId: Id<"domains">;
 }
 
-const TIER_CONFIG: Record<string, { color: string; label: string; description: string }> = {
-    excellent: { color: "#22c55e", label: "Excellent", description: "Score 70-100" },
-    good: { color: "#3b82f6", label: "Good", description: "Score 40-69" },
-    average: { color: "#f59e0b", label: "Average", description: "Score 20-39" },
-    poor: { color: "#ef4444", label: "Poor", description: "Score 0-19" },
+const TIER_COLORS: Record<string, string> = {
+    excellent: "#22c55e",
+    good: "#3b82f6",
+    average: "#f59e0b",
+    poor: "#ef4444",
+};
+
+const TIER_LABEL_KEYS: Record<string, string> = {
+    excellent: "qualityTierExcellent",
+    good: "qualityTierGood",
+    average: "qualityTierAverage",
+    poor: "qualityTierPoor",
 };
 
 export function ReferringDomainQualityChart({ domainId }: ReferringDomainQualityChartProps) {
+    const t = useTranslations('backlinks');
     const data = useQuery(api.backlinkAnalysis_queries.getLinkQualityScores, { domainId });
 
     if (data === undefined) {
@@ -31,16 +40,16 @@ export function ReferringDomainQualityChart({ domainId }: ReferringDomainQuality
     if (!data) {
         return (
             <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary p-6 py-8">
-                <p className="text-sm text-tertiary">No quality data available</p>
+                <p className="text-sm text-tertiary">{t('qualityEmpty')}</p>
             </div>
         );
     }
 
     const chartData = data.distribution.map((d) => ({
-        name: TIER_CONFIG[d.tier]?.label || d.tier,
+        name: TIER_LABEL_KEYS[d.tier] ? t(TIER_LABEL_KEYS[d.tier]) : d.tier,
         value: d.count,
         percentage: d.percentage,
-        color: TIER_CONFIG[d.tier]?.color || "#6b7280",
+        color: TIER_COLORS[d.tier] || "#6b7280",
     }));
 
     const total = data.distribution.reduce((sum, d) => sum + d.count, 0);
@@ -48,9 +57,9 @@ export function ReferringDomainQualityChart({ domainId }: ReferringDomainQuality
     return (
         <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
             <div>
-                <h3 className="text-md font-semibold text-primary">Referring Domain Quality</h3>
+                <h3 className="text-md font-semibold text-primary">{t('qualityTitle')}</h3>
                 <p className="text-sm text-tertiary">
-                    Quality distribution across {total} backlinks. Avg score: <span className="font-medium text-primary">{data.avgScore}/100</span>
+                    {t('qualityDescription', { total, avgScore: data.avgScore })}
                 </p>
             </div>
 
@@ -82,13 +91,14 @@ export function ReferringDomainQualityChart({ domainId }: ReferringDomainQuality
             {/* Score breakdown */}
             <div className="grid grid-cols-2 gap-3">
                 {data.distribution.map((d) => {
-                    const config = TIER_CONFIG[d.tier];
-                    if (!config) return null;
+                    const color = TIER_COLORS[d.tier];
+                    const labelKey = TIER_LABEL_KEYS[d.tier];
+                    if (!color || !labelKey) return null;
                     return (
                         <div key={d.tier} className="flex items-center gap-2">
-                            <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: config.color }} />
+                            <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                             <div className="flex items-baseline gap-1.5">
-                                <span className="text-sm font-medium text-primary">{config.label}</span>
+                                <span className="text-sm font-medium text-primary">{t(labelKey)}</span>
                                 <span className="text-xs text-tertiary">
                                     {d.count} ({d.percentage}%)
                                 </span>

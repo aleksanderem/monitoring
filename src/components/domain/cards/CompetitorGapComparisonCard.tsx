@@ -3,6 +3,7 @@
 import { useQuery } from "convex/react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { HelpCircle } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import { Tooltip as InfoTooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -12,6 +13,7 @@ interface CompetitorGapComparisonCardProps {
 }
 
 export function CompetitorGapComparisonCard({ domainId }: CompetitorGapComparisonCardProps) {
+    const t = useTranslations('competitors');
     const comparison = useQuery(api.contentGaps_queries.getCompetitorGapComparison, { domainId });
 
     if (comparison === undefined) {
@@ -27,16 +29,16 @@ export function CompetitorGapComparisonCard({ domainId }: CompetitorGapCompariso
         return (
             <div className="rounded-xl border border-secondary bg-primary p-6">
                 <div className="flex items-center gap-2">
-                    <h3 className="text-md font-semibold text-primary">Gap by Competitor</h3>
-                    <InfoTooltip title="Gap by Competitor" description="Compares how many content gaps each competitor contributes. Competitors with many high-priority gaps likely target topics you are missing entirely.">
+                    <h3 className="text-md font-semibold text-primary">{t('gapComparisonTitle')}</h3>
+                    <InfoTooltip title={t('gapComparisonTitle')} description={t('gapComparisonTooltip')}>
                         <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                             <HelpCircle className="size-4" />
                         </TooltipTrigger>
                     </InfoTooltip>
                 </div>
-                <p className="text-sm text-tertiary mb-4">Content gaps per competitor</p>
+                <p className="text-sm text-tertiary mb-4">{t('gapComparisonSubtitle')}</p>
                 <div className="flex h-32 items-center justify-center">
-                    <p className="text-sm text-tertiary">No competitor gap data yet.</p>
+                    <p className="text-sm text-tertiary">{t('gapComparisonEmpty')}</p>
                 </div>
             </div>
         );
@@ -52,14 +54,14 @@ export function CompetitorGapComparisonCard({ domainId }: CompetitorGapCompariso
     return (
         <div className="rounded-xl border border-secondary bg-primary p-6">
             <div className="flex items-center gap-2">
-                <h3 className="text-md font-semibold text-primary">Gap by Competitor</h3>
-                <InfoTooltip title="Gap by Competitor" description="Compares how many content gaps each competitor contributes. Competitors with many high-priority gaps likely target topics you are missing entirely.">
+                <h3 className="text-md font-semibold text-primary">{t('gapComparisonTitle')}</h3>
+                <InfoTooltip title={t('gapComparisonTitle')} description={t('gapComparisonTooltip')}>
                     <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                         <HelpCircle className="size-4" />
                     </TooltipTrigger>
                 </InfoTooltip>
             </div>
-            <p className="text-sm text-tertiary mb-4">Content gaps distribution across competitors</p>
+            <p className="text-sm text-tertiary mb-4">{t('gapComparisonDistribution')}</p>
             {chartData.length <= 6 ? (
                 <div className="h-[220px]">
                     <ResponsiveContainer width="100%" height="100%">
@@ -70,12 +72,12 @@ export function CompetitorGapComparisonCard({ domainId }: CompetitorGapCompariso
                             <Tooltip
                                 formatter={(value: any, name: any) => [
                                     value,
-                                    name === "totalGaps" ? "Total Gaps" :
-                                    name === "highPriority" ? "High Priority" : name,
+                                    name === "totalGaps" ? t('gapComparisonTotalGaps') :
+                                    name === "highPriority" ? t('gapComparisonHighPriority') : name,
                                 ]}
                             />
-                            <Bar dataKey="totalGaps" name="Total Gaps" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
-                            <Bar dataKey="highPriority" name="High Priority" fill="#ef4444" radius={[0, 4, 4, 0]} />
+                            <Bar dataKey="totalGaps" name={t('gapComparisonTotalGaps')} fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                            <Bar dataKey="highPriority" name={t('gapComparisonHighPriority')} fill="#ef4444" radius={[0, 4, 4, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
@@ -87,14 +89,14 @@ export function CompetitorGapComparisonCard({ domainId }: CompetitorGapCompariso
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-1.5">
                                     <span className="text-sm font-semibold text-primary">{item.totalGaps}</span>
-                                    <span className="text-xs text-tertiary">gaps</span>
+                                    <span className="text-xs text-tertiary">{t('gapComparisonGaps')}</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <span className="text-sm font-semibold text-utility-error-600">{item.highPriority}</span>
-                                    <span className="text-xs text-tertiary">high</span>
+                                    <span className="text-xs text-tertiary">{t('gapComparisonHigh')}</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="text-sm text-tertiary">avg score:</span>
+                                    <span className="text-sm text-tertiary">{t('gapComparisonAvgScore')}</span>
                                     <span className="text-sm font-medium text-brand-secondary">{item.avgScore}</span>
                                 </div>
                             </div>

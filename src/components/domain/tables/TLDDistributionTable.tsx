@@ -1,6 +1,7 @@
 "use client";
 
 import { Globe01 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 
 interface TLDDistributionTableProps {
   data: Record<string, number>;
@@ -8,6 +9,7 @@ interface TLDDistributionTableProps {
 }
 
 export function TLDDistributionTable({ data, isLoading }: TLDDistributionTableProps) {
+  const t = useTranslations('backlinks');
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
@@ -40,12 +42,12 @@ export function TLDDistributionTable({ data, isLoading }: TLDDistributionTablePr
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div>
-          <h3 className="text-md font-semibold text-primary">TLD Distribution</h3>
-          <p className="text-sm text-tertiary">Top level domains of referring sites</p>
+          <h3 className="text-md font-semibold text-primary">{t('tldTitle')}</h3>
+          <p className="text-sm text-tertiary">{t('tldSubtitle')}</p>
         </div>
         <div className="flex flex-col items-center justify-center py-12">
           <Globe01 className="h-10 w-10 text-fg-quaternary" />
-          <p className="mt-2 text-sm text-tertiary">No TLD data available</p>
+          <p className="mt-2 text-sm text-tertiary">{t('tldEmpty')}</p>
         </div>
       </div>
     );
@@ -54,19 +56,19 @@ export function TLDDistributionTable({ data, isLoading }: TLDDistributionTablePr
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
-        <h3 className="text-md font-semibold text-primary">TLD Distribution</h3>
-        <p className="text-sm text-tertiary">Top 10 domains by backlink count</p>
+        <h3 className="text-md font-semibold text-primary">{t('tldTitle')}</h3>
+        <p className="text-sm text-tertiary">{t('tldTableSubtitle')}</p>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-secondary">
         <table className="w-full">
           <thead className="bg-secondary/50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">TLD</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">{t('columnTld')}</th>
               <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">
-                Backlinks
+                {t('backlinks')}
               </th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">Share</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">{t('columnShare')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-secondary">

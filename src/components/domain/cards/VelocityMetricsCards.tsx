@@ -1,6 +1,7 @@
 "use client";
 
 import { TrendUp01, TrendDown01, ArrowsRight } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 
 interface VelocityStats {
   avgNewPerDay: number;
@@ -23,6 +24,7 @@ export function VelocityMetricsCards({
   isLoading,
   recentVelocity,
 }: VelocityMetricsCardsProps) {
+  const t = useTranslations("backlinks");
   if (isLoading) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -42,7 +44,7 @@ export function VelocityMetricsCards({
 
   const metrics = [
     {
-      title: "Avg New/Day",
+      title: t("velocityAvgNewPerDay"),
       value: stats.avgNewPerDay.toFixed(1),
       trend: stats.avgNewPerDay > 0 ? "up" : "neutral",
       icon: TrendUp01,
@@ -50,7 +52,7 @@ export function VelocityMetricsCards({
       bgColor: "bg-green-50",
     },
     {
-      title: "Avg Lost/Day",
+      title: t("velocityAvgLostPerDay"),
       value: stats.avgLostPerDay.toFixed(1),
       trend: stats.avgLostPerDay > 0 ? "down" : "neutral",
       icon: TrendDown01,
@@ -58,7 +60,7 @@ export function VelocityMetricsCards({
       bgColor: "bg-red-50",
     },
     {
-      title: "Net Growth",
+      title: t("velocityNetGrowth"),
       value: `${stats.avgNetChange >= 0 ? "+" : ""}${stats.avgNetChange.toFixed(1)}/day`,
       trend: stats.avgNetChange > 0 ? "up" : stats.avgNetChange < 0 ? "down" : "neutral",
       icon: stats.avgNetChange > 0 ? TrendUp01 : stats.avgNetChange < 0 ? TrendDown01 : ArrowsRight,
@@ -66,7 +68,7 @@ export function VelocityMetricsCards({
       bgColor: stats.avgNetChange > 0 ? "bg-green-50" : stats.avgNetChange < 0 ? "bg-red-50" : "bg-gray-50",
     },
     {
-      title: "7-Day Velocity",
+      title: t("velocity7Day"),
       value: recentVelocity !== undefined
         ? `${recentVelocity >= 0 ? "+" : ""}${recentVelocity.toFixed(1)}`
         : `${stats.avgNetChange >= 0 ? "+" : ""}${stats.avgNetChange.toFixed(1)}`,
@@ -117,7 +119,7 @@ export function VelocityMetricsCards({
             </div>
             <div className="flex items-center gap-1">
               <span className="text-xs text-quaternary">
-                Last {stats.daysTracked} days
+                {t("velocityLastNDays", { days: stats.daysTracked })}
               </span>
             </div>
           </div>

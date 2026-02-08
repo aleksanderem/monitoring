@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -18,6 +19,7 @@ interface CrawlSummaryCardsProps {
 }
 
 export function CrawlSummaryCards({ domainId }: CrawlSummaryCardsProps) {
+  const t = useTranslations('onsite');
   const linkAnalysis = useQuery(api.seoAudit_queries.getLinkAnalysis, { domainId });
   const redirectAnalysis = useQuery(api.seoAudit_queries.getRedirectAnalysis, { domainId });
   const imageAnalysis = useQuery(api.seoAudit_queries.getImageAnalysis, { domainId });
@@ -28,7 +30,7 @@ export function CrawlSummaryCards({ domainId }: CrawlSummaryCardsProps) {
 
   const cards = [
     {
-      label: "Avg Word Count",
+      label: t('avgWordCount'),
       value: latestAnalysis?.avgWordCount ?? "—",
       icon: File01,
       color: "text-primary-600",
@@ -36,7 +38,7 @@ export function CrawlSummaryCards({ domainId }: CrawlSummaryCardsProps) {
       warn: latestAnalysis?.avgWordCount !== undefined && latestAnalysis.avgWordCount < 300,
     },
     {
-      label: "Avg Performance",
+      label: t('avgPerformance'),
       value: latestAnalysis?.avgPerformance ?? "—",
       icon: Speedometer01,
       color: latestAnalysis?.avgPerformance != null && latestAnalysis.avgPerformance >= 90 ? "text-success-600" : latestAnalysis?.avgPerformance != null && latestAnalysis.avgPerformance >= 50 ? "text-warning-600" : "text-primary-600",
@@ -44,28 +46,28 @@ export function CrawlSummaryCards({ domainId }: CrawlSummaryCardsProps) {
       warn: latestAnalysis?.avgPerformance !== undefined && latestAnalysis.avgPerformance < 50,
     },
     {
-      label: "Internal Links",
+      label: t('internalLinks'),
       value: linkAnalysis?.internalLinks ?? "—",
       icon: Link01,
       color: "text-brand-600",
       bgColor: "bg-brand-50",
     },
     {
-      label: "External Links",
+      label: t('externalLinks'),
       value: linkAnalysis?.externalLinks ?? "—",
       icon: LinkExternal01,
       color: "text-primary-600",
       bgColor: "bg-primary-50",
     },
     {
-      label: "Redirect Chains",
+      label: t('redirectChains'),
       value: redirectAnalysis?.totalRedirects ?? "—",
       icon: ArrowsRight,
       color: redirectAnalysis && redirectAnalysis.totalRedirects > 0 ? "text-warning-600" : "text-primary-600",
       bgColor: redirectAnalysis && redirectAnalysis.totalRedirects > 0 ? "bg-warning-50" : "bg-primary-50",
     },
     {
-      label: "Missing Alt",
+      label: t('missingAlt'),
       value: imageAnalysis?.missingAltCount ?? "—",
       icon: Image01,
       color: imageAnalysis && imageAnalysis.missingAltCount > 0 ? "text-warning-600" : "text-success-600",

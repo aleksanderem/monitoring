@@ -12,12 +12,14 @@ import { cx } from "@/utils/cx";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { DateRangePicker } from "@/components/common/DateRangePicker";
 import { useDateRange } from "@/hooks/useDateRange";
+import { useTranslations } from "next-intl";
 
 interface PositionHistoryChartProps {
   domainId: Id<"domains">;
 }
 
 export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
+  const t = useTranslations("keywords");
   const { dateRange, setDateRange } = useDateRange({ initialPreset: "all" });
   const isDesktop = useBreakpoint("lg");
 
@@ -39,7 +41,7 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
     return (
       <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-primary">Position History</h2>
+          <h2 className="text-lg font-semibold text-primary">{t("positionHistory")}</h2>
         </div>
         <LoadingState type="card" />
       </div>
@@ -50,11 +52,11 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
     return (
       <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-primary">Position History</h2>
+          <h2 className="text-lg font-semibold text-primary">{t("positionHistory")}</h2>
         </div>
         <div className="flex flex-col items-center gap-2 py-12 text-center">
-          <p className="text-sm font-medium text-primary">No historical data yet</p>
-          <p className="text-sm text-tertiary">Check back after the first ranking update</p>
+          <p className="text-sm font-medium text-primary">{t("noHistoricalDataYet")}</p>
+          <p className="text-sm text-tertiary">{t("checkBackAfterRankingUpdate")}</p>
         </div>
       </div>
     );
@@ -83,7 +85,7 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
   return (
     <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <h2 className="text-lg font-semibold text-primary">Position History</h2>
+        <h2 className="text-lg font-semibold text-primary">{t('positionHistory')}</h2>
         <DateRangePicker
           value={dateRange}
           onChange={setDateRange}
@@ -136,7 +138,7 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
               tickFormatter={(value) => Number(value).toLocaleString()}
             >
               <Label
-                value="Keywords"
+                value={t("keywordsLabel")}
                 fill="currentColor"
                 className="!text-xs font-medium"
                 style={{ textAnchor: "middle" }}

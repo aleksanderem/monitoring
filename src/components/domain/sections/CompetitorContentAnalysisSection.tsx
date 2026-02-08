@@ -10,12 +10,14 @@ import { Select } from "@/components/base/select/select";
 import type { SelectItemType } from "@/components/base/select/select";
 import { FileSearch02, TrendUp02, TrendDown02, RefreshCw01, Zap } from "@untitledui/icons";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 interface CompetitorContentAnalysisSectionProps {
   domainId: Id<"domains">;
 }
 
 export function CompetitorContentAnalysisSection({ domainId }: CompetitorContentAnalysisSectionProps) {
+  const t = useTranslations('competitors');
   const [selectedCompetitor, setSelectedCompetitor] = useState<Id<"competitors"> | null>(null);
   const [selectedKeyword, setSelectedKeyword] = useState<Id<"keywords"> | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -59,12 +61,12 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
     try {
       const result = await triggerAnalysis({ competitorId: selectedCompetitor, keywordId: selectedKeyword });
       if (result.success) {
-        toast.success("Page analysis started — results will appear shortly");
+        toast.success(t('contentAnalysisPageAnalysisStarted'));
       } else {
-        toast.error(result.error || "Failed to analyze page");
+        toast.error(result.error || t('contentAnalysisPageAnalysisFailed'));
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to analyze page");
+      toast.error(error.message || t('contentAnalysisPageAnalysisFailed'));
     } finally {
       setAnalyzing(false);
     }
@@ -88,13 +90,13 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
             <div className="text-sm font-medium text-primary">
               {yourValue !== undefined ? format(yourValue) : "—"}
             </div>
-            <div className="text-xs text-quaternary">you</div>
+            <div className="text-xs text-quaternary">{t('contentAnalysisYou')}</div>
           </div>
           <div className="text-right">
             <div className="text-sm font-medium text-tertiary">
               {format(compValue)}
             </div>
-            <div className="text-xs text-quaternary">them</div>
+            <div className="text-xs text-quaternary">{t('contentAnalysisThem')}</div>
           </div>
           {yourValue !== undefined && diff !== 0 && (
             <div className={`flex items-center gap-1 ${isPositive ? "text-utility-success-600" : "text-utility-error-600"}`}>
@@ -114,7 +116,7 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
   if (competitors === undefined || allKeywords === undefined) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-6">
-        <div className="text-center py-8 text-tertiary">Loading...</div>
+        <div className="text-center py-8 text-tertiary">{t('contentAnalysisLoading')}</div>
       </div>
     );
   }
@@ -124,9 +126,9 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
       <div className="rounded-xl border border-secondary bg-primary p-6">
         <div className="text-center py-12">
           <FileSearch02 className="h-12 w-12 text-quaternary mx-auto mb-4" />
-          <p className="text-tertiary mb-2">No competitors added yet</p>
+          <p className="text-tertiary mb-2">{t('competitorMgmtNoCompetitors')}</p>
           <p className="text-sm text-quaternary">
-            Add competitors above to analyze their page content
+            {t('contentAnalysisNoCompetitorsHint')}
           </p>
         </div>
       </div>
@@ -139,9 +141,9 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
       <div className="border-b border-secondary p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-primary">Content Analysis Comparison</h3>
+            <h3 className="text-lg font-semibold text-primary">{t('contentAnalysisTitle')}</h3>
             <p className="text-sm text-tertiary">
-              Compare on-page SEO metrics with competitor pages
+              {t('contentAnalysisSubtitle')}
             </p>
           </div>
         </div>
@@ -153,7 +155,7 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
             items={competitorItems}
             selectedKey={selectedCompetitor}
             onSelectionChange={(key) => setSelectedCompetitor(key as Id<"competitors">)}
-            placeholder="Select competitor"
+            placeholder={t('contentAnalysisSelectCompetitor')}
           >
             {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}
           </Select>
@@ -163,7 +165,7 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
             items={keywordItems}
             selectedKey={selectedKeyword}
             onSelectionChange={(key) => setSelectedKeyword(key as Id<"keywords">)}
-            placeholder="Select keyword"
+            placeholder={t('contentAnalysisSelectKeyword')}
             isDisabled={!selectedCompetitor}
           >
             {(item) => <Select.Item id={item.id}>{item.label}</Select.Item>}
@@ -176,7 +178,7 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
             isDisabled={!selectedCompetitor || !selectedKeyword || analyzing}
             iconLeading={analyzing ? RefreshCw01 : Zap}
           >
-            {analyzing ? "Analyzing..." : "Analyze Page"}
+            {analyzing ? t('contentAnalysisAnalyzing') : t('contentAnalysisAnalyze')}
           </Button>
         </div>
       </div>
@@ -187,7 +189,7 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
           {/* URLs */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-              <p className="text-xs font-medium text-tertiary mb-2">Your Page</p>
+              <p className="text-xs font-medium text-tertiary mb-2">{t('contentAnalysisYourPage')}</p>
               {comparison.yours ? (
                 <a
                   href={comparison.yours.url}
@@ -198,11 +200,11 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
                   {comparison.yours.url}
                 </a>
               ) : (
-                <p className="text-sm text-quaternary">Not ranking or no analysis available</p>
+                <p className="text-sm text-quaternary">{t('contentAnalysisNotRanking')}</p>
               )}
             </div>
             <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-              <p className="text-xs font-medium text-tertiary mb-2">Competitor Page</p>
+              <p className="text-xs font-medium text-tertiary mb-2">{t('contentAnalysisCompetitorPage')}</p>
               <a
                 href={comparison.competitor.url}
                 target="_blank"
@@ -221,26 +223,26 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Basic Metrics */}
             <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-              <h4 className="text-sm font-semibold text-primary mb-3">Content Metrics</h4>
+              <h4 className="text-sm font-semibold text-primary mb-3">{t('contentAnalysisContentMetrics')}</h4>
               <div className="space-y-2">
                 {renderMetricComparison(
-                  "Word Count",
+                  t('contentAnalysisWordCount'),
                   comparison.yours?.wordCount,
                   comparison.competitor.wordCount,
                   (v) => v.toLocaleString()
                 )}
                 {renderMetricComparison(
-                  "H2 Headings",
+                  t('contentAnalysisH2Headings'),
                   comparison.yours?.htags?.h2?.length,
                   comparison.competitor.htags?.h2?.length || 0
                 )}
                 {renderMetricComparison(
-                  "Images",
+                  t('contentAnalysisImages'),
                   comparison.yours?.imagesCount,
                   comparison.competitor.imagesCount || 0
                 )}
                 {renderMetricComparison(
-                  "Internal Links",
+                  t('contentAnalysisInternalLinks'),
                   comparison.yours?.internalLinksCount,
                   comparison.competitor.internalLinksCount || 0
                 )}
@@ -249,32 +251,32 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
 
             {/* Technical Metrics */}
             <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-              <h4 className="text-sm font-semibold text-primary mb-3">Technical Metrics</h4>
+              <h4 className="text-sm font-semibold text-primary mb-3">{t('contentAnalysisTechnicalMetrics')}</h4>
               <div className="space-y-2">
                 {comparison.competitor.onpageScore !== undefined && (
                   <div className="flex items-center justify-between py-2 border-b border-secondary">
-                    <span className="text-sm text-tertiary">OnPage Score</span>
+                    <span className="text-sm text-tertiary">{t('contentAnalysisOnPageScore')}</span>
                     <div className="flex items-center gap-3">
                       {comparison.yours?.onpageScore !== undefined && (
                         <div className="text-right">
                           <div className="text-sm font-medium text-primary">
                             {comparison.yours.onpageScore}/100
                           </div>
-                          <div className="text-xs text-quaternary">you</div>
+                          <div className="text-xs text-quaternary">{t('contentAnalysisYou')}</div>
                         </div>
                       )}
                       <div className="text-right">
                         <div className="text-sm font-medium text-tertiary">
                           {comparison.competitor.onpageScore}/100
                         </div>
-                        <div className="text-xs text-quaternary">them</div>
+                        <div className="text-xs text-quaternary">{t('contentAnalysisThem')}</div>
                       </div>
                     </div>
                   </div>
                 )}
                 {comparison.competitor.loadTime !== undefined && (
                   renderMetricComparison(
-                    "Load Time (ms)",
+                    t('contentAnalysisLoadTime'),
                     comparison.yours?.loadTime,
                     comparison.competitor.loadTime,
                     (v) => v.toFixed(0)
@@ -282,7 +284,7 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
                 )}
                 {comparison.competitor.pageSize !== undefined && (
                   renderMetricComparison(
-                    "Page Size (KB)",
+                    t('contentAnalysisPageSize'),
                     comparison.yours?.pageSize ? comparison.yours.pageSize / 1024 : undefined,
                     comparison.competitor.pageSize / 1024,
                     (v) => v.toFixed(1)
@@ -294,20 +296,20 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
 
           {/* Meta Information */}
           <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-            <h4 className="text-sm font-semibold text-primary mb-3">Meta Information</h4>
+            <h4 className="text-sm font-semibold text-primary mb-3">{t('contentAnalysisMetaInfo')}</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="text-xs font-medium text-tertiary mb-2">Competitor Title</p>
+                <p className="text-xs font-medium text-tertiary mb-2">{t('contentAnalysisCompetitorTitle')}</p>
                 <p className="text-sm text-primary">{comparison.competitor.title || "—"}</p>
                 <p className="text-xs text-quaternary mt-1">
-                  {comparison.competitor.title?.length || 0} characters
+                  {t('contentAnalysisCharacters', { count: comparison.competitor.title?.length || 0 })}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-medium text-tertiary mb-2">Competitor Meta Description</p>
+                <p className="text-xs font-medium text-tertiary mb-2">{t('contentAnalysisCompetitorMetaDesc')}</p>
                 <p className="text-sm text-primary">{comparison.competitor.metaDescription || "—"}</p>
                 <p className="text-xs text-quaternary mt-1">
-                  {comparison.competitor.metaDescription?.length || 0} characters
+                  {t('contentAnalysisCharacters', { count: comparison.competitor.metaDescription?.length || 0 })}
                 </p>
               </div>
             </div>
@@ -316,11 +318,11 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
           {/* Headings */}
           {comparison.competitor.htags && (
             <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-              <h4 className="text-sm font-semibold text-primary mb-3">Heading Structure</h4>
+              <h4 className="text-sm font-semibold text-primary mb-3">{t('contentAnalysisHeadingStructure')}</h4>
               <div className="space-y-3">
                 {comparison.competitor.htags.h1 && comparison.competitor.htags.h1.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium text-tertiary mb-1">H1 Tags</p>
+                    <p className="text-xs font-medium text-tertiary mb-1">{t('contentAnalysisH1Tags')}</p>
                     <div className="space-y-1">
                       {comparison.competitor.htags.h1.map((h1: string, idx: number) => (
                         <p key={idx} className="text-sm text-primary pl-3 border-l-2 border-brand-primary">
@@ -332,7 +334,7 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
                 )}
                 {comparison.competitor.htags.h2 && comparison.competitor.htags.h2.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium text-tertiary mb-1">H2 Tags ({comparison.competitor.htags.h2.length})</p>
+                    <p className="text-xs font-medium text-tertiary mb-1">{t('contentAnalysisH2Tags', { count: comparison.competitor.htags.h2.length })}</p>
                     <div className="space-y-1 max-h-80 overflow-y-auto">
                       {comparison.competitor.htags.h2.map((h2: string, idx: number) => (
                         <p key={idx} className="text-sm text-primary pl-3 border-l-2 border-secondary">
@@ -351,18 +353,18 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
             <div className="rounded-lg border border-brand-subtle bg-brand-subtle/10 p-4">
               <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
                 <Zap className="h-4 w-4 text-brand-secondary" />
-                Quick Insights
+                {t('contentAnalysisQuickInsights')}
               </h4>
               <div className="space-y-2 text-sm">
                 {comparison.comparison.wordCountDiff !== 0 && (
                   <p className="text-tertiary">
                     {comparison.comparison.wordCountDiff > 0 ? (
                       <span className="text-utility-success-600">
-                        ✓ Your content is {comparison.comparison.wordCountDiff} words longer
+                        ✓ {t('contentAnalysisInsightWordsLonger', { count: comparison.comparison.wordCountDiff })}
                       </span>
                     ) : (
                       <span className="text-utility-warning-600">
-                        ⚠ Consider adding {Math.abs(comparison.comparison.wordCountDiff)} more words to match competitor depth
+                        ⚠ {t('contentAnalysisInsightWordsAdd', { count: Math.abs(comparison.comparison.wordCountDiff) })}
                       </span>
                     )}
                   </p>
@@ -371,11 +373,11 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
                   <p className="text-tertiary">
                     {comparison.comparison.h2CountDiff > 0 ? (
                       <span className="text-utility-success-600">
-                        ✓ You have {comparison.comparison.h2CountDiff} more H2 headings
+                        ✓ {t('contentAnalysisInsightH2More', { count: comparison.comparison.h2CountDiff })}
                       </span>
                     ) : (
                       <span className="text-utility-warning-600">
-                        ⚠ Add {Math.abs(comparison.comparison.h2CountDiff)} more H2 headings for better structure
+                        ⚠ {t('contentAnalysisInsightH2Add', { count: Math.abs(comparison.comparison.h2CountDiff) })}
                       </span>
                     )}
                   </p>
@@ -384,11 +386,11 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
                   <p className="text-tertiary">
                     {comparison.comparison.imagesCountDiff > 0 ? (
                       <span className="text-utility-success-600">
-                        ✓ You have {comparison.comparison.imagesCountDiff} more images
+                        ✓ {t('contentAnalysisInsightImagesMore', { count: comparison.comparison.imagesCountDiff })}
                       </span>
                     ) : (
                       <span className="text-utility-warning-600">
-                        ⚠ Consider adding {Math.abs(comparison.comparison.imagesCountDiff)} more images
+                        ⚠ {t('contentAnalysisInsightImagesAdd', { count: Math.abs(comparison.comparison.imagesCountDiff) })}
                       </span>
                     )}
                   </p>
@@ -400,14 +402,14 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
       ) : selectedCompetitor && selectedKeyword ? (
         <div className="text-center py-12 text-tertiary">
           <FileSearch02 className="h-12 w-12 text-quaternary mx-auto mb-4" />
-          <p className="mb-2">No analysis data available</p>
+          <p className="mb-2">{t('contentAnalysisNoData')}</p>
           <p className="text-sm text-quaternary">
-            Click "Analyze Page" to fetch competitor page analysis
+            {t('contentAnalysisNoDataHint')}
           </p>
         </div>
       ) : (
         <div className="text-center py-12 text-tertiary">
-          <p>Select a competitor and keyword to view content analysis</p>
+          <p>{t('contentAnalysisSelectPrompt')}</p>
         </div>
       )}
     </div>

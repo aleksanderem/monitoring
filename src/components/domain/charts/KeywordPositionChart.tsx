@@ -2,12 +2,14 @@
 
 import { useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useTranslations } from "next-intl";
 
 interface KeywordPositionChartProps {
   positionHistory: Array<{ date: number; position: number }>;
 }
 
 export function KeywordPositionChart({ positionHistory }: KeywordPositionChartProps) {
+  const t = useTranslations("keywords");
   const chartData = useMemo(() => {
     if (!positionHistory || positionHistory.length === 0) return [];
 
@@ -22,7 +24,7 @@ export function KeywordPositionChart({ positionHistory }: KeywordPositionChartPr
   if (chartData.length === 0) {
     return (
       <div className="flex h-48 items-center justify-center rounded-lg border border-secondary bg-secondary/20">
-        <p className="text-sm text-tertiary">No position history available</p>
+        <p className="text-sm text-tertiary">{t("noPositionHistoryAvailable")}</p>
       </div>
     );
   }
@@ -46,7 +48,7 @@ export function KeywordPositionChart({ positionHistory }: KeywordPositionChartPr
             tickLine={false}
             reversed
             domain={[1, 100]}
-            label={{ value: 'Position', angle: -90, position: 'insideLeft', style: { fill: '#9CA3AF', fontSize: 12 } }}
+            label={{ value: t("columnPosition"), angle: -90, position: 'insideLeft', style: { fill: '#9CA3AF', fontSize: 12 } }}
           />
           <Tooltip
             contentStyle={{
@@ -57,7 +59,7 @@ export function KeywordPositionChart({ positionHistory }: KeywordPositionChartPr
               color: '#F9FAFB',
             }}
             labelStyle={{ color: '#F9FAFB' }}
-            formatter={(value: number | undefined) => value !== undefined ? [`#${value}`, 'Position'] : ['-', 'Position']}
+            formatter={(value: number | undefined) => value !== undefined ? [`#${value}`, t("columnPosition")] : ['-', t("columnPosition")]}
           />
           <Line
             type="monotone"

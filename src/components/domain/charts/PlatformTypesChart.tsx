@@ -2,6 +2,7 @@
 
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart, PolarRadiusAxis } from "recharts";
 import { Dataflow03 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import {
   ChartContainer,
   ChartTooltip,
@@ -17,6 +18,7 @@ interface PlatformTypesChartProps {
 }
 
 export function PlatformTypesChart({ data, isLoading }: PlatformTypesChartProps) {
+  const t = useTranslations('backlinks');
   const radarColor = "#3b82f6"; // blue
   if (isLoading) {
     return (
@@ -45,12 +47,12 @@ export function PlatformTypesChart({ data, isLoading }: PlatformTypesChartProps)
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div>
-          <h3 className="text-md font-semibold text-primary">Platform Types</h3>
-          <p className="text-sm text-tertiary">Distribution by website platform</p>
+          <h3 className="text-md font-semibold text-primary">{t('platformsTitle')}</h3>
+          <p className="text-sm text-tertiary">{t('platformsSubtitle')}</p>
         </div>
         <div className="flex flex-col items-center justify-center py-12">
           <Dataflow03 className="h-10 w-10 text-fg-quaternary" />
-          <p className="mt-2 text-sm text-tertiary">No platform data available</p>
+          <p className="mt-2 text-sm text-tertiary">{t('platformsEmpty')}</p>
         </div>
       </div>
     );
@@ -58,7 +60,7 @@ export function PlatformTypesChart({ data, isLoading }: PlatformTypesChartProps)
 
   const chartConfig = {
     backlinks: {
-      label: "Backlinks",
+      label: t('backlinks'),
       color: radarColor,
     },
   } satisfies ChartConfig;
@@ -66,8 +68,8 @@ export function PlatformTypesChart({ data, isLoading }: PlatformTypesChartProps)
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
-        <h3 className="text-md font-semibold text-primary">Platform Types</h3>
-        <p className="text-sm text-tertiary">Where your backlinks come from — blogs, forums, news sites, social media, and other platform types.</p>
+        <h3 className="text-md font-semibold text-primary">{t('platformsTitle')}</h3>
+        <p className="text-sm text-tertiary">{t('platformsDescription')}</p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">
@@ -80,7 +82,7 @@ export function PlatformTypesChart({ data, isLoading }: PlatformTypesChartProps)
             wrapperStyle={{ zIndex: 1000 }}
           />
           <Radar
-            name="Backlinks"
+            name={t('backlinks')}
             dataKey="backlinks"
             stroke={radarColor}
             fill={radarColor}

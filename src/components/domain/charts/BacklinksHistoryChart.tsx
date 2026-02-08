@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
 import { LineChartUp01 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import {
   ChartContainer,
   ChartLegend,
@@ -23,6 +24,7 @@ export function BacklinksHistoryChart({
   data,
   isLoading,
 }: BacklinksHistoryChartProps) {
+  const t = useTranslations('backlinks');
   const chartColor = "#3b82f6"; // Modern blue
   const comparisonColor = "#94a3b8"; // Slate for comparison
   const { dateRange, setDateRange, comparisonRange, setComparisonRange } = useDateRange({ initialPreset: "1y" });
@@ -45,12 +47,12 @@ export function BacklinksHistoryChart({
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div>
-          <h3 className="text-md font-semibold text-primary">Backlinks Over Time</h3>
-          <p className="text-sm text-tertiary">Monthly backlink growth</p>
+          <h3 className="text-md font-semibold text-primary">{t('historyTitle')}</h3>
+          <p className="text-sm text-tertiary">{t('historySubtitle')}</p>
         </div>
         <div className="flex flex-col items-center justify-center py-12">
           <LineChartUp01 className="h-10 w-10 text-fg-quaternary" />
-          <p className="mt-2 text-sm text-tertiary">No historical data available</p>
+          <p className="mt-2 text-sm text-tertiary">{t('historyEmpty')}</p>
         </div>
       </div>
     );
@@ -87,16 +89,16 @@ export function BacklinksHistoryChart({
 
   const chartConfig: ChartConfig = comparisonRange ? {
     backlinks: {
-      label: "Current Period",
+      label: t('historyCurrentPeriod'),
       color: chartColor,
     },
     comparison: {
-      label: "Comparison Period",
+      label: t('historyComparisonPeriod'),
       color: comparisonColor,
     },
   } : {
     backlinks: {
-      label: "Backlinks",
+      label: t('backlinks'),
       color: chartColor,
     },
   };
@@ -108,12 +110,12 @@ export function BacklinksHistoryChart({
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-md font-semibold text-primary">Backlinks Over Time</h3>
+          <h3 className="text-md font-semibold text-primary">{t('historyTitle')}</h3>
           <p className="text-sm text-tertiary">
-            Historical backlink growth trend. {totalBacklinks.toLocaleString()} total backlinks discovered
+            {t('historyDescription', { total: totalBacklinks.toLocaleString() })}
             {comparisonRange && totalComparisonBacklinks > 0 && (
               <span className="ml-2">
-                (vs. {totalComparisonBacklinks.toLocaleString()} in comparison period)
+                {t('historyComparison', { total: totalComparisonBacklinks.toLocaleString() })}
               </span>
             )}
           </p>

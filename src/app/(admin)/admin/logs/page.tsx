@@ -4,20 +4,22 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Breadcrumbs } from "@/components/application/breadcrumbs/breadcrumbs";
 import { Badge } from "@/components/base/badges/badges";
+import { useTranslations } from "next-intl";
 
 export default function AdminLogsPage() {
+  const t = useTranslations("admin");
   const auditLogs = useQuery(api.admin.getAdminAuditLogs, { limit: 100 });
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <Breadcrumbs className="mb-6">
-        <Breadcrumbs.Item href="/admin">Admin</Breadcrumbs.Item>
-        <Breadcrumbs.Item>Audit Logs</Breadcrumbs.Item>
+        <Breadcrumbs.Item href="/admin">{t("sidebarTitle")}</Breadcrumbs.Item>
+        <Breadcrumbs.Item>{t("navAuditLogs")}</Breadcrumbs.Item>
       </Breadcrumbs>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-primary">Audit Logs</h1>
-        <p className="mt-1 text-sm text-tertiary">History of all admin actions in the system.</p>
+        <h1 className="text-2xl font-semibold text-primary">{t("navAuditLogs")}</h1>
+        <p className="mt-1 text-sm text-tertiary">{t("auditLogsDescription")}</p>
       </div>
 
       <div className="bg-primary rounded-xl border border-secondary shadow-xs overflow-hidden">
@@ -44,7 +46,7 @@ export default function AdminLogsPage() {
             {auditLogs === undefined ? (
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-solid mx-auto" />
             ) : (
-              "No audit logs found"
+              t("noAuditLogs")
             )}
           </div>
         )}

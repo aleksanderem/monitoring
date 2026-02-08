@@ -17,12 +17,15 @@ import {
 import { usePathname } from "next/navigation";
 import { GlobalJobStatus } from "@/components/domain/job-status/GlobalJobStatus";
 import { JobCompletionNotifier } from "@/components/domain/job-status/JobCompletionNotifier";
+import { useTranslations } from "next-intl";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const t = useTranslations("nav");
+  const tc = useTranslations("common");
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -38,7 +41,7 @@ export default function DashboardLayout({
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
-          <p className="mt-4 text-sm text-tertiary">Loading...</p>
+          <p className="mt-4 text-sm text-tertiary">{tc("loading")}</p>
         </div>
       </div>
     );
@@ -55,38 +58,38 @@ export default function DashboardLayout({
         activeUrl={pathname}
         items={[
           {
-            label: "Dashboard",
+            label: t("dashboard"),
             href: "/dashboard",
             icon: BarChartSquare02,
           },
           {
-            label: "Projects",
+            label: t("projects"),
             href: "/projects",
             icon: Folder,
           },
           {
-            label: "Domains",
+            label: t("domains"),
             href: "/domains",
             icon: Globe01,
           },
           {
-            label: "Keywords",
+            label: t("keywords"),
             href: "/keywords",
             icon: SearchSm,
           },
           {
-            label: "Jobs",
+            label: t("jobs"),
             href: "/jobs",
             icon: LayersThree01,
           },
           { divider: true },
           {
-            label: "Teams",
+            label: t("teams"),
             href: "/teams",
             icon: Users01,
           },
           {
-            label: "Settings",
+            label: t("settings"),
             href: "/settings",
             icon: Settings01,
           },

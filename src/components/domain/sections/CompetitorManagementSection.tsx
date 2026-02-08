@@ -9,6 +9,7 @@ import { Dialog, Modal, ModalOverlay, DialogTrigger } from "@/components/applica
 import { CloseButton } from "@/components/base/buttons/close-button";
 import { Input } from "@/components/base/input/input";
 import { Plus, Trash01, Edit05, Target04, Link03 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Heading } from "react-aria-components";
 import { AddCompetitorModal } from "../modals/AddCompetitorModal";
@@ -18,6 +19,8 @@ interface CompetitorManagementSectionProps {
 }
 
 export function CompetitorManagementSection({ domainId }: CompetitorManagementSectionProps) {
+  const t = useTranslations('competitors');
+  const tc = useTranslations('common');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingCompetitor, setEditingCompetitor] = useState<{ id: Id<"competitors">; name: string } | null>(null);
   const [editName, setEditName] = useState("");
@@ -37,7 +40,7 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
   const activeCompetitors = competitors?.filter(c => c.status === "active") ?? [];
 
   const handleRemove = async (competitorId: Id<"competitors">) => {
-    if (!confirm("Are you sure you want to remove this competitor? It will be hidden from tracking.")) {
+    if (!confirm(t('removeCompetitorConfirm'))) {
       return;
     }
 
@@ -48,9 +51,9 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
         next.delete(competitorId);
         return next;
       });
-      toast.success("Competitor removed");
+      toast.success(t('competitorMgmtToastRemoved'));
     } catch (error: any) {
-      toast.error(error.message || "Failed to remove competitor");
+      toast.error(error.message || t('competitorMgmtToastRemoveFailed'));
     }
   };
 
@@ -67,29 +70,29 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
         competitorId: editingCompetitor.id,
         name: editName.trim(),
       });
-      toast.success("Competitor updated");
+      toast.success(t('competitorMgmtToastUpdated'));
       setEditingCompetitor(null);
       setEditName("");
     } catch (error: any) {
-      toast.error(error.message || "Failed to update competitor");
+      toast.error(error.message || t('competitorMgmtToastUpdateFailed'));
     }
   };
 
   const handleAnalyzeContentGap = async (competitorId: Id<"competitors">, competitorName: string) => {
     try {
       await createContentGapJob({ domainId, competitorId });
-      toast.success(`Content gap analysis job started for ${competitorName}`);
+      toast.success(t('contentGapToastRefreshed'));
     } catch (error: any) {
-      toast.error(error.message || "Failed to start content gap analysis");
+      toast.error(error.message || t('contentGapToastRefreshFailed'));
     }
   };
 
   const handleFetchBacklinks = async (competitorId: Id<"competitors">, competitorName: string) => {
     try {
       await createBacklinksJob({ domainId, competitorId });
-      toast.success(`Backlinks fetch job started for ${competitorName}`);
+      toast.success(t('competitorMgmtJobFetching'));
     } catch (error: any) {
-      toast.error(error.message || "Failed to start backlinks fetch");
+      toast.error(error.message || t('competitorMgmtToastRemoveFailed'));
     }
   };
 
@@ -114,7 +117,7 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
   const handleBulkDelete = async () => {
     if (selectedCompetitors.size === 0) return;
 
-    if (!confirm(`Are you sure you want to remove ${selectedCompetitors.size} competitor(s)?`)) {
+    if (!confirm(t('removeCompetitorsConfirm', { count: selectedCompetitors.size }))) {
       return;
     }
 
@@ -122,10 +125,10 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
       for (const competitorId of selectedCompetitors) {
         await removeCompetitor({ competitorId });
       }
-      toast.success(`Removed ${selectedCompetitors.size} competitor(s)`);
+      toast.success(t('removedCompetitors', { count: selectedCompetitors.size }));
       setSelectedCompetitors(new Set());
     } catch (error: any) {
-      toast.error(error.message || "Failed to remove competitors");
+      toast.error(error.message || t('failedToRemoveCompetitors'));
     }
   };
 
@@ -134,21 +137,21 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
       <div className="flex items-center justify-end gap-2">
         {selectedCompetitors.size > 0 && (
           <Button onClick={handleBulkDelete} size="sm" color="tertiary-destructive" iconLeading={Trash01}>
-            Delete ({selectedCompetitors.size})
+            {tc('delete')} ({selectedCompetitors.size})
           </Button>
         )}
         <Button onClick={() => setShowAddDialog(true)} size="sm" color="primary" iconLeading={Plus}>
-          Add Competitor
+          {t('competitorMgmtAddCompetitor')}
         </Button>
       </div>
 
       {competitors === undefined ? (
-        <div className="text-center py-8 text-tertiary">Loading...</div>
+        <div className="text-center py-8 text-tertiary">{tc('loading')}</div>
       ) : activeCompetitors.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-secondary rounded-lg">
-          <p className="text-tertiary mb-4">No competitors added yet</p>
+          <p className="text-tertiary mb-4">{t('competitorMgmtNoCompetitors')}</p>
           <Button onClick={() => setShowAddDialog(true)} color="secondary" size="sm" iconLeading={Plus}>
-            Add Your First Competitor
+            {t('competitorMgmtAddFirst')}
           </Button>
         </div>
       ) : (
@@ -162,7 +165,7 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
               className="w-4 h-4 rounded border-utility-gray-300 text-brand-600 focus:ring-brand-500"
             />
             <span className="text-sm font-medium text-tertiary">
-              Select All ({activeCompetitors.length})
+              {t('competitorMgmtSelectAll')} ({activeCompetitors.length})
             </span>
           </div>
 
@@ -193,7 +196,7 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
                 {competitor.lastCheckedAt && (
                   <div className="flex items-center gap-4 mt-2 text-xs text-tertiary">
                     <span>
-                      Last checked: {new Date(competitor.lastCheckedAt).toLocaleDateString()}
+                      {t('lastCheckedPrefix')}{new Date(competitor.lastCheckedAt).toLocaleDateString()}
                     </span>
                   </div>
                 )}
@@ -210,9 +213,9 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
                           />
                         </div>
                         <span className="text-xs text-tertiary min-w-[100px]">
-                          {contentGapJob.status === "processing" && "Analyzing gaps..."}
-                          {contentGapJob.status === "completed" && `${contentGapJob.opportunitiesFound || 0} opportunities`}
-                          {contentGapJob.status === "failed" && "Analysis failed"}
+                          {contentGapJob.status === "processing" && t('competitorMgmtJobAnalyzing')}
+                          {contentGapJob.status === "completed" && tc('opportunitiesCount', { count: contentGapJob.opportunitiesFound || 0 })}
+                          {contentGapJob.status === "failed" && tc('error')}
                         </span>
                       </div>
                     )}
@@ -225,9 +228,9 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
                           />
                         </div>
                         <span className="text-xs text-tertiary min-w-[100px]">
-                          {backlinksJob.status === "processing" && "Fetching backlinks..."}
-                          {backlinksJob.status === "completed" && `${backlinksJob.backlinksFound || 0} backlinks`}
-                          {backlinksJob.status === "failed" && "Fetch failed"}
+                          {backlinksJob.status === "processing" && t('competitorMgmtJobFetching')}
+                          {backlinksJob.status === "completed" && tc('backlinksCount', { count: backlinksJob.backlinksFound || 0 })}
+                          {backlinksJob.status === "failed" && tc('error')}
                         </span>
                       </div>
                     )}
@@ -242,33 +245,33 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
                   size="sm"
                   onClick={() => handleAnalyzeContentGap(competitor._id, competitor.name || competitor.competitorDomain)}
                   isDisabled={!!contentGapJob}
-                  title="Analyze content gaps"
+                  title={t('analyzeContentGaps')}
                   iconLeading={Target04}
                 >
-                  Content Gap
+                  {t('competitorMgmtContentGap')}
                 </Button>
                 <Button
                   color="secondary"
                   size="sm"
                   onClick={() => handleFetchBacklinks(competitor._id, competitor.name || competitor.competitorDomain)}
                   isDisabled={!!backlinksJob}
-                  title="Fetch backlinks"
+                  title={t('competitorMgmtBacklinks')}
                   iconLeading={Link03}
                 >
-                  Backlinks
+                  {t('competitorMgmtBacklinks')}
                 </Button>
                 <Button
                   color="tertiary"
                   size="sm"
                   onClick={() => handleEditCompetitor(competitor._id, competitor.name || competitor.competitorDomain)}
-                  title="Edit competitor"
+                  title={t('editCompetitor')}
                   iconLeading={Edit05}
                 />
                 <Button
                   color="tertiary-destructive"
                   size="sm"
                   onClick={() => handleRemove(competitor._id)}
-                  title="Remove competitor"
+                  title={t('removeCompetitor')}
                   iconLeading={Trash01}
                 />
               </div>
@@ -301,10 +304,10 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
                 {/* Header */}
                 <div className="border-b border-secondary px-6 py-4">
                   <Heading slot="title" className="text-lg font-semibold text-primary">
-                    Edit Competitor
+                    {t('competitorMgmtEditCompetitor')}
                   </Heading>
                   <p className="mt-1 text-sm text-tertiary">
-                    Update the competitor display name
+                    {t('competitorMgmtEditSubtitle')}
                   </p>
                 </div>
 
@@ -312,8 +315,8 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
                 <div className="space-y-4 px-6 py-4">
                   <Input
                     size="md"
-                    label="Display Name"
-                    placeholder="Competitor name"
+                    label={t('competitorMgmtDisplayName')}
+                    placeholder={t('competitorMgmtPlaceholder')}
                     value={editName}
                     onChange={(value: string) => setEditName(value)}
                     isRequired
@@ -323,10 +326,10 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
                 {/* Footer */}
                 <div className="flex items-center justify-end gap-3 border-t border-secondary px-6 py-4">
                   <Button color="secondary" size="md" onClick={() => setEditingCompetitor(null)}>
-                    Cancel
+                    {tc('cancel')}
                   </Button>
                   <Button color="primary" size="md" onClick={handleSaveEdit}>
-                    Save Changes
+                    {t('competitorMgmtSaveChanges')}
                   </Button>
                 </div>
               </div>

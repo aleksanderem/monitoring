@@ -9,6 +9,7 @@ import { Badge } from "@/components/base/badges/badges";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { SearchLg, Stars01, ArrowRight } from "@untitledui/icons";
 import { Input } from "@/components/base/input/input";
+import { useTranslations } from "next-intl";
 
 interface KeywordDiscoveryStepProps {
   domainId: Id<"domains">;
@@ -21,6 +22,7 @@ export function KeywordDiscoveryStep({
   onComplete,
   onSkip,
 }: KeywordDiscoveryStepProps) {
+  const t = useTranslations("domains");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [promoting, setPromoting] = useState(false);
@@ -99,10 +101,10 @@ export function KeywordDiscoveryStep({
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-solid border-t-transparent" />
         <div className="text-center">
           <p className="text-sm font-medium text-primary">
-            Discovering your keyword rankings...
+            {t("onboardingDiscoveringKeywords")}
           </p>
           <p className="text-xs text-tertiary mt-1">
-            This may take a moment
+            {t("onboardingMayTakeMoment")}
           </p>
         </div>
       </div>
@@ -116,18 +118,17 @@ export function KeywordDiscoveryStep({
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-brand-solid border-t-transparent" />
         <div className="text-center">
           <p className="text-sm font-medium text-primary">
-            Searching for keyword rankings for your domain...
+            {t("onboardingSearchingKeywords")}
           </p>
           <p className="text-xs text-tertiary mt-1 max-w-sm">
-            We&apos;re analyzing search engines to find keywords your domain
-            already ranks for. This usually takes 15-30 seconds.
+            {t("onboardingSearchingKeywordsDesc")}
           </p>
         </div>
         <button
           onClick={onSkip}
           className="text-sm text-tertiary hover:text-primary transition-colors mt-2"
         >
-          Skip and add keywords manually
+          {t("onboardingSkipAddManually")}
         </button>
       </div>
     );
@@ -140,15 +141,14 @@ export function KeywordDiscoveryStep({
         <SearchLg className="h-12 w-12 text-quaternary" />
         <div className="text-center">
           <p className="text-sm font-medium text-primary">
-            No new keywords to add
+            {t("onboardingNoNewKeywords")}
           </p>
           <p className="text-xs text-tertiary mt-1 max-w-sm">
-            All discovered keywords have been added to monitoring, or no
-            rankings were found. You can add keywords manually later.
+            {t("onboardingNoNewKeywordsDesc")}
           </p>
         </div>
         <Button color="secondary" size="md" onClick={onSkip}>
-          Continue
+          {t("onboardingContinue")}
         </Button>
       </div>
     );
@@ -160,7 +160,7 @@ export function KeywordDiscoveryStep({
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 max-w-xs">
           <Input
-            placeholder="Search keywords..."
+            placeholder={t("onboardingSearchKeywords")}
             value={searchQuery}
             onChange={(value: string) => setSearchQuery(value)}
             icon={SearchLg}
@@ -174,10 +174,10 @@ export function KeywordDiscoveryStep({
             iconLeading={Stars01}
             onClick={selectRecommended}
           >
-            Select Recommended
+            {t("onboardingSelectRecommended")}
           </Button>
           <Badge color="gray" size="md">
-            {selectedIds.size} selected
+            {t("onboardingSelectedCount", { count: selectedIds.size })}
           </Badge>
         </div>
       </div>
@@ -202,19 +202,19 @@ export function KeywordDiscoveryStep({
                 />
               </th>
               <th className="px-3 py-2.5 text-left text-xs font-medium text-tertiary">
-                Keyword
+                {t("onboardingColKeyword")}
               </th>
               <th className="px-3 py-2.5 text-center text-xs font-medium text-tertiary">
-                Position
+                {t("onboardingColPosition")}
               </th>
               <th className="px-3 py-2.5 text-center text-xs font-medium text-tertiary">
-                Volume
+                {t("onboardingColVolume")}
               </th>
               <th className="px-3 py-2.5 text-center text-xs font-medium text-tertiary">
-                Difficulty
+                {t("onboardingColDifficulty")}
               </th>
               <th className="px-3 py-2.5 text-center text-xs font-medium text-tertiary">
-                Traffic
+                {t("onboardingColTraffic")}
               </th>
             </tr>
           </thead>
@@ -289,7 +289,7 @@ export function KeywordDiscoveryStep({
           onClick={onSkip}
           className="text-sm text-tertiary hover:text-primary transition-colors"
         >
-          Skip this step
+          {t("onboardingSkipStep")}
         </button>
         <Button
           color="primary"
@@ -299,8 +299,8 @@ export function KeywordDiscoveryStep({
           isDisabled={selectedIds.size === 0 || promoting}
         >
           {promoting
-            ? "Adding..."
-            : `Add to Monitoring (${selectedIds.size})`}
+            ? t("onboardingAdding")
+            : t("onboardingAddToMonitoring", { count: selectedIds.size })}
         </Button>
       </div>
     </div>

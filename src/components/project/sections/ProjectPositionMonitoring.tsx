@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from "recharts";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useTranslations } from "next-intl";
 
 interface ProjectPositionMonitoringProps {
     projectId: Id<"projects">;
@@ -28,6 +29,7 @@ const BUCKET_LABELS: Record<string, string> = {
 };
 
 export function ProjectPositionMonitoring({ projectId }: ProjectPositionMonitoringProps) {
+    const t = useTranslations("projects");
     const distribution = useQuery(api.projectDashboard_queries.getProjectPositionDistribution, { projectId });
     const trend = useQuery(api.projectDashboard_queries.getProjectMovementTrend, { projectId });
     const performers = useQuery(api.projectDashboard_queries.getProjectTopPerformers, { projectId });
@@ -37,8 +39,8 @@ export function ProjectPositionMonitoring({ projectId }: ProjectPositionMonitori
             {/* Position Distribution */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <div className="rounded-xl border border-secondary bg-primary p-6">
-                    <h3 className="text-md font-semibold text-primary">Position Distribution</h3>
-                    <p className="mb-4 text-sm text-tertiary">Keywords across all domains by SERP position</p>
+                    <h3 className="text-md font-semibold text-primary">{t("positionDistribution")}</h3>
+                    <p className="mb-4 text-sm text-tertiary">{t("positionDistributionDescription")}</p>
                     {distribution === undefined ? (
                         <div className="h-48 animate-pulse rounded bg-gray-50" />
                     ) : distribution && distribution.some((d) => d.count > 0) ? (
@@ -48,7 +50,7 @@ export function ProjectPositionMonitoring({ projectId }: ProjectPositionMonitori
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                                     <XAxis dataKey="bucket" tick={{ fontSize: 12 }} tickFormatter={(v) => BUCKET_LABELS[v] || v} />
                                     <YAxis tick={{ fontSize: 12 }} />
-                                    <Tooltip formatter={(value: any) => [value, "Keywords"]} labelFormatter={(label) => BUCKET_LABELS[label] || label} />
+                                    <Tooltip formatter={(value: any) => [value, t("columnKeywords")]} labelFormatter={(label) => BUCKET_LABELS[label] || label} />
                                     <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                                         {distribution.map((entry) => (
                                             <Bar key={entry.bucket} dataKey="count" fill={BUCKET_COLORS[entry.bucket] || "#6b7280"} />
@@ -59,15 +61,15 @@ export function ProjectPositionMonitoring({ projectId }: ProjectPositionMonitori
                         </div>
                     ) : (
                         <div className="flex h-48 items-center justify-center">
-                            <p className="text-sm text-tertiary">No position data yet</p>
+                            <p className="text-sm text-tertiary">{t("noPositionData")}</p>
                         </div>
                     )}
                 </div>
 
                 {/* Movement Trend */}
                 <div className="rounded-xl border border-secondary bg-primary p-6">
-                    <h3 className="text-md font-semibold text-primary">Visibility Trend</h3>
-                    <p className="mb-4 text-sm text-tertiary">Estimated traffic value over time</p>
+                    <h3 className="text-md font-semibold text-primary">{t("visibilityTrend")}</h3>
+                    <p className="mb-4 text-sm text-tertiary">{t("visibilityTrendDescription")}</p>
                     {trend === undefined ? (
                         <div className="h-48 animate-pulse rounded bg-gray-50" />
                     ) : trend && trend.length > 0 ? (
@@ -79,14 +81,14 @@ export function ProjectPositionMonitoring({ projectId }: ProjectPositionMonitori
                                     <YAxis tick={{ fontSize: 12 }} />
                                     <Tooltip />
                                     <Legend />
-                                    <Line type="monotone" dataKey="etv" name="ETV" stroke="#8b5cf6" strokeWidth={2} dot={false} />
-                                    <Line type="monotone" dataKey="count" name="Keywords" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                                    <Line type="monotone" dataKey="etv" name={t("chartEtv")} stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                                    <Line type="monotone" dataKey="count" name={t("columnKeywords")} stroke="#3b82f6" strokeWidth={2} dot={false} />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>
                     ) : (
                         <div className="flex h-48 items-center justify-center">
-                            <p className="text-sm text-tertiary">No trend data yet</p>
+                            <p className="text-sm text-tertiary">{t("noTrendData")}</p>
                         </div>
                     )}
                 </div>
@@ -97,8 +99,8 @@ export function ProjectPositionMonitoring({ projectId }: ProjectPositionMonitori
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                     {/* Gainers */}
                     <div className="rounded-xl border border-secondary bg-primary p-6">
-                        <h3 className="text-md font-semibold text-utility-success-600">Top Gainers</h3>
-                        <p className="mb-3 text-sm text-tertiary">Keywords with biggest position improvements</p>
+                        <h3 className="text-md font-semibold text-utility-success-600">{t("topGainers")}</h3>
+                        <p className="mb-3 text-sm text-tertiary">{t("topGainersDescription")}</p>
                         <div className="space-y-2">
                             {performers.gainers.slice(0, 10).map((item, i) => (
                                 <div key={i} className="flex items-center justify-between rounded-lg border border-secondary p-2.5">
@@ -119,8 +121,8 @@ export function ProjectPositionMonitoring({ projectId }: ProjectPositionMonitori
 
                     {/* Losers */}
                     <div className="rounded-xl border border-secondary bg-primary p-6">
-                        <h3 className="text-md font-semibold text-utility-error-600">Top Losers</h3>
-                        <p className="mb-3 text-sm text-tertiary">Keywords with biggest position declines</p>
+                        <h3 className="text-md font-semibold text-utility-error-600">{t("topLosers")}</h3>
+                        <p className="mb-3 text-sm text-tertiary">{t("topLosersDescription")}</p>
                         <div className="space-y-2">
                             {performers.losers.slice(0, 10).map((item, i) => (
                                 <div key={i} className="flex items-center justify-between rounded-lg border border-secondary p-2.5">

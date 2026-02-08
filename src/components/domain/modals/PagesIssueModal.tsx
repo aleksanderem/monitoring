@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -23,6 +24,7 @@ export function PagesIssueModal({
   title,
   description,
 }: PagesIssueModalProps) {
+  const t = useTranslations('onsite');
   useEscapeClose(onClose, isOpen);
 
   const pages = useQuery(
@@ -62,7 +64,7 @@ export function PagesIssueModal({
           {loading && (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
-              <p className="mt-4 text-sm text-tertiary">Loading pages...</p>
+              <p className="mt-4 text-sm text-tertiary">{t('loadingPages')}</p>
             </div>
           )}
 
@@ -72,10 +74,10 @@ export function PagesIssueModal({
                 <CheckCircle className="w-8 h-8 text-success-600" />
               </div>
               <h3 className="text-sm font-semibold text-primary mb-2">
-                All pages pass this check
+                {t('allPagesPass')}
               </h3>
               <p className="text-sm text-tertiary">
-                No pages are currently failing the {title} check.
+                {t('noPagesFailingCheck', { title })}
               </p>
             </div>
           )}
@@ -116,11 +118,10 @@ export function PagesIssueModal({
                       )}
                       <div className="flex items-center gap-3 mt-1 text-xs text-quaternary">
                         {page.onpageScore !== undefined && (
-                          <span>Score: {page.onpageScore}/100</span>
+                          <span>{t('score')}: {page.onpageScore}/100</span>
                         )}
                         <span>
-                          {page.issueCount} issue
-                          {page.issueCount !== 1 ? "s" : ""}
+                          {t('issueCount', { count: page.issueCount })}
                         </span>
                       </div>
                     </div>
@@ -135,13 +136,13 @@ export function PagesIssueModal({
         {!loading && pages && pages.length > 0 && (
           <div className="flex items-center justify-between border-t border-secondary px-6 py-4">
             <span className="text-sm text-tertiary">
-              {pages.length} page{pages.length !== 1 ? "s" : ""} affected
+              {t('pagesAffected', { count: pages.length })}
             </span>
             <button
               onClick={onClose}
               className="rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-secondary hover:bg-secondary"
             >
-              Close
+              {t('close')}
             </button>
           </div>
         )}

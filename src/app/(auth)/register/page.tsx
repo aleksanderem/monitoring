@@ -8,8 +8,10 @@ import { Form } from "@/components/base/form/form";
 import { Input } from "@/components/base/input/input";
 import { AppLogo } from "@/components/foundations/logo/app-logo";
 import { cx } from "@/utils/cx";
+import { useTranslations } from "next-intl";
 
 export default function RegisterPage() {
+  const t = useTranslations("auth");
   const { signIn } = useAuthActions();
   const router = useRouter();
   const [name, setName] = useState("");
@@ -32,7 +34,7 @@ export default function RegisterPage() {
       });
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setError(err instanceof Error ? err.message : t("registrationFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -43,8 +45,8 @@ export default function RegisterPage() {
       <div className="flex flex-col items-center gap-4 text-center">
         <AppLogo className="h-10" />
         <div className="flex flex-col gap-2">
-          <h1 className="text-display-xs font-semibold text-primary md:text-display-sm">Create account</h1>
-          <p className="text-md text-tertiary">Start your 30-day free trial.</p>
+          <h1 className="text-display-xs font-semibold text-primary md:text-display-sm">{t("createAccount")}</h1>
+          <p className="text-md text-tertiary">{t("startFreeTrial")}</p>
         </div>
       </div>
 
@@ -59,10 +61,10 @@ export default function RegisterPage() {
           <Input
             isRequired
             hideRequiredIndicator
-            label="Name"
+            label={t("name")}
             type="text"
             name="name"
-            placeholder="Enter your name"
+            placeholder={t("enterName")}
             size="md"
             value={name}
             onChange={setName}
@@ -70,10 +72,10 @@ export default function RegisterPage() {
           <Input
             isRequired
             hideRequiredIndicator
-            label="Email"
+            label={t("email")}
             type="email"
             name="email"
-            placeholder="Enter your email"
+            placeholder={t("enterEmail")}
             size="md"
             value={email}
             onChange={setEmail}
@@ -81,11 +83,11 @@ export default function RegisterPage() {
           <Input
             isRequired
             hideRequiredIndicator
-            label="Password"
+            label={t("password")}
             type="password"
             name="password"
             size="md"
-            placeholder="Create a password"
+            placeholder={t("createPassword")}
             value={password}
             onChange={setPassword}
             minLength={8}
@@ -108,20 +110,20 @@ export default function RegisterPage() {
                   />
                 </svg>
               </div>
-              <p className="text-sm text-tertiary">Must be at least 8 characters</p>
+              <p className="text-sm text-tertiary">{t("passwordMinLength")}</p>
             </span>
           </div>
         </div>
 
         <Button type="submit" size="lg" isLoading={isLoading} isDisabled={isLoading}>
-          {isLoading ? "Creating account..." : "Get started"}
+          {isLoading ? t("creatingAccount") : t("getStarted")}
         </Button>
       </Form>
 
       <div className="flex justify-center gap-1 text-center text-sm text-tertiary">
-        <span>Already have an account?</span>
+        <span>{t("alreadyHaveAccount")}</span>
         <Button href="/login" color="link-color" size="md">
-          Log in
+          {t("logIn")}
         </Button>
       </div>
     </div>

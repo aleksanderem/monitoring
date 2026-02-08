@@ -17,6 +17,7 @@ import {
   FileCheck02,
   Clock,
 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 
 interface GenerateReportModalProps {
   isOpen: boolean;
@@ -43,7 +44,42 @@ function StepIcon({ status }: { status: StepStatus }) {
   }
 }
 
+const STEP_NAME_MAP: Record<string, string> = {
+  "Fetching competitor backlinks": "reportStepFetchCompetitorBacklinks",
+  "Analyzing content gaps": "reportStepAnalyzeContentGaps",
+  "Generating link building prospects": "reportStepGenerateProspects",
+  "Checking on-site data": "reportStepCheckOnSiteData",
+  "Collecting keyword data": "reportStepCollectKeywordData",
+  "Collecting backlink data": "reportStepCollectBacklinkData",
+  "Collecting competitor data": "reportStepCollectCompetitorData",
+  "Collecting content gap data": "reportStepCollectContentGapData",
+  "Collecting on-site data": "reportStepCollectOnSiteData",
+  "Collecting insights & recommendations": "reportStepCollectInsights",
+};
+
+const CURRENT_STEP_MAP: Record<string, string> = {
+  "Initializing...": "reportCurrentStepInitializing",
+  "Checking data freshness...": "reportCurrentStepCheckingFreshness",
+  "Fetching competitor backlinks...": "reportCurrentStepFetchingBacklinks",
+  "Analyzing content gaps...": "reportCurrentStepAnalyzingGaps",
+  "Generating link building prospects...": "reportCurrentStepGeneratingProspects",
+  "Checking on-site data...": "reportCurrentStepCheckingOnSite",
+  "Collecting report data...": "reportCurrentStepCollectingData",
+  "Finalizing report...": "reportCurrentStepFinalizing",
+  "Report ready!": "reportCurrentStepReady",
+};
+
 export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: GenerateReportModalProps) {
+  const t = useTranslations('competitors');
+  const tc = useTranslations('common');
+  const translateStepName = (name: string) => {
+    const key = STEP_NAME_MAP[name];
+    return key ? t(key as any) : name;
+  };
+  const translateCurrentStep = (step: string) => {
+    const key = CURRENT_STEP_MAP[step];
+    return key ? t(key as any) : step;
+  };
   const [reportId, setReportId] = useState<Id<"domainReports"> | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -129,10 +165,10 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
             {/* Header */}
             <div className="border-b border-secondary px-6 py-4">
               <AriaHeading slot="title" className="text-lg font-semibold text-primary">
-                Generate SEO Report
+                {t('generateReportTitle')}
               </AriaHeading>
               <p className="mt-1 text-sm text-tertiary">
-                Full domain analysis for <span className="font-medium text-primary">{domainName}</span>
+                {t('generateReportSubtitle', { domain: domainName })}
               </p>
             </div>
 
@@ -142,28 +178,28 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
               {!reportId && !isGenerating && (
                 <div className="space-y-4">
                   <p className="text-sm text-secondary">
-                    This will run all analyses and collect data into a downloadable PDF:
+                    {t('generateReportConfirmation')}
                   </p>
                   <ul className="space-y-2 text-sm text-tertiary">
                     <li className="flex items-start gap-2">
                       <CheckCircle className="mt-0.5 size-4 shrink-0 text-success-500" />
-                      Run competitor backlink analysis (if data is stale)
+                      {t('generateReportStepBacklinks')}
                     </li>
                     <li className="flex items-start gap-2">
                       <CheckCircle className="mt-0.5 size-4 shrink-0 text-success-500" />
-                      Analyze content gaps with competitors
+                      {t('generateReportStepContentGaps')}
                     </li>
                     <li className="flex items-start gap-2">
                       <CheckCircle className="mt-0.5 size-4 shrink-0 text-success-500" />
-                      Generate link building prospects
+                      {t('generateReportStepLinkBuilding')}
                     </li>
                     <li className="flex items-start gap-2">
                       <CheckCircle className="mt-0.5 size-4 shrink-0 text-success-500" />
-                      Collect all metrics into a downloadable PDF
+                      {t('generateReportStepCollect')}
                     </li>
                   </ul>
                   <p className="text-xs text-quaternary">
-                    Fresh data (less than 24h old) will be reused. This may take a few minutes.
+                    {t('generateReportFreshDataNote')}
                   </p>
                 </div>
               )}
@@ -174,7 +210,7 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
                   {/* Progress bar */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-secondary">{report.currentStep || "Processing..."}</span>
+                      <span className="text-secondary">{report.currentStep ? translateCurrentStep(report.currentStep) : t('generateReportProcessing')}</span>
                       <span className="font-medium text-primary">{report.progress ?? 0}%</span>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
@@ -192,10 +228,10 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
                         <div key={i} className="flex items-center gap-2.5 py-1">
                           <StepIcon status={step.status as StepStatus} />
                           <span className={`text-sm ${step.status === "running" ? "font-medium text-primary" : step.status === "completed" ? "text-secondary" : step.status === "skipped" ? "text-quaternary" : step.status === "failed" ? "text-error-500" : "text-tertiary"}`}>
-                            {step.name}
+                            {translateStepName(step.name)}
                           </span>
                           {step.status === "skipped" && (
-                            <span className="text-xs text-quaternary">(fresh)</span>
+                            <span className="text-xs text-quaternary">{t('generateReportStepFresh')}</span>
                           )}
                         </div>
                       ))}
@@ -208,7 +244,7 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
               {isGenerating && !report && (
                 <div className="flex items-center gap-3 py-8">
                   <Loading02 className="size-5 animate-spin text-brand-500" />
-                  <span className="text-sm text-secondary">Starting report generation...</span>
+                  <span className="text-sm text-secondary">{t('generateReportStarting')}</span>
                 </div>
               )}
 
@@ -218,16 +254,16 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
                   <div className="flex items-center gap-3 rounded-lg border border-success-200 bg-success-50 p-4">
                     <CheckCircle className="size-5 text-success-600" />
                     <div>
-                      <p className="text-sm font-medium text-success-700">Report ready!</p>
+                      <p className="text-sm font-medium text-success-700">{t('generateReportReady')}</p>
                       <p className="text-xs text-success-600">
-                        Generated at {new Date(report.completedAt ?? Date.now()).toLocaleTimeString()}
+                        {t('generateReportGeneratedAt', { time: new Date(report.completedAt ?? Date.now()).toLocaleTimeString() })}
                       </p>
                     </div>
                   </div>
 
                   {report.reportData?.healthScore && (
                     <div className="flex items-center justify-between rounded-lg border border-secondary p-4">
-                      <span className="text-sm text-secondary">Health Score</span>
+                      <span className="text-sm text-secondary">{t('generateReportHealthScore')}</span>
                       <span className={`text-2xl font-bold ${report.reportData.healthScore.total >= 70 ? "text-success-600" : report.reportData.healthScore.total >= 40 ? "text-warning-600" : "text-error-600"}`}>
                         {report.reportData.healthScore.total}/100
                       </span>
@@ -241,7 +277,7 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
                 <div className="flex items-center gap-3 rounded-lg border border-error-200 bg-error-50 p-4">
                   <AlertCircle className="size-5 text-error-600" />
                   <div>
-                    <p className="text-sm font-medium text-error-700">Report generation failed</p>
+                    <p className="text-sm font-medium text-error-700">{t('generateReportFailed')}</p>
                     <p className="text-xs text-error-600">{report.error}</p>
                   </div>
                 </div>
@@ -253,10 +289,10 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
               {!reportId && !isGenerating && (
                 <>
                   <Button size="md" color="secondary" onClick={onClose}>
-                    Cancel
+                    {tc('cancel')}
                   </Button>
                   <Button size="md" color="primary" onClick={handleGenerate}>
-                    Generate Report
+                    {t('generateReportButton')}
                   </Button>
                 </>
               )}
@@ -268,14 +304,14 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
                   isDisabled={isCancelling}
                   onClick={handleCancel}
                 >
-                  {isCancelling ? "Cancelling..." : "Stop"}
+                  {isCancelling ? t('generateReportCancelling') : t('generateReportStop')}
                 </Button>
               )}
 
               {isReady && (
                 <>
                   <Button size="md" color="secondary" onClick={handleClose}>
-                    Close
+                    {tc('close')}
                   </Button>
                   <Button
                     size="md"
@@ -284,7 +320,7 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
                     isDisabled={isDownloading}
                     onClick={handleDownloadPdf}
                   >
-                    {isDownloading ? "Generating PDF..." : "Download PDF"}
+                    {isDownloading ? t('generateReportGeneratingPdf') : t('generateReportDownloadPdf')}
                   </Button>
                 </>
               )}
@@ -292,10 +328,10 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
               {isFailed && (
                 <>
                   <Button size="md" color="secondary" onClick={handleClose}>
-                    Close
+                    {tc('close')}
                   </Button>
                   <Button size="md" color="primary" onClick={handleGenerate}>
-                    Retry
+                    {t('generateReportRetry')}
                   </Button>
                 </>
               )}

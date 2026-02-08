@@ -14,6 +14,7 @@ import { api } from "../../../../../convex/_generated/api";
 import { AvatarLabelGroup } from "@/components/base/avatar/avatar-label-group";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { cx } from "@/utils/cx";
+import { useTranslations } from "next-intl";
 
 export const NavAccountMenu = ({
     className,
@@ -29,6 +30,7 @@ export const NavAccountMenu = ({
     userEmail?: string;
     isSuperAdmin?: boolean;
 }) => {
+    const t = useTranslations("nav");
     const focusManager = useFocusManager();
     const dialogRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
@@ -69,20 +71,20 @@ export const NavAccountMenu = ({
             <div className="rounded-xl bg-primary ring-1 ring-secondary">
                 {/* User info header */}
                 <div className="border-b border-secondary px-3 py-3">
-                    <p className="text-sm font-semibold text-primary">{userName || "User"}</p>
+                    <p className="text-sm font-semibold text-primary">{userName || t("user")}</p>
                     <p className="text-xs text-tertiary">{userEmail || ""}</p>
                 </div>
 
                 <div className="flex flex-col gap-0.5 py-1.5">
-                    <NavAccountCardMenuItem label="Account settings" icon={Settings01} onClick={() => router.push("/settings")} />
+                    <NavAccountCardMenuItem label={t("accountSettings")} icon={Settings01} onClick={() => router.push("/settings")} />
                     {isSuperAdmin && (
-                        <NavAccountCardMenuItem label="Admin panel" icon={Shield01} onClick={() => router.push("/admin")} />
+                        <NavAccountCardMenuItem label={t("adminPanel")} icon={Shield01} onClick={() => router.push("/admin")} />
                     )}
                 </div>
             </div>
 
             <div className="pt-1 pb-1.5">
-                <NavAccountCardMenuItem label="Sign out" icon={LogOut01} onClick={onSignOut} />
+                <NavAccountCardMenuItem label={t("signOut")} icon={LogOut01} onClick={onSignOut} />
             </div>
         </AriaDialog>
     );
@@ -139,6 +141,7 @@ export const NavAccountCard = ({
 }: {
     popoverPlacement?: Placement;
 }) => {
+    const t = useTranslations("nav");
     const triggerRef = useRef<HTMLDivElement>(null);
     const isDesktop = useBreakpoint("lg");
     const currentUser = useQuery(api.auth.getCurrentUser);
@@ -161,7 +164,7 @@ export const NavAccountCard = ({
             <AvatarLabelGroup
                 size="md"
                 src={userImage ?? undefined}
-                title={userName || userEmail || "User"}
+                title={userName || userEmail || t("user")}
                 subtitle={userName ? (userEmail || "") : ""}
                 status="online"
                 alt={initials}

@@ -13,6 +13,7 @@ import { Plus, Edit05, Trash01 } from "@untitledui/icons";
 import { toast } from "sonner";
 import { BadgeWithIcon } from "@/components/base/badges/badges";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
+import { useTranslations } from "next-intl";
 
 interface GroupManagementModalProps {
   domainId: Id<"domains">;
@@ -36,6 +37,8 @@ export function GroupManagementModal({
   isOpen,
   onOpenChange,
 }: GroupManagementModalProps) {
+  const t = useTranslations("keywords");
+  const tc = useTranslations("common");
   const groups = useQuery(api.keywordGroups_queries.getGroupsByDomain, { domainId });
   const createGroup = useMutation(api.keywordGroups_mutations.createGroup);
   const updateGroup = useMutation(api.keywordGroups_mutations.updateGroup);
@@ -52,7 +55,7 @@ export function GroupManagementModal({
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) {
-      toast.error("Group name is required");
+      toast.error(t("groupNameRequired"));
       return;
     }
 
@@ -64,19 +67,19 @@ export function GroupManagementModal({
         color: newGroupColor,
       });
 
-      toast.success(`Created group "${newGroupName}"`);
+      toast.success(t("groupCreated", { name: newGroupName }));
       setNewGroupName("");
       setNewGroupDescription("");
       setNewGroupColor(COLOR_OPTIONS[0].value);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to create group";
+      const errorMessage = error instanceof Error ? error.message : t("groupCreateFailed");
       toast.error(errorMessage);
     }
   };
 
   const handleUpdateGroup = async (groupId: Id<"keywordGroups">) => {
     if (!editName.trim()) {
-      toast.error("Group name is required");
+      toast.error(t("groupNameRequired"));
       return;
     }
 
@@ -88,10 +91,10 @@ export function GroupManagementModal({
         color: editColor,
       });
 
-      toast.success("Group updated");
+      toast.success(t("groupUpdated"));
       setEditingGroup(null);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to update group";
+      const errorMessage = error instanceof Error ? error.message : t("groupUpdateFailed");
       toast.error(errorMessage);
     }
   };
@@ -99,9 +102,9 @@ export function GroupManagementModal({
   const handleDeleteGroup = async (groupId: Id<"keywordGroups">, groupName: string) => {
     try {
       await deleteGroup({ groupId });
-      toast.success(`Deleted group "${groupName}"`);
+      toast.success(t("groupDeleted", { name: groupName }));
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to delete group";
+      const errorMessage = error instanceof Error ? error.message : t("groupDeleteFailed");
       toast.error(errorMessage);
     }
   };
@@ -129,33 +132,33 @@ export function GroupManagementModal({
               {/* Header */}
               <div className="border-b border-secondary px-6 py-4">
                 <Heading slot="title" className="text-lg font-semibold text-primary">
-                  Manage Keyword Groups
+                  {t("groupManagement")}
                 </Heading>
                 <p className="mt-1 text-sm text-tertiary">
-                  Organize your keywords into custom groups for better analysis
+                  {t("groupManagementDescription")}
                 </p>
               </div>
 
               {/* Create New Group Section */}
               <div className="border-b border-secondary bg-secondary-subtle px-6 py-4">
-                <h3 className="mb-3 text-sm font-semibold text-primary">Create New Group</h3>
+                <h3 className="mb-3 text-sm font-semibold text-primary">{t("createNewGroup")}</h3>
                 <div className="grid gap-3">
                   <Input
                     size="md"
-                    label="Group Name"
+                    label={t("groupNameLabel")}
                     value={newGroupName}
                     onChange={(value: string) => setNewGroupName(value)}
-                    placeholder="e.g., Brand Keywords"
+                    placeholder={t("groupNamePlaceholder")}
                   />
                   <Input
                     size="md"
-                    label="Description (Optional)"
+                    label={t("groupDescriptionLabel")}
                     value={newGroupDescription}
                     onChange={(value: string) => setNewGroupDescription(value)}
-                    placeholder="e.g., Keywords containing brand name"
+                    placeholder={t("groupDescriptionPlaceholder")}
                   />
                   <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-primary">Color</label>
+                    <label className="text-sm font-medium text-primary">{t("colorLabel")}</label>
                     <div className="flex gap-2">
                       {COLOR_OPTIONS.map((color) => (
                         <button
@@ -180,7 +183,7 @@ export function GroupManagementModal({
                     onClick={handleCreateGroup}
                     className="w-full"
                   >
-                    Create Group
+                    {t("createGroupButton")}
                   </Button>
                 </div>
               </div>
@@ -188,11 +191,11 @@ export function GroupManagementModal({
               {/* Existing Groups List */}
               <div className="max-h-96 overflow-y-auto px-6 py-4">
                 <h3 className="mb-3 text-sm font-semibold text-primary">
-                  Existing Groups ({groups?.length || 0})
+                  {t("existingGroups")} ({groups?.length || 0})
                 </h3>
                 {!groups || groups.length === 0 ? (
                   <div className="py-8 text-center text-sm text-tertiary">
-                    No groups created yet. Create your first group above.
+                    {t("noGroupsYet")}
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2">
@@ -208,13 +211,13 @@ export function GroupManagementModal({
                               size="sm"
                               value={editName}
                               onChange={(value: string) => setEditName(value)}
-                              placeholder="Group name"
+                              placeholder={t("groupNameEditPlaceholder")}
                             />
                             <Input
                               size="sm"
                               value={editDescription}
                               onChange={(value: string) => setEditDescription(value)}
-                              placeholder="Description (optional)"
+                              placeholder={t("groupDescEditPlaceholder")}
                             />
                             <div className="flex gap-2">
                               {COLOR_OPTIONS.map((color) => (
@@ -238,7 +241,7 @@ export function GroupManagementModal({
                                 onClick={() => handleUpdateGroup(group._id as Id<"keywordGroups">)}
                                 className="flex-1"
                               >
-                                Save
+                                {tc("save")}
                               </Button>
                               <Button
                                 size="sm"
@@ -246,7 +249,7 @@ export function GroupManagementModal({
                                 onClick={() => setEditingGroup(null)}
                                 className="flex-1"
                               >
-                                Cancel
+                                {tc("cancel")}
                               </Button>
                             </div>
                           </div>
@@ -261,7 +264,7 @@ export function GroupManagementModal({
                               <div className="flex items-center gap-2">
                                 <span className="font-medium text-primary">{group.name}</span>
                                 <BadgeWithIcon type="pill-color" color="gray" size="sm">
-                                  {group.keywordCount} keywords
+                                  {t("keywordsCount", { count: group.keywordCount })}
                                 </BadgeWithIcon>
                               </div>
                               {group.description && (
@@ -275,18 +278,18 @@ export function GroupManagementModal({
                                 iconLeading={Edit05}
                                 onClick={() => startEditing(group)}
                               >
-                                Edit
+                                {tc("edit")}
                               </Button>
                               <DeleteConfirmationDialog
-                                title={`Delete "${group.name}"?`}
-                                description={`This will remove ${group.keywordCount} keywords from this group. The keywords themselves will not be deleted.`}
-                                confirmLabel="Delete Group"
+                                title={t("deleteGroupTitle", { name: group.name })}
+                                description={t("deleteGroupDescription", { count: group.keywordCount })}
+                                confirmLabel={t("deleteGroupConfirm")}
                                 onConfirm={() =>
                                   handleDeleteGroup(group._id as Id<"keywordGroups">, group.name)
                                 }
                               >
                                 <Button size="sm" color="secondary-destructive" iconLeading={Trash01}>
-                                  Delete
+                                  {tc("delete")}
                                 </Button>
                               </DeleteConfirmationDialog>
                             </div>
@@ -301,7 +304,7 @@ export function GroupManagementModal({
               {/* Footer */}
               <div className="border-t border-secondary px-6 py-4">
                 <Button size="md" color="secondary" onClick={() => onOpenChange(false)} className="w-full">
-                  Close
+                  {tc("close")}
                 </Button>
               </div>
             </div>

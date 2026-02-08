@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/base/badges/badges";
 import { TrendUp02, TrendDown02 } from "@untitledui/icons";
 
@@ -30,6 +31,7 @@ function getPositionBadgeColor(position: number | null): "blue" | "success" | "w
 }
 
 export function TopKeywordsTable({ keywords, title, description, isLoading }: TopKeywordsTableProps) {
+  const t = useTranslations('keywords');
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
@@ -54,7 +56,7 @@ export function TopKeywordsTable({ keywords, title, description, isLoading }: To
           <p className="text-sm text-tertiary">{description}</p>
         </div>
         <div className="py-8 text-center">
-          <p className="text-sm text-tertiary">No keywords found in this range</p>
+          <p className="text-sm text-tertiary">{t('noKeywordsInRange')}</p>
         </div>
       </div>
     );
@@ -72,19 +74,19 @@ export function TopKeywordsTable({ keywords, title, description, isLoading }: To
           <thead className="bg-secondary-subtle">
             <tr className="border-b border-secondary">
               <th className="px-4 py-3 text-left text-xs font-medium uppercase text-secondary">
-                Position
+                {t('columnPosition')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase text-secondary">
-                Keyword
+                {t('columnKeyword')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase text-secondary">
-                Change
+                {t('columnChange')}
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium uppercase text-secondary">
-                Volume
+                {t('columnVolume')}
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium uppercase text-secondary">
-                Difficulty
+                {t('columnDifficulty')}
               </th>
             </tr>
           </thead>

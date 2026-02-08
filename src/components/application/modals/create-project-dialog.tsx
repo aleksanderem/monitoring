@@ -10,12 +10,15 @@ import { Input } from "@/components/base/input/input";
 import { useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 interface CreateProjectDialogProps {
   onSuccess?: () => void;
 }
 
 export function CreateProjectDialog({ onSuccess }: CreateProjectDialogProps) {
+  const t = useTranslations("projects");
+  const tc = useTranslations("common");
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,19 +29,19 @@ export function CreateProjectDialog({ onSuccess }: CreateProjectDialogProps) {
     e.preventDefault();
 
     if (!name.trim()) {
-      toast.error("Please enter a project name");
+      toast.error(t("pleaseEnterProjectName"));
       return;
     }
 
     try {
       setIsSubmitting(true);
       await createProject({ name: name.trim() });
-      toast.success("Project created successfully");
+      toast.success(t("projectCreatedSuccess"));
       setIsOpen(false);
       setName("");
       onSuccess?.();
     } catch (error) {
-      toast.error("Failed to create project");
+      toast.error(t("failedToCreateProject"));
       console.error(error);
     } finally {
       setIsSubmitting(false);
@@ -48,7 +51,7 @@ export function CreateProjectDialog({ onSuccess }: CreateProjectDialogProps) {
   return (
     <AriaDialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
       <Button iconLeading={Plus} size="md">
-        New Project
+        {t("newProject")}
       </Button>
 
       <ModalOverlay isDismissable={!isSubmitting}>
@@ -69,17 +72,17 @@ export function CreateProjectDialog({ onSuccess }: CreateProjectDialogProps) {
               <div className="flex flex-col gap-5 p-4 sm:p-6">
                 <div className="flex flex-col gap-1">
                   <AriaHeading slot="title" className="text-lg font-semibold text-primary">
-                    Create new project
+                    {t("createNewProject")}
                   </AriaHeading>
                   <p className="text-sm text-tertiary">
-                    Add a new project to organize your SEO monitoring.
+                    {t("createNewProjectDescription")}
                   </p>
                 </div>
 
                 <Input
                   size="md"
-                  label="Project name"
-                  placeholder="e.g. Company Website"
+                  label={t("projectName")}
+                  placeholder={t("projectNamePlaceholder")}
                   value={name}
                   onChange={(value) => setName(value)}
                   isRequired
@@ -96,7 +99,7 @@ export function CreateProjectDialog({ onSuccess }: CreateProjectDialogProps) {
                   type="button"
                   isDisabled={isSubmitting}
                 >
-                  Cancel
+                  {tc("cancel")}
                 </Button>
                 <Button
                   size="lg"
@@ -104,7 +107,7 @@ export function CreateProjectDialog({ onSuccess }: CreateProjectDialogProps) {
                   type="submit"
                   isDisabled={isSubmitting || !name.trim()}
                 >
-                  {isSubmitting ? "Creating..." : "Create project"}
+                  {isSubmitting ? t("creating") : t("createProject")}
                 </Button>
               </div>
             </form>

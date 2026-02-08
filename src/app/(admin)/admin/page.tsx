@@ -3,8 +3,10 @@
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Breadcrumbs } from "@/components/application/breadcrumbs/breadcrumbs";
+import { useTranslations } from "next-intl";
 
 export default function AdminDashboardPage() {
+  const t = useTranslations("admin");
   const stats = useQuery(api.admin.getSystemStats);
   const auditLogs = useQuery(api.admin.getAdminAuditLogs, { limit: 5 });
 
@@ -20,49 +22,49 @@ export default function AdminDashboardPage() {
     <div className="p-6">
       <div className="mb-6">
         <Breadcrumbs>
-          <Breadcrumbs.Item href="/">Home</Breadcrumbs.Item>
-          <Breadcrumbs.Item>Admin</Breadcrumbs.Item>
+          <Breadcrumbs.Item href="/">{t("breadcrumbHome")}</Breadcrumbs.Item>
+          <Breadcrumbs.Item>{t("sidebarTitle")}</Breadcrumbs.Item>
         </Breadcrumbs>
       </div>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-primary">Dashboard</h1>
-        <p className="mt-1 text-sm text-tertiary">System statistics and recent actions overview.</p>
+        <h1 className="text-2xl font-semibold text-primary">{t("navDashboard")}</h1>
+        <p className="mt-1 text-sm text-tertiary">{t("dashboardDescription")}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         <div className="rounded-xl border border-secondary bg-primary p-5">
-          <p className="text-sm font-medium text-tertiary">Users</p>
+          <p className="text-sm font-medium text-tertiary">{t("statsUsers")}</p>
           <p className="mt-2 text-3xl font-semibold text-primary">{stats.users.total}</p>
         </div>
         <div className="rounded-xl border border-secondary bg-primary p-5">
-          <p className="text-sm font-medium text-tertiary">Organizations</p>
+          <p className="text-sm font-medium text-tertiary">{t("statsOrganizations")}</p>
           <p className="mt-2 text-3xl font-semibold text-primary">{stats.organizations.total}</p>
-          <p className="mt-1 text-xs text-tertiary">+{stats.organizations.recent} in last 7 days</p>
+          <p className="mt-1 text-xs text-tertiary">{t("statsRecentOrgs", { count: stats.organizations.recent })}</p>
         </div>
         <div className="rounded-xl border border-secondary bg-primary p-5">
-          <p className="text-sm font-medium text-tertiary">Projects</p>
+          <p className="text-sm font-medium text-tertiary">{t("statsProjects")}</p>
           <p className="mt-2 text-3xl font-semibold text-primary">{stats.projects.total}</p>
         </div>
         <div className="rounded-xl border border-secondary bg-primary p-5">
-          <p className="text-sm font-medium text-tertiary">Domains</p>
+          <p className="text-sm font-medium text-tertiary">{t("statsDomains")}</p>
           <p className="mt-2 text-3xl font-semibold text-primary">{stats.domains.total}</p>
         </div>
         <div className="rounded-xl border border-secondary bg-primary p-5">
-          <p className="text-sm font-medium text-tertiary">Active Keywords</p>
+          <p className="text-sm font-medium text-tertiary">{t("statsActiveKeywords")}</p>
           <p className="mt-2 text-3xl font-semibold text-primary">{stats.keywords.active}</p>
-          <p className="mt-1 text-xs text-tertiary">of {stats.keywords.total} total</p>
+          <p className="mt-1 text-xs text-tertiary">{t("statsOfTotal", { count: stats.keywords.total })}</p>
         </div>
         <div className="rounded-xl border border-secondary bg-primary p-5">
-          <p className="text-sm font-medium text-tertiary">Pending Keywords</p>
+          <p className="text-sm font-medium text-tertiary">{t("statsPendingKeywords")}</p>
           <p className="mt-2 text-3xl font-semibold text-primary">{stats.keywords.pending}</p>
-          <p className="mt-1 text-xs text-tertiary">{stats.keywords.paused} paused</p>
+          <p className="mt-1 text-xs text-tertiary">{t("statsPaused", { count: stats.keywords.paused })}</p>
         </div>
       </div>
 
       <div className="bg-primary rounded-xl border border-secondary shadow-xs overflow-hidden">
         <div className="px-6 py-4 border-b border-secondary">
-          <h2 className="text-lg font-semibold text-primary">Recent Admin Actions</h2>
+          <h2 className="text-lg font-semibold text-primary">{t("recentAdminActions")}</h2>
         </div>
         {auditLogs && auditLogs.length > 0 ? (
           <div className="divide-y divide-secondary">
@@ -80,7 +82,7 @@ export default function AdminDashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="px-6 py-8 text-center text-tertiary">No recent actions</div>
+          <div className="px-6 py-8 text-center text-tertiary">{t("noRecentActions")}</div>
         )}
       </div>
     </div>
@@ -88,6 +90,7 @@ export default function AdminDashboardPage() {
 }
 
 function getActionLabel(action: string): string {
+  // These are system action labels that map to backend action keys
   const labels: Record<string, string> = {
     update_org_limits: "Updated org limits",
     delete_organization: "Deleted organization",

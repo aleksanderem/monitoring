@@ -320,13 +320,14 @@ export const getQuickWinActionPlan = query({
             .sort((a, b) => b.priorityScore - a.priorityScore)
             .slice(0, 15);
 
-        // 8. Generate recommendations
+        // 8. Generate recommendations (returns translation keys + params for frontend i18n)
         const recommendations: Array<{
             category: "links" | "content" | "serp_features" | "technical";
             priority: "high" | "medium" | "low";
-            title: string;
-            description: string;
-            actionSteps: string[];
+            titleKey: string;
+            descriptionKey: string;
+            actionStepKeys: string[];
+            params: Record<string, string | number>;
         }> = [];
 
         const position = dk.bestPosition;
@@ -343,14 +344,21 @@ export const getQuickWinActionPlan = query({
             recommendations.push({
                 category: "links",
                 priority: refDomainGap > 50 ? "high" : "medium",
-                title: `Close the referring domain gap (${refDomainGap > 0 ? "+" : ""}${refDomainGap} gap)`,
-                description: `Competitors have on average ${avgCompRefDomains} referring domains vs your ${ourRefDomains}. Focus on acquiring links from domains that already link to competitors.`,
-                actionSteps: [
-                    `Target the top ${Math.min(backlinkGapTargets.length, 5)} gap domains that link to ${backlinkGapTargets[0]?.competitorCount ?? 0}+ competitors`,
-                    "Start with guest posting or resource link outreach to highest priority targets",
-                    "Focus on dofollow links from domains with rank 50+",
-                    "Track new referring domains weekly to measure progress",
+                titleKey: "recCloseRefDomainGapTitle",
+                descriptionKey: "recCloseRefDomainGapDesc",
+                actionStepKeys: [
+                    "recCloseRefDomainGapStep1",
+                    "recCloseRefDomainGapStep2",
+                    "recCloseRefDomainGapStep3",
+                    "recCloseRefDomainGapStep4",
                 ],
+                params: {
+                    gap: refDomainGap,
+                    avgComp: avgCompRefDomains,
+                    yours: ourRefDomains,
+                    topCount: Math.min(backlinkGapTargets.length, 5),
+                    compCount: backlinkGapTargets[0]?.competitorCount ?? 0,
+                },
             });
         }
 
@@ -360,13 +368,18 @@ export const getQuickWinActionPlan = query({
                 recommendations.push({
                     category: "links",
                     priority: "high",
-                    title: `${multiCompTargets.length} shared competitor link sources found`,
-                    description: `These domains link to multiple competitors but not to you — they are likely open to linking to similar content.`,
-                    actionSteps: [
-                        `Reach out to ${multiCompTargets[0].domain} (links to ${multiCompTargets[0].competitorCount} competitors)`,
-                        "Analyze what content competitors used to earn these links",
-                        "Create equal or better content to pitch for link placement",
+                    titleKey: "recSharedLinkSourcesTitle",
+                    descriptionKey: "recSharedLinkSourcesDesc",
+                    actionStepKeys: [
+                        "recSharedLinkSourcesStep1",
+                        "recSharedLinkSourcesStep2",
+                        "recSharedLinkSourcesStep3",
                     ],
+                    params: {
+                        count: multiCompTargets.length,
+                        domain: multiCompTargets[0].domain,
+                        compCount: multiCompTargets[0].competitorCount,
+                    },
                 });
             }
         }
@@ -376,40 +389,43 @@ export const getQuickWinActionPlan = query({
             recommendations.push({
                 category: "content",
                 priority: position <= 10 ? "medium" : "high",
-                title: "Optimize for informational intent",
-                description: "Searchers want detailed answers. Structure content for comprehensive coverage with clear headings.",
-                actionSteps: [
-                    "Add an FAQ section with related questions",
-                    "Include data, statistics, and expert quotes",
-                    "Add table of contents for long content",
-                    "Use schema markup (FAQ, HowTo) for rich results",
+                titleKey: "recInformationalTitle",
+                descriptionKey: "recInformationalDesc",
+                actionStepKeys: [
+                    "recInformationalStep1",
+                    "recInformationalStep2",
+                    "recInformationalStep3",
+                    "recInformationalStep4",
                 ],
+                params: {},
             });
         } else if (intent === "commercial") {
             recommendations.push({
                 category: "content",
                 priority: position <= 10 ? "medium" : "high",
-                title: "Optimize for commercial investigation intent",
-                description: "Searchers are comparing options. Create content that helps with decision-making.",
-                actionSteps: [
-                    "Add comparison tables with clear feature breakdowns",
-                    "Include pros/cons lists and user reviews",
-                    "Add pricing information and value propositions",
-                    "Use Product schema markup for rich results",
+                titleKey: "recCommercialTitle",
+                descriptionKey: "recCommercialDesc",
+                actionStepKeys: [
+                    "recCommercialStep1",
+                    "recCommercialStep2",
+                    "recCommercialStep3",
+                    "recCommercialStep4",
                 ],
+                params: {},
             });
         } else if (intent === "transactional") {
             recommendations.push({
                 category: "content",
                 priority: "high",
-                title: "Optimize for transactional intent",
-                description: "Searchers are ready to act. Minimize friction between landing and conversion.",
-                actionSteps: [
-                    "Add clear CTAs above the fold",
-                    "Include trust signals: reviews, certifications, guarantees",
-                    "Optimize page speed — every second counts for conversions",
-                    "Add Product/Offer schema markup",
+                titleKey: "recTransactionalTitle",
+                descriptionKey: "recTransactionalDesc",
+                actionStepKeys: [
+                    "recTransactionalStep1",
+                    "recTransactionalStep2",
+                    "recTransactionalStep3",
+                    "recTransactionalStep4",
                 ],
+                params: {},
             });
         }
 
@@ -418,40 +434,43 @@ export const getQuickWinActionPlan = query({
             recommendations.push({
                 category: "serp_features",
                 priority: "high",
-                title: "Target the Featured Snippet / PAA",
-                description: "This keyword shows a featured snippet or PAA boxes — winning these can jump you to position 0.",
-                actionSteps: [
-                    "Add a concise 40-60 word answer to the main question near the top",
-                    "Use a paragraph, list, or table format matching the current snippet type",
-                    "Add H2/H3 headers phrased as common questions",
-                    "Include structured data (FAQ schema)",
+                titleKey: "recFeaturedSnippetTitle",
+                descriptionKey: "recFeaturedSnippetDesc",
+                actionStepKeys: [
+                    "recFeaturedSnippetStep1",
+                    "recFeaturedSnippetStep2",
+                    "recFeaturedSnippetStep3",
+                    "recFeaturedSnippetStep4",
                 ],
+                params: {},
             });
         }
         if (serpFeatures.includes("local_pack")) {
             recommendations.push({
                 category: "serp_features",
                 priority: "medium",
-                title: "Local pack detected",
-                description: "Google shows a local map pack. If you have a physical location, optimize for local SEO.",
-                actionSteps: [
-                    "Claim and optimize your Google Business Profile",
-                    "Ensure NAP consistency (Name, Address, Phone) across all directories",
-                    "Get local reviews on Google and industry-specific platforms",
+                titleKey: "recLocalPackTitle",
+                descriptionKey: "recLocalPackDesc",
+                actionStepKeys: [
+                    "recLocalPackStep1",
+                    "recLocalPackStep2",
+                    "recLocalPackStep3",
                 ],
+                params: {},
             });
         }
         if (serpFeatures.includes("video")) {
             recommendations.push({
                 category: "serp_features",
                 priority: "medium",
-                title: "Video results showing",
-                description: "Google displays video results for this keyword. Creating video content could earn you an additional SERP spot.",
-                actionSteps: [
-                    "Create a YouTube video targeting this keyword",
-                    "Embed the video on your ranking page",
-                    "Add VideoObject schema markup",
+                titleKey: "recVideoTitle",
+                descriptionKey: "recVideoDesc",
+                actionStepKeys: [
+                    "recVideoStep1",
+                    "recVideoStep2",
+                    "recVideoStep3",
                 ],
+                params: {},
             });
         }
 
@@ -460,27 +479,29 @@ export const getQuickWinActionPlan = query({
             recommendations.push({
                 category: "technical",
                 priority: "medium",
-                title: "Almost there — page 1 optimization",
-                description: `You're at position #${position}. Small technical improvements can push you into top 3.`,
-                actionSteps: [
-                    "Improve page Core Web Vitals (LCP < 2.5s, CLS < 0.1)",
-                    "Optimize title tag and meta description for higher CTR",
-                    "Add internal links from your highest-authority pages",
-                    "Ensure content is more comprehensive than top 3 results",
+                titleKey: "recPage1OptTitle",
+                descriptionKey: "recPage1OptDesc",
+                actionStepKeys: [
+                    "recPage1OptStep1",
+                    "recPage1OptStep2",
+                    "recPage1OptStep3",
+                    "recPage1OptStep4",
                 ],
+                params: { position },
             });
         } else if (position >= 11 && position <= 20) {
             recommendations.push({
                 category: "technical",
                 priority: "high",
-                title: "Push from page 2 to page 1",
-                description: `Position #${position} is close to page 1. Focus on both content depth and link authority.`,
-                actionSteps: [
-                    "Expand content by 30-50% with additional subtopics",
-                    "Build 5-10 quality backlinks to this page specifically",
-                    "Add 3-5 internal links from relevant pages",
-                    "Improve page load speed and mobile usability",
+                titleKey: "recPage2PushTitle",
+                descriptionKey: "recPage2PushDesc",
+                actionStepKeys: [
+                    "recPage2PushStep1",
+                    "recPage2PushStep2",
+                    "recPage2PushStep3",
+                    "recPage2PushStep4",
                 ],
+                params: { position },
             });
         }
 

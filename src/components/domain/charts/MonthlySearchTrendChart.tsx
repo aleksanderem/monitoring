@@ -1,6 +1,7 @@
 "use client";
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useTranslations } from "next-intl";
 
 interface MonthlySearchTrendChartProps {
   monthlySearches: Array<{
@@ -11,10 +12,11 @@ interface MonthlySearchTrendChartProps {
 }
 
 export function MonthlySearchTrendChart({ monthlySearches }: MonthlySearchTrendChartProps) {
+  const t = useTranslations("keywords");
   if (!monthlySearches || monthlySearches.length === 0) {
     return (
       <div className="flex items-center justify-center h-48 text-sm text-tertiary">
-        No trend data available
+        {t("noTrendDataAvailable")}
       </div>
     );
   }
@@ -43,15 +45,15 @@ export function MonthlySearchTrendChart({ monthlySearches }: MonthlySearchTrendC
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="rounded-lg border border-secondary bg-secondary/30 p-3">
-          <p className="text-xs text-tertiary mb-1">Avg Volume</p>
+          <p className="text-xs text-tertiary mb-1">{t("avgVolume")}</p>
           <p className="text-lg font-semibold text-primary">{Math.round(avgVolume).toLocaleString()}</p>
         </div>
         <div className="rounded-lg border border-secondary bg-secondary/30 p-3">
-          <p className="text-xs text-tertiary mb-1">Peak Volume</p>
+          <p className="text-xs text-tertiary mb-1">{t("peakVolume")}</p>
           <p className="text-lg font-semibold text-utility-success-600">{maxVolume.toLocaleString()}</p>
         </div>
         <div className="rounded-lg border border-secondary bg-secondary/30 p-3">
-          <p className="text-xs text-tertiary mb-1">Low Volume</p>
+          <p className="text-xs text-tertiary mb-1">{t("lowVolume")}</p>
           <p className="text-lg font-semibold text-utility-warning-600">{minVolume.toLocaleString()}</p>
         </div>
       </div>
@@ -86,7 +88,7 @@ export function MonthlySearchTrendChart({ monthlySearches }: MonthlySearchTrendC
               }}
               labelStyle={{ color: '#F9FAFB', fontWeight: 600, marginBottom: '4px' }}
               itemStyle={{ color: '#E5E7EB' }}
-              formatter={(value: number | undefined) => [value ? value.toLocaleString() : '0', 'Search Volume']}
+              formatter={(value: number | undefined) => [value ? value.toLocaleString() : '0', t("searchVolume")]}
             />
             <Line
               type="monotone"
@@ -109,18 +111,18 @@ export function MonthlySearchTrendChart({ monthlySearches }: MonthlySearchTrendC
                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
                 </svg>
-                Trending Up
+                {t("trendingUp")}
               </span>
             ) : chartData[chartData.length - 1].search_volume < chartData[0].search_volume ? (
               <span className="flex items-center gap-1 text-utility-error-600 font-medium">
                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
-                Trending Down
+                {t("trendingDown")}
               </span>
             ) : (
               <span className="flex items-center gap-1 text-utility-gray-600 font-medium">
-                → Stable
+                → {t("trendStable")}
               </span>
             )}
           </>

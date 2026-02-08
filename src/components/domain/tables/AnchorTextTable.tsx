@@ -16,53 +16,54 @@ import {
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useTranslations } from "next-intl";
 
 interface AnchorTextTableProps {
     domainId: Id<"domains">;
 }
 
-const CATEGORY_BADGES: Record<string, { bg: string; text: string; label: string }> = {
-    branded: { bg: "bg-utility-brand-50", text: "text-utility-brand-600", label: "Branded" },
-    exact_url: { bg: "bg-utility-blue-50", text: "text-utility-blue-600", label: "URL" },
-    generic: { bg: "bg-utility-warning-50", text: "text-utility-warning-600", label: "Generic" },
-    other: { bg: "bg-utility-gray-50", text: "text-utility-gray-600", label: "Other" },
+const CATEGORY_BADGES: Record<string, { bg: string; text: string; labelKey: string }> = {
+    branded: { bg: "bg-utility-brand-50", text: "text-utility-brand-600", labelKey: "anchorCategoryBrandedBadge" },
+    exact_url: { bg: "bg-utility-blue-50", text: "text-utility-blue-600", labelKey: "anchorCategoryUrlBadge" },
+    generic: { bg: "bg-utility-warning-50", text: "text-utility-warning-600", labelKey: "anchorCategoryGenericBadge" },
+    other: { bg: "bg-utility-gray-50", text: "text-utility-gray-600", labelKey: "anchorCategoryOtherBadge" },
 };
 
 type SortColumn = "anchor" | "count" | "percentage" | "dofollow" | "nofollow";
 type SortDirection = "asc" | "desc";
 
 const CATEGORY_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "Branded", value: "branded" },
-    { label: "URL", value: "exact_url" },
-    { label: "Generic", value: "generic" },
-    { label: "Other", value: "other" },
+    { labelKey: "filterAll", value: "all" },
+    { labelKey: "anchorFilterCategoryBranded", value: "branded" },
+    { labelKey: "anchorFilterCategoryUrl", value: "exact_url" },
+    { labelKey: "anchorFilterCategoryGeneric", value: "generic" },
+    { labelKey: "anchorFilterCategoryOther", value: "other" },
 ];
 
 const MIN_COUNT_FILTERS = [
-    { label: "Any", value: "0" },
-    { label: "2+", value: "2" },
-    { label: "5+", value: "5" },
-    { label: "10+", value: "10" },
-    { label: "25+", value: "25" },
-    { label: "50+", value: "50" },
+    { labelKey: "anchorFilterAny", value: "0" },
+    { labelKey: "anchorFilterMinCount2", value: "2" },
+    { labelKey: "anchorFilterMinCount5", value: "5" },
+    { labelKey: "anchorFilterMinCount10", value: "10" },
+    { labelKey: "anchorFilterMinCount25", value: "25" },
+    { labelKey: "anchorFilterMinCount50", value: "50" },
 ];
 
 const SHARE_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "> 0.5%", value: "0.5" },
-    { label: "> 1%", value: "1" },
-    { label: "> 3%", value: "3" },
-    { label: "> 5%", value: "5" },
-    { label: "> 10%", value: "10" },
+    { labelKey: "filterAll", value: "all" },
+    { labelKey: "anchorFilterShareAbove05", value: "0.5" },
+    { labelKey: "anchorFilterShareAbove1", value: "1" },
+    { labelKey: "anchorFilterShareAbove3", value: "3" },
+    { labelKey: "anchorFilterShareAbove5", value: "5" },
+    { labelKey: "anchorFilterShareAbove10", value: "10" },
 ];
 
 const DOFOLLOW_RATIO_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "All Dofollow", value: "all_df" },
-    { label: "Mostly Dofollow (>75%)", value: "mostly_df" },
-    { label: "Mixed", value: "mixed" },
-    { label: "Mostly Nofollow (>75%)", value: "mostly_nf" },
+    { labelKey: "filterAll", value: "all" },
+    { labelKey: "anchorFilterDfAll", value: "all_df" },
+    { labelKey: "anchorFilterDfMostly", value: "mostly_df" },
+    { labelKey: "anchorFilterDfMixed", value: "mixed" },
+    { labelKey: "anchorFilterNfMostly", value: "mostly_nf" },
 ];
 
 const PAGE_SIZE = 25;
@@ -77,13 +78,13 @@ interface ColumnVisibility {
     share: boolean;
 }
 
-const COLUMN_LABELS: Record<keyof ColumnVisibility, string> = {
-    anchor: "Anchor Text",
-    category: "Category",
-    count: "Count",
-    dofollow: "Dofollow",
-    nofollow: "Nofollow",
-    share: "Share",
+const COLUMN_LABEL_KEYS: Record<keyof ColumnVisibility, string> = {
+    anchor: "anchorColumnLabelAnchor",
+    category: "anchorColumnLabelCategory",
+    count: "anchorColumnLabelCount",
+    dofollow: "anchorColumnLabelDofollow",
+    nofollow: "anchorColumnLabelNofollow",
+    share: "anchorColumnLabelShare",
 };
 
 const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = {
@@ -96,6 +97,7 @@ const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = {
 };
 
 export function AnchorTextTable({ domainId }: AnchorTextTableProps) {
+    const t = useTranslations('backlinks');
     const data = useQuery(api.backlinkAnalysis_queries.getAnchorTextDistribution, { domainId });
 
     const [search, setSearch] = useState("");
@@ -239,12 +241,12 @@ export function AnchorTextTable({ domainId }: AnchorTextTableProps) {
                 <div className="flex items-center gap-2">
                     <Type01 className="h-5 w-5 text-fg-brand-primary" />
                     <div>
-                        <h3 className="text-md font-semibold text-primary">Top Anchor Texts</h3>
-                        <p className="text-sm text-tertiary">Most frequently used anchor texts across your backlinks</p>
+                        <h3 className="text-md font-semibold text-primary">{t('anchorTextsTitle')}</h3>
+                        <p className="text-sm text-tertiary">{t('anchorTextsSubtitle')}</p>
                     </div>
                 </div>
                 <div className="text-sm text-tertiary">
-                    {filteredData.length} anchors
+                    {t('anchorAnchorsCount', { count: filteredData.length })}
                 </div>
             </div>
 
@@ -255,7 +257,7 @@ export function AnchorTextTable({ domainId }: AnchorTextTableProps) {
                     <SearchLg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-fg-quaternary" />
                     <input
                         type="text"
-                        placeholder="Search anchor texts..."
+                        placeholder={t('searchAnchors')}
                         value={search}
                         onChange={(e) => { setSearch(e.target.value); resetPage(); }}
                         className="w-full rounded-lg border border-primary bg-primary pl-9 pr-3 py-2 text-sm text-primary placeholder:text-placeholder focus:outline-none focus:ring-2 focus:ring-brand-600"
@@ -267,7 +269,7 @@ export function AnchorTextTable({ domainId }: AnchorTextTableProps) {
                     className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${showFilters || hasActiveFilters ? "border-brand-600 bg-utility-brand-50 text-brand-600" : "border-primary bg-primary text-tertiary hover:bg-secondary"}`}
                 >
                     <FilterLines className="h-4 w-4" />
-                    Filters
+                    {t('filters')}
                     {hasActiveFilters && !showFilters && (
                         <span className="ml-1 rounded-full bg-brand-600 px-1.5 text-[10px] font-medium text-white">
                             {[categoryFilter !== "all", minCountFilter !== "0", shareFilter !== "all", dofollowRatioFilter !== "all"].filter(Boolean).length}
@@ -282,7 +284,7 @@ export function AnchorTextTable({ domainId }: AnchorTextTableProps) {
                         className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${showColumnPicker ? "border-brand-600 bg-utility-brand-50 text-brand-600" : "border-primary bg-primary text-tertiary hover:bg-secondary"}`}
                     >
                         <Settings01 className="h-4 w-4" />
-                        Columns
+                        {t('refColumns')}
                     </button>
                     {showColumnPicker && (
                         <div className="absolute right-0 top-full z-10 mt-2 w-48 rounded-lg border border-secondary bg-primary p-2 shadow-lg">
@@ -298,7 +300,7 @@ export function AnchorTextTable({ domainId }: AnchorTextTableProps) {
                                             onChange={() => toggleColumn(key)}
                                             className="h-4 w-4 rounded border-gray-300"
                                         />
-                                        <span className="text-primary">{COLUMN_LABELS[key]}</span>
+                                        <span className="text-primary">{t(COLUMN_LABEL_KEYS[key])}</span>
                                     </label>
                                 ))}
                             </div>
@@ -309,7 +311,7 @@ export function AnchorTextTable({ domainId }: AnchorTextTableProps) {
                 {hasActiveFilters && (
                     <button onClick={clearFilters} className="flex items-center gap-1 text-sm text-tertiary hover:text-primary">
                         <XClose className="h-3.5 w-3.5" />
-                        Clear
+                        {t('clear')}
                     </button>
                 )}
             </div>
@@ -317,10 +319,10 @@ export function AnchorTextTable({ domainId }: AnchorTextTableProps) {
             {/* Filters row */}
             {showFilters && (
                 <div className="flex flex-wrap gap-3">
-                    <FilterSelect label="Category" value={categoryFilter} options={CATEGORY_FILTERS} onChange={(v) => { setCategoryFilter(v); resetPage(); }} />
-                    <FilterSelect label="Min Count" value={minCountFilter} options={MIN_COUNT_FILTERS} onChange={(v) => { setMinCountFilter(v); resetPage(); }} />
-                    <FilterSelect label="Share" value={shareFilter} options={SHARE_FILTERS} onChange={(v) => { setShareFilter(v); resetPage(); }} />
-                    <FilterSelect label="Dofollow" value={dofollowRatioFilter} options={DOFOLLOW_RATIO_FILTERS} onChange={(v) => { setDofollowRatioFilter(v); resetPage(); }} />
+                    <FilterSelect label={t('anchorFilterCategoryLabel')} value={categoryFilter} options={CATEGORY_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setCategoryFilter(v); resetPage(); }} />
+                    <FilterSelect label={t('anchorFilterMinCountLabel')} value={minCountFilter} options={MIN_COUNT_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setMinCountFilter(v); resetPage(); }} />
+                    <FilterSelect label={t('anchorFilterShareLabel')} value={shareFilter} options={SHARE_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setShareFilter(v); resetPage(); }} />
+                    <FilterSelect label={t('anchorFilterDfLabel')} value={dofollowRatioFilter} options={DOFOLLOW_RATIO_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setDofollowRatioFilter(v); resetPage(); }} />
                 </div>
             )}
 
@@ -328,8 +330,8 @@ export function AnchorTextTable({ domainId }: AnchorTextTableProps) {
             {filteredData.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12">
                     <Type01 className="h-8 w-8 text-fg-quaternary mb-3" />
-                    <p className="text-sm font-medium text-primary mb-1">No anchor texts match your filters</p>
-                    <p className="text-xs text-tertiary">Try adjusting your search or filter criteria.</p>
+                    <p className="text-sm font-medium text-primary mb-1">{t('noAnchorsMatch')}</p>
+                    <p className="text-xs text-tertiary">{t('anchorNoMatchHint')}</p>
                 </div>
             ) : (
                 <>
@@ -339,30 +341,30 @@ export function AnchorTextTable({ domainId }: AnchorTextTableProps) {
                                 <tr className="border-b border-secondary">
                                     {columnVisibility.anchor && (
                                         <th className="cursor-pointer px-3 py-2.5 font-medium text-tertiary" onClick={() => handleSort("anchor")}>
-                                            <div className="flex items-center gap-1">Anchor Text <SortIcon column="anchor" /></div>
+                                            <div className="flex items-center gap-1">{t('anchorColAnchorText')} <SortIcon column="anchor" /></div>
                                         </th>
                                     )}
                                     {columnVisibility.category && (
-                                        <th className="px-3 py-2.5 text-center font-medium text-tertiary">Category</th>
+                                        <th className="px-3 py-2.5 text-center font-medium text-tertiary">{t('anchorColCategory')}</th>
                                     )}
                                     {columnVisibility.count && (
                                         <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("count")}>
-                                            <div className="flex items-center justify-end gap-1">Count <SortIcon column="count" /></div>
+                                            <div className="flex items-center justify-end gap-1">{t('anchorColCount')} <SortIcon column="count" /></div>
                                         </th>
                                     )}
                                     {columnVisibility.dofollow && (
                                         <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("dofollow")}>
-                                            <div className="flex items-center justify-end gap-1">Dofollow <SortIcon column="dofollow" /></div>
+                                            <div className="flex items-center justify-end gap-1">{t('anchorColDofollow')} <SortIcon column="dofollow" /></div>
                                         </th>
                                     )}
                                     {columnVisibility.nofollow && (
                                         <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("nofollow")}>
-                                            <div className="flex items-center justify-end gap-1">Nofollow <SortIcon column="nofollow" /></div>
+                                            <div className="flex items-center justify-end gap-1">{t('anchorColNofollow')} <SortIcon column="nofollow" /></div>
                                         </th>
                                     )}
                                     {columnVisibility.share && (
                                         <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("percentage")}>
-                                            <div className="flex items-center justify-end gap-1">Share <SortIcon column="percentage" /></div>
+                                            <div className="flex items-center justify-end gap-1">{t('anchorColShare')} <SortIcon column="percentage" /></div>
                                         </th>
                                     )}
                                 </tr>
@@ -377,7 +379,7 @@ export function AnchorTextTable({ domainId }: AnchorTextTableProps) {
                                             )}
                                             {columnVisibility.category && (
                                                 <td className="px-3 py-2.5 text-center">
-                                                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
+                                                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${badge.bg} ${badge.text}`}>{t(badge.labelKey)}</span>
                                                 </td>
                                             )}
                                             {columnVisibility.count && (
@@ -410,7 +412,7 @@ export function AnchorTextTable({ domainId }: AnchorTextTableProps) {
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between pt-2">
                             <p className="text-sm text-tertiary">
-                                Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filteredData.length)} of {filteredData.length}
+                                {t('paginationShowing', { from: page * PAGE_SIZE + 1, to: Math.min((page + 1) * PAGE_SIZE, filteredData.length), total: filteredData.length })}
                             </p>
                             <div className="flex items-center gap-1">
                                 <button

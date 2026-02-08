@@ -3,6 +3,7 @@
 import { useQuery } from "convex/react";
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart, PolarRadiusAxis } from "recharts";
 import { BarChart04 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import {
@@ -19,6 +20,7 @@ interface PositionDistributionChartProps {
 }
 
 export function PositionDistributionChart({ domainId }: PositionDistributionChartProps) {
+  const t = useTranslations('keywords');
   const radarColor = "#f97316"; // orange
   const distribution = useQuery(api.keywords.getPositionDistribution, { domainId });
 
@@ -49,12 +51,12 @@ export function PositionDistributionChart({ domainId }: PositionDistributionChar
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div>
-          <h3 className="text-md font-semibold text-primary">Current Position Distribution</h3>
-          <p className="text-sm text-tertiary">How your keywords are distributed across SERP positions. More keywords in top 1-3 means stronger visibility.</p>
+          <h3 className="text-md font-semibold text-primary">{t('currentPositionDistribution')}</h3>
+          <p className="text-sm text-tertiary">{t('positionDistributionDescription')}</p>
         </div>
         <div className="flex flex-col items-center justify-center py-12">
           <BarChart04 className="h-10 w-10 text-fg-quaternary" />
-          <p className="mt-2 text-sm text-tertiary">No position data available</p>
+          <p className="mt-2 text-sm text-tertiary">{t('noPositionDataAvailable')}</p>
         </div>
       </div>
     );
@@ -62,7 +64,7 @@ export function PositionDistributionChart({ domainId }: PositionDistributionChar
 
   const chartConfig = {
     keywords: {
-      label: "Keywords",
+      label: t('keywordsLabel'),
       color: radarColor,
     },
   } satisfies ChartConfig;
@@ -70,8 +72,8 @@ export function PositionDistributionChart({ domainId }: PositionDistributionChar
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
-        <h3 className="text-md font-semibold text-primary">Current Position Distribution</h3>
-        <p className="text-sm text-tertiary">How your keywords are distributed across SERP positions. More keywords in top 1-3 means stronger visibility.</p>
+        <h3 className="text-md font-semibold text-primary">{t('currentPositionDistribution')}</h3>
+        <p className="text-sm text-tertiary">{t('positionDistributionDescription')}</p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">
@@ -84,7 +86,7 @@ export function PositionDistributionChart({ domainId }: PositionDistributionChar
             wrapperStyle={{ zIndex: 1000 }}
           />
           <Radar
-            name="Keywords"
+            name={t('keywordsLabel')}
             dataKey="keywords"
             stroke={radarColor}
             fill={radarColor}

@@ -23,15 +23,7 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
-
-// ─── Tab definitions ────────────────────────────────────────────────
-
-const tabs = [
-  { id: "profile", label: "Profile", icon: User01 },
-  { id: "preferences", label: "Preferences", icon: Settings01 },
-  { id: "notifications", label: "Notifications", icon: Bell01 },
-  { id: "api-keys", label: "API Keys", icon: Key01 },
-];
+import { useTranslations } from "next-intl";
 
 // ─── Styled native select ───────────────────────────────────────────
 
@@ -89,6 +81,7 @@ function Section({
 // ─── Profile section ────────────────────────────────────────────────
 
 function ProfileSection() {
+  const t = useTranslations("settings");
   const currentUser = useQuery(api.users.getCurrentUser);
   const updateProfile = useMutation(api.users.updateProfile);
 
@@ -106,9 +99,9 @@ function ProfileSection() {
         name: displayName || undefined,
         email: displayEmail || undefined,
       });
-      toast.success("Profile updated successfully");
+      toast.success(t("profileUpdatedSuccess"));
     } catch {
-      toast.error("Failed to update profile");
+      toast.error(t("profileUpdatedError"));
     } finally {
       setIsSaving(false);
     }
@@ -120,21 +113,21 @@ function ProfileSection() {
 
   return (
     <Section
-      title="Profile"
-      description="Manage your personal information and how others see you."
+      title={t("profileTitle")}
+      description={t("profileDescription")}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Input
-          label="Name"
+          label={t("nameLabel")}
           size="sm"
-          placeholder="Your name"
+          placeholder={t("namePlaceholder")}
           value={displayName}
           onChange={(v) => setName(v)}
         />
         <Input
-          label="Email"
+          label={t("emailLabel")}
           size="sm"
-          placeholder="you@example.com"
+          placeholder={t("emailPlaceholder")}
           value={displayEmail}
           onChange={(v) => setEmail(v)}
         />
@@ -142,7 +135,7 @@ function ProfileSection() {
 
       {currentUser?.role && (
         <div className="mt-4 flex items-center gap-2">
-          <span className="text-sm text-tertiary">Role:</span>
+          <span className="text-sm text-tertiary">{t("roleLabel")}:</span>
           <Badge size="sm" type="pill-color" color="brand">
             {currentUser.role}
           </Badge>
@@ -151,7 +144,7 @@ function ProfileSection() {
 
       {currentUser?.joinedAt && (
         <p className="mt-2 text-sm text-tertiary">
-          Joined {new Date(currentUser.joinedAt).toLocaleDateString()}
+          {t("joinedDate", { date: new Date(currentUser.joinedAt).toLocaleDateString() })}
         </p>
       )}
 
@@ -162,7 +155,7 @@ function ProfileSection() {
           onClick={handleSave}
           isLoading={isSaving}
         >
-          Save changes
+          {t("saveChanges")}
         </Button>
       </div>
     </Section>
@@ -212,6 +205,7 @@ const THEME_OPTIONS = [
 ];
 
 function PreferencesSection() {
+  const t = useTranslations("settings");
   const preferences = useQuery(api.userSettings.getUserPreferences);
   const updatePreferences = useMutation(api.userSettings.updateUserPreferences);
   const { theme, setTheme } = useTheme();
@@ -236,9 +230,9 @@ function PreferencesSection() {
         dateFormat: currentDateFormat,
         timeFormat: currentTimeFormat,
       });
-      toast.success("Preferences updated successfully");
+      toast.success(t("preferencesUpdatedSuccess"));
     } catch {
-      toast.error("Failed to update preferences");
+      toast.error(t("preferencesUpdatedError"));
     } finally {
       setIsSaving(false);
     }
@@ -250,13 +244,13 @@ function PreferencesSection() {
 
   return (
     <Section
-      title="Preferences"
-      description="Customize your regional and display settings."
+      title={t("preferencesTitle")}
+      description={t("preferencesDescription")}
     >
       {/* Theme selector */}
       <div className="mb-6">
         <NativeSelect
-          label="Appearance"
+          label={t("appearanceLabel")}
           value={theme ?? "system"}
           onChange={setTheme}
           options={THEME_OPTIONS}
@@ -265,25 +259,25 @@ function PreferencesSection() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <NativeSelect
-          label="Language"
+          label={t("languageLabel")}
           value={currentLanguage}
           onChange={setLanguage}
           options={LANGUAGE_OPTIONS}
         />
         <NativeSelect
-          label="Timezone"
+          label={t("timezoneLabel")}
           value={currentTimezone}
           onChange={setTimezone}
           options={TIMEZONE_OPTIONS}
         />
         <NativeSelect
-          label="Date format"
+          label={t("dateFormatLabel")}
           value={currentDateFormat}
           onChange={setDateFormat}
           options={DATE_FORMAT_OPTIONS}
         />
         <NativeSelect
-          label="Time format"
+          label={t("timeFormatLabel")}
           value={currentTimeFormat}
           onChange={setTimeFormat}
           options={TIME_FORMAT_OPTIONS}
@@ -297,7 +291,7 @@ function PreferencesSection() {
           onClick={handleSave}
           isLoading={isSaving}
         >
-          Save preferences
+          {t("savePreferences")}
         </Button>
       </div>
     </Section>
@@ -313,6 +307,7 @@ const FREQUENCY_OPTIONS = [
 ];
 
 function NotificationsSection() {
+  const t = useTranslations("settings");
   const prefs = useQuery(api.userSettings.getNotificationPreferences);
   const updateNotifications = useMutation(
     api.userSettings.updateNotificationPreferences,
@@ -344,9 +339,9 @@ function NotificationsSection() {
         systemUpdates: currentSystemUpdates,
         frequency: currentFrequency,
       });
-      toast.success("Notification preferences updated");
+      toast.success(t("notificationsUpdatedSuccess"));
     } catch {
-      toast.error("Failed to update notification preferences");
+      toast.error(t("notificationsUpdatedError"));
     } finally {
       setIsSaving(false);
     }
@@ -358,42 +353,42 @@ function NotificationsSection() {
 
   return (
     <Section
-      title="Notifications"
-      description="Choose what you want to be notified about and how often."
+      title={t("notificationsTitle")}
+      description={t("notificationsDescription")}
     >
       <div className="flex flex-col gap-4">
         <Toggle
           size="sm"
-          label="Daily ranking reports"
-          hint="Receive a daily summary of your keyword ranking changes."
+          label={t("dailyRankingReportsLabel")}
+          hint={t("dailyRankingReportsHint")}
           isSelected={currentDailyRankingReports}
           onChange={setDailyRankingReports}
         />
         <Toggle
           size="sm"
-          label="Position alerts"
-          hint="Get alerted when keywords move significantly in search results."
+          label={t("positionAlertsLabel")}
+          hint={t("positionAlertsHint")}
           isSelected={currentPositionAlerts}
           onChange={setPositionAlerts}
         />
         <Toggle
           size="sm"
-          label="Keyword opportunities"
-          hint="Be notified about new keyword ranking opportunities."
+          label={t("keywordOpportunitiesLabel")}
+          hint={t("keywordOpportunitiesHint")}
           isSelected={currentKeywordOpportunities}
           onChange={setKeywordOpportunities}
         />
         <Toggle
           size="sm"
-          label="Team invitations"
-          hint="Receive notifications when you are invited to a team."
+          label={t("teamInvitationsLabel")}
+          hint={t("teamInvitationsHint")}
           isSelected={currentTeamInvitations}
           onChange={setTeamInvitations}
         />
         <Toggle
           size="sm"
-          label="System updates"
-          hint="Stay informed about platform updates and maintenance."
+          label={t("systemUpdatesLabel")}
+          hint={t("systemUpdatesHint")}
           isSelected={currentSystemUpdates}
           onChange={setSystemUpdates}
         />
@@ -401,7 +396,7 @@ function NotificationsSection() {
 
       <div className="mt-6 border-t border-secondary pt-6">
         <NativeSelect
-          label="Notification frequency"
+          label={t("notificationFrequencyLabel")}
           value={currentFrequency}
           onChange={setFrequency}
           options={FREQUENCY_OPTIONS}
@@ -415,7 +410,7 @@ function NotificationsSection() {
           onClick={handleSave}
           isLoading={isSaving}
         >
-          Save notifications
+          {t("saveNotifications")}
         </Button>
       </div>
     </Section>
@@ -425,6 +420,8 @@ function NotificationsSection() {
 // ─── API Keys section ───────────────────────────────────────────────
 
 function APIKeysSection() {
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const apiKeys = useQuery(api.users.getAPIKeys);
   const generateKey = useMutation(api.users.generateAPIKey);
   const revokeKey = useMutation(api.users.revokeAPIKey);
@@ -451,11 +448,11 @@ function APIKeysSection() {
 
   const handleGenerate = async () => {
     if (!newKeyName.trim()) {
-      toast.error("Please enter a name for the API key");
+      toast.error(t("apiKeyNameRequired"));
       return;
     }
     if (selectedScopes.size === 0) {
-      toast.error("Please select at least one scope");
+      toast.error(t("apiKeyScopeRequired"));
       return;
     }
 
@@ -468,9 +465,9 @@ function APIKeysSection() {
       setGeneratedKey(result.key);
       setNewKeyName("");
       setSelectedScopes(new Set(["read"]));
-      toast.success("API key generated successfully");
+      toast.success(t("apiKeyGeneratedSuccess"));
     } catch {
-      toast.error("Failed to generate API key");
+      toast.error(t("apiKeyGeneratedError"));
     } finally {
       setIsGenerating(false);
     }
@@ -479,9 +476,9 @@ function APIKeysSection() {
   const handleRevoke = async (keyId: Id<"userAPIKeys">) => {
     try {
       await revokeKey({ keyId });
-      toast.success("API key revoked");
+      toast.success(t("apiKeyRevokedSuccess"));
     } catch {
-      toast.error("Failed to revoke API key");
+      toast.error(t("apiKeyRevokedError"));
     }
   };
 
@@ -489,10 +486,10 @@ function APIKeysSection() {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      toast.success("Copied to clipboard");
+      toast.success(t("copiedToClipboard"));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Failed to copy to clipboard");
+      toast.error(t("copyToClipboardError"));
     }
   };
 
@@ -502,15 +499,14 @@ function APIKeysSection() {
 
   return (
     <Section
-      title="API Keys"
-      description="Manage API keys for programmatic access to your data."
+      title={t("apiKeysTitle")}
+      description={t("apiKeysDescription")}
     >
       {/* Generated key banner */}
       {generatedKey && (
         <div className="mb-6 rounded-lg border border-success-300 bg-success-50 p-4">
           <p className="mb-2 text-sm font-medium text-success-700">
-            Your new API key has been generated. Copy it now as it will not be
-            shown again.
+            {t("apiKeyGeneratedBanner")}
           </p>
           <div className="flex items-center gap-2">
             <code className="flex-1 rounded-md bg-primary px-3 py-2 font-mono text-sm text-primary ring-1 ring-secondary ring-inset">
@@ -522,14 +518,14 @@ function APIKeysSection() {
               iconLeading={copied ? Check : Copy01}
               onClick={() => handleCopy(generatedKey)}
             >
-              {copied ? "Copied" : "Copy"}
+              {copied ? t("copied") : t("copy")}
             </Button>
           </div>
           <button
             onClick={() => setGeneratedKey(null)}
             className="mt-2 text-sm text-success-700 underline"
           >
-            Dismiss
+            {t("dismiss")}
           </button>
         </div>
       )}
@@ -537,19 +533,19 @@ function APIKeysSection() {
       {/* Generate new key form */}
       <div className="mb-6 rounded-lg border border-secondary p-4">
         <h3 className="mb-3 text-sm font-medium text-primary">
-          Generate new API key
+          {t("generateNewApiKey")}
         </h3>
         <div className="flex flex-col gap-4">
           <Input
-            label="Key name"
+            label={t("keyNameLabel")}
             size="sm"
-            placeholder="e.g. Production API, CI/CD Pipeline"
+            placeholder={t("keyNamePlaceholder")}
             value={newKeyName}
             onChange={(v) => setNewKeyName(v)}
           />
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-secondary">Scopes</span>
+            <span className="text-sm font-medium text-secondary">{t("scopesLabel")}</span>
             <div className="flex flex-wrap gap-4">
               <Checkbox
                 size="sm"
@@ -580,7 +576,7 @@ function APIKeysSection() {
               onClick={handleGenerate}
               isLoading={isGenerating}
             >
-              Generate key
+              {t("generateKey")}
             </Button>
           </div>
         </div>
@@ -589,19 +585,19 @@ function APIKeysSection() {
       {/* Existing keys list */}
       {apiKeys.length === 0 ? (
         <p className="py-8 text-center text-sm text-tertiary">
-          No API keys yet. Generate your first key above.
+          {t("noApiKeys")}
         </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-secondary">
-                <th className="pb-3 pr-4 font-medium text-tertiary">Name</th>
-                <th className="pb-3 pr-4 font-medium text-tertiary">Key</th>
-                <th className="pb-3 pr-4 font-medium text-tertiary">Scopes</th>
-                <th className="pb-3 pr-4 font-medium text-tertiary">Created</th>
+                <th className="pb-3 pr-4 font-medium text-tertiary">{t("apiKeyColumnName")}</th>
+                <th className="pb-3 pr-4 font-medium text-tertiary">{t("apiKeyColumnKey")}</th>
+                <th className="pb-3 pr-4 font-medium text-tertiary">{t("apiKeyColumnScopes")}</th>
+                <th className="pb-3 pr-4 font-medium text-tertiary">{t("apiKeyColumnCreated")}</th>
                 <th className="pb-3 pr-4 font-medium text-tertiary">
-                  Last used
+                  {t("apiKeyColumnLastUsed")}
                 </th>
                 <th className="pb-3 font-medium text-tertiary" />
               </tr>
@@ -646,7 +642,7 @@ function APIKeysSection() {
                   <td className="whitespace-nowrap py-3 pr-4 text-tertiary">
                     {key.lastUsedAt
                       ? new Date(key.lastUsedAt).toLocaleDateString()
-                      : "Never"}
+                      : t("never")}
                   </td>
                   <td className="py-3">
                     <Button
@@ -657,7 +653,7 @@ function APIKeysSection() {
                         handleRevoke(key._id as Id<"userAPIKeys">)
                       }
                     >
-                      Revoke
+                      {t("revoke")}
                     </Button>
                   </td>
                 </tr>
@@ -673,15 +669,24 @@ function APIKeysSection() {
 // ─── Main page ──────────────────────────────────────────────────────
 
 export default function SettingsPage() {
+  const t = useTranslations("settings");
+
+  const tabs = [
+    { id: "profile", label: t("tabProfile"), icon: User01 },
+    { id: "preferences", label: t("tabPreferences"), icon: Settings01 },
+    { id: "notifications", label: t("tabNotifications"), icon: Bell01 },
+    { id: "api-keys", label: t("tabApiKeys"), icon: Key01 },
+  ];
+
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-8 lg:px-8">
       {/* Page header */}
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold text-primary lg:text-display-xs">
-          Settings
+          {t("title")}
         </h1>
         <p className="text-md text-tertiary">
-          Manage your account settings, preferences, and API access.
+          {t("description")}
         </p>
       </div>
 

@@ -17,6 +17,7 @@ import {
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useTranslations } from "next-intl";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { Input } from "@/components/base/input/input";
 import { Button } from "@/components/base/buttons/button";
@@ -58,6 +59,8 @@ function formatNumber(num: number): string {
 }
 
 export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTableProps) {
+  const t = useTranslations('keywords');
+  const tc = useTranslations('common');
   const [sortColumn, setSortColumn] = useState<SortColumn>("position");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [searchQuery, setSearchQuery] = useState("");
@@ -107,9 +110,9 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
         domainId,
         phrase: keyword.keyword,
       });
-      toast.success(`Added "${keyword.keyword}" to monitoring`);
+      toast.success(t('addedToMonitoring', { keyword: keyword.keyword }));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to add keyword");
+      toast.error(error instanceof Error ? error.message : t('failedToAddKeyword'));
     }
   };
 
@@ -214,8 +217,8 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
     return (
       <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
         <SearchLg className="mx-auto h-12 w-12 text-fg-quaternary" />
-        <p className="mt-4 text-sm text-tertiary">No keywords discovered yet</p>
-        <p className="mt-2 text-xs text-tertiary">Keywords will appear here after domain visibility fetch</p>
+        <p className="mt-4 text-sm text-tertiary">{t('noKeywordsDiscovered')}</p>
+        <p className="mt-2 text-xs text-tertiary">{t('keywordsAppearAfterFetch')}</p>
       </div>
     );
   }
@@ -243,16 +246,16 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-primary">Discovered Keywords</h3>
+            <h3 className="text-lg font-semibold text-primary">{t('discoveredKeywords')}</h3>
             <p className="text-sm text-tertiary">
-              {sortedAndFilteredKeywords.length} keywords enriched with search volume, difficulty, CPC, and intent data.
+              {t('discoveredKeywordsDescription', { count: sortedAndFilteredKeywords.length })}
             </p>
           </div>
           <div className="flex items-center gap-2">
             {/* Search */}
             <div className="w-64">
               <Input
-                placeholder="Search keywords..."
+                placeholder={t('searchKeywords')}
                 value={searchQuery}
                 onChange={(value) => {
                   setSearchQuery(value);
@@ -269,7 +272,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
               iconLeading={FilterLines}
               onClick={() => setShowFilters(!showFilters)}
             >
-              Filters
+              {t('filters')}
             </Button>
 
             {/* Column picker */}
@@ -280,7 +283,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                 iconLeading={Settings01}
                 onClick={() => setShowColumnPicker(!showColumnPicker)}
               >
-                Columns
+                {tc('columns')}
               </Button>
               {showColumnPicker && (
                 <div className="absolute right-0 top-full z-10 mt-2 w-48 rounded-lg border border-secondary bg-primary p-2 shadow-lg">
@@ -314,9 +317,9 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div className="text-xs text-utility-blue-900">
-                <p className="font-medium mb-1">Data Sources:</p>
-                <p>Keywords with <strong>Position</strong> and <strong>Difficulty</strong> data come from the Ranked Keywords API (your domain ranks for these in top 100).</p>
-                <p className="mt-1">Keywords showing "No rank" or "N/A" are suggestions from Google Ads API (high search volume keywords relevant to your domain, but you don't rank for them yet).</p>
+                <p className="font-medium mb-1">{t('dataSources')}:</p>
+                <p>{t('dataSourcesRanked')}</p>
+                <p className="mt-1">{t('dataSourcesSuggested')}</p>
               </div>
             </div>
           </div>
@@ -327,7 +330,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
           <div className="flex flex-wrap items-center gap-4 rounded-lg border border-secondary bg-secondary/30 p-4">
             {/* Position filter */}
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-secondary">Position:</label>
+              <label className="text-sm font-medium text-secondary">{t('columnPosition')}:</label>
               <select
                 value={positionFilter}
                 onChange={(e) => {
@@ -336,19 +339,19 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                 }}
                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
               >
-                <option value="all">All</option>
-                <option value="top3">Top 3</option>
-                <option value="top10">Top 10</option>
-                <option value="top20">Top 20</option>
-                <option value="top50">Top 50</option>
-                <option value="below50">Below 50</option>
-                <option value="unknown">Unknown</option>
+                <option value="all">{tc('all')}</option>
+                <option value="top3">{t('filterTop3')}</option>
+                <option value="top10">{t('filterTop10')}</option>
+                <option value="top20">{t('filterTop20')}</option>
+                <option value="top50">{t('filterTop50')}</option>
+                <option value="below50">{t('filterBelow50')}</option>
+                <option value="unknown">{t('filterUnknown')}</option>
               </select>
             </div>
 
             {/* Difficulty filter */}
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-secondary">Difficulty:</label>
+              <label className="text-sm font-medium text-secondary">{t('columnDifficulty')}:</label>
               <select
                 value={difficultyFilter}
                 onChange={(e) => {
@@ -357,10 +360,10 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                 }}
                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
               >
-                <option value="all">All</option>
-                <option value="easy">Easy (&lt; 30)</option>
-                <option value="medium">Medium (30-70)</option>
-                <option value="hard">Hard (&gt; 70)</option>
+                <option value="all">{tc('all')}</option>
+                <option value="easy">{t('filterEasy')}</option>
+                <option value="medium">{t('filterMedium')}</option>
+                <option value="hard">{t('filterHard')}</option>
               </select>
             </div>
 
@@ -376,7 +379,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                   setCurrentPage(1);
                 }}
               >
-                Clear All
+                {t('clearAll')}
               </Button>
             )}
           </div>
@@ -393,7 +396,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                     onClick={() => toggleSort("keyword")}
                   >
                     <div className="flex items-center gap-2">
-                      Keyword
+                      {t('columnKeyword')}
                       <SortIcon column="keyword" />
                     </div>
                   </th>
@@ -404,7 +407,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                     onClick={() => toggleSort("position")}
                   >
                     <div className="flex items-center justify-center gap-2">
-                      Position
+                      {t('columnPosition')}
                       <SortIcon column="position" />
                     </div>
                   </th>
@@ -415,7 +418,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                     onClick={() => toggleSort("volume")}
                   >
                     <div className="flex items-center justify-end gap-2">
-                      Volume
+                      {t('columnVolume')}
                       <SortIcon column="volume" />
                     </div>
                   </th>
@@ -426,24 +429,24 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                     onClick={() => toggleSort("difficulty")}
                   >
                     <div className="flex items-center justify-center gap-2">
-                      Difficulty
+                      {t('columnDifficulty')}
                       <SortIcon column="difficulty" />
                     </div>
                   </th>
                 )}
                 {columnVisibility.cpc && (
                   <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">
-                    CPC
+                    {t('columnCpc')}
                   </th>
                 )}
                 {columnVisibility.etv && (
                   <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">
-                    ETV
+                    {t('columnEtv')}
                   </th>
                 )}
                 {columnVisibility.actions && (
                   <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
-                    Actions
+                    {tc('actions')}
                   </th>
                 )}
               </tr>
@@ -481,7 +484,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                             <span className="text-sm font-medium text-primary">{keyword.keyword}</span>
                             {keyword.isNew && (
                               <span className="inline-flex items-center rounded-full bg-utility-blue-50 px-2 py-0.5 text-xs font-medium text-utility-blue-700">
-                                New
+                                {tc('new')}
                               </span>
                             )}
                             {keyword.isUp && (
@@ -508,11 +511,11 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                               {keyword.bestPosition}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-xs text-tertiary" title="No ranking data - keyword suggestion from Google Ads">
+                            <span className="inline-flex items-center gap-1 text-xs text-tertiary" title={t('noRankTooltip')}>
                               <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
-                              No rank
+                              {t('noRank')}
                             </span>
                           )}
                         </td>
@@ -535,11 +538,11 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                               {keyword.difficulty}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-xs text-tertiary" title="Difficulty data not available from Google Ads API">
+                            <span className="inline-flex items-center gap-1 text-xs text-tertiary" title={t('difficultyNotAvailableTooltip')}>
                               <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
-                              N/A
+                              {tc('notAvailable')}
                             </span>
                           )}
                         </td>
@@ -564,7 +567,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                               handleAddToMonitor(keyword);
                             }}
                           >
-                            Add to Monitor
+                            {t('addToMonitor')}
                           </Button>
                         </td>
                       )}
@@ -578,7 +581,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                             {/* Monthly trend */}
                             {keyword.monthlySearches && keyword.monthlySearches.length > 0 && (
                               <div>
-                                <h4 className="text-sm font-semibold text-primary mb-3">Search Volume Trend</h4>
+                                <h4 className="text-sm font-semibold text-primary mb-3">{t('searchVolumeTrend')}</h4>
                                 <MonthlySearchTrendChart monthlySearches={keyword.monthlySearches} />
                               </div>
                             )}
@@ -600,7 +603,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-secondary pt-4">
             <p className="text-sm text-secondary">
-              Page {currentPage} of {totalPages} ({sortedAndFilteredKeywords.length} results)
+              {t('paginationInfo', { current: currentPage, total: totalPages, count: sortedAndFilteredKeywords.length })}
             </p>
             <div className="flex gap-2">
               <Button
@@ -610,7 +613,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
               >
-                Previous
+                {tc('previous')}
               </Button>
               <Button
                 size="sm"
@@ -619,7 +622,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
               >
-                Next
+                {tc('next')}
               </Button>
             </div>
           </div>

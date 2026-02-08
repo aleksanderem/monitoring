@@ -21,6 +21,7 @@ import {
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useTranslations } from "next-intl";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { Input } from "@/components/base/input/input";
 import { Button } from "@/components/base/buttons/button";
@@ -66,6 +67,8 @@ function formatNumber(num: number | null | undefined): string {
 }
 
 export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps) {
+  const t = useTranslations('keywords');
+  const tc = useTranslations('common');
   const [sortColumn, setSortColumn] = useState<SortColumn>("currentPosition");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [searchQuery, setSearchQuery] = useState("");
@@ -134,7 +137,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
       // Job just completed (no longer active)
       // Wait a moment and show completion toast
       const timer = setTimeout(() => {
-        toast.success("SERP data fetch completed!");
+        toast.success(t('serpFetchCompleted'));
         setLastSerpJobId(null);
       }, 500);
       return () => clearTimeout(timer);
@@ -144,18 +147,18 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const handleRefresh = async (keywordId: Id<"keywords">) => {
     try {
       await refreshPositions({ keywordIds: [keywordId] });
-      toast.success("Position refresh queued");
+      toast.success(t('positionRefreshQueued'));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to refresh position");
+      toast.error(error instanceof Error ? error.message : t('failedToRefreshPosition'));
     }
   };
 
   const handleDelete = async (keywordId: Id<"keywords">, phrase: string) => {
     try {
       await deleteKeyword({ keywordIds: [keywordId] });
-      toast.success(`Deleted "${phrase}"`);
+      toast.success(t('deletedKeyword', { phrase }));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete keyword");
+      toast.error(error instanceof Error ? error.message : t('failedToDeleteKeyword'));
     }
   };
 
@@ -242,8 +245,8 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
     return (
       <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
         <SearchLg className="mx-auto h-12 w-12 text-fg-quaternary" />
-        <p className="mt-4 text-sm text-primary font-medium">No keywords being monitored</p>
-        <p className="mt-2 text-xs text-tertiary">Add keywords to start tracking their rankings</p>
+        <p className="mt-4 text-sm text-primary font-medium">{t('noKeywordsMonitored')}</p>
+        <p className="mt-2 text-xs text-tertiary">{t('addKeywordsToStartTracking')}</p>
         <Button
           size="md"
           color="primary"
@@ -251,7 +254,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
           onClick={() => setAddKeywordsModalOpen(true)}
           className="mt-4"
         >
-          Add Keywords
+          {t('addKeywords')}
         </Button>
       </div>
     );
@@ -285,11 +288,11 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-utility-blue-600 border-t-transparent rounded-full animate-spin" />
                 <span className="text-sm font-medium text-utility-blue-900">
-                  Fetching SERP data...
+                  {t('fetchingSerpData')}
                 </span>
               </div>
               <span className="text-sm text-utility-blue-700">
-                {activeSerpJob.processedKeywords} / {activeSerpJob.totalKeywords} keywords
+                {t('serpProgress', { processed: activeSerpJob.processedKeywords, total: activeSerpJob.totalKeywords })}
               </span>
             </div>
             <div className="w-full bg-utility-blue-200 rounded-full h-2">
@@ -302,16 +305,16 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
             </div>
             {activeSerpJob.failedKeywords > 0 && (
               <p className="text-xs text-utility-error-600 mt-2">
-                {activeSerpJob.failedKeywords} failed
+                {t('serpFailed', { count: activeSerpJob.failedKeywords })}
               </p>
             )}
           </div>
         )}
 
         <div className="mb-3">
-          <h3 className="text-lg font-semibold text-primary">Keyword Monitoring</h3>
+          <h3 className="text-lg font-semibold text-primary">{t('keywordMonitoring')}</h3>
           <p className="text-sm text-tertiary">
-            Track ranking positions over time for {sortedAndFilteredKeywords.length} keywords. Spot trends, detect drops early, and measure the impact of your SEO efforts.
+            {t('keywordMonitoringDescription', { count: sortedAndFilteredKeywords.length })}
           </p>
         </div>
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -323,7 +326,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
               iconLeading={Plus}
               onClick={() => setAddKeywordsModalOpen(true)}
             >
-              Add Keywords
+              {t('addKeywords')}
             </Button>
 
             {/* Refresh All Button */}
@@ -336,14 +339,14 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                 try {
                   const allKeywordIds = keywords.map(kw => kw.keywordId);
                   await refreshPositions({ keywordIds: allKeywordIds });
-                  toast.success(`Queued position refresh for ${keywords.length} keywords`);
+                  toast.success(t('queuedRefreshForKeywords', { count: keywords.length }));
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Failed to refresh positions");
+                  toast.error(error instanceof Error ? error.message : t('failedToRefreshPositions'));
                 }
               }}
               disabled={!keywords || keywords.length === 0}
             >
-              Refresh All
+              {t('refreshAll')}
             </Button>
 
             {/* Fetch SERP Data Button */}
@@ -358,20 +361,20 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     domainId,
                     keywordIds: allKeywordIds
                   });
-                  toast.success(`SERP fetch job queued for ${keywords.length} keywords`);
+                  toast.success(t('serpFetchJobQueued', { count: keywords.length }));
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Failed to queue SERP fetch");
+                  toast.error(error instanceof Error ? error.message : t('failedToQueueSerpFetch'));
                 }
               }}
               disabled={!keywords || keywords.length === 0 || (!!activeSerpJob && activeSerpJob.status !== "completed")}
             >
-              {activeSerpJob && activeSerpJob.status !== "completed" ? "Fetching..." : "Fetch SERP Data"}
+              {activeSerpJob && activeSerpJob.status !== "completed" ? t('fetching') : t('fetchSerpData')}
             </Button>
 
             {/* Search */}
             <div className="w-64">
               <Input
-                placeholder="Search keywords..."
+                placeholder={t('searchKeywords')}
                 value={searchQuery}
                 onChange={(value) => {
                   setSearchQuery(value);
@@ -388,7 +391,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
               iconLeading={FilterLines}
               onClick={() => setShowFilters(!showFilters)}
             >
-              Filters
+              {t('filters')}
             </Button>
 
             {/* Column picker */}
@@ -399,7 +402,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                 iconLeading={Settings01}
                 onClick={() => setShowColumnPicker(!showColumnPicker)}
               >
-                Columns
+                {tc('columns')}
               </Button>
               {showColumnPicker && (
                 <div className="absolute right-0 top-full z-10 mt-2 w-48 rounded-lg border border-secondary bg-primary p-2 shadow-lg">
@@ -430,7 +433,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
           <div className="flex flex-wrap items-center gap-4 rounded-lg border border-secondary bg-secondary/30 p-4">
             {/* Position filter */}
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-secondary">Position:</label>
+              <label className="text-sm font-medium text-secondary">{t('columnPosition')}:</label>
               <select
                 value={positionFilter}
                 onChange={(e) => {
@@ -439,19 +442,19 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                 }}
                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
               >
-                <option value="all">All</option>
-                <option value="top3">Top 3</option>
-                <option value="top10">Top 10</option>
-                <option value="top20">Top 20</option>
-                <option value="top50">Top 50</option>
-                <option value="below50">Below 50</option>
-                <option value="unknown">Unknown</option>
+                <option value="all">{tc('all')}</option>
+                <option value="top3">{t('filterTop3')}</option>
+                <option value="top10">{t('filterTop10')}</option>
+                <option value="top20">{t('filterTop20')}</option>
+                <option value="top50">{t('filterTop50')}</option>
+                <option value="below50">{t('filterBelow50')}</option>
+                <option value="unknown">{t('filterUnknown')}</option>
               </select>
             </div>
 
             {/* Status filter */}
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-secondary">Status:</label>
+              <label className="text-sm font-medium text-secondary">{tc('status')}:</label>
               <select
                 value={statusFilter}
                 onChange={(e) => {
@@ -460,11 +463,11 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                 }}
                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
               >
-                <option value="all">All</option>
-                <option value="rising">Rising</option>
-                <option value="falling">Falling</option>
-                <option value="stable">Stable</option>
-                <option value="new">New</option>
+                <option value="all">{tc('all')}</option>
+                <option value="rising">{t('statusRising')}</option>
+                <option value="falling">{t('statusFalling')}</option>
+                <option value="stable">{t('statusStable')}</option>
+                <option value="new">{tc('new')}</option>
               </select>
             </div>
 
@@ -480,7 +483,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   setCurrentPage(1);
                 }}
               >
-                Clear All
+                {t('clearAll')}
               </Button>
             )}
           </div>
@@ -497,7 +500,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     onClick={() => toggleSort("phrase")}
                   >
                     <div className="flex items-center gap-2">
-                      Keyword
+                      {t('columnKeyword')}
                       <SortIcon column="phrase" />
                     </div>
                   </th>
@@ -508,19 +511,19 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     onClick={() => toggleSort("currentPosition")}
                   >
                     <div className="flex items-center justify-center gap-2">
-                      Position
+                      {t('columnPosition')}
                       <SortIcon column="currentPosition" />
                     </div>
                   </th>
                 )}
                 {columnVisibility.previous && (
                   <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
-                    Previous
+                    {t('columnPrevious')}
                   </th>
                 )}
                 {columnVisibility.change && (
                   <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
-                    Change
+                    {t('columnChange')}
                   </th>
                 )}
                 {columnVisibility.volume && (
@@ -529,7 +532,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     onClick={() => toggleSort("searchVolume")}
                   >
                     <div className="flex items-center justify-end gap-2">
-                      Volume
+                      {t('columnVolume')}
                       <SortIcon column="searchVolume" />
                     </div>
                   </th>
@@ -540,34 +543,34 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     onClick={() => toggleSort("difficulty")}
                   >
                     <div className="flex items-center justify-center gap-2">
-                      Difficulty
+                      {t('columnDifficulty')}
                       <SortIcon column="difficulty" />
                     </div>
                   </th>
                 )}
                 {columnVisibility.cpc && (
                   <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">
-                    CPC
+                    {t('columnCpc')}
                   </th>
                 )}
                 {columnVisibility.etv && (
                   <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">
-                    ETV
+                    {t('columnEtv')}
                   </th>
                 )}
                 {columnVisibility.competition && (
                   <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
-                    Competition
+                    {t('columnCompetition')}
                   </th>
                 )}
                 {columnVisibility.intent && (
                   <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
-                    Intent
+                    {t('columnIntent')}
                   </th>
                 )}
                 {columnVisibility.actions && (
                   <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
-                    Actions
+                    {tc('actions')}
                   </th>
                 )}
               </tr>
@@ -604,7 +607,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                             <span className="text-sm font-medium text-primary">{keyword.phrase}</span>
                             {keyword.status === "new" && (
                               <span className="inline-flex items-center rounded-full bg-utility-blue-50 px-2 py-0.5 text-xs font-medium text-utility-blue-700">
-                                New
+                                {tc('new')}
                               </span>
                             )}
                             {keyword.status === "rising" && (
@@ -729,7 +732,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                               }}
                               disabled={isRefreshing}
                               className="text-tertiary hover:text-primary transition-colors disabled:opacity-50"
-                              title="Refresh position"
+                              title={t('refreshPosition')}
                             >
                               <RefreshCw01 className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                             </button>
@@ -739,7 +742,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                                 handleDelete(keyword.keywordId, keyword.phrase);
                               }}
                               className="text-tertiary hover:text-utility-error-600 transition-colors"
-                              title="Delete keyword"
+                              title={t('deleteKeyword')}
                             >
                               <Trash01 className="h-4 w-4" />
                             </button>
@@ -756,7 +759,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                             {/* Position History Chart */}
                             {keyword.positionHistory && keyword.positionHistory.length > 0 && (
                               <div>
-                                <h4 className="text-sm font-semibold text-primary mb-3">Position History</h4>
+                                <h4 className="text-sm font-semibold text-primary mb-3">{t('positionHistory')}</h4>
                                 <KeywordPositionChart positionHistory={keyword.positionHistory} />
                               </div>
                             )}
@@ -764,25 +767,25 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                             {/* Additional details */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               <div className="rounded-lg border border-secondary bg-primary p-4">
-                                <p className="text-xs text-tertiary mb-1">URL</p>
+                                <p className="text-xs text-tertiary mb-1">{t('url')}</p>
                                 <p className="text-sm text-primary font-medium truncate" title={keyword.url}>
                                   {keyword.url || "—"}
                                 </p>
                               </div>
                               <div className="rounded-lg border border-secondary bg-primary p-4">
-                                <p className="text-xs text-tertiary mb-1">Potential</p>
+                                <p className="text-xs text-tertiary mb-1">{t('potential')}</p>
                                 <p className="text-sm text-primary font-medium">
                                   {keyword.potential ? formatNumber(keyword.potential) : "—"}
                                 </p>
                               </div>
                               <div className="rounded-lg border border-secondary bg-primary p-4">
-                                <p className="text-xs text-tertiary mb-1">Last Updated</p>
+                                <p className="text-xs text-tertiary mb-1">{t('lastUpdated')}</p>
                                 <p className="text-sm text-primary font-medium">
                                   {keyword.lastUpdated ? new Date(keyword.lastUpdated).toLocaleDateString() : "—"}
                                 </p>
                               </div>
                               <div className="rounded-lg border border-secondary bg-primary p-4">
-                                <p className="text-xs text-tertiary mb-1">Status</p>
+                                <p className="text-xs text-tertiary mb-1">{tc('status')}</p>
                                 <p className="text-sm text-primary font-medium capitalize">
                                   {keyword.status || "—"}
                                 </p>
@@ -803,7 +806,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-secondary pt-4">
             <p className="text-sm text-secondary">
-              Page {currentPage} of {totalPages} ({sortedAndFilteredKeywords.length} results)
+              {t('paginationInfo', { current: currentPage, total: totalPages, count: sortedAndFilteredKeywords.length })}
             </p>
             <div className="flex gap-2">
               <Button
@@ -813,7 +816,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
               >
-                Previous
+                {tc('previous')}
               </Button>
               <Button
                 size="sm"
@@ -822,7 +825,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
               >
-                Next
+                {tc('next')}
               </Button>
             </div>
           </div>

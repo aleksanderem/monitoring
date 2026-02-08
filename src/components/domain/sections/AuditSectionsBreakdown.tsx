@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import {
   Zap,
@@ -34,40 +35,40 @@ interface AuditSectionsBreakdownProps {
 const SECTION_CONFIG: Record<
   string,
   {
-    label: string;
+    labelKey: string;
     icon: React.ComponentType<{ className?: string }>;
-    description: string;
+    descKey: string;
   }
 > = {
   technical: {
-    label: "Technical",
+    labelKey: "sectionTechnical",
     icon: Zap,
-    description: "Server response, crawlability, and site infrastructure",
+    descKey: "sectionTechnicalDesc",
   },
   on_page: {
-    label: "On-Page",
+    labelKey: "sectionOnPage",
     icon: File01,
-    description: "Titles, meta descriptions, headings, and HTML tags",
+    descKey: "sectionOnPageDesc",
   },
   content: {
-    label: "Content",
+    labelKey: "sectionContent",
     icon: File06,
-    description: "Content quality, depth, uniqueness, and readability",
+    descKey: "sectionContentDesc",
   },
   links: {
-    label: "Links",
+    labelKey: "sectionLinks",
     icon: Link01,
-    description: "Internal linking, broken links, and link structure",
+    descKey: "sectionLinksDesc",
   },
   images: {
-    label: "Images",
+    labelKey: "sectionImages",
     icon: Image01,
-    description: "Alt text, image size, and optimization",
+    descKey: "sectionImagesDesc",
   },
   structured_data: {
-    label: "Structured Data",
+    labelKey: "sectionStructuredData",
     icon: Code01,
-    description: "Schema.org markup and rich snippet eligibility",
+    descKey: "sectionStructuredDataDesc",
   },
 };
 
@@ -120,6 +121,7 @@ export function AuditSectionsBreakdown({
   sections,
   recommendations,
 }: AuditSectionsBreakdownProps) {
+  const t = useTranslations('onsite');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set()
   );
@@ -139,7 +141,7 @@ export function AuditSectionsBreakdown({
 
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-primary">Audit Sections</h3>
+      <h3 className="text-lg font-semibold text-primary">{t('auditSections')}</h3>
 
       {/* Section cards grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -167,7 +169,7 @@ export function AuditSectionsBreakdown({
                   <div className="text-left">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-primary">
-                        {config.label}
+                        {t(config.labelKey)}
                       </span>
                       <span
                         className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold ${getGradeColor(section.grade)}`}
@@ -177,8 +179,8 @@ export function AuditSectionsBreakdown({
                     </div>
                     <p className="text-xs text-quaternary mt-0.5">
                       {issueCount > 0
-                        ? `${issueCount} issue${issueCount !== 1 ? "s" : ""}`
-                        : "No issues"}
+                        ? t('issueCount', { count: issueCount })
+                        : t('noIssues')}
                     </p>
                   </div>
                 </div>
@@ -250,7 +252,7 @@ export function AuditSectionsBreakdown({
           <div className="flex items-center gap-2 mb-3">
             <Lightbulb01 className="w-4 h-4 text-warning-600" />
             <h4 className="text-sm font-medium text-primary">
-              Recommendations
+              {t('recommendations')}
             </h4>
           </div>
           <ul className="space-y-2">

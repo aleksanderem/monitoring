@@ -1,6 +1,7 @@
 "use client";
 
 import { Link03, Globe01, Server01, AlertCircle } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 
 interface BacklinksSummaryStatsProps {
   summary: {
@@ -59,6 +60,7 @@ function StatCard({
 }
 
 export function BacklinksSummaryStats({ summary, isLoading }: BacklinksSummaryStatsProps) {
+  const t = useTranslations("backlinks");
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -80,8 +82,8 @@ export function BacklinksSummaryStats({ summary, isLoading }: BacklinksSummarySt
       <div className="flex flex-col items-center gap-3 rounded-xl border border-secondary bg-primary p-8">
         <AlertCircle className="h-12 w-12 text-fg-quaternary" />
         <div className="text-center">
-          <p className="text-sm font-medium text-primary">No backlink data available</p>
-          <p className="text-sm text-tertiary">Click "Fetch Backlinks" to load data</p>
+          <p className="text-sm font-medium text-primary">{t("noBacklinkDataAvailable")}</p>
+          <p className="text-sm text-tertiary">{t("clickFetchBacklinks")}</p>
         </div>
       </div>
     );
@@ -94,32 +96,32 @@ export function BacklinksSummaryStats({ summary, isLoading }: BacklinksSummarySt
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
       <StatCard
-        label="Total Backlinks"
+        label={t("summaryTotalBacklinks")}
         value={summary.totalBacklinks}
         icon={Link03}
         iconColor="blue"
       />
 
       <StatCard
-        label="Referring Domains"
+        label={t("summaryReferringDomains")}
         value={summary.totalDomains}
         icon={Globe01}
         iconColor="purple"
       />
 
       <StatCard
-        label="Referring IPs"
+        label={t("summaryReferringIPs")}
         value={summary.totalIps}
         icon={Server01}
         iconColor="green"
       />
 
       <StatCard
-        label="Dofollow Links"
+        label={t("summaryDofollowLinks")}
         value={summary.dofollow}
         icon={Link03}
         iconColor="green"
-        secondaryText={`${dofollowPercent}% of total backlinks`}
+        secondaryText={t("summaryDofollowPercent", { percent: dofollowPercent })}
       />
     </div>
   );

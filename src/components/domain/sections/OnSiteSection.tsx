@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -18,12 +19,19 @@ import { RobotsAnalysisCard } from "./RobotsAnalysisCard";
 import { CrawlSummaryCards } from "../cards/CrawlSummaryCards";
 import { CrawlAnalyticsSection } from "./CrawlAnalyticsSection";
 import { AuditSectionsBreakdown } from "./AuditSectionsBreakdown";
+import { PageScoreOverviewSection } from "./PageScoreOverviewSection";
 
 interface OnSiteSectionProps {
   domainId: Id<"domains">;
 }
 
 export function OnSiteSection({ domainId }: OnSiteSectionProps) {
+  const t = useTranslations('onsite');
+  const tc = useTranslations('common');
+  const translateStatus = (status: string) => {
+    const key = `status${status.charAt(0).toUpperCase()}${status.slice(1)}` as any;
+    try { return tc(key); } catch { return status; }
+  };
   const [isScanning, setIsScanning] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [showUrlSelection, setShowUrlSelection] = useState(false);
@@ -50,16 +58,16 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
       const scanId = await triggerScan({ domainId });
 
       toast.success(
-        "SEO audit scan started. This typically takes 1-5 minutes.",
+        t('scanStarted'),
         {
-          description: "The page will update automatically when the scan completes."
+          description: t('scanStartedDescription')
         }
       );
     } catch (error) {
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
-        toast.error("Failed to start scan");
+        toast.error(t('failedToStartScan'));
       }
       console.error(error);
     } finally {
@@ -73,12 +81,12 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
     setIsCancelling(true);
     try {
       await cancelScan({ scanId: latestScan._id });
-      toast.success("Scan cancelled");
+      toast.success(t('scanCancelled'));
     } catch (error) {
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
-        toast.error("Failed to cancel scan");
+        toast.error(t('failedToCancelScan'));
       }
       console.error(error);
     } finally {
@@ -87,7 +95,7 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
   };
 
   const handleRefreshStatus = () => {
-    toast.success("Refreshing scan status...");
+    toast.success(t('refreshingScanStatus'));
     // Convex queries auto-refresh, this just provides user feedback
   };
 
@@ -122,11 +130,10 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
           <AlertCircle className="w-8 h-8 text-primary-600" />
         </div>
         <h3 className="text-lg font-semibold text-primary mb-2">
-          No On-Site Scan Data
+          {t('noScanData')}
         </h3>
         <p className="text-sm text-tertiary mb-6 text-center max-w-md">
-          Run your first on-site SEO audit to analyze technical health, page
-          performance, and identify optimization opportunities.
+          {t('noScanDataDescription')}
         </p>
         <Button
           size="md"
@@ -135,10 +142,10 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
           onClick={handleStartScan}
           isDisabled={isScanning}
         >
-          {isScanning ? "Starting Scan..." : "Run On-Site Scan"}
+          {isScanning ? t('startingScan') : t('runOnSiteScan')}
         </Button>
         <p className="text-xs text-quaternary mt-3">
-          Scan typically takes 1-5 minutes depending on site size
+          {t('scanTypicalTime')}
         </p>
       </div>
     );
@@ -178,10 +185,10 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
     const crawlStatus = latestScan.advertoolsCrawlStatus;
 
     const getJobLabel = (status: string | undefined) => {
-      if (!status || status === "pending") return { label: "Waiting...", color: "text-tertiary", dot: "bg-gray-400" };
-      if (status === "running") return { label: "Running", color: "text-warning-600", dot: "bg-warning-500 animate-pulse" };
-      if (status === "completed") return { label: "Done", color: "text-success-600", dot: "bg-success-500" };
-      if (status === "failed") return { label: "Failed", color: "text-error-600", dot: "bg-error-500" };
+      if (!status || status === "pending") return { label: t('jobWaiting'), color: "text-tertiary", dot: "bg-gray-400" };
+      if (status === "running") return { label: t('jobRunning'), color: "text-warning-600", dot: "bg-warning-500 animate-pulse" };
+      if (status === "completed") return { label: t('jobDone'), color: "text-success-600", dot: "bg-success-500" };
+      if (status === "failed") return { label: t('jobFailed'), color: "text-error-600", dot: "bg-error-500" };
       return { label: status, color: "text-tertiary", dot: "bg-gray-400" };
     };
 
@@ -191,16 +198,16 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
     // Overall description
     const overallDescription =
       latestScan.status === "queued"
-        ? "Starting scan — queuing SEO audit and site crawl..."
+        ? t('scanDescQueued')
         : auditStatus === "running" && crawlStatus === "running"
-          ? "Two parallel jobs running: SEO audit (homepage checks) and site crawl (discovering all pages)..."
+          ? t('scanDescBothRunning')
           : auditStatus === "completed" && crawlStatus === "running"
-            ? "SEO audit finished. Site crawl still discovering and indexing pages — this takes 2-5 minutes..."
+            ? t('scanDescAuditDoneCrawling')
             : auditStatus === "running" && crawlStatus === "completed"
-              ? "Site crawl finished. SEO audit still processing..."
+              ? t('scanDescCrawlDoneAuditing')
               : latestScan.status === "processing"
-                ? "Both jobs done. Running post-crawl analytics (links, images, redirects, word frequency, robots)..."
-                : "Processing...";
+                ? t('scanDescProcessing')
+                : t('scanDescDefault');
 
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -208,12 +215,12 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
           <Play className="w-8 h-8 text-warning-600" />
         </div>
         <h3 className="text-lg font-semibold text-primary mb-2">
-          Site Scan In Progress
+          {t('scanInProgress')}
         </h3>
 
         {/* Elapsed time */}
         <div className="text-sm text-tertiary mb-4">
-          {elapsedMinutes}m {elapsedSeconds}s elapsed
+          {tc('elapsedTime', { minutes: elapsedMinutes, seconds: elapsedSeconds })}
         </div>
 
         {/* Overall description */}
@@ -227,7 +234,7 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${auditJob.dot}`} />
-              <span className="text-sm font-medium text-primary">SEO Audit</span>
+              <span className="text-sm font-medium text-primary">{t('seoAudit')}</span>
             </div>
             <span className={`text-sm font-medium ${auditJob.color}`}>
               {auditJob.label}
@@ -242,15 +249,15 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
           <div className="text-xs text-quaternary pl-4">
             {auditStatus === "running" && (
               latestScan.pagesScanned && latestScan.totalPagesToScan
-                ? `Auditing: ${latestScan.pagesScanned} of ${latestScan.totalPagesToScan} pages checked`
+                ? t('auditProgressFull', { scanned: latestScan.pagesScanned, total: latestScan.totalPagesToScan })
                 : latestScan.pagesScanned
-                  ? `Auditing: ${latestScan.pagesScanned} pages checked so far`
-                  : "Starting full site audit (use_sitemap, max 100 pages)..."
+                  ? t('auditProgressPartial', { scanned: latestScan.pagesScanned })
+                  : t('auditStarting')
             )}
-            {auditStatus === "completed" && `Done — ${latestScan.pagesScanned ?? "?"} pages analyzed`}
-            {auditStatus === "pending" && "Queued, waiting for sitemap/robots fetch to finish"}
-            {auditStatus === "failed" && (latestScan.error || "An error occurred during the audit")}
-            {!auditStatus && "Not started"}
+            {auditStatus === "completed" && t('auditDone', { pages: latestScan.pagesScanned ?? "?" })}
+            {auditStatus === "pending" && t('auditQueued')}
+            {auditStatus === "failed" && (latestScan.error || t('auditErrorOccurred'))}
+            {!auditStatus && t('auditNotStarted')}
           </div>
 
           <div className="border-t border-tertiary" />
@@ -259,7 +266,7 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${crawlJob.dot}`} />
-              <span className="text-sm font-medium text-primary">Site Crawl</span>
+              <span className="text-sm font-medium text-primary">{t('siteCrawl')}</span>
             </div>
             <span className={`text-sm font-medium ${crawlJob.color}`}>
               {crawlJob.label}
@@ -272,30 +279,30 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
             </div>
           )}
           <div className="text-xs text-quaternary pl-4">
-            {crawlStatus === "running" && `Crawling site (depth 2, max 100 pages)... ${livePagesCount ? `${livePagesCount} pages found` : ""}`}
-            {crawlStatus === "completed" && `Done — ${livePagesCount ?? 0} pages crawled and stored`}
-            {crawlStatus === "pending" && "Queued, will start after audit kicks off"}
-            {crawlStatus === "failed" && "Crawl failed (audit results still available)"}
-            {!crawlStatus && "Not started"}
+            {crawlStatus === "running" && t('crawlRunning', { pages: livePagesCount ?? 0 })}
+            {crawlStatus === "completed" && t('crawlDone', { pages: livePagesCount ?? 0 })}
+            {crawlStatus === "pending" && t('crawlQueued')}
+            {crawlStatus === "failed" && t('crawlFailed')}
+            {!crawlStatus && t('auditNotStarted')}
           </div>
 
           {/* Stats */}
           <div className="border-t border-tertiary pt-3 space-y-1">
             <div className="flex justify-between text-xs">
-              <span className="text-tertiary">Pages in DB:</span>
+              <span className="text-tertiary">{tc('pagesInDb')}</span>
               <span className="font-medium text-primary tabular-nums">{livePagesCount ?? 0}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-tertiary">Scan ID:</span>
+              <span className="text-tertiary">{tc('scanIdLabel')}</span>
               <span className="font-mono text-[10px] text-quaternary">{latestScan._id}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-tertiary">Status:</span>
-              <span className="font-medium text-primary">{latestScan.status}</span>
+              <span className="text-tertiary">{tc('statusLabel')}</span>
+              <span className="font-medium text-primary">{translateStatus(latestScan.status)}</span>
             </div>
             {latestScan.lastProgressUpdate && (
               <div className="flex justify-between text-xs">
-                <span className="text-tertiary">Last update:</span>
+                <span className="text-tertiary">{tc('lastUpdate')}</span>
                 <span className="text-quaternary">{new Date(latestScan.lastProgressUpdate).toLocaleTimeString()}</span>
               </div>
             )}
@@ -318,7 +325,7 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
             iconLeading={RefreshCw05}
             onClick={handleRefreshStatus}
           >
-            Refresh Status
+            {t('refreshStatus')}
           </Button>
           <Button
             size="sm"
@@ -327,11 +334,11 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
             onClick={handleCancelScan}
             isDisabled={isCancelling}
           >
-            {isCancelling ? "Cancelling..." : "Cancel Scan"}
+            {isCancelling ? t('cancelling') : t('cancelScan')}
           </Button>
         </div>
         <p className="text-xs text-quaternary mt-3">
-          This page will update automatically when the scan completes
+          {tc('autoUpdateNote')}
         </p>
       </div>
     );
@@ -349,13 +356,13 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
           <AlertCircle className="w-8 h-8 text-error-600" />
         </div>
         <h3 className="text-lg font-semibold text-primary mb-2">
-          Last Scan Failed
+          {t('lastScanFailed')}
         </h3>
         <p className="text-sm text-tertiary mb-2 text-center max-w-md">
-          {latestScan.error || "The scan encountered an error"}
+          {latestScan.error || t('scanEncounteredError')}
         </p>
         <p className="text-xs text-quaternary mb-6">
-          Failed at: {new Date(latestScan.completedAt!).toLocaleString()}
+          {t('failedAt', { time: new Date(latestScan.completedAt!).toLocaleString() })}
         </p>
         <div className="flex gap-2">
           <Button
@@ -365,7 +372,7 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
             onClick={handleStartInstantPagesScan}
             isDisabled={isScanning}
           >
-            Scan Selected Pages
+            {t('scanSelectedPages')}
           </Button>
           <Button
             size="md"
@@ -374,7 +381,7 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
             onClick={handleStartScan}
             isDisabled={isScanning}
           >
-            Full Site Scan
+            {t('fullSiteScan')}
           </Button>
         </div>
       </div>
@@ -390,13 +397,13 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
             <AlertCircle className="w-5 h-5 text-error-600 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
               <h4 className="text-sm font-semibold text-error-900 mb-1">
-                Last scan failed
+                {t('lastScanFailedLower')}
               </h4>
               <p className="text-sm text-error-700">
-                {latestScan.error || "The scan encountered an error"}
+                {latestScan.error || t('scanEncounteredError')}
               </p>
               <p className="text-xs text-error-600 mt-1">
-                Failed at: {new Date(latestScan.completedAt!).toLocaleString()}
+                {t('failedAt', { time: new Date(latestScan.completedAt!).toLocaleString() })}
               </p>
             </div>
             <Button
@@ -405,7 +412,7 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
               onClick={handleStartScan}
               isDisabled={isScanning}
             >
-              Retry
+              {t('retry')}
             </Button>
           </div>
         </div>
@@ -415,15 +422,15 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-primary">
-            On-Site SEO Analysis
+            {t('onSiteSeoAnalysis')}
           </h2>
           <p className="text-sm text-tertiary">
-            Last scanned:{" "}
+            {t('lastScanned')}{" "}
             {latestAnalysis
               ? new Date(latestAnalysis.fetchedAt).toLocaleDateString()
-              : "Never"}
+              : t('never')}
             {isStale && (
-              <span className="text-warning-600 ml-2">(Data may be outdated)</span>
+              <span className="text-warning-600 ml-2">({t('dataMayBeOutdated')})</span>
             )}
           </p>
         </div>
@@ -435,7 +442,7 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
             onClick={handleStartInstantPagesScan}
             isDisabled={isScanning || isScanInProgress}
           >
-            {isScanning ? "Initializing..." : "Scan Selected Pages"}
+            {isScanning ? t('initializing') : t('scanSelectedPages')}
           </Button>
           <Button
             size="sm"
@@ -444,7 +451,7 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
             onClick={handleStartScan}
             isDisabled={isScanning || isScanInProgress}
           >
-            Full Site Scan
+            {t('fullSiteScan')}
           </Button>
         </div>
       </div>
@@ -477,6 +484,9 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
               }}
             />
           </div>
+
+          {/* Page Scoring Overview (4-axis breakdown with charts) */}
+          <PageScoreOverviewSection analysis={latestAnalysis} />
 
           {/* Sitemap & Robots Overview */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

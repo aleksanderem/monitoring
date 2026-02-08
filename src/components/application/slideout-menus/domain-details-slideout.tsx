@@ -10,6 +10,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 interface DomainDetailsSlideoutProps {
   domainId: Id<"domains">;
@@ -18,23 +19,7 @@ interface DomainDetailsSlideoutProps {
   onDelete?: () => void;
 }
 
-const tabs = [
-  {
-    id: "overview",
-    value: "overview",
-    label: "Overview",
-  },
-  {
-    id: "keywords",
-    value: "keywords",
-    label: "Keywords",
-  },
-  {
-    id: "settings",
-    value: "settings",
-    label: "Settings",
-  },
-];
+// Tabs are defined inside the component to access translations
 
 export function DomainDetailsSlideout({
   domainId,
@@ -42,9 +27,16 @@ export function DomainDetailsSlideout({
   onEdit,
   onDelete,
 }: DomainDetailsSlideoutProps) {
+  const t = useTranslations("nav");
   const [isOpen, setIsOpen] = useState(false);
 
   const domain = useQuery(api.domains.getDomain, { domainId });
+
+  const tabs = [
+    { id: "overview", value: "overview", label: t("overview") },
+    { id: "keywords", value: "keywords", label: t("keywords") },
+    { id: "settings", value: "settings", label: t("settings") },
+  ];
   // TODO: Add keywords query
   const keywords: any[] = [];
 
@@ -60,12 +52,12 @@ export function DomainDetailsSlideout({
   // Helper to format relative time
   const formatRelativeTime = (timestamp: number) => {
     const days = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
-    if (days === 0) return "Today";
-    if (days === 1) return "Yesterday";
-    if (days < 7) return `${days} days ago`;
-    if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
-    if (days < 365) return `${Math.floor(days / 30)} months ago`;
-    return `${Math.floor(days / 365)} years ago`;
+    if (days === 0) return t("today");
+    if (days === 1) return t("yesterday");
+    if (days < 7) return t("daysAgo", { count: days });
+    if (days < 30) return t("weeksAgo", { count: Math.floor(days / 7) });
+    if (days < 365) return t("monthsAgo", { count: Math.floor(days / 30) });
+    return t("yearsAgo", { count: Math.floor(days / 365) });
   };
 
   return (
@@ -83,7 +75,7 @@ export function DomainDetailsSlideout({
             </div>
             <div className="flex-1">
               <h1 className="text-md font-semibold text-primary md:text-lg">
-                {domain?.domain || "Loading..."}
+                {domain?.domain || t("loadingDomain")}
               </h1>
               <p className="text-sm text-tertiary">
                 {domain?.settings.searchEngine} · {domain?.settings.refreshFrequency}
@@ -93,26 +85,26 @@ export function DomainDetailsSlideout({
               <ButtonUtility
                 size="xs"
                 color="tertiary"
-                tooltip="Refresh rankings"
+                tooltip={t("refreshRankings")}
                 icon={RefreshCw01}
                 onClick={() => {
-                  toast.info("Refresh coming soon");
+                  toast.info(t("refreshComingSoon"));
                 }}
               />
               <ButtonUtility
                 size="xs"
                 color="tertiary"
-                tooltip="Edit"
+                tooltip={t("edit")}
                 icon={Edit01}
                 onClick={() => {
-                  toast.info("Edit dialog coming soon");
+                  toast.info(t("editComingSoon"));
                   onEdit?.();
                 }}
               />
               <ButtonUtility
                 size="xs"
                 color="tertiary"
-                tooltip="Delete"
+                tooltip={t("delete")}
                 icon={Trash01}
                 onClick={() => {
                   onDelete?.();
@@ -133,10 +125,10 @@ export function DomainDetailsSlideout({
                 {/* Summary section */}
                 <section className="flex items-center justify-between">
                   <BadgeWithDot size="md" type="modern" color="success">
-                    Active
+                    {t("active")}
                   </BadgeWithDot>
                   <div className="flex flex-col items-end">
-                    <p className="text-sm font-medium text-secondary">Keywords</p>
+                    <p className="text-sm font-medium text-secondary">{t("keywords")}</p>
                     <p className="text-xl font-semibold text-primary">{keywords.length}</p>
                   </div>
                 </section>
@@ -145,10 +137,10 @@ export function DomainDetailsSlideout({
 
                 {/* Details section */}
                 <section className="flex flex-col gap-4">
-                  <p className="text-sm font-semibold text-primary">Domain Details</p>
+                  <p className="text-sm font-semibold text-primary">{t("domainDetails")}</p>
 
                   <span className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-secondary">Created</p>
+                    <p className="text-sm font-medium text-secondary">{t("created")}</p>
                     <div className="flex flex-col items-end">
                       <p className="text-sm text-primary">{formatRelativeTime(domain.createdAt)}</p>
                       <p className="text-sm text-tertiary">{formatDate(domain.createdAt)}</p>
@@ -157,7 +149,7 @@ export function DomainDetailsSlideout({
 
                   {domain.lastRefreshedAt && (
                     <span className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-secondary">Last Refreshed</p>
+                      <p className="text-sm font-medium text-secondary">{t("lastRefreshed")}</p>
                       <div className="flex flex-col items-end">
                         <p className="text-sm text-primary">{formatRelativeTime(domain.lastRefreshedAt)}</p>
                         <p className="text-sm text-tertiary">{formatDate(domain.lastRefreshedAt)}</p>
@@ -171,9 +163,9 @@ export function DomainDetailsSlideout({
                 {keywords.length > 0 ? (
                   <section className="flex flex-col gap-4">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-primary">Keywords</p>
+                      <p className="text-sm font-semibold text-primary">{t("keywords")}</p>
                       <BadgeWithDot size="sm" type="modern" color="gray">
-                        {keywords.length} {keywords.length === 1 ? 'keyword' : 'keywords'}
+                        {keywords.length} {keywords.length === 1 ? t("keyword") : t("keywordsPlural")}
                       </BadgeWithDot>
                     </div>
 
@@ -195,37 +187,37 @@ export function DomainDetailsSlideout({
                 ) : (
                   <section className="flex flex-col items-center gap-2 py-8 text-center">
                     <Hash01 className="h-10 w-10 text-fg-quaternary" />
-                    <p className="text-sm font-medium text-primary">No keywords yet</p>
-                    <p className="text-sm text-tertiary">Add keywords to start tracking rankings</p>
+                    <p className="text-sm font-medium text-primary">{t("noKeywordsYet")}</p>
+                    <p className="text-sm text-tertiary">{t("addKeywordsToTrack")}</p>
                   </section>
                 )}
               </TabPanel>
 
               <TabPanel id="settings">
                 <section className="flex flex-col gap-4">
-                  <p className="text-sm font-semibold text-primary">Domain Settings</p>
+                  <p className="text-sm font-semibold text-primary">{t("domainSettings")}</p>
 
                   <span className="h-px w-full bg-border-secondary" />
 
                   <span className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-secondary">Search Engine</p>
+                    <p className="text-sm font-medium text-secondary">{t("searchEngine")}</p>
                     <p className="text-sm text-primary">{domain.settings.searchEngine}</p>
                   </span>
 
                   <span className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-secondary">Refresh Frequency</p>
+                    <p className="text-sm font-medium text-secondary">{t("refreshFrequency")}</p>
                     <BadgeWithDot size="sm" color="gray" type="modern">
                       {domain.settings.refreshFrequency}
                     </BadgeWithDot>
                   </span>
 
                   <span className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-secondary">Location</p>
+                    <p className="text-sm font-medium text-secondary">{t("location")}</p>
                     <p className="text-sm text-primary">{domain.settings.location}</p>
                   </span>
 
                   <span className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-secondary">Language</p>
+                    <p className="text-sm font-medium text-secondary">{t("language")}</p>
                     <p className="text-sm text-primary">{domain.settings.language}</p>
                   </span>
                 </section>

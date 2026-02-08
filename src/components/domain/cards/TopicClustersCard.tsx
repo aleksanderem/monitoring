@@ -13,6 +13,7 @@ import {
     Settings01,
     FilterLines,
 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
@@ -35,12 +36,12 @@ interface ColumnVisibility {
     estTraffic: boolean;
 }
 
-const COLUMN_LABELS: Record<keyof ColumnVisibility, string> = {
-    keywords: "Keywords",
-    avgScore: "Avg Score",
-    totalVolume: "Total Volume",
-    avgDifficulty: "Avg Difficulty",
-    estTraffic: "Est. Traffic",
+const COLUMN_LABEL_KEYS: Record<keyof ColumnVisibility, string> = {
+    keywords: "columnKeywordsLabel",
+    avgScore: "columnAvgScore",
+    totalVolume: "columnTotalVolume",
+    avgDifficulty: "columnAvgDifficulty",
+    estTraffic: "columnEstTraffic",
 };
 
 function formatNumber(num: number | null | undefined): string {
@@ -50,11 +51,11 @@ function formatNumber(num: number | null | undefined): string {
     return num.toLocaleString();
 }
 
-function getDifficultyBadge(d: number): { color: "success" | "warning" | "orange" | "error"; label: string } {
-    if (d < 30) return { color: "success", label: "Easy" };
-    if (d < 50) return { color: "warning", label: "Moderate" };
-    if (d < 70) return { color: "orange", label: "Hard" };
-    return { color: "error", label: "Very Hard" };
+function getDifficultyBadge(d: number): { color: "success" | "warning" | "orange" | "error"; labelKey: string } {
+    if (d < 30) return { color: "success", labelKey: "difficultyLabelEasy" };
+    if (d < 50) return { color: "warning", labelKey: "difficultyLabelModerate" };
+    if (d < 70) return { color: "orange", labelKey: "difficultyLabelHard" };
+    return { color: "error", labelKey: "difficultyLabelVeryHard" };
 }
 
 function getScoreBadgeColor(score: number): "success" | "warning" | "gray" {
@@ -63,30 +64,30 @@ function getScoreBadgeColor(score: number): "success" | "warning" | "gray" {
     return "gray";
 }
 
-const COLUMN_TOOLTIPS: Record<string, { title: string; description: string }> = {
+const COLUMN_TOOLTIP_KEYS: Record<string, { titleKey: string; descriptionKey: string }> = {
     topic: {
-        title: "Topic",
-        description: "Cluster name derived from the most common meaningful word across grouped keywords.",
+        titleKey: "tooltipTopicTitle",
+        descriptionKey: "tooltipTopicDescription",
     },
     gapCount: {
-        title: "Keywords",
-        description: "Number of content gap keywords grouped under this topic cluster.",
+        titleKey: "tooltipKeywordsTitle",
+        descriptionKey: "tooltipKeywordsDescription",
     },
     avgOpportunityScore: {
-        title: "Avg Score",
-        description: "Average opportunity score (0-100) across all keywords in the cluster. Higher = better ROI potential.",
+        titleKey: "tooltipAvgScoreTitle",
+        descriptionKey: "tooltipAvgScoreDescription",
     },
     totalSearchVolume: {
-        title: "Total Volume",
-        description: "Combined monthly search volume for all keywords in this cluster.",
+        titleKey: "tooltipTotalVolumeTitle",
+        descriptionKey: "tooltipTotalVolumeDescription",
     },
     avgDifficulty: {
-        title: "Avg Difficulty",
-        description: "Average keyword difficulty (0-100) for the cluster. Lower = easier to rank for.",
+        titleKey: "tooltipAvgDifficultyTitle",
+        descriptionKey: "tooltipAvgDifficultyDescription",
     },
     totalEstimatedValue: {
-        title: "Est. Traffic",
-        description: "Estimated monthly visits if you ranked for all keywords in this cluster (~30% CTR assumed).",
+        titleKey: "tooltipEstTrafficTitle",
+        descriptionKey: "tooltipEstTrafficDescription",
     },
 };
 
@@ -100,6 +101,8 @@ function SortIcon({ column, sortColumn, sortDirection }: { column: SortColumn; s
 }
 
 export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
+    const t = useTranslations('keywords');
+    const tc = useTranslations('common');
     const clusters = useQuery(api.contentGaps_queries.getTopicClusters, { domainId });
 
     const [sortColumn, setSortColumn] = useState<SortColumn>("totalEstimatedValue");
@@ -279,15 +282,15 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
         return (
             <div className="rounded-xl border border-secondary bg-primary p-6">
                 <div className="flex items-center gap-2 mb-4">
-                    <h3 className="text-md font-semibold text-primary">Topic Clusters</h3>
-                    <Tooltip title="Topic Clusters" description="Groups related content gap keywords by shared topics. Targeting entire clusters helps build topical authority and rank for multiple related terms.">
+                    <h3 className="text-md font-semibold text-primary">{t('topicClusters')}</h3>
+                    <Tooltip title={t('topicClusters')} description={t('topicClustersTooltip')}>
                         <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                             <HelpCircle className="size-4" />
                         </TooltipTrigger>
                     </Tooltip>
                 </div>
                 <div className="flex h-32 items-center justify-center">
-                    <p className="text-sm text-tertiary">No clusters found. Run content gap analysis first.</p>
+                    <p className="text-sm text-tertiary">{t('noClustersFound')}</p>
                 </div>
             </div>
         );
@@ -300,8 +303,8 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
                         <div className="flex items-center gap-2">
-                            <h3 className="text-md font-semibold text-primary">Topic Clusters</h3>
-                            <Tooltip title="Topic Clusters" description="Groups related content gap keywords by shared topics. Targeting entire clusters helps build topical authority and rank for multiple related terms.">
+                            <h3 className="text-md font-semibold text-primary">{t('topicClusters')}</h3>
+                            <Tooltip title={t('topicClusters')} description={t('topicClustersTooltip')}>
                                 <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                                     <HelpCircle className="size-4" />
                                 </TooltipTrigger>
@@ -309,7 +312,7 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                             <Badge color="gray" size="sm">{filteredAndSorted.length}</Badge>
                         </div>
                         <p className="mt-1 text-sm text-tertiary">
-                            Related content gap keywords grouped by topic. Targeting entire clusters helps build topical authority and rank for multiple related terms at once.
+                            {t('topicClustersDescription')}
                         </p>
                     </div>
 
@@ -319,7 +322,7 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                             <SearchLg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-quaternary" />
                             <input
                                 type="text"
-                                placeholder="Search clusters..."
+                                placeholder={t('searchClustersPlaceholder')}
                                 value={searchQuery}
                                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                                 className="h-9 w-full rounded-lg border border-secondary bg-primary pl-9 pr-3 text-sm text-primary placeholder:text-quaternary focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-100"
@@ -333,7 +336,7 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                             iconLeading={FilterLines}
                             onClick={() => setShowFilters(!showFilters)}
                         >
-                            Filters{hasActiveFilters ? " (active)" : ""}
+                            {t('filters')}{hasActiveFilters ? ` (${t('active')})` : ""}
                         </Button>
 
                         {/* Column picker */}
@@ -344,7 +347,7 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                                 iconLeading={Settings01}
                                 onClick={() => setShowColumnPicker(!showColumnPicker)}
                             >
-                                Columns
+                                {tc('columns')}
                             </Button>
                             {showColumnPicker && (
                                 <div className="absolute right-0 top-full z-10 mt-2 w-52 rounded-lg border border-secondary bg-primary p-2 shadow-lg">
@@ -361,7 +364,7 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                                                         onChange={() => toggleColumn(key)}
                                                         className="h-4 w-4 rounded border-gray-300"
                                                     />
-                                                    <span className="text-primary">{COLUMN_LABELS[key]}</span>
+                                                    <span className="text-primary">{t(COLUMN_LABEL_KEYS[key])}</span>
                                                 </label>
                                             )
                                         )}
@@ -377,13 +380,13 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                     <div className="mt-4 flex flex-wrap items-center gap-4 rounded-lg border border-secondary bg-secondary/30 p-4">
                         {/* Difficulty range */}
                         <div className="flex items-center gap-2">
-                            <label className="text-sm font-medium text-secondary">Difficulty:</label>
+                            <label className="text-sm font-medium text-secondary">{t('filterDifficulty')}:</label>
                             <select
                                 value={difficultyMin}
                                 onChange={(e) => { setDifficultyMin(e.target.value); setCurrentPage(1); }}
                                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
                             >
-                                <option value="">Min</option>
+                                <option value="">{t('filterMin')}</option>
                                 {[0, 10, 20, 30, 40, 50, 60, 70, 80].map((v) => (
                                     <option key={v} value={v}>{v}</option>
                                 ))}
@@ -394,7 +397,7 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                                 onChange={(e) => { setDifficultyMax(e.target.value); setCurrentPage(1); }}
                                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
                             >
-                                <option value="">Max</option>
+                                <option value="">{t('filterMax')}</option>
                                 {[10, 20, 30, 40, 50, 60, 70, 80, 100].map((v) => (
                                     <option key={v} value={v}>{v}</option>
                                 ))}
@@ -403,13 +406,13 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
 
                         {/* Score range */}
                         <div className="flex items-center gap-2">
-                            <label className="text-sm font-medium text-secondary">Avg Score:</label>
+                            <label className="text-sm font-medium text-secondary">{t('filterAvgScore')}:</label>
                             <select
                                 value={scoreMin}
                                 onChange={(e) => { setScoreMin(e.target.value); setCurrentPage(1); }}
                                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
                             >
-                                <option value="">Min</option>
+                                <option value="">{t('filterMin')}</option>
                                 {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90].map((v) => (
                                     <option key={v} value={v}>{v}</option>
                                 ))}
@@ -420,7 +423,7 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                                 onChange={(e) => { setScoreMax(e.target.value); setCurrentPage(1); }}
                                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
                             >
-                                <option value="">Max</option>
+                                <option value="">{t('filterMax')}</option>
                                 {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((v) => (
                                     <option key={v} value={v}>{v}</option>
                                 ))}
@@ -429,13 +432,13 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
 
                         {/* Min keywords */}
                         <div className="flex items-center gap-2">
-                            <label className="text-sm font-medium text-secondary">Min Keywords:</label>
+                            <label className="text-sm font-medium text-secondary">{t('filterMinKeywords')}:</label>
                             <select
                                 value={minKeywords}
                                 onChange={(e) => { setMinKeywords(e.target.value); setCurrentPage(1); }}
                                 className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
                             >
-                                <option value="">Any</option>
+                                <option value="">{t('filterAny')}</option>
                                 {[2, 3, 5, 10, 15, 20].map((v) => (
                                     <option key={v} value={v}>{v}+</option>
                                 ))}
@@ -445,7 +448,7 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                         {/* Clear all */}
                         {hasActiveFilters && (
                             <Button size="sm" color="secondary" onClick={clearAllFilters}>
-                                Clear All
+                                {t('clearAll')}
                             </Button>
                         )}
                     </div>
@@ -463,8 +466,8 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                                 onClick={() => toggleSort("topic")}
                             >
                                 <div className="flex items-center gap-1">
-                                    <span>{COLUMN_TOOLTIPS.topic.title}</span>
-                                    <Tooltip title={COLUMN_TOOLTIPS.topic.title} description={COLUMN_TOOLTIPS.topic.description}>
+                                    <span>{t(COLUMN_TOOLTIP_KEYS.topic.titleKey)}</span>
+                                    <Tooltip title={t(COLUMN_TOOLTIP_KEYS.topic.titleKey)} description={t(COLUMN_TOOLTIP_KEYS.topic.descriptionKey)}>
                                         <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                                             <HelpCircle className="size-3.5" />
                                         </TooltipTrigger>
@@ -478,8 +481,8 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                                     onClick={() => toggleSort("gapCount")}
                                 >
                                     <div className="flex items-center gap-1 justify-end">
-                                        <span>{COLUMN_TOOLTIPS.gapCount.title}</span>
-                                        <Tooltip title={COLUMN_TOOLTIPS.gapCount.title} description={COLUMN_TOOLTIPS.gapCount.description}>
+                                        <span>{t(COLUMN_TOOLTIP_KEYS.gapCount.titleKey)}</span>
+                                        <Tooltip title={t(COLUMN_TOOLTIP_KEYS.gapCount.titleKey)} description={t(COLUMN_TOOLTIP_KEYS.gapCount.descriptionKey)}>
                                             <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                                                 <HelpCircle className="size-3.5" />
                                             </TooltipTrigger>
@@ -494,8 +497,8 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                                     onClick={() => toggleSort("avgOpportunityScore")}
                                 >
                                     <div className="flex items-center gap-1 justify-end">
-                                        <span>{COLUMN_TOOLTIPS.avgOpportunityScore.title}</span>
-                                        <Tooltip title={COLUMN_TOOLTIPS.avgOpportunityScore.title} description={COLUMN_TOOLTIPS.avgOpportunityScore.description}>
+                                        <span>{t(COLUMN_TOOLTIP_KEYS.avgOpportunityScore.titleKey)}</span>
+                                        <Tooltip title={t(COLUMN_TOOLTIP_KEYS.avgOpportunityScore.titleKey)} description={t(COLUMN_TOOLTIP_KEYS.avgOpportunityScore.descriptionKey)}>
                                             <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                                                 <HelpCircle className="size-3.5" />
                                             </TooltipTrigger>
@@ -510,8 +513,8 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                                     onClick={() => toggleSort("totalSearchVolume")}
                                 >
                                     <div className="flex items-center gap-1 justify-end">
-                                        <span>{COLUMN_TOOLTIPS.totalSearchVolume.title}</span>
-                                        <Tooltip title={COLUMN_TOOLTIPS.totalSearchVolume.title} description={COLUMN_TOOLTIPS.totalSearchVolume.description}>
+                                        <span>{t(COLUMN_TOOLTIP_KEYS.totalSearchVolume.titleKey)}</span>
+                                        <Tooltip title={t(COLUMN_TOOLTIP_KEYS.totalSearchVolume.titleKey)} description={t(COLUMN_TOOLTIP_KEYS.totalSearchVolume.descriptionKey)}>
                                             <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                                                 <HelpCircle className="size-3.5" />
                                             </TooltipTrigger>
@@ -526,8 +529,8 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                                     onClick={() => toggleSort("avgDifficulty")}
                                 >
                                     <div className="flex items-center gap-1 justify-end">
-                                        <span>{COLUMN_TOOLTIPS.avgDifficulty.title}</span>
-                                        <Tooltip title={COLUMN_TOOLTIPS.avgDifficulty.title} description={COLUMN_TOOLTIPS.avgDifficulty.description}>
+                                        <span>{t(COLUMN_TOOLTIP_KEYS.avgDifficulty.titleKey)}</span>
+                                        <Tooltip title={t(COLUMN_TOOLTIP_KEYS.avgDifficulty.titleKey)} description={t(COLUMN_TOOLTIP_KEYS.avgDifficulty.descriptionKey)}>
                                             <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                                                 <HelpCircle className="size-3.5" />
                                             </TooltipTrigger>
@@ -542,8 +545,8 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                                     onClick={() => toggleSort("totalEstimatedValue")}
                                 >
                                     <div className="flex items-center gap-1 justify-end">
-                                        <span>{COLUMN_TOOLTIPS.totalEstimatedValue.title}</span>
-                                        <Tooltip title={COLUMN_TOOLTIPS.totalEstimatedValue.title} description={COLUMN_TOOLTIPS.totalEstimatedValue.description}>
+                                        <span>{t(COLUMN_TOOLTIP_KEYS.totalEstimatedValue.titleKey)}</span>
+                                        <Tooltip title={t(COLUMN_TOOLTIP_KEYS.totalEstimatedValue.titleKey)} description={t(COLUMN_TOOLTIP_KEYS.totalEstimatedValue.descriptionKey)}>
                                             <TooltipTrigger className="text-fg-quaternary hover:text-fg-quaternary_hover">
                                                 <HelpCircle className="size-3.5" />
                                             </TooltipTrigger>
@@ -573,7 +576,7 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                                                     </Badge>
                                                 ))}
                                                 {cluster.gapCount > 3 && (
-                                                    <span className="text-xs text-quaternary">+{cluster.gapCount - 3} more</span>
+                                                    <span className="text-xs text-quaternary">{t('plusMore', { count: cluster.gapCount - 3 })}</span>
                                                 )}
                                             </div>
                                         </div>
@@ -594,7 +597,7 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                                     {columnVisibility.avgDifficulty && (
                                         <td className="px-4 py-3 text-right">
                                             <Badge color={diffBadge.color} size="sm">
-                                                {cluster.avgDifficulty} — {diffBadge.label}
+                                                {cluster.avgDifficulty} — {t(diffBadge.labelKey)}
                                             </Badge>
                                         </td>
                                     )}
@@ -608,8 +611,8 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
                             <tr>
                                 <td colSpan={6} className="px-4 py-12 text-center text-sm text-tertiary">
                                     {hasActiveFilters
-                                        ? "No clusters match your filters. Try adjusting them."
-                                        : "No clusters match your search."}
+                                        ? t('noClustersMatchFilters')
+                                        : t('noClustersMatchSearch')}
                                 </td>
                             </tr>
                         )}
@@ -621,7 +624,7 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
             {totalPages > 1 && (
                 <div className="flex items-center justify-between border-t border-secondary px-4 py-3">
                     <span className="text-xs text-tertiary">
-                        Page {currentPage} of {totalPages} ({filteredAndSorted.length} clusters)
+                        {t('paginationClusters', { current: currentPage, total: totalPages, count: filteredAndSorted.length })}
                     </span>
                     <div className="flex items-center gap-1">
                         <button

@@ -19,12 +19,7 @@ import {
 import { cx } from "@/utils/cx";
 import { useState } from "react";
 import { toast } from "sonner";
-
-const tabs = [
-  { id: "active", label: "Active" },
-  { id: "scheduled", label: "Scheduled" },
-  { id: "history", label: "History" },
-];
+import { useTranslations } from "next-intl";
 
 function formatDuration(ms: number) {
   const seconds = Math.floor(ms / 1000);
@@ -45,6 +40,11 @@ function formatTimeAgo(timestamp: number) {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const tc = useTranslations("common");
+  const translateStatus = (s: string) => {
+    const key = `status${s.charAt(0).toUpperCase()}${s.slice(1)}` as any;
+    try { return tc(key); } catch { return s; }
+  };
   const colorMap: Record<string, "brand" | "success" | "error" | "gray"> = {
     processing: "brand",
     pending: "gray",
@@ -54,7 +54,7 @@ function StatusBadge({ status }: { status: string }) {
   };
   return (
     <Badge type="pill-color" size="sm" color={colorMap[status] ?? "gray"}>
-      {status}
+      {translateStatus(status)}
     </Badge>
   );
 }
@@ -79,6 +79,7 @@ function JobTypeIcon({ type }: { type: string }) {
 
 // --- Active Jobs Tab ---
 function ActiveJobsTab() {
+  const t = useTranslations("jobs");
   const activeJobs = useQuery(api.jobs_queries.getAllJobs, { filter: "active" });
   const cancelAnyJob = useMutation(api.jobs_queries.cancelAnyJob);
   const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set());
@@ -87,9 +88,9 @@ function ActiveJobsTab() {
     setCancellingIds((prev) => new Set(prev).add(jobId));
     try {
       await cancelAnyJob({ table, jobId });
-      toast.success("Job cancelled");
+      toast.success(t("jobCancelled"));
     } catch {
-      toast.error("Failed to cancel job");
+      toast.error(t("failedCancelJob"));
     } finally {
       setCancellingIds((prev) => {
         const next = new Set(prev);
@@ -105,8 +106,8 @@ function ActiveJobsTab() {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
         <CheckCircle className="size-10 text-success-400" />
-        <p className="mt-3 text-sm font-medium text-primary">No active jobs</p>
-        <p className="mt-1 text-xs text-tertiary">All background tasks have completed</p>
+        <p className="mt-3 text-sm font-medium text-primary">{t("noActiveJobs")}</p>
+        <p className="mt-1 text-xs text-tertiary">{t("allTasksCompleted")}</p>
       </div>
     );
   }
@@ -145,7 +146,7 @@ function ActiveJobsTab() {
                 onClick={() => handleCancel(job.table, job.id)}
                 isDisabled={cancellingIds.has(job.id)}
               >
-                {cancellingIds.has(job.id) ? "Stopping..." : "Stop"}
+                {cancellingIds.has(job.id) ? t("stopping") : t("stop")}
               </Button>
             </div>
           </div>
@@ -173,6 +174,7 @@ function ActiveJobsTab() {
 
 // --- Scheduled Jobs Tab ---
 function ScheduledJobsTab() {
+  const tc = useTranslations("common");
   const scheduledJobs = useQuery(api.jobs_queries.getScheduledJobs);
 
   if (scheduledJobs === undefined) return <LoadingState type="list" rows={6} />;
@@ -196,7 +198,7 @@ function ScheduledJobsTab() {
           <div className="flex items-center gap-2">
             <span className="text-xs text-quaternary">{job.schedule}</span>
             <Badge type="pill-color" size="sm" color="success">
-              Active
+              {tc("statusActive")}
             </Badge>
           </div>
         </div>
@@ -207,6 +209,7 @@ function ScheduledJobsTab() {
 
 // --- History Tab ---
 function HistoryTab() {
+  const t = useTranslations("jobs");
   const [historyFilter, setHistoryFilter] = useState<"completed" | "failed" | "all">("all");
   const completedJobs = useQuery(api.jobs_queries.getAllJobs, { filter: historyFilter === "all" ? "all" : historyFilter, limit: 100 });
 
@@ -232,7 +235,7 @@ function HistoryTab() {
                 : "text-quaternary hover:bg-primary_hover hover:text-secondary"
             )}
           >
-            {f === "all" ? "All" : f === "completed" ? "Completed" : "Failed"}
+            {f === "all" ? t("filterAll") : f === "completed" ? t("filterCompleted") : t("filterFailed")}
           </button>
         ))}
       </div>
@@ -240,19 +243,19 @@ function HistoryTab() {
       {historyJobs.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
           <MinusCircle className="size-10 text-quaternary" />
-          <p className="mt-3 text-sm font-medium text-primary">No jobs found</p>
+          <p className="mt-3 text-sm font-medium text-primary">{t("noJobsFound")}</p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-secondary shadow-xs">
           <table className="w-full">
             <thead>
               <tr className="border-b border-secondary bg-secondary-subtle">
-                <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">Domain</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">Duration</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">Created</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">Error</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">{t("columnType")}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">{t("columnDomain")}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">{t("columnStatus")}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">{t("columnDuration")}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">{t("columnCreated")}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">{t("columnError")}</th>
               </tr>
             </thead>
             <tbody>
@@ -302,15 +305,22 @@ function HistoryTab() {
 
 // --- Main Page ---
 export default function JobsPage() {
+  const t = useTranslations("jobs");
   const stats = useQuery(api.jobs_queries.getJobStats);
+
+  const tabs = [
+    { id: "active", label: t("tabActive") },
+    { id: "scheduled", label: t("tabScheduled") },
+    { id: "history", label: t("tabHistory") },
+  ];
 
   return (
     <div className="mx-auto flex max-w-container flex-col gap-6 px-4 py-8 lg:px-8">
       {/* Header */}
       <div>
-        <h1 className="text-lg font-semibold text-primary">Background Jobs</h1>
+        <h1 className="text-lg font-semibold text-primary">{t("title")}</h1>
         <p className="mt-1 text-sm text-tertiary">
-          Monitor all running, scheduled, and past background tasks
+          {t("description")}
         </p>
       </div>
 
@@ -325,7 +335,7 @@ export default function JobsPage() {
               <div className="text-2xl font-semibold text-primary">
                 {stats?.activeCount ?? "—"}
               </div>
-              <div className="text-xs text-tertiary">Active now</div>
+              <div className="text-xs text-tertiary">{t("activeNow")}</div>
             </div>
           </div>
         </div>
@@ -338,7 +348,7 @@ export default function JobsPage() {
               <div className="text-2xl font-semibold text-primary">
                 {stats?.completedToday ?? "—"}
               </div>
-              <div className="text-xs text-tertiary">Completed today</div>
+              <div className="text-xs text-tertiary">{t("completedToday")}</div>
             </div>
           </div>
         </div>
@@ -351,7 +361,7 @@ export default function JobsPage() {
               <div className="text-2xl font-semibold text-primary">
                 {stats?.failedToday ?? "—"}
               </div>
-              <div className="text-xs text-tertiary">Failed today</div>
+              <div className="text-xs text-tertiary">{t("failedToday")}</div>
             </div>
           </div>
         </div>

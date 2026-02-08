@@ -16,6 +16,7 @@ import {
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useTranslations } from "next-intl";
 import { BacklinkGapDetailModal } from "../modals/BacklinkGapDetailModal";
 
 interface BacklinkGapTableProps {
@@ -33,52 +34,52 @@ interface GapItem {
     priorityScore: number;
 }
 
-function getPriorityBadge(score: number): { bg: string; text: string; label: string } {
-    if (score >= 75) return { bg: "bg-utility-success-50", text: "text-utility-success-600", label: "High" };
-    if (score >= 50) return { bg: "bg-utility-blue-50", text: "text-utility-blue-600", label: "Medium" };
-    if (score >= 25) return { bg: "bg-utility-warning-50", text: "text-utility-warning-600", label: "Low" };
-    return { bg: "bg-utility-gray-50", text: "text-utility-gray-600", label: "Very Low" };
+function getPriorityBadge(score: number): { bg: string; text: string; labelKey: string } {
+    if (score >= 75) return { bg: "bg-utility-success-50", text: "text-utility-success-600", labelKey: "priorityHigh" };
+    if (score >= 50) return { bg: "bg-utility-blue-50", text: "text-utility-blue-600", labelKey: "priorityMedium" };
+    if (score >= 25) return { bg: "bg-utility-warning-50", text: "text-utility-warning-600", labelKey: "priorityLow" };
+    return { bg: "bg-utility-gray-50", text: "text-utility-gray-600", labelKey: "priorityVeryLow" };
 }
 
 type SortColumn = "domain" | "competitorCount" | "totalLinks" | "avgDomainRank" | "dofollowPercent" | "priorityScore";
 type SortDirection = "asc" | "desc";
 
 const PRIORITY_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "High (75+)", value: "high" },
-    { label: "Medium (50-74)", value: "medium" },
-    { label: "Low (25-49)", value: "low" },
-    { label: "Very Low (<25)", value: "very_low" },
+    { labelKey: "gapFilterPriorityAll", value: "all" },
+    { labelKey: "gapFilterPriorityHigh", value: "high" },
+    { labelKey: "gapFilterPriorityMedium", value: "medium" },
+    { labelKey: "gapFilterPriorityLow", value: "low" },
+    { labelKey: "gapFilterPriorityVeryLow", value: "very_low" },
 ];
 
 const COMPETITOR_COUNT_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "3+ competitors", value: "3+" },
-    { label: "2 competitors", value: "2" },
-    { label: "1 competitor", value: "1" },
+    { labelKey: "gapFilterPriorityAll", value: "all" },
+    { labelKey: "gapFilterComp3plus", value: "3+" },
+    { labelKey: "gapFilterComp2", value: "2" },
+    { labelKey: "gapFilterComp1", value: "1" },
 ];
 
 const DR_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "High (70+)", value: "high" },
-    { label: "Medium (30-69)", value: "medium" },
-    { label: "Low (<30)", value: "low" },
+    { labelKey: "gapFilterPriorityAll", value: "all" },
+    { labelKey: "gapFilterDrHigh", value: "high" },
+    { labelKey: "gapFilterDrMedium", value: "medium" },
+    { labelKey: "gapFilterDrLow", value: "low" },
 ];
 
 const LINK_COUNT_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "1 link", value: "1" },
-    { label: "2-5 links", value: "2-5" },
-    { label: "6-20 links", value: "6-20" },
-    { label: "20+ links", value: "20+" },
+    { labelKey: "gapFilterPriorityAll", value: "all" },
+    { labelKey: "gapFilterLinks1", value: "1" },
+    { labelKey: "gapFilterLinks2to5", value: "2-5" },
+    { labelKey: "gapFilterLinks6to20", value: "6-20" },
+    { labelKey: "gapFilterLinks20plus", value: "20+" },
 ];
 
 const DOFOLLOW_FILTERS = [
-    { label: "All", value: "all" },
-    { label: "All Dofollow (100%)", value: "all_df" },
-    { label: "Mostly Dofollow (>75%)", value: "mostly_df" },
-    { label: "Mixed (25-75%)", value: "mixed" },
-    { label: "Mostly Nofollow (<25%)", value: "mostly_nf" },
+    { labelKey: "gapFilterPriorityAll", value: "all" },
+    { labelKey: "gapFilterDfAll", value: "all_df" },
+    { labelKey: "gapFilterDfMostly", value: "mostly_df" },
+    { labelKey: "gapFilterDfMixed", value: "mixed" },
+    { labelKey: "gapFilterNfMostly", value: "mostly_nf" },
 ];
 
 const PAGE_SIZE = 25;
@@ -95,15 +96,15 @@ interface ColumnVisibility {
     priority: boolean;
 }
 
-const COLUMN_LABELS: Record<keyof ColumnVisibility, string> = {
-    domain: "Domain",
-    competitorCount: "# Competitors",
-    competitors: "Competitors",
-    totalLinks: "Links",
-    domainRank: "Domain Rank",
-    dofollowPercent: "Dofollow %",
-    topAnchors: "Top Anchors",
-    priority: "Priority",
+const COLUMN_LABEL_KEYS: Record<keyof ColumnVisibility, string> = {
+    domain: "columnDomain",
+    competitorCount: "gapColumnLabelCompCount",
+    competitors: "gapColumnLabelCompetitors",
+    totalLinks: "gapColumnLabelLinks",
+    domainRank: "gapColumnLabelDomainRank",
+    dofollowPercent: "gapColumnLabelDfPercent",
+    topAnchors: "gapColumnLabelTopAnchors",
+    priority: "gapColumnLabelPriority",
 };
 
 const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = {
@@ -118,6 +119,7 @@ const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = {
 };
 
 export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
+    const t = useTranslations('backlinks');
     const data = useQuery(api.backlinkAnalysis_queries.getBacklinkGap, { domainId });
 
     const [search, setSearch] = useState("");
@@ -295,11 +297,11 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
             <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
                 <div className="flex items-center gap-2">
                     <Target04 className="h-5 w-5 text-fg-brand-primary" />
-                    <h3 className="text-md font-semibold text-primary">Backlink Gap</h3>
+                    <h3 className="text-md font-semibold text-primary">{t('backlinkGapTitle')}</h3>
                 </div>
                 <div className="flex flex-col items-center justify-center py-8">
-                    <p className="text-sm text-tertiary">No backlink gap data available</p>
-                    <p className="mt-1 text-xs text-quaternary">Add competitors and fetch their backlinks to see the gap</p>
+                    <p className="text-sm text-tertiary">{t('backlinkGapEmpty')}</p>
+                    <p className="mt-1 text-xs text-quaternary">{t('backlinkGapEmptyHint')}</p>
                 </div>
             </div>
         );
@@ -313,14 +315,14 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
                     <div className="flex items-center gap-2">
                         <Target04 className="h-5 w-5 text-fg-brand-primary" />
                         <div>
-                            <h3 className="text-md font-semibold text-primary">Backlink Gap</h3>
+                            <h3 className="text-md font-semibold text-primary">{t('backlinkGapTitle')}</h3>
                             <p className="text-sm text-tertiary">
-                                {data.totalGapDomains} domains link to competitors but not to you ({data.competitorCount} competitors analyzed)
+                                {t('gapSubtitle', { totalGapDomains: data.totalGapDomains, competitorCount: data.competitorCount })}
                             </p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-tertiary">
-                        {filteredData.length} domains
+                        {t('gapDomainsCount', { count: filteredData.length })}
                     </div>
                 </div>
 
@@ -331,7 +333,7 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
                         <SearchLg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-fg-quaternary" />
                         <input
                             type="text"
-                            placeholder="Search domains, competitors, anchors..."
+                            placeholder={t('searchGap')}
                             value={search}
                             onChange={(e) => { setSearch(e.target.value); resetPage(); }}
                             className="w-full rounded-lg border border-primary bg-primary pl-9 pr-3 py-2 text-sm text-primary placeholder:text-placeholder focus:outline-none focus:ring-2 focus:ring-brand-600"
@@ -343,7 +345,7 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
                         className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${showFilters || hasActiveFilters ? "border-brand-600 bg-utility-brand-50 text-brand-600" : "border-primary bg-primary text-tertiary hover:bg-secondary"}`}
                     >
                         <FilterLines className="h-4 w-4" />
-                        Filters
+                        {t('filters')}
                         {hasActiveFilters && !showFilters && (
                             <span className="ml-1 rounded-full bg-brand-600 px-1.5 text-[10px] font-medium text-white">
                                 {[priorityFilter !== "all", compCountFilter !== "all", drFilter !== "all", linkCountFilter !== "all", dofollowFilter !== "all"].filter(Boolean).length}
@@ -358,7 +360,7 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
                             className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${showColumnPicker ? "border-brand-600 bg-utility-brand-50 text-brand-600" : "border-primary bg-primary text-tertiary hover:bg-secondary"}`}
                         >
                             <Settings01 className="h-4 w-4" />
-                            Columns
+                            {t('refColumns')}
                         </button>
                         {showColumnPicker && (
                             <div className="absolute right-0 top-full z-10 mt-2 w-48 rounded-lg border border-secondary bg-primary p-2 shadow-lg">
@@ -374,7 +376,7 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
                                                 onChange={() => toggleColumn(key)}
                                                 className="h-4 w-4 rounded border-gray-300"
                                             />
-                                            <span className="text-primary">{COLUMN_LABELS[key]}</span>
+                                            <span className="text-primary">{t(COLUMN_LABEL_KEYS[key])}</span>
                                         </label>
                                     ))}
                                 </div>
@@ -388,7 +390,7 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
                             className="flex items-center gap-1 text-sm text-tertiary hover:text-primary"
                         >
                             <XClose className="h-3.5 w-3.5" />
-                            Clear
+                            {t('clear')}
                         </button>
                     )}
                 </div>
@@ -396,11 +398,11 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
                 {/* Filters row */}
                 {showFilters && (
                     <div className="flex flex-wrap gap-3">
-                        <FilterSelect label="Priority" value={priorityFilter} options={PRIORITY_FILTERS} onChange={(v) => { setPriorityFilter(v); resetPage(); }} />
-                        <FilterSelect label="Competitors" value={compCountFilter} options={COMPETITOR_COUNT_FILTERS} onChange={(v) => { setCompCountFilter(v); resetPage(); }} />
-                        <FilterSelect label="Domain Rank" value={drFilter} options={DR_FILTERS} onChange={(v) => { setDrFilter(v); resetPage(); }} />
-                        <FilterSelect label="Links" value={linkCountFilter} options={LINK_COUNT_FILTERS} onChange={(v) => { setLinkCountFilter(v); resetPage(); }} />
-                        <FilterSelect label="Dofollow" value={dofollowFilter} options={DOFOLLOW_FILTERS} onChange={(v) => { setDofollowFilter(v); resetPage(); }} />
+                        <FilterSelect label={t('gapFilterPriorityLabel')} value={priorityFilter} options={PRIORITY_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setPriorityFilter(v); resetPage(); }} />
+                        <FilterSelect label={t('gapFilterCompCountLabel')} value={compCountFilter} options={COMPETITOR_COUNT_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setCompCountFilter(v); resetPage(); }} />
+                        <FilterSelect label={t('gapFilterDrLabel')} value={drFilter} options={DR_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setDrFilter(v); resetPage(); }} />
+                        <FilterSelect label={t('gapFilterLinksLabel')} value={linkCountFilter} options={LINK_COUNT_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setLinkCountFilter(v); resetPage(); }} />
+                        <FilterSelect label={t('gapFilterDfLabel')} value={dofollowFilter} options={DOFOLLOW_FILTERS.map(f => ({ label: t(f.labelKey), value: f.value }))} onChange={(v) => { setDofollowFilter(v); resetPage(); }} />
                     </div>
                 )}
 
@@ -408,9 +410,9 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
                 {filteredData.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12">
                         <Target04 className="h-8 w-8 text-fg-quaternary mb-3" />
-                        <p className="text-sm font-medium text-primary mb-1">No gap domains match your filters</p>
+                        <p className="text-sm font-medium text-primary mb-1">{t('gapNoMatch')}</p>
                         <p className="text-xs text-tertiary text-center max-w-xs">
-                            Try adjusting your search or filter criteria to see more results.
+                            {t('noDomainsMatchHint')}
                         </p>
                     </div>
                 ) : (
@@ -421,38 +423,38 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
                                     <tr className="border-b border-secondary">
                                         {columnVisibility.domain && (
                                             <th className="cursor-pointer px-3 py-2.5 font-medium text-tertiary" onClick={() => handleSort("domain")}>
-                                                <div className="flex items-center gap-1">Domain <SortIcon column="domain" /></div>
+                                                <div className="flex items-center gap-1">{t('columnDomain')} <SortIcon column="domain" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.competitorCount && (
                                             <th className="cursor-pointer px-3 py-2.5 text-center font-medium text-tertiary" onClick={() => handleSort("competitorCount")}>
-                                                <div className="flex items-center justify-center gap-1"># Comp <SortIcon column="competitorCount" /></div>
+                                                <div className="flex items-center justify-center gap-1">{t('gapColCompCount')} <SortIcon column="competitorCount" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.competitors && (
-                                            <th className="px-3 py-2.5 font-medium text-tertiary">Competitors</th>
+                                            <th className="px-3 py-2.5 font-medium text-tertiary">{t('gapColCompetitors')}</th>
                                         )}
                                         {columnVisibility.totalLinks && (
                                             <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("totalLinks")}>
-                                                <div className="flex items-center justify-end gap-1">Links <SortIcon column="totalLinks" /></div>
+                                                <div className="flex items-center justify-end gap-1">{t('gapColLinks')} <SortIcon column="totalLinks" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.domainRank && (
                                             <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("avgDomainRank")}>
-                                                <div className="flex items-center justify-end gap-1">DR <SortIcon column="avgDomainRank" /></div>
+                                                <div className="flex items-center justify-end gap-1">{t('gapColDr')} <SortIcon column="avgDomainRank" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.dofollowPercent && (
                                             <th className="cursor-pointer px-3 py-2.5 text-right font-medium text-tertiary" onClick={() => handleSort("dofollowPercent")}>
-                                                <div className="flex items-center justify-end gap-1">DF% <SortIcon column="dofollowPercent" /></div>
+                                                <div className="flex items-center justify-end gap-1">{t('gapColDfPercent')} <SortIcon column="dofollowPercent" /></div>
                                             </th>
                                         )}
                                         {columnVisibility.topAnchors && (
-                                            <th className="px-3 py-2.5 font-medium text-tertiary">Top Anchors</th>
+                                            <th className="px-3 py-2.5 font-medium text-tertiary">{t('gapColTopAnchors')}</th>
                                         )}
                                         {columnVisibility.priority && (
                                             <th className="cursor-pointer px-3 py-2.5 text-center font-medium text-tertiary" onClick={() => handleSort("priorityScore")}>
-                                                <div className="flex items-center justify-center gap-1">Priority <SortIcon column="priorityScore" /></div>
+                                                <div className="flex items-center justify-center gap-1">{t('gapColPriority')} <SortIcon column="priorityScore" /></div>
                                             </th>
                                         )}
                                     </tr>
@@ -526,7 +528,7 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
                                                 {columnVisibility.priority && (
                                                     <td className="px-3 py-2.5 text-center">
                                                         <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${badge.bg} ${badge.text}`}>
-                                                            {badge.label}
+                                                            {t(badge.labelKey)}
                                                         </span>
                                                     </td>
                                                 )}
@@ -541,7 +543,7 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
                         {totalPages > 1 && (
                             <div className="flex items-center justify-between pt-2">
                                 <p className="text-sm text-tertiary">
-                                    Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filteredData.length)} of {filteredData.length}
+                                    {t('paginationShowing', { from: page * PAGE_SIZE + 1, to: Math.min((page + 1) * PAGE_SIZE, filteredData.length), total: filteredData.length })}
                                 </p>
                                 <div className="flex items-center gap-1">
                                     <button

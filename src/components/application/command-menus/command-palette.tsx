@@ -8,6 +8,7 @@ import {
   Settings01,
   Users01
 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 
 export interface CommandPaletteProps {
   open: boolean;
@@ -15,6 +16,7 @@ export interface CommandPaletteProps {
 }
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
+  const t = useTranslations("nav");
   const router = useRouter();
 
   const navigate = (path: string) => {
@@ -37,7 +39,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       >
         <input
           type="text"
-          placeholder="Search or jump to..."
+          placeholder={t("searchOrJumpTo")}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4"
           autoFocus
         />
@@ -48,7 +50,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-100 rounded-lg"
           >
             <SearchSm className="h-4 w-4" />
-            Dashboard
+            {t("dashboard")}
           </button>
 
           <button
@@ -56,7 +58,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-100 rounded-lg"
           >
             <Folder className="h-4 w-4" />
-            Projects
+            {t("projects")}
           </button>
 
           <button
@@ -64,7 +66,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-100 rounded-lg"
           >
             <Users01 className="h-4 w-4" />
-            Teams
+            {t("teams")}
           </button>
 
           <button
@@ -72,7 +74,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-100 rounded-lg"
           >
             <Settings01 className="h-4 w-4" />
-            Settings
+            {t("settings")}
           </button>
         </div>
       </div>

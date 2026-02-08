@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
@@ -103,22 +104,23 @@ function formatRelativeTime(timestamp: number) {
   return `${Math.floor(days / 365)} years ago`;
 }
 
-const tabs = [
-  { id: "overview", label: "Overview", icon: BarChart03 },
-  { id: "monitoring", label: "Monitoring", icon: Activity },
-  { id: "keyword-map", label: "Keyword Map", icon: Target04 },
-  { id: "visibility", label: "Visibility", icon: TrendUp02 },
-  { id: "backlinks", label: "Backlinks", icon: Link03 },
-  { id: "link-building", label: "Link Building", icon: LinkExternal02 },
-  { id: "competitors", label: "Competitors", icon: Users01 },
-  { id: "keyword-analysis", label: "Keyword Analysis", icon: FileSearch02 },
-  { id: "on-site", label: "On-Site", icon: FileCheck02 },
-  { id: "content-gaps", label: "Content Gaps", icon: Lightbulb02 },
-  { id: "insights", label: "Insights", icon: Lightning01 },
-  { id: "settings", label: "Settings", icon: Settings01 },
-];
-
 export default function DomainDetailPage() {
+  const t = useTranslations('domains');
+
+  const tabs = [
+    { id: "overview", label: t('tabOverview'), icon: BarChart03 },
+    { id: "monitoring", label: t('tabMonitoring'), icon: Activity },
+    { id: "keyword-map", label: t('tabKeywordMap'), icon: Target04 },
+    { id: "visibility", label: t('tabVisibility'), icon: TrendUp02 },
+    { id: "backlinks", label: t('tabBacklinks'), icon: Link03 },
+    { id: "link-building", label: t('tabLinkBuilding'), icon: LinkExternal02 },
+    { id: "competitors", label: t('tabCompetitors'), icon: Users01 },
+    { id: "keyword-analysis", label: t('tabKeywordAnalysis'), icon: FileSearch02 },
+    { id: "on-site", label: t('tabOnSite'), icon: FileCheck02 },
+    { id: "content-gaps", label: t('tabContentGaps'), icon: Lightbulb02 },
+    { id: "insights", label: t('tabInsights'), icon: Lightning01 },
+    { id: "settings", label: t('tabSettings'), icon: Settings01 },
+  ];
   const params = useParams();
   const router = useRouter();
   const domainId = params.domainId as Id<"domains">;
@@ -196,10 +198,10 @@ export default function DomainDetailPage() {
     try {
       setIsFetchingBacklinks(true);
       const result = await fetchBacklinksAction({ domainId });
-      toast.success(`Fetched ${result.backlinksCount} backlinks successfully`);
+      toast.success(t('fetchedBacklinks', { count: result.backlinksCount }));
       setBacklinksPage(1); // Reset to first page
     } catch (error) {
-      toast.error("Failed to fetch backlinks data");
+      toast.error(t('failedToFetchBacklinks'));
       console.error(error);
     } finally {
       setIsFetchingBacklinks(false);
@@ -211,7 +213,7 @@ export default function DomainDetailPage() {
 
     try {
       setIsFetchingVisibility(true);
-      toast.info("Fetching visibility data...");
+      toast.info(t('fetchingVisibilityData'));
 
       // Fetch both discovered keywords and visibility history in parallel
       const [visibilityResult, historyResult] = await Promise.all([
@@ -231,19 +233,19 @@ export default function DomainDetailPage() {
 
       const messages: string[] = [];
       if (visibilityResult.success) {
-        messages.push(`${visibilityResult.count || 0} discovered keywords`);
+        messages.push(t('discoveredKeywords', { count: visibilityResult.count || 0 }));
       }
       if (historyResult.success) {
-        messages.push(`${historyResult.datesStored || 0} months history`);
+        messages.push(t('monthsHistory', { count: historyResult.datesStored || 0 }));
       }
 
       if (messages.length > 0) {
-        toast.success(`Fetched ${messages.join(", ")}`);
+        toast.success(t('fetchedData', { data: messages.join(", ") }));
       } else {
-        toast.error("Failed to fetch visibility data");
+        toast.error(t('failedToFetchVisibility'));
       }
     } catch (error) {
-      toast.error("Failed to fetch visibility data");
+      toast.error(t('failedToFetchVisibility'));
       console.error(error);
     } finally {
       setIsFetchingVisibility(false);
@@ -264,10 +266,10 @@ export default function DomainDetailPage() {
   const handleDelete = async () => {
     try {
       await deleteDomain({ id: domainId });
-      toast.success("Domain deleted successfully");
+      toast.success(t('domainDeletedSuccess'));
       router.push("/domains");
     } catch (error) {
-      toast.error("Failed to delete domain");
+      toast.error(t('failedToDeleteDomain'));
       console.error(error);
     }
   };
@@ -275,15 +277,15 @@ export default function DomainDetailPage() {
   const handleRefresh = async () => {
     try {
       if (!keywords || keywords.length === 0) {
-        toast.error("No keywords to refresh");
+        toast.error(t('noKeywordsToRefresh'));
         return;
       }
 
       const keywordIds = keywords.map(k => k._id);
       await refreshKeywords({ keywordIds });
-      toast.success(`Refreshing ${keywords.length} keywords...`);
+      toast.success(t('refreshingKeywords', { count: keywords.length }));
     } catch (error) {
-      toast.error("Failed to start refresh");
+      toast.error(t('failedToStartRefresh'));
       console.error(error);
     }
   };
@@ -320,10 +322,10 @@ export default function DomainDetailPage() {
           language: editForm.language,
         },
       });
-      toast.success("Domain updated successfully");
+      toast.success(t('domainUpdatedSuccess'));
       setIsEditModalOpen(false);
     } catch (error) {
-      toast.error("Failed to update domain");
+      toast.error(t('failedToUpdateDomain'));
       console.error(error);
     }
   };
@@ -359,9 +361,9 @@ export default function DomainDetailPage() {
     return (
       <div className="mx-auto flex max-w-container flex-col gap-8 px-4 py-8 lg:px-8">
         <div className="text-center">
-          <p className="text-lg font-semibold text-primary">Domain not found</p>
+          <p className="text-lg font-semibold text-primary">{t('domainNotFound')}</p>
           <Button size="md" color="secondary" onClick={() => router.push("/domains")} className="mt-4">
-            Back to Domains
+            {t('backToDomains')}
           </Button>
         </div>
       </div>
@@ -376,13 +378,13 @@ export default function DomainDetailPage() {
           <div className="max-lg:hidden">
             <Breadcrumbs type="button">
               <Breadcrumbs.Item href="/" icon={HomeLine} />
-              <Breadcrumbs.Item href="/domains">Domains</Breadcrumbs.Item>
+              <Breadcrumbs.Item href="/domains">{t('domains')}</Breadcrumbs.Item>
               <Breadcrumbs.Item href="#">{domain.domain}</Breadcrumbs.Item>
             </Breadcrumbs>
           </div>
           <div className="flex lg:hidden">
             <Button href="/domains" color="link-gray" size="md" iconLeading={ArrowLeft}>
-              Back
+              {t('back')}
             </Button>
           </div>
 
@@ -406,21 +408,21 @@ export default function DomainDetailPage() {
               <ButtonUtility
                 size="sm"
                 color="tertiary"
-                tooltip="Generate full report"
+                tooltip={t('generateFullReport')}
                 icon={FileCheck02}
                 onClick={() => setIsReportModalOpen(true)}
               />
               <ButtonUtility
                 size="sm"
                 color="tertiary"
-                tooltip="Refresh rankings"
+                tooltip={t('refreshRankings')}
                 icon={RefreshCw01}
                 onClick={handleRefresh}
               />
               <ButtonUtility
                 size="sm"
                 color="tertiary"
-                tooltip="Edit"
+                tooltip={t('edit')}
                 icon={Edit01}
                 onClick={() => setIsEditModalOpen(true)}
               />
@@ -433,7 +435,7 @@ export default function DomainDetailPage() {
                 <ButtonUtility
                   size="sm"
                   color="tertiary"
-                  tooltip="Delete"
+                  tooltip={t('delete')}
                   icon={Trash01}
                 />
               </DeleteConfirmationDialog>
@@ -476,7 +478,7 @@ export default function DomainDetailPage() {
                 {/* Placeholder for future sections */}
                 <div className="rounded-xl border border-secondary bg-primary p-6">
                   <p className="text-sm text-tertiary">
-                    Additional analytics coming soon: Recent changes, alerts, performance tables
+                    {t('additionalAnalytics')}
                   </p>
                 </div>
               </div>
@@ -488,7 +490,7 @@ export default function DomainDetailPage() {
                 {/* Header with Add Keywords Button */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-semibold text-primary">Keyword Monitoring</h2>
+                    <h2 className="text-lg font-semibold text-primary">{t('keywordMonitoring')}</h2>
                     <LiveBadge size="md" />
                   </div>
                   <Button
@@ -497,7 +499,7 @@ export default function DomainDetailPage() {
                     iconLeading={Plus}
                     onClick={() => setIsAddKeywordsModalOpen(true)}
                   >
-                    Add Keywords
+                    {t('addKeywords')}
                   </Button>
                 </div>
 
@@ -526,9 +528,9 @@ export default function DomainDetailPage() {
                 {/* Header with Fetch Button */}
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold text-primary">Domain Visibility</h2>
+                    <h2 className="text-lg font-semibold text-primary">{t('domainVisibility')}</h2>
                     <p className="text-sm text-tertiary">
-                      Track keyword rankings, discover new opportunities, and monitor visibility history
+                      {t('trackVisibilityDescription')}
                     </p>
                   </div>
                   <Button
@@ -537,9 +539,9 @@ export default function DomainDetailPage() {
                     iconLeading={RefreshCw01}
                     onClick={handleFetchVisibility}
                     disabled={isFetchingVisibility || !domain}
-                    title="Fetch current rankings and discover new keyword opportunities"
+                    title={t('fetchCurrentRankings')}
                   >
-                    {isFetchingVisibility ? "Fetching..." : "Refresh Keywords"}
+                    {isFetchingVisibility ? t('fetching') : t('refreshKeywords')}
                   </Button>
                 </div>
 
@@ -580,11 +582,11 @@ export default function DomainDetailPage() {
                 {/* Header with Fetch Button */}
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold text-primary">Backlinks Analysis</h2>
+                    <h2 className="text-lg font-semibold text-primary">{t('backlinksAnalysis')}</h2>
                     <p className="text-sm text-tertiary">
                       {backlinksSummary
-                        ? `Last updated: ${new Date(backlinksSummary.fetchedAt).toLocaleDateString()}`
-                        : "No data available"}
+                        ? `${t('lastUpdated')} ${new Date(backlinksSummary.fetchedAt).toLocaleDateString()}`
+                        : t('noDataAvailable')}
                     </p>
                   </div>
                   <Button
@@ -594,7 +596,7 @@ export default function DomainDetailPage() {
                     onClick={handleFetchBacklinks}
                     disabled={isFetchingBacklinks}
                   >
-                    {isFetchingBacklinks ? "Fetching..." : "Fetch Backlinks"}
+                    {isFetchingBacklinks ? t('fetching') : t('fetchBacklinks')}
                   </Button>
                 </div>
 
@@ -615,9 +617,9 @@ export default function DomainDetailPage() {
                 {/* Backlink Velocity Section */}
                 <div className="flex flex-col gap-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-primary">Backlink Velocity</h3>
+                    <h3 className="text-lg font-semibold text-primary">{t('backlinkVelocity')}</h3>
                     <p className="text-sm text-tertiary">
-                      Track the rate of backlink acquisition and loss over time
+                      {t('trackBacklinkAcquisition')}
                     </p>
                   </div>
 
@@ -698,9 +700,9 @@ export default function DomainDetailPage() {
             <TabPanel id="competitors">
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-xl font-semibold text-primary mb-1">Competitor Tracking</h2>
+                  <h2 className="text-xl font-semibold text-primary mb-1">{t('competitorTracking')}</h2>
                   <p className="text-sm text-tertiary">
-                    Monitor competitor rankings and identify keyword opportunities
+                    {t('monitorCompetitorOpportunities')}
                   </p>
                 </div>
 
@@ -720,9 +722,9 @@ export default function DomainDetailPage() {
             <TabPanel id="keyword-analysis">
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-xl font-semibold text-primary mb-1">Keyword Analysis</h2>
+                  <h2 className="text-xl font-semibold text-primary mb-1">{t('keywordAnalysis')}</h2>
                   <p className="text-sm text-tertiary">
-                    Deep-dive competitor content analysis with actionable recommendations per keyword
+                    {t('deepDiveAnalysisDescription')}
                   </p>
                 </div>
 
@@ -748,28 +750,28 @@ export default function DomainDetailPage() {
             {/* Settings Tab */}
             <TabPanel id="settings">
               <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
-                <h2 className="text-lg font-semibold text-primary">Settings</h2>
+                <h2 className="text-lg font-semibold text-primary">{t('settings')}</h2>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-secondary">Search Engine</p>
+                    <p className="text-sm font-medium text-secondary">{t('searchEngine')}</p>
                     <p className="text-sm text-primary">{domain.settings.searchEngine}</p>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-secondary">Refresh Frequency</p>
+                    <p className="text-sm font-medium text-secondary">{t('refreshFrequency')}</p>
                     <BadgeWithDot size="sm" color="gray" type="modern">
                       {domain.settings.refreshFrequency}
                     </BadgeWithDot>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-secondary">Location</p>
+                    <p className="text-sm font-medium text-secondary">{t('location')}</p>
                     <p className="text-sm text-primary">{domain.settings.location}</p>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-secondary">Language</p>
+                    <p className="text-sm font-medium text-secondary">{t('language')}</p>
                     <p className="text-sm text-primary">{domain.settings.language}</p>
                   </div>
                 </div>
@@ -800,9 +802,9 @@ export default function DomainDetailPage() {
 
                 <div className="z-10 flex flex-col gap-0.5">
                   <AriaHeading slot="title" className="text-md font-semibold text-primary">
-                    Edit Domain Settings
+                    {t('editDomainSettingsModal')}
                   </AriaHeading>
-                  <p className="text-sm text-tertiary">Update refresh frequency and search settings for {domain.domain}</p>
+                  <p className="text-sm text-tertiary">{t('updateSearchSettings', { domain: domain.domain })}</p>
                 </div>
               </div>
 
@@ -810,7 +812,7 @@ export default function DomainDetailPage() {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <label className="mb-1.5 block text-sm font-medium text-secondary">
-                      Project
+                      {t('project')}
                     </label>
                     <select
                       value={editForm.projectId}
@@ -827,7 +829,7 @@ export default function DomainDetailPage() {
 
                   <div className="sm:col-span-2">
                     <label className="mb-1.5 block text-sm font-medium text-secondary">
-                      Tags
+                      {t('tags')}
                     </label>
                     <div className="flex gap-2">
                       <Input
@@ -840,7 +842,7 @@ export default function DomainDetailPage() {
                             handleAddTag();
                           }
                         }}
-                        placeholder="Add a tag..."
+                        placeholder={t('addATag')}
                         className="flex-1"
                       />
                       <Button
@@ -850,7 +852,7 @@ export default function DomainDetailPage() {
                         iconLeading={Plus}
                         onClick={handleAddTag}
                       >
-                        Add
+                        {t('add')}
                       </Button>
                     </div>
                     {editForm.tags.length > 0 && (
@@ -870,21 +872,21 @@ export default function DomainDetailPage() {
 
                   <div className="sm:col-span-2">
                     <label className="mb-1.5 block text-sm font-medium text-secondary">
-                      Refresh Frequency
+                      {t('refreshFrequency')}
                     </label>
                     <select
                       value={editForm.refreshFrequency}
                       onChange={(e) => setEditForm({ ...editForm, refreshFrequency: e.target.value })}
                       className="w-full rounded-lg border border-secondary bg-primary px-3 py-2 text-sm text-primary focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/20"
                     >
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="on_demand">On Demand</option>
+                      <option value="daily">{t('daily')}</option>
+                      <option value="weekly">{t('weekly')}</option>
+                      <option value="on_demand">{t('onDemand')}</option>
                     </select>
                   </div>
 
                   <Input
-                    label="Search Engine"
+                    label={t('searchEngine')}
                     size="md"
                     value={editForm.searchEngine}
                     onChange={(value) => setEditForm({ ...editForm, searchEngine: value })}
@@ -893,7 +895,7 @@ export default function DomainDetailPage() {
                   />
 
                   <Input
-                    label="Location"
+                    label={t('location')}
                     size="md"
                     value={editForm.location}
                     onChange={(value) => setEditForm({ ...editForm, location: value })}
@@ -902,7 +904,7 @@ export default function DomainDetailPage() {
                   />
 
                   <Input
-                    label="Language"
+                    label={t('language')}
                     size="md"
                     value={editForm.language}
                     onChange={(value) => setEditForm({ ...editForm, language: value })}
@@ -913,10 +915,10 @@ export default function DomainDetailPage() {
 
                 <div className="flex justify-end gap-3 border-t border-secondary pt-5">
                   <Button type="button" color="secondary" size="lg" onClick={() => setIsEditModalOpen(false)}>
-                    Cancel
+                    {t('cancel')}
                   </Button>
                   <Button type="submit" color="primary" size="lg" iconLeading={Save01}>
-                    Save Changes
+                    {t('saveChanges')}
                   </Button>
                 </div>
               </form>

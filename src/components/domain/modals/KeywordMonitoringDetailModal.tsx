@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { XClose, Target04 } from "@untitledui/icons";
 import { useEscapeClose } from "@/hooks/useEscapeClose";
 import { Button } from "@/components/base/buttons/button";
@@ -25,6 +26,8 @@ function formatNumber(num: number | null | undefined): string {
 }
 
 export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: KeywordMonitoringDetailModalProps) {
+  const t = useTranslations('keywords');
+  const tc = useTranslations('common');
   useEscapeClose(onClose, isOpen);
   const [selectedCompetitors, setSelectedCompetitors] = useState<Set<string>>(new Set());
   const [isAddingCompetitors, setIsAddingCompetitors] = useState(false);
@@ -50,12 +53,12 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
 
   const handleAddSelectedCompetitors = async () => {
     if (selectedCompetitors.size === 0) {
-      toast.error("Please select at least one competitor");
+      toast.error(t('pleaseSelectCompetitor'));
       return;
     }
 
     if (!keyword?.domainId) {
-      toast.error("Missing domain information");
+      toast.error(t('missingDomainInfo'));
       return;
     }
 
@@ -67,10 +70,10 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
           competitorDomain: domain,
         });
       }
-      toast.success(`Added ${selectedCompetitors.size} competitor(s) to tracking`);
+      toast.success(t('addedCompetitorsToTracking', { count: selectedCompetitors.size }));
       setSelectedCompetitors(new Set());
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to add competitors");
+      toast.error(error instanceof Error ? error.message : t('failedToAddCompetitors'));
     } finally {
       setIsAddingCompetitors(false);
     }
@@ -92,16 +95,16 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
           {/* Header */}
           <div className="flex items-center justify-between border-b border-secondary p-6">
             <div>
-              <h2 className="text-xl font-semibold text-primary">{keyword.phrase || "Keyword Details"}</h2>
+              <h2 className="text-xl font-semibold text-primary">{keyword.phrase || t('keywordDetails')}</h2>
               <div className="flex items-center gap-3 mt-2">
                 {keyword.currentPosition && (
                   <span className="inline-flex items-center rounded-full bg-utility-success-50 px-3 py-1 text-sm font-medium text-utility-success-700">
-                    Position #{keyword.currentPosition}
+                    {t('positionHash', { position: keyword.currentPosition })}
                   </span>
                 )}
                 {keyword.previousPosition && (
                   <span className="inline-flex items-center rounded-full bg-utility-gray-50 px-3 py-1 text-sm font-medium text-utility-gray-600">
-                    Previous #{keyword.previousPosition}
+                    {t('previousHash', { position: keyword.previousPosition })}
                   </span>
                 )}
                 {keyword.change !== null && keyword.change !== 0 && (
@@ -117,7 +120,7 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
                 )}
                 {keyword.searchVolume && (
                   <span className="text-sm text-tertiary">
-                    {formatNumber(keyword.searchVolume)} monthly searches
+                    {t('monthlySearches', { count: formatNumber(keyword.searchVolume) })}
                   </span>
                 )}
               </div>
@@ -128,7 +131,7 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
               iconLeading={XClose}
               onClick={onClose}
             >
-              Close
+              {tc('close')}
             </Button>
           </div>
 
@@ -137,7 +140,7 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
             {/* Position History Chart */}
             {keyword.positionHistory && keyword.positionHistory.length > 0 && (
               <div>
-                <h3 className="text-base font-semibold text-primary mb-4">Position History</h3>
+                <h3 className="text-base font-semibold text-primary mb-4">{t('positionHistory')}</h3>
                 <KeywordPositionChart positionHistory={keyword.positionHistory} />
               </div>
             )}
@@ -145,61 +148,61 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
             {/* Monthly Search Trend Chart */}
             {keyword.monthlySearches && keyword.monthlySearches.length > 0 && (
               <div>
-                <h3 className="text-base font-semibold text-primary mb-4">Search Volume Trend</h3>
+                <h3 className="text-base font-semibold text-primary mb-4">{t('searchVolumeTrend')}</h3>
                 <MonthlySearchTrendChart monthlySearches={keyword.monthlySearches} />
               </div>
             )}
 
             {/* Keyword Metrics Grid */}
             <div>
-              <h3 className="text-base font-semibold text-primary mb-4">Keyword Metrics</h3>
+              <h3 className="text-base font-semibold text-primary mb-4">{t('keywordMetrics')}</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {keyword.searchVolume && (
                   <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                    <p className="text-xs font-medium text-tertiary mb-1">Search Volume</p>
+                    <p className="text-xs font-medium text-tertiary mb-1">{t('searchVolume')}</p>
                     <p className="text-lg font-semibold text-primary">{formatNumber(keyword.searchVolume)}</p>
                   </div>
                 )}
                 {keyword.difficulty !== null && keyword.difficulty !== undefined && (
                   <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                    <p className="text-xs font-medium text-tertiary mb-1">Difficulty</p>
+                    <p className="text-xs font-medium text-tertiary mb-1">{t('columnDifficulty')}</p>
                     <p className="text-lg font-semibold text-primary">{keyword.difficulty}</p>
                   </div>
                 )}
                 {keyword.cpc !== null && keyword.cpc !== undefined && (
                   <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                    <p className="text-xs font-medium text-tertiary mb-1">CPC</p>
+                    <p className="text-xs font-medium text-tertiary mb-1">{t('columnCpc')}</p>
                     <p className="text-lg font-semibold text-primary">${keyword.cpc.toFixed(2)}</p>
                   </div>
                 )}
                 {keyword.etv !== null && keyword.etv !== undefined && (
                   <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                    <p className="text-xs font-medium text-tertiary mb-1">ETV</p>
+                    <p className="text-xs font-medium text-tertiary mb-1">{t('columnEtv')}</p>
                     <p className="text-lg font-semibold text-primary">{keyword.etv.toFixed(2)}</p>
                   </div>
                 )}
                 {keyword.competition !== null && keyword.competition !== undefined && (
                   <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                    <p className="text-xs font-medium text-tertiary mb-1">Competition</p>
+                    <p className="text-xs font-medium text-tertiary mb-1">{t('columnCompetition')}</p>
                     <p className="text-lg font-semibold text-primary">{(keyword.competition * 100).toFixed(0)}%</p>
                   </div>
                 )}
                 {keyword.intent && (
                   <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                    <p className="text-xs font-medium text-tertiary mb-1">Intent</p>
+                    <p className="text-xs font-medium text-tertiary mb-1">{t('columnIntent')}</p>
                     <p className="text-lg font-semibold text-primary capitalize">{keyword.intent}</p>
                   </div>
                 )}
                 {keyword.potential && (
                   <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                    <p className="text-xs font-medium text-tertiary mb-1">Potential Traffic</p>
+                    <p className="text-xs font-medium text-tertiary mb-1">{t('potentialTraffic')}</p>
                     <p className="text-lg font-semibold text-primary">{formatNumber(keyword.potential)}</p>
                   </div>
                 )}
                 {keyword.status && (
                   <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                    <p className="text-xs font-medium text-tertiary mb-1">Status</p>
-                    <p className="text-lg font-semibold text-primary capitalize">{keyword.status}</p>
+                    <p className="text-xs font-medium text-tertiary mb-1">{tc('status')}</p>
+                    <p className="text-lg font-semibold text-primary">{tc(`status${keyword.status.charAt(0).toUpperCase()}${keyword.status.slice(1)}` as any)}</p>
                   </div>
                 )}
               </div>
@@ -208,7 +211,7 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
             {/* URL if available */}
             {keyword.url && (
               <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                <p className="text-xs font-medium text-tertiary mb-1">Ranking URL</p>
+                <p className="text-xs font-medium text-tertiary mb-1">{t('rankingUrl')}</p>
                 <a
                   href={keyword.url}
                   target="_blank"
@@ -223,7 +226,7 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
             {/* SERP Features */}
             {keyword.serpFeatures && keyword.serpFeatures.length > 0 && (
               <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                <p className="text-xs font-medium text-tertiary mb-2">SERP Features</p>
+                <p className="text-xs font-medium text-tertiary mb-2">{t('serpFeatures')}</p>
                 <div className="flex flex-wrap gap-2">
                   {keyword.serpFeatures.map((feature: string, idx: number) => (
                     <span
@@ -242,7 +245,7 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-semibold text-primary">
-                    SERP Competitors (Top {serpResults.results.length})
+                    {t('serpCompetitors', { count: serpResults.results.length })}
                   </h3>
                   <div className="flex items-center gap-2">
                     <Button
@@ -254,7 +257,7 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
                         setIsCompetitorReportModalOpen(true);
                       }}
                     >
-                      Analyze Competitors
+                      {t('analyzeCompetitors')}
                     </Button>
                     {selectedCompetitors.size > 0 && (
                       <Button
@@ -263,7 +266,7 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
                         onClick={handleAddSelectedCompetitors}
                         disabled={isAddingCompetitors}
                       >
-                        {isAddingCompetitors ? "Adding..." : `Track ${selectedCompetitors.size} Competitor${selectedCompetitors.size > 1 ? "s" : ""}`}
+                        {isAddingCompetitors ? t('adding') : t('trackCompetitors', { count: selectedCompetitors.size })}
                       </Button>
                     )}
                   </div>
@@ -290,16 +293,16 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <span className="text-sm font-medium text-primary">{result.domain}</span>
                               {result.isYourDomain && (
-                                <span className="text-xs bg-utility-success-100 text-utility-success-700 px-2 py-0.5 rounded">Your Domain</span>
+                                <span className="text-xs bg-utility-success-100 text-utility-success-700 px-2 py-0.5 rounded">{t('yourDomain')}</span>
                               )}
                               {result.isFeaturedSnippet && (
-                                <span className="text-xs bg-utility-purple-100 text-utility-purple-700 px-2 py-0.5 rounded">Featured Snippet</span>
+                                <span className="text-xs bg-utility-purple-100 text-utility-purple-700 px-2 py-0.5 rounded">{t('featuredSnippet')}</span>
                               )}
                               {result.ampVersion && (
                                 <span className="text-xs bg-utility-blue-100 text-utility-blue-700 px-2 py-0.5 rounded">AMP</span>
                               )}
                               {result.isWebStory && (
-                                <span className="text-xs bg-utility-purple-100 text-utility-purple-700 px-2 py-0.5 rounded">Web Story</span>
+                                <span className="text-xs bg-utility-purple-100 text-utility-purple-700 px-2 py-0.5 rounded">{t('webStory')}</span>
                               )}
                             </div>
                             {result.breadcrumb && <p className="text-xs text-utility-gray-500 mb-1">{result.breadcrumb}</p>}
@@ -327,14 +330,14 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
 
                             {(result.etv || result.estimatedPaidTrafficCost) && (
                               <div className="flex items-center gap-3 mt-2">
-                                {result.etv && <span className="text-xs text-tertiary">ETV: ${result.etv.toLocaleString()}</span>}
-                                {result.estimatedPaidTrafficCost && <span className="text-xs text-tertiary">Traffic Cost: ${result.estimatedPaidTrafficCost.toLocaleString()}</span>}
+                                {result.etv && <span className="text-xs text-tertiary">{t('serpEtvLabel', { value: result.etv.toLocaleString() })}</span>}
+                                {result.estimatedPaidTrafficCost && <span className="text-xs text-tertiary">{t('serpTrafficCostLabel', { value: result.estimatedPaidTrafficCost.toLocaleString() })}</span>}
                               </div>
                             )}
 
                             {result.highlighted && result.highlighted.length > 0 && (
                               <div className="mt-2">
-                                <span className="text-xs font-medium text-utility-blue-700">Highlighted: </span>
+                                <span className="text-xs font-medium text-utility-blue-700">{t('highlighted')}: </span>
                                 {result.highlighted.map((text, hIdx) => (
                                   <span key={hIdx} className="text-xs text-utility-blue-600 font-medium">{text}{hIdx < (result.highlighted?.length || 0) - 1 ? ", " : ""}</span>
                                 ))}
@@ -343,7 +346,7 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
 
                             {result.sitelinks && result.sitelinks.length > 0 && (
                               <div className="mt-2 pl-3 border-l-2 border-utility-blue-200">
-                                <p className="text-xs font-medium text-utility-blue-700 mb-1">Sitelinks ({result.sitelinks.length}):</p>
+                                <p className="text-xs font-medium text-utility-blue-700 mb-1">{t('sitelinksCount', { count: result.sitelinks.length })}:</p>
                                 {result.sitelinks.slice(0, 4).map((link, linkIdx) => (
                                   <div key={linkIdx} className="mb-1">
                                     <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs text-utility-blue-600 hover:underline font-medium">{link.title}</a>
@@ -355,21 +358,21 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
 
                             {(result.rankGroup || result.rankAbsolute) && (
                               <div className="flex items-center gap-3 mt-2">
-                                {result.rankGroup && <span className="text-xs text-tertiary">Rank Group: {result.rankGroup}</span>}
-                                {result.rankAbsolute && <span className="text-xs text-tertiary">Rank Absolute: {result.rankAbsolute}</span>}
+                                {result.rankGroup && <span className="text-xs text-tertiary">{t('serpRankGroup', { value: result.rankGroup })}</span>}
+                                {result.rankAbsolute && <span className="text-xs text-tertiary">{t('serpRankAbsolute', { value: result.rankAbsolute })}</span>}
                               </div>
                             )}
 
                             {result.aboutThisResult && (
                               <div className="mt-2 p-2 bg-utility-gray-50 rounded border border-utility-gray-200">
-                                <p className="text-xs font-medium text-utility-gray-700 mb-1">About this result:</p>
-                                {result.aboutThisResult.source && <p className="text-xs text-tertiary">Source: {result.aboutThisResult.source}</p>}
+                                <p className="text-xs font-medium text-utility-gray-700 mb-1">{t('serpAboutThisResult')}</p>
+                                {result.aboutThisResult.source && <p className="text-xs text-tertiary">{t('serpSource', { value: result.aboutThisResult.source })}</p>}
                                 {result.aboutThisResult.sourceInfo && <p className="text-xs text-tertiary">{result.aboutThisResult.sourceInfo}</p>}
                               </div>
                             )}
 
                             {result.timestamp && (
-                              <p className="text-xs text-tertiary mt-2">Published: {result.timestamp}</p>
+                              <p className="text-xs text-tertiary mt-2">{t('serpPublished', { value: result.timestamp })}</p>
                             )}
                           </div>
                         </div>
@@ -378,14 +381,14 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
                   </div>
                 </div>
                 <p className="text-xs text-tertiary mt-2">
-                  Last fetched: {new Date(serpResults.fetchedAt).toLocaleString()}
+                  {t('serpLastFetched', { value: new Date(serpResults.fetchedAt).toLocaleString() })}
                 </p>
               </div>
             )}
             {/* Last Updated */}
             {keyword.lastUpdated && (
               <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
-                <p className="text-xs font-medium text-tertiary mb-1">Last Updated</p>
+                <p className="text-xs font-medium text-tertiary mb-1">{t('lastUpdated')}</p>
                 <p className="text-sm text-primary">
                   {new Date(keyword.lastUpdated).toLocaleString()}
                 </p>
@@ -403,7 +406,7 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
         isOpen={isCompetitorReportModalOpen}
         onClose={() => setIsCompetitorReportModalOpen(false)}
         onReportCreated={() => {
-          toast.success("Analysis started! View results in Competitors tab");
+          toast.success(t('analysisStarted'));
           setIsCompetitorReportModalOpen(false);
         }}
       />

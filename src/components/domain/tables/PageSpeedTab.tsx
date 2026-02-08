@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -138,6 +139,7 @@ function PsiDetailModal({ page, isOpen, onClose }: {
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations('onsite');
   useEscapeClose(onClose, isOpen);
   if (!isOpen || !page) return null;
 
@@ -179,7 +181,7 @@ function PsiDetailModal({ page, isOpen, onClose }: {
               </div>
             </div>
             <Button size="sm" color="secondary" iconLeading={XClose} onClick={onClose}>
-              Close
+              {t('close')}
             </Button>
           </div>
 
@@ -187,25 +189,25 @@ function PsiDetailModal({ page, isOpen, onClose }: {
           <div className="p-6 space-y-6">
             {/* Lighthouse Scores */}
             <div>
-              <h4 className="text-sm font-semibold text-primary mb-4">Lighthouse Scores</h4>
+              <h4 className="text-sm font-semibold text-primary mb-4">{t('lighthouseScoresLabel')}</h4>
               <div className="flex items-center justify-around py-4 rounded-lg border border-secondary bg-secondary/10">
-                <ScoreCircle score={page.performance} label="Performance" size="lg" />
-                <ScoreCircle score={page.accessibility} label="Accessibility" size="lg" />
-                <ScoreCircle score={page.bestPractices} label="Best Practices" size="lg" />
-                <ScoreCircle score={page.seo} label="SEO" size="lg" />
+                <ScoreCircle score={page.performance} label={t('labelPerformance')} size="lg" />
+                <ScoreCircle score={page.accessibility} label={t('labelAccessibility')} size="lg" />
+                <ScoreCircle score={page.bestPractices} label={t('labelBestPractices')} size="lg" />
+                <ScoreCircle score={page.seo} label={t('labelSeo')} size="lg" />
               </div>
               <div className="flex items-center justify-center gap-6 mt-3">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-utility-success-500" />
-                  <span className="text-[10px] text-tertiary">90-100: Good</span>
+                  <span className="text-[10px] text-tertiary">{t('scoreGuideGood')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-utility-warning-500" />
-                  <span className="text-[10px] text-tertiary">50-89: Needs Improvement</span>
+                  <span className="text-[10px] text-tertiary">{t('scoreGuideNeedsImprovement')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-utility-error-500" />
-                  <span className="text-[10px] text-tertiary">0-49: Poor</span>
+                  <span className="text-[10px] text-tertiary">{t('scoreGuidePoor')}</span>
                 </div>
               </div>
             </div>
@@ -213,12 +215,12 @@ function PsiDetailModal({ page, isOpen, onClose }: {
             {/* Core Web Vitals */}
             {(page.lcp != null || page.fid != null || page.cls != null || page.tti != null) && (
               <div>
-                <h4 className="text-sm font-semibold text-primary mb-4">Core Web Vitals</h4>
+                <h4 className="text-sm font-semibold text-primary mb-4">{t('coreWebVitalsLabel')}</h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {page.lcp != null && (() => { const f = fmtCwv(page.lcp); return (
                     <CwvDetailCard
-                      label="LCP"
-                      fullName="Largest Contentful Paint"
+                      label={t('labelLcp')}
+                      fullName={t('metricLcp')}
                       value={f.val}
                       unit={f.unit}
                       target="≤ 2.5s"
@@ -228,8 +230,8 @@ function PsiDetailModal({ page, isOpen, onClose }: {
                   ); })()}
                   {page.fid != null && (() => { const f = fmtCwv(page.fid); return (
                     <CwvDetailCard
-                      label="FID / TBT"
-                      fullName="First Input Delay"
+                      label={t('labelFidTbt')}
+                      fullName={t('metricFid')}
                       value={f.val}
                       unit={f.unit}
                       target="≤ 100ms"
@@ -239,8 +241,8 @@ function PsiDetailModal({ page, isOpen, onClose }: {
                   ); })()}
                   {page.tti != null && (() => { const f = fmtCwv(page.tti); return (
                     <CwvDetailCard
-                      label="TTI"
-                      fullName="Time to Interactive"
+                      label={t('labelTti')}
+                      fullName={t('metricTti')}
                       value={f.val}
                       unit={f.unit}
                       target="≤ 3.8s"
@@ -250,8 +252,8 @@ function PsiDetailModal({ page, isOpen, onClose }: {
                   ); })()}
                   {page.cls != null && (
                     <CwvDetailCard
-                      label="CLS"
-                      fullName="Cumulative Layout Shift"
+                      label={t('labelClsShort')}
+                      fullName={t('metricCls')}
                       value={page.cls.toFixed(3)}
                       unit=""
                       target="≤ 0.1"
@@ -265,7 +267,7 @@ function PsiDetailModal({ page, isOpen, onClose }: {
                 {page.domComplete != null && (() => { const f = fmtCwv(page.domComplete); return (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
                     <CwvMetric
-                      label="DOM Complete"
+                      label={t('labelDomComplete')}
                       value={f.val}
                       unit={f.unit}
                       warn={page.domComplete > 4000}
@@ -275,18 +277,18 @@ function PsiDetailModal({ page, isOpen, onClose }: {
 
                 {/* Status guide */}
                 <div className="flex items-center gap-6 mt-4 pt-3 border-t border-secondary">
-                  <span className="text-[10px] text-quaternary uppercase tracking-wider">Status:</span>
+                  <span className="text-[10px] text-quaternary uppercase tracking-wider">{t('statusGuide')}:</span>
                   <div className="flex items-center gap-1.5">
                     <CwvStatusDot status="good" />
-                    <span className="text-[10px] text-tertiary">Good</span>
+                    <span className="text-[10px] text-tertiary">{t('statusGood')}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <CwvStatusDot status="needs-improvement" />
-                    <span className="text-[10px] text-tertiary">Needs Improvement</span>
+                    <span className="text-[10px] text-tertiary">{t('statusNeedsImprovement')}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <CwvStatusDot status="poor" />
-                    <span className="text-[10px] text-tertiary">Poor</span>
+                    <span className="text-[10px] text-tertiary">{t('statusPoor')}</span>
                   </div>
                 </div>
               </div>
@@ -307,6 +309,7 @@ function PsiProgressCard({ psiStatus }: {
     psiError: string | null;
   };
 }) {
+  const t = useTranslations('onsite');
   const elapsed = psiStatus.psiStartedAt
     ? Math.floor((Date.now() - psiStatus.psiStartedAt) / 1000)
     : 0;
@@ -321,11 +324,11 @@ function PsiProgressCard({ psiStatus }: {
       <div className="bg-brand-50 rounded-full p-4 animate-pulse">
         <Zap className="w-8 h-8 text-brand-600" />
       </div>
-      <h4 className="text-lg font-semibold text-primary">PageSpeed Analysis In Progress</h4>
+      <h4 className="text-lg font-semibold text-primary">{t('pageSpeedAnalysisInProgress')}</h4>
       <div className="text-sm text-tertiary">{minutes}m {seconds}s elapsed</div>
       <p className="text-sm text-secondary text-center max-w-md">
         {psiStatus.psiStatus === "pending"
-          ? "Job queued, waiting for Lighthouse to start analyzing pages..."
+          ? t('pageSpeedQueuedWaiting')
           : `Analyzing pages with Lighthouse (mobile) — ${psiStatus.psiProgress?.current ?? 0} of ${psiStatus.psiProgress?.total ?? "?"} pages done`}
       </p>
 
@@ -352,6 +355,7 @@ function PsiProgressCard({ psiStatus }: {
 }
 
 export function PageSpeedTab({ domainId }: PageSpeedTabProps) {
+  const t = useTranslations('onsite');
   const data = useQuery(api.seoAudit_queries.getPageSpeedData, { domainId });
   const psiStatus = useQuery(api.seoAudit_queries.getPsiJobStatus, { domainId });
   const runPsi = useAction(api.seoAudit_actions.runPageSpeedAnalysis);
@@ -365,7 +369,7 @@ export function PageSpeedTab({ domainId }: PageSpeedTabProps) {
     try {
       await runPsi({ domainId });
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to start PageSpeed analysis");
+      setError(e instanceof Error ? e.message : t('failedToStartPsi'));
     } finally {
       setSubmitting(false);
     }
@@ -386,9 +390,9 @@ export function PageSpeedTab({ domainId }: PageSpeedTabProps) {
           <Zap className="w-8 h-8 text-brand-600" />
         </div>
         <div className="text-center">
-          <p className="text-sm font-medium text-primary mb-1">No PageSpeed data yet</p>
+          <p className="text-sm font-medium text-primary mb-1">{t('noPageSpeedData')}</p>
           <p className="text-xs text-tertiary max-w-sm">
-            Run Lighthouse analysis on your crawled pages to get performance, accessibility, best practices, and SEO scores.
+            {t('noPageSpeedDataDescription')}
           </p>
         </div>
         <button
@@ -402,17 +406,17 @@ export function PageSpeedTab({ domainId }: PageSpeedTabProps) {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              Submitting...
+              {t('submitting')}
             </>
           ) : (
             <>
               <Zap className="w-4 h-4" />
-              Run PageSpeed Analysis
+              {t('runPageSpeedAnalysis')}
             </>
           )}
         </button>
         {psiStatus?.psiStatus === "failed" && (
-          <p className="text-xs text-utility-error-600">{psiStatus.psiError || "Previous analysis failed"}</p>
+          <p className="text-xs text-utility-error-600">{psiStatus.psiError || t('previousAnalysisFailed')}</p>
         )}
         {error && <p className="text-xs text-utility-error-600">{error}</p>}
       </div>
@@ -425,31 +429,31 @@ export function PageSpeedTab({ domainId }: PageSpeedTabProps) {
       {/* Average Lighthouse Scores */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h4 className="text-sm font-semibold text-primary">Average Lighthouse Scores</h4>
+          <h4 className="text-sm font-semibold text-primary">{t('avgLighthouseScores')}</h4>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-tertiary">{data.totalPages} pages analyzed</span>
+            <span className="text-xs text-tertiary">{t('pagesAnalyzedCount', { count: data.totalPages })}</span>
             <button
               onClick={handleRunAnalysis}
               disabled={submitting || isJobRunning}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-secondary text-secondary hover:text-primary hover:border-primary disabled:opacity-50 transition-colors"
             >
               <Zap className="w-3 h-3" />
-              Re-run
+              {t('reRun')}
             </button>
           </div>
         </div>
         <div className="flex items-center justify-around py-4 rounded-lg border border-secondary bg-secondary/10">
-          <ScoreCircle score={data.averages.performance} label="Performance" />
-          <ScoreCircle score={data.averages.accessibility} label="Accessibility" />
-          <ScoreCircle score={data.averages.bestPractices} label="Best Practices" />
-          <ScoreCircle score={data.averages.seo} label="SEO" />
+          <ScoreCircle score={data.averages.performance} label={t('labelPerformance')} />
+          <ScoreCircle score={data.averages.accessibility} label={t('labelAccessibility')} />
+          <ScoreCircle score={data.averages.bestPractices} label={t('labelBestPractices')} />
+          <ScoreCircle score={data.averages.seo} label={t('labelSeo')} />
         </div>
       </div>
 
       {/* Average Core Web Vitals */}
       {data.avgCwv && (
         <div>
-          <h4 className="text-sm font-semibold text-primary mb-3">Average Core Web Vitals</h4>
+          <h4 className="text-sm font-semibold text-primary mb-3">{t('avgCoreWebVitals')}</h4>
           <div className="grid grid-cols-3 gap-3">
             <CwvMetric label="LCP" value={fmtCwv(data.avgCwv.lcp).val} unit={fmtCwv(data.avgCwv.lcp).unit} warn={data.avgCwv.lcp > 2500} />
             <CwvMetric label="CLS" value={data.avgCwv.cls.toFixed(3)} unit="" warn={data.avgCwv.cls > 0.1} />
@@ -462,18 +466,18 @@ export function PageSpeedTab({ domainId }: PageSpeedTabProps) {
 
       {/* Per-page breakdown */}
       <div>
-        <h4 className="text-sm font-semibold text-primary mb-3">Per-Page Breakdown</h4>
+        <h4 className="text-sm font-semibold text-primary mb-3">{t('perPageBreakdown')}</h4>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-secondary">
             <thead className="bg-secondary">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">Page</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-quaternary uppercase">Perf</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-quaternary uppercase">Access</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-quaternary uppercase">Best Pr.</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-quaternary uppercase">SEO</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-quaternary uppercase">LCP</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-quaternary uppercase">CLS</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-quaternary uppercase">{t('psiColPage')}</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-quaternary uppercase">{t('psiColPerf')}</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-quaternary uppercase">{t('psiColAccess')}</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-quaternary uppercase">{t('psiColBestPr')}</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-quaternary uppercase">{t('psiColSeo')}</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-quaternary uppercase">{t('psiColLcp')}</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-quaternary uppercase">{t('psiColCls')}</th>
               </tr>
             </thead>
             <tbody className="bg-primary divide-y divide-secondary">
@@ -520,7 +524,7 @@ export function PageSpeedTab({ domainId }: PageSpeedTabProps) {
             </tbody>
           </table>
           {data.perPage.length === 0 && (
-            <div className="text-center py-8 text-sm text-tertiary">No PageSpeed data found</div>
+            <div className="text-center py-8 text-sm text-tertiary">{t('noPageSpeedDataFound')}</div>
           )}
         </div>
       </div>

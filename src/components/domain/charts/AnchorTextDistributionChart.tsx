@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
@@ -16,14 +17,15 @@ const CATEGORY_COLORS: Record<string, string> = {
     other: "#6b7280",
 };
 
-const CATEGORY_LABELS: Record<string, string> = {
-    branded: "Branded",
-    exact_url: "Naked URL",
-    generic: "Generic",
-    other: "Other / Keyword",
+const CATEGORY_LABEL_KEYS: Record<string, string> = {
+    branded: "anchorCategoryBranded",
+    exact_url: "anchorCategoryUrl",
+    generic: "anchorCategoryGeneric",
+    other: "anchorCategoryOther",
 };
 
 export function AnchorTextDistributionChart({ domainId }: AnchorTextDistributionChartProps) {
+    const t = useTranslations('backlinks');
     const data = useQuery(api.backlinkAnalysis_queries.getAnchorTextDistribution, { domainId });
 
     if (data === undefined) {
@@ -38,13 +40,13 @@ export function AnchorTextDistributionChart({ domainId }: AnchorTextDistribution
     if (!data) {
         return (
             <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary p-6 py-8">
-                <p className="text-sm text-tertiary">No anchor text data available</p>
+                <p className="text-sm text-tertiary">{t('anchorDistributionEmpty')}</p>
             </div>
         );
     }
 
     const chartData = data.categories.filter((c) => c.count > 0).map((c) => ({
-        name: CATEGORY_LABELS[c.name] || c.name,
+        name: CATEGORY_LABEL_KEYS[c.name] ? t(CATEGORY_LABEL_KEYS[c.name]) : c.name,
         value: c.count,
         percentage: c.percentage,
         fill: CATEGORY_COLORS[c.name] || "#6b7280",
@@ -53,8 +55,8 @@ export function AnchorTextDistributionChart({ domainId }: AnchorTextDistribution
     return (
         <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
             <div>
-                <h3 className="text-md font-semibold text-primary">Anchor Text Distribution</h3>
-                <p className="text-sm text-tertiary">Anchor text categories across {data.total} backlinks. A healthy profile has diverse anchor types, not just exact-match keywords.</p>
+                <h3 className="text-md font-semibold text-primary">{t('anchorDistributionTitle')}</h3>
+                <p className="text-sm text-tertiary">{t('anchorDistributionDescription', { total: data.total })}</p>
             </div>
 
             <div className="flex items-center gap-6">
@@ -79,7 +81,7 @@ export function AnchorTextDistributionChart({ domainId }: AnchorTextDistribution
                         <div key={cat.name} className="flex items-center gap-3">
                             <div className="h-3 w-3 flex-shrink-0 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat.name] }} />
                             <div className="flex items-baseline gap-2">
-                                <span className="text-sm font-medium text-primary">{CATEGORY_LABELS[cat.name]}</span>
+                                <span className="text-sm font-medium text-primary">{CATEGORY_LABEL_KEYS[cat.name] ? t(CATEGORY_LABEL_KEYS[cat.name]) : cat.name}</span>
                                 <span className="text-xs text-tertiary">
                                     {cat.count} ({cat.percentage}%)
                                 </span>

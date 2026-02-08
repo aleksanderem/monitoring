@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -31,6 +32,7 @@ export function OnboardingChecklist({
   domainId,
   onOpenWizard,
 }: OnboardingChecklistProps) {
+  const t = useTranslations('domains');
   const status = useQuery(api.onboarding.getOnboardingStatus, { domainId });
   const dismissOnboarding = useMutation(api.onboarding.dismissOnboarding);
 
@@ -40,21 +42,21 @@ export function OnboardingChecklist({
   const steps: ChecklistStep[] = [
     {
       key: "keywords",
-      label: "Add keywords to monitor",
+      label: t('addKeywordsToMonitor'),
       description: `${status.counts.monitoredKeywords} keywords monitored`,
       completed: status.steps.keywordsMonitored,
       icon: Target04,
     },
     {
       key: "competitors",
-      label: "Add competitors",
+      label: t('addCompetitors'),
       description: `${status.counts.activeCompetitors} competitors tracked`,
       completed: status.steps.competitorsAdded,
       icon: Globe01,
     },
     {
       key: "analysis",
-      label: "Run competitive analysis",
+      label: t('runCompetitiveAnalysis'),
       description: `${status.counts.contentGaps} opportunities found`,
       completed: status.steps.analysisComplete,
       icon: BarChart03,
@@ -77,10 +79,10 @@ export function OnboardingChecklist({
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-3">
             <h3 className="text-sm font-semibold text-primary">
-              Complete your domain setup
+              {t('completeYourSetup')}
             </h3>
             <span className="text-xs text-tertiary">
-              {completedCount}/{steps.length} steps
+              {completedCount}/{steps.length} {t('steps')}
             </span>
           </div>
 

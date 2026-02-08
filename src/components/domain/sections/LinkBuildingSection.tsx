@@ -8,12 +8,14 @@ import { LinkBuildingProspectsTable } from "../tables/LinkBuildingProspectsTable
 import { RefreshCw01 } from "@untitledui/icons";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 interface LinkBuildingSectionProps {
     domainId: Id<"domains">;
 }
 
 export function LinkBuildingSection({ domainId }: LinkBuildingSectionProps) {
+    const t = useTranslations('backlinks');
     const generateReport = useMutation(api.linkBuilding_mutations.generateLinkBuildingReport);
     const [isGenerating, setIsGenerating] = useState(false);
 
@@ -23,7 +25,7 @@ export function LinkBuildingSection({ domainId }: LinkBuildingSectionProps) {
             const result = await generateReport({ domainId });
             toast.success(result.message);
         } catch (err) {
-            toast.error("Failed to generate report");
+            toast.error(t('toastGenerateReportFailed'));
         } finally {
             setIsGenerating(false);
         }
@@ -34,8 +36,8 @@ export function LinkBuildingSection({ domainId }: LinkBuildingSectionProps) {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg font-semibold text-primary">Link Building Intelligence</h2>
-                    <p className="text-sm text-tertiary">Identify and prioritize link building opportunities from competitor analysis</p>
+                    <h2 className="text-lg font-semibold text-primary">{t('linkBuildingTitle')}</h2>
+                    <p className="text-sm text-tertiary">{t('linkBuildingSubtitle')}</p>
                 </div>
                 <button
                     onClick={handleGenerate}
@@ -43,7 +45,7 @@ export function LinkBuildingSection({ domainId }: LinkBuildingSectionProps) {
                     className="inline-flex items-center gap-2 rounded-lg border border-secondary bg-primary px-4 py-2 text-sm font-medium text-primary shadow-xs hover:bg-primary-hover disabled:opacity-50"
                 >
                     <RefreshCw01 className={`h-4 w-4 ${isGenerating ? "animate-spin" : ""}`} />
-                    {isGenerating ? "Generating..." : "Generate Report"}
+                    {isGenerating ? t('generating') : t('generateReport')}
                 </button>
             </div>
 

@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { AlertTriangle } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
@@ -10,6 +11,7 @@ interface CannibalizationTableProps {
 }
 
 export function CannibalizationTable({ domainId }: CannibalizationTableProps) {
+    const t = useTranslations('keywords');
     const cannibalization = useQuery(api.keywordMap_queries.getKeywordCannibalization, { domainId });
 
     if (cannibalization === undefined) {
@@ -26,15 +28,15 @@ export function CannibalizationTable({ domainId }: CannibalizationTableProps) {
             <div className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-fg-warning-primary" />
                 <div>
-                    <h3 className="text-md font-semibold text-primary">Keyword Cannibalization</h3>
-                    <p className="text-sm text-tertiary">URLs ranking for multiple keywords — potential cannibalization</p>
+                    <h3 className="text-md font-semibold text-primary">{t('keywordCannibalization')}</h3>
+                    <p className="text-sm text-tertiary">{t('cannibalizationDescription')}</p>
                 </div>
             </div>
 
             {!cannibalization || cannibalization.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8">
-                    <p className="text-sm text-tertiary">No cannibalization detected</p>
-                    <p className="mt-1 text-xs text-quaternary">Each URL ranks for a unique keyword set</p>
+                    <p className="text-sm text-tertiary">{t('noCannibalizationDetected')}</p>
+                    <p className="mt-1 text-xs text-quaternary">{t('eachUrlRanksUnique')}</p>
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -50,7 +52,7 @@ export function CannibalizationTable({ domainId }: CannibalizationTableProps) {
                                     {item.url}
                                 </a>
                                 <span className="ml-2 rounded-full bg-utility-warning-50 px-2 py-0.5 text-xs font-medium text-utility-warning-600">
-                                    {item.keywordCount} keywords
+                                    {t('keywordCountLabel', { count: item.keywordCount })}
                                 </span>
                             </div>
                             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -62,7 +64,7 @@ export function CannibalizationTable({ domainId }: CannibalizationTableProps) {
                                 ))}
                             </div>
                             <div className="mt-1.5 text-xs text-tertiary">
-                                Avg position: #{item.avgPosition}
+                                {t('avgPositionValue', { position: item.avgPosition })}
                             </div>
                         </div>
                     ))}

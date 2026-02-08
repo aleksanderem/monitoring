@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend, Cell } from "recharts";
+import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
@@ -17,32 +18,33 @@ const INTENT_COLORS: Record<string, string> = {
     unknown: "#9ca3af",
 };
 
-const INTENT_LABELS: Record<string, string> = {
-    commercial: "Commercial",
-    informational: "Informational",
-    navigational: "Navigational",
-    transactional: "Transactional",
-    unknown: "Unknown",
+const INTENT_LABEL_KEYS: Record<string, string> = {
+    commercial: "intentCommercial",
+    informational: "intentInformational",
+    navigational: "intentNavigational",
+    transactional: "intentTransactional",
+    unknown: "intentUnknown",
 };
 
-function CustomTooltip({ active, payload }: any) {
+function CustomTooltip({ active, payload, t }: any) {
     if (!active || !payload || payload.length === 0) return null;
     const data = payload[0].payload;
     return (
         <div className="rounded-lg border border-secondary bg-primary px-3 py-2 shadow-lg">
             <p className="text-sm font-medium text-primary">{data.keyword}</p>
             <div className="mt-1 space-y-0.5">
-                <p className="text-xs text-tertiary">Position: <span className="font-medium text-primary">{data.position}</span></p>
-                <p className="text-xs text-tertiary">Volume: <span className="font-medium text-primary">{data.searchVolume?.toLocaleString()}</span></p>
-                <p className="text-xs text-tertiary">Difficulty: <span className="font-medium text-primary">{data.difficulty}</span></p>
-                <p className="text-xs text-tertiary">ETV: <span className="font-medium text-primary">{data.etv?.toLocaleString()}</span></p>
-                <p className="text-xs text-tertiary">Intent: <span className="font-medium text-primary">{INTENT_LABELS[data.intent] || data.intent}</span></p>
+                <p className="text-xs text-tertiary">{t('tooltipPosition')}: <span className="font-medium text-primary">{data.position}</span></p>
+                <p className="text-xs text-tertiary">{t('tooltipVolume')}: <span className="font-medium text-primary">{data.searchVolume?.toLocaleString()}</span></p>
+                <p className="text-xs text-tertiary">{t('tooltipDifficulty')}: <span className="font-medium text-primary">{data.difficulty}</span></p>
+                <p className="text-xs text-tertiary">{t('tooltipEtv')}: <span className="font-medium text-primary">{data.etv?.toLocaleString()}</span></p>
+                <p className="text-xs text-tertiary">{t('tooltipIntent')}: <span className="font-medium text-primary">{INTENT_LABEL_KEYS[data.intent] ? t(INTENT_LABEL_KEYS[data.intent]) : data.intent}</span></p>
             </div>
         </div>
     );
 }
 
 export function KeywordMapBubbleChart({ domainId }: KeywordMapBubbleChartProps) {
+    const t = useTranslations('keywords');
     const bubbleData = useQuery(api.keywordMap_queries.getKeywordMapBubbleData, { domainId });
 
     if (bubbleData === undefined) {
@@ -57,7 +59,7 @@ export function KeywordMapBubbleChart({ domainId }: KeywordMapBubbleChartProps) 
     if (!bubbleData || bubbleData.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-secondary bg-primary p-6 py-12">
-                <p className="text-sm text-tertiary">No keyword data available for bubble chart</p>
+                <p className="text-sm text-tertiary">{t('noKeywordDataForBubbleChart')}</p>
             </div>
         );
     }
@@ -68,8 +70,8 @@ export function KeywordMapBubbleChart({ domainId }: KeywordMapBubbleChartProps) 
     return (
         <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
             <div>
-                <h3 className="text-md font-semibold text-primary">Keyword Map</h3>
-                <p className="text-sm text-tertiary">Volume vs Difficulty — bubble size = ETV, color = intent</p>
+                <h3 className="text-md font-semibold text-primary">{t('keywordMap')}</h3>
+                <p className="text-sm text-tertiary">{t('keywordMapDescription')}</p>
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -79,7 +81,7 @@ export function KeywordMapBubbleChart({ domainId }: KeywordMapBubbleChartProps) 
                     return (
                         <div key={intent} className="flex items-center gap-1.5">
                             <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: INTENT_COLORS[intent] }} />
-                            <span className="text-xs text-tertiary">{INTENT_LABELS[intent]} ({count})</span>
+                            <span className="text-xs text-tertiary">{INTENT_LABEL_KEYS[intent] ? t(INTENT_LABEL_KEYS[intent]) : intent} ({count})</span>
                         </div>
                     );
                 })}
@@ -88,10 +90,10 @@ export function KeywordMapBubbleChart({ domainId }: KeywordMapBubbleChartProps) 
             <ResponsiveContainer width="100%" height={400}>
                 <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                    <XAxis type="number" dataKey="difficulty" name="Difficulty" domain={[0, 100]} tick={{ fontSize: 11 }} label={{ value: "Difficulty", position: "insideBottom", offset: -5, style: { fontSize: 11 } }} />
-                    <YAxis type="number" dataKey="searchVolume" name="Search Volume" scale="log" domain={["auto", "auto"]} tick={{ fontSize: 11 }} label={{ value: "Search Volume", angle: -90, position: "insideLeft", style: { fontSize: 11 } }} />
-                    <ZAxis type="number" dataKey="etv" range={[20, 400]} name="ETV" />
-                    <Tooltip content={<CustomTooltip />} />
+                    <XAxis type="number" dataKey="difficulty" name={t('tooltipDifficulty')} domain={[0, 100]} tick={{ fontSize: 11 }} label={{ value: t('tooltipDifficulty'), position: "insideBottom", offset: -5, style: { fontSize: 11 } }} />
+                    <YAxis type="number" dataKey="searchVolume" name={t('searchVolumeLabel')} scale="log" domain={["auto", "auto"]} tick={{ fontSize: 11 }} label={{ value: t('searchVolumeLabel'), angle: -90, position: "insideLeft", style: { fontSize: 11 } }} />
+                    <ZAxis type="number" dataKey="etv" range={[20, 400]} name={t('tooltipEtv')} />
+                    <Tooltip content={<CustomTooltip t={t} />} />
                     <Scatter data={bubbleData} fillOpacity={0.7}>
                         {bubbleData.map((entry, index) => (
                             <Cell key={index} fill={INTENT_COLORS[entry.intent] || INTENT_COLORS.unknown} />
