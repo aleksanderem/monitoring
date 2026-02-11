@@ -11,6 +11,7 @@ import { CloseButton } from "@/components/base/buttons/close-button";
 import { Input } from "@/components/base/input/input";
 import { Select } from "@/components/base/select/select";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 interface CreateDomainDialogProps {
   defaultProjectId?: Id<"projects">;
@@ -18,6 +19,8 @@ interface CreateDomainDialogProps {
 }
 
 export function CreateDomainDialog({ defaultProjectId, children }: CreateDomainDialogProps) {
+  const t = useTranslations("domains");
+  const tc = useTranslations("common");
   const [isOpen, setIsOpen] = useState(false);
   const [domain, setDomain] = useState("");
   const [projectId, setProjectId] = useState<Id<"projects"> | "">(defaultProjectId || "");
@@ -32,12 +35,12 @@ export function CreateDomainDialog({ defaultProjectId, children }: CreateDomainD
     e.preventDefault();
 
     if (!domain.trim()) {
-      toast.error("Please enter a domain name");
+      toast.error(t("pleaseEnterDomainName"));
       return;
     }
 
     if (!projectId) {
-      toast.error("Please select a project");
+      toast.error(t("pleaseSelectProject"));
       return;
     }
 
@@ -50,14 +53,14 @@ export function CreateDomainDialog({ defaultProjectId, children }: CreateDomainD
         refreshFrequency,
       });
 
-      toast.success("Domain added successfully");
+      toast.success(t("domainAddedSuccess"));
       setIsOpen(false);
       setDomain("");
       setProjectId(defaultProjectId || "");
       setSearchEngine("google.com");
       setRefreshFrequency("weekly");
     } catch (error) {
-      toast.error("Failed to add domain");
+      toast.error(t("failedToAddDomain"));
       console.error(error);
     } finally {
       setIsSubmitting(false);
@@ -68,7 +71,7 @@ export function CreateDomainDialog({ defaultProjectId, children }: CreateDomainD
     <AriaDialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
       {children || (
         <Button size="md">
-          Add Domain
+          {t("addDomain")}
         </Button>
       )}
 
@@ -90,18 +93,37 @@ export function CreateDomainDialog({ defaultProjectId, children }: CreateDomainD
               <div className="flex flex-col gap-5 p-4 sm:p-6">
                 <div className="flex flex-col gap-1">
                   <AriaHeading slot="title" className="text-lg font-semibold text-primary">
-                    Add domain
+                    {t("addDomainTitle")}
                   </AriaHeading>
                   <p className="text-sm text-tertiary">
-                    Add a new domain to track keyword rankings.
+                    {t("addDomainDescription")}
                   </p>
+                </div>
+
+                {/* Auto-discovery info */}
+                <div className="rounded-lg border border-utility-blue-200 bg-utility-blue-50 p-3">
+                  <div className="flex gap-2">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <svg className="h-4 w-4 text-utility-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-utility-blue-900">
+                        {t("automaticKeywordDiscovery")}
+                      </p>
+                      <p className="mt-1 text-xs text-utility-blue-700">
+                        {t("automaticKeywordDiscoveryDescription")}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-5">
                   <Input
                     size="md"
-                    label="Domain name"
-                    placeholder="example.com"
+                    label={t("domainName")}
+                    placeholder={t("domainNamePlaceholder")}
                     value={domain}
                     onChange={setDomain}
                     isRequired
@@ -111,8 +133,8 @@ export function CreateDomainDialog({ defaultProjectId, children }: CreateDomainD
 
                   <Select
                     size="md"
-                    label="Project"
-                    placeholder="Select a project"
+                    label={t("project")}
+                    placeholder={t("selectAProject")}
                     selectedKey={projectId}
                     onSelectionChange={(key) => setProjectId(key as Id<"projects"> | "")}
                     isRequired
@@ -127,26 +149,26 @@ export function CreateDomainDialog({ defaultProjectId, children }: CreateDomainD
 
                   <Select
                     size="md"
-                    label="Search engine"
+                    label={t("searchEngine")}
                     selectedKey={searchEngine}
                     onSelectionChange={(key) => setSearchEngine(key as string)}
                     isDisabled={isSubmitting}
                   >
-                    <Select.Item id="google.com">Google</Select.Item>
-                    <Select.Item id="google.pl">Google Poland</Select.Item>
-                    <Select.Item id="bing.com">Bing</Select.Item>
+                    <Select.Item id="google.com">{t("google")}</Select.Item>
+                    <Select.Item id="google.pl">{t("googlePoland")}</Select.Item>
+                    <Select.Item id="bing.com">{t("bing")}</Select.Item>
                   </Select>
 
                   <Select
                     size="md"
-                    label="Refresh frequency"
+                    label={t("refreshFrequency")}
                     selectedKey={refreshFrequency}
                     onSelectionChange={(key) => setRefreshFrequency(key as "daily" | "weekly" | "on_demand")}
                     isDisabled={isSubmitting}
                   >
-                    <Select.Item id="daily">Daily</Select.Item>
-                    <Select.Item id="weekly">Weekly</Select.Item>
-                    <Select.Item id="on_demand">On demand</Select.Item>
+                    <Select.Item id="daily">{t("daily")}</Select.Item>
+                    <Select.Item id="weekly">{t("weekly")}</Select.Item>
+                    <Select.Item id="on_demand">{t("onDemand")}</Select.Item>
                   </Select>
                 </div>
               </div>
@@ -159,7 +181,7 @@ export function CreateDomainDialog({ defaultProjectId, children }: CreateDomainD
                   onClick={() => setIsOpen(false)}
                   isDisabled={isSubmitting}
                 >
-                  Cancel
+                  {tc("cancel")}
                 </Button>
                 <Button
                   type="submit"
@@ -167,7 +189,7 @@ export function CreateDomainDialog({ defaultProjectId, children }: CreateDomainD
                   size="lg"
                   isDisabled={isSubmitting || !domain.trim() || !projectId}
                 >
-                  {isSubmitting ? "Adding..." : "Add domain"}
+                  {isSubmitting ? t("adding") : t("addDomainSubmit")}
                 </Button>
               </div>
             </form>

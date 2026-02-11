@@ -1,147 +1,266 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { Hash01, ChevronUp, ChevronDown, ChevronSelectorVertical, RefreshCcw01, Trash01, Settings01, ArrowUp, ArrowDown, Eye, Edit05, Key01 } from "@untitledui/icons";
+import { toast } from "sonner";
+import {
+  ChevronUp,
+  ChevronDown,
+  ChevronSelectorVertical,
+  SearchLg,
+  Settings01,
+  FilterLines,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown as ExpandIcon,
+  ChevronRight as CollapseIcon,
+  RefreshCw01,
+  Trash01,
+  Edit05,
+  Plus,
+} from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { BadgeWithDot, BadgeWithIcon } from "@/components/base/badges/badges";
-import { Button } from "@/components/base/buttons/button";
+import { useTranslations } from "next-intl";
 import { LoadingState } from "@/components/shared/LoadingState";
-import { MiniSparkline } from "@/components/domain/charts/MiniSparkline";
-import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
-import { DialogTrigger, Popover, Heading } from "react-aria-components";
-import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
-import { Dropdown } from "@/components/base/dropdown/dropdown";
-import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
-import { CloseButton } from "@/components/base/buttons/close-button";
 import { Input } from "@/components/base/input/input";
-import { cx } from "@/utils/cx";
-import { toast } from "sonner";
+import { Button } from "@/components/base/buttons/button";
+import { KeywordPositionChart } from "../charts/KeywordPositionChart";
+import { AddKeywordsModal } from "../modals/AddKeywordsModal";
+import { KeywordMonitoringDetailModal } from "../modals/KeywordMonitoringDetailModal";
 
 interface KeywordMonitoringTableProps {
   domainId: Id<"domains">;
 }
 
-type SortColumn = "phrase" | "currentPosition" | "change" | "status" | "potential" | "searchVolume" | "difficulty";
+type SortColumn = "phrase" | "currentPosition" | "searchVolume" | "difficulty";
 type SortDirection = "asc" | "desc";
 
-type ColumnId = "position" | "previous" | "change" | "status" | "potential" | "volume" | "difficulty" | "lastUpdated";
-
-const AVAILABLE_COLUMNS: { id: ColumnId; label: string }[] = [
-  { id: "position", label: "Position" },
-  { id: "previous", label: "Previous" },
-  { id: "change", label: "Change" },
-  { id: "status", label: "Status" },
-  { id: "potential", label: "Potential" },
-  { id: "volume", label: "Volume" },
-  { id: "difficulty", label: "Difficulty" },
-  { id: "lastUpdated", label: "Last Updated" },
-];
-
-// Helper: Format numbers with K/M abbreviations
-function formatNumber(num: number): string {
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toString();
+interface ColumnVisibility {
+  keyword: boolean;
+  position: boolean;
+  previous: boolean;
+  change: boolean;
+  volume: boolean;
+  difficulty: boolean;
+  cpc: boolean;
+  etv: boolean;
+  competition: boolean;
+  intent: boolean;
+  actions: boolean;
 }
 
-// Helper: Get position badge styles
 function getPositionBadgeClass(position: number | null): string {
   if (!position) return "bg-utility-gray-50 text-utility-gray-600";
   if (position <= 3) return "bg-utility-success-50 text-utility-success-600";
   if (position <= 10) return "bg-utility-success-25 text-utility-success-500";
   if (position <= 20) return "bg-utility-warning-50 text-utility-warning-600";
   if (position <= 50) return "bg-utility-gray-50 text-utility-gray-600";
-  if (position <= 100) return "bg-utility-gray-25 text-utility-gray-500";
-  return "bg-utility-error-50 text-utility-error-600";
+  return "bg-utility-gray-25 text-utility-gray-500";
 }
 
-// Helper: Get difficulty badge
-function getDifficultyBadge(difficulty: number | null) {
-  if (!difficulty) return { label: "—", color: "gray" as const };
-  if (difficulty <= 30) return { label: "Easy", color: "success" as const };
-  if (difficulty <= 60) return { label: "Medium", color: "warning" as const };
-  return { label: "Hard", color: "error" as const };
-}
-
-// Helper: Get status badge
-function getStatusBadge(status: string) {
-  switch (status) {
-    case "rising": return { label: "Rising", color: "success" as const };
-    case "falling": return { label: "Falling", color: "error" as const };
-    case "new": return { label: "New", color: "blue" as const };
-    default: return { label: "Stable", color: "gray" as const };
-  }
-}
-
-interface SortableHeaderProps {
-  column: SortColumn;
-  currentColumn: SortColumn;
-  direction: SortDirection;
-  onClick: (column: SortColumn) => void;
-  children: React.ReactNode;
-  className?: string;
-}
-
-function SortableHeader({ column, currentColumn, direction, onClick, children, className }: SortableHeaderProps) {
-  const isActive = column === currentColumn;
-
-  return (
-    <th
-      onClick={() => onClick(column)}
-      className={cx(
-        "cursor-pointer px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary hover:text-primary",
-        className
-      )}
-    >
-      <div className="flex items-center gap-2">
-        {children}
-        {isActive ? (
-          direction === "asc" ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )
-        ) : (
-          <ChevronSelectorVertical className="h-4 w-4 opacity-0 group-hover:opacity-50" />
-        )}
-      </div>
-    </th>
-  );
+function formatNumber(num: number | null | undefined): string {
+  if (num === null || num === undefined) return "—";
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+  return num.toString();
 }
 
 export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps) {
-  const keywords = useQuery(api.keywords.getKeywordMonitoring, { domainId });
-  const refreshPositions = useMutation(api.keywords.refreshKeywordPositions as any);
-  const deleteKeywords = useMutation(api.keywords.deleteKeywords);
-
+  const t = useTranslations('keywords');
+  const tc = useTranslations('common');
   const [sortColumn, setSortColumn] = useState<SortColumn>("currentPosition");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
-  const [selectedRows, setSelectedRows] = useState<Set<Id<"keywords">>>(new Set());
-  const [visibleColumns, setVisibleColumns] = useState<Set<ColumnId>>(
-    new Set(["position", "previous", "change", "status", "volume", "difficulty", "lastUpdated"])
-  );
-  const [viewModalOpen, setViewModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [selectedKeyword, setSelectedKeyword] = useState<NonNullable<typeof keywords>[number] | null>(null);
+  const [itemsPerPage] = useState(25);
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [addKeywordsModalOpen, setAddKeywordsModalOpen] = useState(false);
+  const [selectedKeyword, setSelectedKeyword] = useState<any | null>(null);
 
-  // Handle column visibility toggle
-  const toggleColumn = (columnId: ColumnId) => {
-    const newVisible = new Set(visibleColumns);
-    if (newVisible.has(columnId)) {
-      newVisible.delete(columnId);
-    } else {
-      newVisible.add(columnId);
+  // Column visibility state - load from localStorage on mount
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('keywordMonitoring_columnVisibility');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, use defaults
+        }
+      }
     }
-    setVisibleColumns(newVisible);
+    return {
+      keyword: true,
+      position: true,
+      previous: true,
+      change: true,
+      volume: true,
+      difficulty: true,
+      cpc: true,
+      etv: true,
+      competition: false,
+      intent: false,
+      actions: true,
+    };
+  });
+
+  // Save column visibility to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('keywordMonitoring_columnVisibility', JSON.stringify(columnVisibility));
+    }
+  }, [columnVisibility]);
+
+  // Filter states
+  const [positionFilter, setPositionFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  // Queries and mutations
+  const keywords = useQuery(api.keywords.getKeywordMonitoring, { domainId });
+  const refreshPositions = useMutation(api.keywords.refreshKeywordPositions);
+  const deleteKeyword = useMutation(api.keywords.deleteKeywords);
+  const createSerpFetchJob = useMutation(api.keywordSerpJobs.createSerpFetchJob);
+  const activeSerpJob = useQuery(api.keywordSerpJobs.getActiveJobForDomain, { domainId });
+
+  // Track SERP job completion and show notification
+  const [lastSerpJobId, setLastSerpJobId] = useState<string | null>(null);
+  useEffect(() => {
+    if (activeSerpJob) {
+      // Track the current job
+      if (lastSerpJobId !== activeSerpJob._id) {
+        setLastSerpJobId(activeSerpJob._id);
+      }
+    } else if (lastSerpJobId) {
+      // Job just completed (no longer active)
+      // Wait a moment and show completion toast
+      const timer = setTimeout(() => {
+        toast.success(t('serpFetchCompleted'));
+        setLastSerpJobId(null);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeSerpJob, lastSerpJobId]);
+
+  const handleRefresh = async (keywordId: Id<"keywords">) => {
+    try {
+      await refreshPositions({ keywordIds: [keywordId] });
+      toast.success(t('positionRefreshQueued'));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('failedToRefreshPosition'));
+    }
   };
 
-  // Handle column sort
-  const handleSort = (column: SortColumn) => {
+  const handleDelete = async (keywordId: Id<"keywords">, phrase: string) => {
+    try {
+      await deleteKeyword({ keywordIds: [keywordId] });
+      toast.success(t('deletedKeyword', { phrase }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('failedToDeleteKeyword'));
+    }
+  };
+
+  const toggleColumn = (column: keyof ColumnVisibility) => {
+    setColumnVisibility((prev) => ({ ...prev, [column]: !prev[column] }));
+  };
+
+  const toggleRowExpansion = (keywordId: string) => {
+    setExpandedRows((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(keywordId)) {
+        newSet.delete(keywordId);
+      } else {
+        newSet.add(keywordId);
+      }
+      return newSet;
+    });
+  };
+
+  const sortedAndFilteredKeywords = useMemo(() => {
+    if (!keywords) return [];
+
+    let filtered = keywords.filter((kw: any) => {
+      // Search filter
+      const matchesSearch = !searchQuery || kw.phrase.toLowerCase().includes(searchQuery.toLowerCase());
+
+      // Position filter
+      let matchesPosition = true;
+      if (positionFilter !== "all") {
+        const pos = kw.currentPosition;
+        if (pos === null || pos === undefined) {
+          matchesPosition = positionFilter === "unknown";
+        } else if (positionFilter === "top3") {
+          matchesPosition = pos <= 3;
+        } else if (positionFilter === "top10") {
+          matchesPosition = pos <= 10;
+        } else if (positionFilter === "top20") {
+          matchesPosition = pos <= 20;
+        } else if (positionFilter === "top50") {
+          matchesPosition = pos <= 50;
+        } else if (positionFilter === "below50") {
+          matchesPosition = pos > 50;
+        }
+      }
+
+      // Status filter
+      let matchesStatus = true;
+      if (statusFilter !== "all") {
+        matchesStatus = kw.status === statusFilter;
+      }
+
+      return matchesSearch && matchesPosition && matchesStatus;
+    });
+
+    return filtered.sort((a: any, b: any) => {
+      let aVal: any = a[sortColumn];
+      let bVal: any = b[sortColumn];
+
+      if (sortColumn === "currentPosition") {
+        aVal = a.currentPosition ?? 999;
+        bVal = b.currentPosition ?? 999;
+      }
+
+      if (aVal === null || aVal === undefined) return 1;
+      if (bVal === null || bVal === undefined) return -1;
+
+      const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [keywords, sortColumn, sortDirection, searchQuery, positionFilter, statusFilter]);
+
+  // Pagination
+  const totalPages = Math.ceil(sortedAndFilteredKeywords.length / itemsPerPage);
+  const paginatedKeywords = sortedAndFilteredKeywords.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  if (keywords === undefined) {
+    return <LoadingState />;
+  }
+
+  if (keywords.length === 0) {
+    return (
+      <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
+        <SearchLg className="mx-auto h-12 w-12 text-fg-quaternary" />
+        <p className="mt-4 text-sm text-primary font-medium">{t('noKeywordsMonitored')}</p>
+        <p className="mt-2 text-xs text-tertiary">{t('addKeywordsToStartTracking')}</p>
+        <Button
+          size="md"
+          color="primary"
+          iconLeading={Plus}
+          onClick={() => setAddKeywordsModalOpen(true)}
+          className="mt-4"
+        >
+          {t('addKeywords')}
+        </Button>
+      </div>
+    );
+  }
+
+  const toggleSort = (column: SortColumn) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
@@ -150,685 +269,582 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
     }
   };
 
-  // Handle select all
-  const handleSelectAll = () => {
-    if (selectedRows.size === paginatedKeywords.length && paginatedKeywords.length > 0) {
-      setSelectedRows(new Set());
-    } else {
-      setSelectedRows(new Set(paginatedKeywords.map((kw) => kw.keywordId)));
-    }
-  };
-
-  // Handle row selection
-  const handleRowSelect = (keywordId: Id<"keywords">) => {
-    const newSelected = new Set(selectedRows);
-    if (newSelected.has(keywordId)) {
-      newSelected.delete(keywordId);
-    } else {
-      newSelected.add(keywordId);
-    }
-    setSelectedRows(newSelected);
-  };
-
-  // Handle bulk refresh
-  const handleBulkRefresh = async () => {
-    if (selectedRows.size === 0) return;
-
-    try {
-      console.log("Calling refreshPositions with:", Array.from(selectedRows));
-      const result = await refreshPositions({ keywordIds: Array.from(selectedRows) });
-      console.log("Refresh result:", result);
-      toast.success(`Odświeżanie pozycji dla ${selectedRows.size} słów kluczowych zostało zakolejkowane`);
-      // Don't clear selection - let user see which keywords are being refreshed
-    } catch (error) {
-      console.error("Refresh error details:", error);
-      const errorMessage = error instanceof Error ? error.message : "Nie udało się odświeżyć pozycji";
-      toast.error(`Błąd: ${errorMessage}`);
-    }
-  };
-
-  // Handle bulk delete
-  const handleBulkDelete = async () => {
-    if (selectedRows.size === 0) return;
-
-    try {
-      await deleteKeywords({ keywordIds: Array.from(selectedRows) });
-      toast.success(`Usunięto ${selectedRows.size} słów kluczowych`);
-      setSelectedRows(new Set());
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Nie udało się usunąć słów kluczowych";
-      toast.error(errorMessage);
-      console.error("Delete error:", error);
-    }
-  };
-
-  // Check if any keywords are currently being refreshed
-  const hasRefreshingKeywords = useMemo(() => {
-    if (!keywords) return false;
-    return keywords.some(kw => kw.checkingStatus === "queued" || kw.checkingStatus === "checking");
-  }, [keywords]);
-
-  // Filter and sort keywords
-  const filteredAndSortedKeywords = useMemo(() => {
-    if (!keywords) return [];
-
-    let filtered = keywords;
-
-    // Apply search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((kw) => kw.phrase.toLowerCase().includes(query));
-    }
-
-    // Apply sorting
-    const sorted = [...filtered].sort((a, b) => {
-      let aVal: any;
-      let bVal: any;
-
-      switch (sortColumn) {
-        case "phrase":
-          aVal = a.phrase.toLowerCase();
-          bVal = b.phrase.toLowerCase();
-          break;
-        case "currentPosition":
-          aVal = a.currentPosition || 999;
-          bVal = b.currentPosition || 999;
-          break;
-        case "change":
-          aVal = a.change;
-          bVal = b.change;
-          break;
-        case "potential":
-          aVal = a.potential;
-          bVal = b.potential;
-          break;
-        case "searchVolume":
-          aVal = a.searchVolume;
-          bVal = b.searchVolume;
-          break;
-        case "difficulty":
-          aVal = a.difficulty;
-          bVal = b.difficulty;
-          break;
-        default:
-          return 0;
-      }
-
-      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return sorted;
-  }, [keywords, searchQuery, sortColumn, sortDirection]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredAndSortedKeywords.length / pageSize);
-  const paginatedKeywords = filteredAndSortedKeywords.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
-  if (keywords === undefined) {
-    return <LoadingState type="card" />;
-  }
-
-  if (!keywords || keywords.length === 0) {
-    return (
-      <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
-        <div className="flex flex-col items-center gap-2 py-12 text-center">
-          <Hash01 className="h-10 w-10 text-fg-quaternary" />
-          <p className="text-sm font-medium text-primary">No keywords being monitored</p>
-          <p className="text-sm text-tertiary">Add keywords to start tracking their rankings</p>
-        </div>
-      </div>
+  const SortIcon = ({ column }: { column: SortColumn }) => {
+    if (sortColumn !== column) return <ChevronSelectorVertical className="h-4 w-4" />;
+    return sortDirection === "asc" ? (
+      <ChevronUp className="h-4 w-4" />
+    ) : (
+      <ChevronDown className="h-4 w-4" />
     );
-  }
-
-  const allCurrentPageSelected = paginatedKeywords.length > 0 &&
-    paginatedKeywords.every((kw) => selectedRows.has(kw.keywordId));
-  const someCurrentPageSelected = paginatedKeywords.some((kw) => selectedRows.has(kw.keywordId));
+  };
 
   return (
-    <div className="flex flex-col gap-6">
-      <style>{`
-        .actions-sticky-header::before,
-        .actions-sticky-cell::before {
-          content: '';
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(270deg, rgb(225 225 225 / 44%) 0%, rgb(41 41 41 / 0%) 75%);
-          top: 0;
-          left: -48px;
-          pointer-events: none;
-        }
-      `}</style>
-      {/* Bulk actions toolbar */}
-      {selectedRows.size > 0 && (
-        <div className="flex items-center justify-between rounded-lg border border-secondary bg-primary p-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-primary">
-              {selectedRows.size} zaznaczonych
-            </span>
+    <>
+      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        {/* SERP Fetch Job Progress */}
+        {activeSerpJob && activeSerpJob.status !== "completed" && (
+          <div className="rounded-lg border border-utility-blue-200 bg-utility-blue-50 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-utility-blue-600 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm font-medium text-utility-blue-900">
+                  {t('fetchingSerpData')}
+                </span>
+              </div>
+              <span className="text-sm text-utility-blue-700">
+                {t('serpProgress', { processed: activeSerpJob.processedKeywords, total: activeSerpJob.totalKeywords })}
+              </span>
+            </div>
+            <div className="w-full bg-utility-blue-200 rounded-full h-2">
+              <div
+                className="bg-utility-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{
+                  width: `${(activeSerpJob.processedKeywords / activeSerpJob.totalKeywords) * 100}%`,
+                }}
+              />
+            </div>
+            {activeSerpJob.failedKeywords > 0 && (
+              <p className="text-xs text-utility-error-600 mt-2">
+                {t('serpFailed', { count: activeSerpJob.failedKeywords })}
+              </p>
+            )}
           </div>
-          <div className="flex gap-2">
+        )}
+
+        <div className="mb-3">
+          <h3 className="text-lg font-semibold text-primary">{t('keywordMonitoring')}</h3>
+          <p className="text-sm text-tertiary">
+            {t('keywordMonitoringDescription', { count: sortedAndFilteredKeywords.length })}
+          </p>
+        </div>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            {/* Add Keywords Button */}
+            <Button
+              size="sm"
+              color="primary"
+              iconLeading={Plus}
+              onClick={() => setAddKeywordsModalOpen(true)}
+            >
+              {t('addKeywords')}
+            </Button>
+
+            {/* Refresh All Button */}
             <Button
               size="sm"
               color="secondary"
-              iconLeading={RefreshCcw01}
-              onClick={handleBulkRefresh}
-              disabled={hasRefreshingKeywords}
-              className={hasRefreshingKeywords ? "opacity-60" : ""}
+              iconLeading={RefreshCw01}
+              onClick={async () => {
+                if (!keywords || keywords.length === 0) return;
+                try {
+                  const allKeywordIds = keywords.map(kw => kw.keywordId);
+                  await refreshPositions({ keywordIds: allKeywordIds });
+                  toast.success(t('queuedRefreshForKeywords', { count: keywords.length }));
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : t('failedToRefreshPositions'));
+                }
+              }}
+              disabled={!keywords || keywords.length === 0}
             >
-              <div className="flex items-center gap-2">
-                <RefreshCcw01 className={cx("h-4 w-4", hasRefreshingKeywords && "animate-spin")} />
-                <span>{hasRefreshingKeywords ? "Odświeżanie..." : "Odśwież pozycję"}</span>
-              </div>
+              {t('refreshAll')}
             </Button>
-            <DeleteConfirmationDialog
-              title={`Usuń ${selectedRows.size} słów kluczowych?`}
-              description="Ta akcja spowoduje trwałe usunięcie zaznaczonych słów kluczowych i wszystkich powiązanych danych o rankingach. Nie można tej operacji cofnąć."
-              confirmLabel="Usuń słowa kluczowe"
-              onConfirm={handleBulkDelete}
+
+            {/* Fetch SERP Data Button */}
+            <Button
+              size="sm"
+              color="secondary"
+              onClick={async () => {
+                if (!keywords || keywords.length === 0) return;
+                try {
+                  const allKeywordIds = keywords.map(kw => kw.keywordId);
+                  await createSerpFetchJob({
+                    domainId,
+                    keywordIds: allKeywordIds
+                  });
+                  toast.success(t('serpFetchJobQueued', { count: keywords.length }));
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : t('failedToQueueSerpFetch'));
+                }
+              }}
+              disabled={!keywords || keywords.length === 0 || (!!activeSerpJob && activeSerpJob.status !== "completed")}
             >
+              {activeSerpJob && activeSerpJob.status !== "completed" ? t('fetching') : t('fetchSerpData')}
+            </Button>
+
+            {/* Search */}
+            <div className="w-64">
+              <Input
+                placeholder={t('searchKeywords')}
+                value={searchQuery}
+                onChange={(value) => {
+                  setSearchQuery(value);
+                  setCurrentPage(1);
+                }}
+                icon={SearchLg}
+              />
+            </div>
+
+            {/* Filters toggle */}
+            <Button
+              size="sm"
+              color={showFilters ? "primary" : "secondary"}
+              iconLeading={FilterLines}
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              {t('filters')}
+            </Button>
+
+            {/* Column picker */}
+            <div className="relative">
               <Button
                 size="sm"
-                color="secondary-destructive"
-                iconLeading={Trash01}
+                color="secondary"
+                iconLeading={Settings01}
+                onClick={() => setShowColumnPicker(!showColumnPicker)}
               >
-                Usuń
+                {tc('columns')}
               </Button>
-            </DeleteConfirmationDialog>
+              {showColumnPicker && (
+                <div className="absolute right-0 top-full z-10 mt-2 w-48 rounded-lg border border-secondary bg-primary p-2 shadow-lg">
+                  <div className="flex flex-col gap-1">
+                    {Object.entries(columnVisibility).map(([key, value]) => (
+                      <label
+                        key={key}
+                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors hover:bg-secondary/50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={value}
+                          onChange={() => toggleColumn(key as keyof ColumnVisibility)}
+                          className="h-4 w-4 rounded border-gray-300"
+                        />
+                        <span className="text-primary capitalize">{key}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Search bar and column visibility */}
-      <div className="flex items-center gap-4">
-        <input
-          type="text"
-          placeholder="Szukaj słów kluczowych..."
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="flex-1 rounded-lg border border-secondary bg-primary px-4 py-2 text-sm text-primary placeholder:text-tertiary focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
-        />
-        <DialogTrigger>
-          <Button size="sm" color="secondary" iconLeading={Settings01}>
-            Kolumny
-          </Button>
-          <Popover
-            placement="bottom end"
-            className="w-56 origin-(--trigger-anchor-point) overflow-auto rounded-lg bg-primary shadow-lg ring-1 ring-secondary_alt will-change-transform entering:duration-150 entering:ease-out entering:animate-in entering:fade-in exiting:duration-100 exiting:ease-in exiting:animate-out exiting:fade-out"
-          >
-            <div className="flex flex-col gap-2 p-2">
-              <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-tertiary">
-                Widoczne kolumny
-              </div>
-              {AVAILABLE_COLUMNS.map((column) => (
-                <label
-                  key={column.id}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-secondary-subtle"
-                >
-                  <input
-                    type="checkbox"
-                    checked={visibleColumns.has(column.id)}
-                    onChange={() => toggleColumn(column.id)}
-                    className="h-4 w-4 cursor-pointer rounded border-secondary text-brand-600 focus:ring-brand-600"
-                  />
-                  <span className="text-sm text-primary">{column.label}</span>
-                </label>
-              ))}
+        {/* Filters panel */}
+        {showFilters && (
+          <div className="flex flex-wrap items-center gap-4 rounded-lg border border-secondary bg-secondary/30 p-4">
+            {/* Position filter */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-secondary">{t('columnPosition')}:</label>
+              <select
+                value={positionFilter}
+                onChange={(e) => {
+                  setPositionFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
+              >
+                <option value="all">{tc('all')}</option>
+                <option value="top3">{t('filterTop3')}</option>
+                <option value="top10">{t('filterTop10')}</option>
+                <option value="top20">{t('filterTop20')}</option>
+                <option value="top50">{t('filterTop50')}</option>
+                <option value="below50">{t('filterBelow50')}</option>
+                <option value="unknown">{t('filterUnknown')}</option>
+              </select>
             </div>
-          </Popover>
-        </DialogTrigger>
-      </div>
 
-      {/* Table - Desktop view */}
-      <div className="overflow-x-auto rounded-xl border border-secondary bg-primary">
-        <table className="w-full">
-          <thead className="sticky top-0 z-10 border-b-2 border-secondary bg-primary backdrop-blur">
-            <tr>
-              {/* Checkbox column */}
-              <th className="w-12 px-4 py-3 text-left">
-                <input
-                  type="checkbox"
-                  checked={allCurrentPageSelected}
-                  ref={(el) => {
-                    if (el) {
-                      el.indeterminate = someCurrentPageSelected && !allCurrentPageSelected;
-                    }
-                  }}
-                  onChange={handleSelectAll}
-                  className="h-4 w-4 cursor-pointer rounded border-secondary text-brand-600 focus:ring-brand-600"
-                />
-              </th>
-              <SortableHeader column="phrase" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
-                Keyword
-              </SortableHeader>
-              {visibleColumns.has("position") && (
-                <SortableHeader column="currentPosition" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
-                  Position
-                </SortableHeader>
-              )}
-              {visibleColumns.has("previous") && (
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
-                  Previous
-                </th>
-              )}
-              {visibleColumns.has("change") && (
-                <SortableHeader column="change" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
-                  Change
-                </SortableHeader>
-              )}
-              {visibleColumns.has("status") && (
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
-                  Status
-                </th>
-              )}
-              {visibleColumns.has("potential") && (
-                <SortableHeader column="potential" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
-                  Potential
-                </SortableHeader>
-              )}
-              {visibleColumns.has("volume") && (
-                <SortableHeader column="searchVolume" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
-                  Volume
-                </SortableHeader>
-              )}
-              {visibleColumns.has("difficulty") && (
-                <SortableHeader column="difficulty" currentColumn={sortColumn} direction={sortDirection} onClick={handleSort}>
-                  Difficulty
-                </SortableHeader>
-              )}
-              {visibleColumns.has("lastUpdated") && (
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-tertiary">
-                  Last Updated
-                </th>
-              )}
-              <th
-                className="sticky border-l border-secondary text-center text-xs font-semibold uppercase tracking-wide text-tertiary actions-sticky-header"
-                style={{
-                  background: "#f8f8f8",
-                  right: "1px",
-                  fontSize: "8px",
-                  padding: "12px",
-                  width: "50px",
-                  minWidth: "50px",
+            {/* Status filter */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-secondary">{tc('status')}:</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="rounded-md border border-secondary bg-primary px-3 py-1.5 text-sm text-primary"
+              >
+                <option value="all">{tc('all')}</option>
+                <option value="rising">{t('statusRising')}</option>
+                <option value="falling">{t('statusFalling')}</option>
+                <option value="stable">{t('statusStable')}</option>
+                <option value="new">{tc('new')}</option>
+              </select>
+            </div>
+
+            {/* Clear filters */}
+            {(positionFilter !== "all" || statusFilter !== "all" || searchQuery) && (
+              <Button
+                size="sm"
+                color="secondary"
+                onClick={() => {
+                  setPositionFilter("all");
+                  setStatusFilter("all");
+                  setSearchQuery("");
+                  setCurrentPage(1);
                 }}
               >
-                <Tooltip title="Akcje" placement="bottom">
-                  <TooltipTrigger>
-                    <Key01 className="h-3 w-3 inline-block" />
-                  </TooltipTrigger>
-                </Tooltip>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedKeywords.map((keyword, index) => {
-              const statusBadge = getStatusBadge(keyword.status);
-              const difficultyBadge = getDifficultyBadge(keyword.difficulty);
-              const isSelected = selectedRows.has(keyword.keywordId);
-              // Show loading if keyword is queued or currently being checked
-              const isBeingRefreshed = keyword.checkingStatus === "queued" || keyword.checkingStatus === "checking";
+                {t('clearAll')}
+              </Button>
+            )}
+          </div>
+        )}
 
-              return (
-                <tr
-                  key={keyword.keywordId}
-                  className={cx(
-                    "border-b border-secondary transition-colors hover:bg-secondary-subtle",
-                    isSelected && "bg-brand-50",
-                    !isSelected && (index % 2 === 0 ? "bg-primary" : "bg-secondary-subtle"),
-                    isBeingRefreshed && "opacity-60"
-                  )}
-                >
-                  {/* Checkbox */}
-                  <td className="px-4 py-4">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleRowSelect(keyword.keywordId)}
-                      className="h-4 w-4 cursor-pointer rounded border-secondary text-brand-600 focus:ring-brand-600"
-                    />
-                  </td>
-
-                  {/* Keyword */}
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-medium text-primary">{keyword.phrase}</span>
-                      {keyword.url && (
-                        <Tooltip title={keyword.url} placement="bottom">
-                          <TooltipTrigger>
-                            <span
-                              className="font-mono text-tertiary cursor-default"
-                              style={{
-                                whiteSpace: "nowrap",
-                                width: "170px",
-                                textOverflow: "ellipsis",
-                                overflow: "hidden",
-                                fontSize: "9px",
-                                display: "block",
-                              }}
-                            >
-                              {(() => {
-                                try {
-                                  return new URL(keyword.url).pathname.toLowerCase();
-                                } catch {
-                                  return keyword.url.toLowerCase();
-                                }
-                              })()}
-                            </span>
-                          </TooltipTrigger>
-                        </Tooltip>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* Current Position */}
-                  {visibleColumns.has("position") && (
-                    <td className="px-6 py-4">
-                      {isBeingRefreshed ? (
-                        <RefreshCcw01 className="h-4 w-4 animate-spin text-brand-600" />
-                      ) : keyword.currentPosition ? (
-                        <BadgeWithIcon type="pill-color" color="brand" size="sm">
-                          #{keyword.currentPosition}
-                        </BadgeWithIcon>
-                      ) : (
-                        <span className="text-sm text-tertiary">—</span>
-                      )}
-                    </td>
-                  )}
-
-                  {/* Previous Position */}
-                  {visibleColumns.has("previous") && (
-                    <td className="px-6 py-4">
-                      {keyword.previousPosition ? (
-                        <BadgeWithIcon type="pill-color" color="gray" size="sm">
-                          #{keyword.previousPosition}
-                        </BadgeWithIcon>
-                      ) : (
-                        <span className="text-sm text-tertiary">—</span>
-                      )}
-                    </td>
-                  )}
-
-                  {/* Change with Sparkline */}
-                  {visibleColumns.has("change") && (
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <BadgeWithIcon
-                          type="pill-color"
-                          color={keyword.change === null ? "gray" : keyword.change > 0 ? "success" : keyword.change < 0 ? "error" : "gray"}
-                          size="sm"
-                          iconLeading={keyword.change === null ? undefined : keyword.change > 0 ? ArrowUp : keyword.change < 0 ? ArrowDown : undefined}
-                        >
-                          {keyword.change === null ? "—" : keyword.change === 0 ? "0" : Math.abs(keyword.change)}
-                        </BadgeWithIcon>
-                        <MiniSparkline data={keyword.positionHistory} className="text-utility-gray-400" />
-                      </div>
-                    </td>
-                  )}
-
-                  {/* Status */}
-                  {visibleColumns.has("status") && (
-                    <td className="px-6 py-4">
-                      <BadgeWithDot size="sm" color={statusBadge.color} type="modern">
-                        {statusBadge.label}
-                      </BadgeWithDot>
-                    </td>
-                  )}
-
-                  {/* Potential */}
-                  {visibleColumns.has("potential") && (
-                    <td className="px-6 py-4">
-                      <span className="font-medium text-primary">
-                        {keyword.potential ? formatNumber(keyword.potential) : "—"}
-                      </span>
-                    </td>
-                  )}
-
-                  {/* Search Volume */}
-                  {visibleColumns.has("volume") && (
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-secondary">
-                        {keyword.searchVolume ? formatNumber(keyword.searchVolume) : "—"}
-                      </span>
-                    </td>
-                  )}
-
-                  {/* Difficulty */}
-                  {visibleColumns.has("difficulty") && (
-                    <td className="px-6 py-4">
-                      {keyword.difficulty ? (
-                        <BadgeWithDot size="sm" color={difficultyBadge.color} type="modern">
-                          {keyword.difficulty} • {difficultyBadge.label}
-                        </BadgeWithDot>
-                      ) : (
-                        <span className="text-sm text-tertiary">—</span>
-                      )}
-                    </td>
-                  )}
-
-                  {/* Last Updated */}
-                  {visibleColumns.has("lastUpdated") && (
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-tertiary">
-                        {new Date(keyword.lastUpdated).toLocaleDateString()}
-                      </span>
-                    </td>
-                  )}
-
-                  {/* Actions */}
-                  <td
-                    className="sticky border-l border-secondary text-center actions-sticky-cell"
-                    style={{
-                      background: "#f8f8f8",
-                      right: "1px",
-                      padding: "12px",
-                      width: "50px",
-                      minWidth: "50px",
-                    }}
+        <div className="overflow-x-auto rounded-lg border border-secondary">
+          <table className="w-full">
+            <thead className="bg-secondary/50">
+              <tr>
+                <th className="w-8 px-4 py-3"></th>
+                {columnVisibility.keyword && (
+                  <th
+                    className="cursor-pointer px-4 py-3 text-left text-xs font-medium text-tertiary transition-colors hover:bg-secondary/70"
+                    onClick={() => toggleSort("phrase")}
                   >
-                    <Dropdown.Root>
-                      <Dropdown.DotsButton isDisabled={isBeingRefreshed} />
-                      <Dropdown.Popover>
-                        <Dropdown.Menu
-                          selectionMode={undefined as any}
-                          disallowEmptySelection={false}
-                          onAction={async (key) => {
-                            switch (key) {
-                              case "view":
-                                setSelectedKeyword(keyword);
-                                setViewModalOpen(true);
-                                break;
-                              case "edit":
-                                setSelectedKeyword(keyword);
-                                setEditModalOpen(true);
-                                break;
-                              case "refresh":
-                                try {
-                                  await refreshPositions({ keywordIds: [keyword.keywordId] });
-                                  toast.success(`Odświeżanie pozycji dla "${keyword.phrase}"`);
-                                } catch (error) {
-                                  const errorMessage = error instanceof Error ? error.message : "Nie udało się odświeżyć pozycji";
-                                  toast.error(`Błąd: ${errorMessage}`);
-                                }
-                                break;
-                              case "delete":
-                                try {
-                                  await deleteKeywords({ keywordIds: [keyword.keywordId] });
-                                  toast.success(`Usunięto frazę: ${keyword.phrase}`);
-                                } catch (error) {
-                                  const errorMessage = error instanceof Error ? error.message : "Nie udało się usunąć frazy";
-                                  toast.error(errorMessage);
-                                }
-                                break;
-                            }
+                    <div className="flex items-center gap-2">
+                      {t('columnKeyword')}
+                      <SortIcon column="phrase" />
+                    </div>
+                  </th>
+                )}
+                {columnVisibility.position && (
+                  <th
+                    className="cursor-pointer px-4 py-3 text-center text-xs font-medium text-tertiary transition-colors hover:bg-secondary/70"
+                    onClick={() => toggleSort("currentPosition")}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      {t('columnPosition')}
+                      <SortIcon column="currentPosition" />
+                    </div>
+                  </th>
+                )}
+                {columnVisibility.previous && (
+                  <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
+                    {t('columnPrevious')}
+                  </th>
+                )}
+                {columnVisibility.change && (
+                  <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
+                    {t('columnChange')}
+                  </th>
+                )}
+                {columnVisibility.volume && (
+                  <th
+                    className="cursor-pointer px-4 py-3 text-right text-xs font-medium text-tertiary transition-colors hover:bg-secondary/70"
+                    onClick={() => toggleSort("searchVolume")}
+                  >
+                    <div className="flex items-center justify-end gap-2">
+                      {t('columnVolume')}
+                      <SortIcon column="searchVolume" />
+                    </div>
+                  </th>
+                )}
+                {columnVisibility.difficulty && (
+                  <th
+                    className="cursor-pointer px-4 py-3 text-center text-xs font-medium text-tertiary transition-colors hover:bg-secondary/70"
+                    onClick={() => toggleSort("difficulty")}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      {t('columnDifficulty')}
+                      <SortIcon column="difficulty" />
+                    </div>
+                  </th>
+                )}
+                {columnVisibility.cpc && (
+                  <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">
+                    {t('columnCpc')}
+                  </th>
+                )}
+                {columnVisibility.etv && (
+                  <th className="px-4 py-3 text-right text-xs font-medium text-tertiary">
+                    {t('columnEtv')}
+                  </th>
+                )}
+                {columnVisibility.competition && (
+                  <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
+                    {t('columnCompetition')}
+                  </th>
+                )}
+                {columnVisibility.intent && (
+                  <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
+                    {t('columnIntent')}
+                  </th>
+                )}
+                {columnVisibility.actions && (
+                  <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
+                    {tc('actions')}
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-secondary">
+              {paginatedKeywords.map((keyword: any) => {
+                const isExpanded = expandedRows.has(keyword.keywordId);
+                const isRefreshing = keyword.checkingStatus === "queued" || keyword.checkingStatus === "checking";
+
+                return (
+                  <React.Fragment key={keyword.keywordId}>
+                    <tr
+                      className="transition-colors hover:bg-primary_hover cursor-pointer"
+                      onClick={() => setSelectedKeyword(keyword)}
+                    >
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleRowExpansion(keyword.keywordId);
                           }}
+                          className="text-tertiary hover:text-primary transition-colors"
                         >
-                          <Dropdown.Item id="view" label="Podgląd" icon={Eye} />
-                          <Dropdown.Item id="edit" label="Edytuj" icon={Edit05} />
-                          <Dropdown.Separator />
-                          <Dropdown.Item id="refresh" label="Odśwież pozycję" icon={RefreshCcw01} />
-                          <Dropdown.Separator />
-                          <Dropdown.Item id="delete" label="Usuń" icon={Trash01} />
-                        </Dropdown.Menu>
-                      </Dropdown.Popover>
-                    </Dropdown.Root>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                          {isExpanded ? (
+                            <ExpandIcon className="h-4 w-4" />
+                          ) : (
+                            <CollapseIcon className="h-4 w-4" />
+                          )}
+                        </button>
+                      </td>
+                      {columnVisibility.keyword && (
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-primary">{keyword.phrase}</span>
+                            {keyword.status === "new" && (
+                              <span className="inline-flex items-center rounded-full bg-utility-blue-50 px-2 py-0.5 text-xs font-medium text-utility-blue-700">
+                                {tc('new')}
+                              </span>
+                            )}
+                            {keyword.status === "rising" && (
+                              <span className="inline-flex items-center rounded-full bg-utility-success-50 px-2 py-0.5 text-xs font-medium text-utility-success-700">
+                                ↑
+                              </span>
+                            )}
+                            {keyword.status === "falling" && (
+                              <span className="inline-flex items-center rounded-full bg-utility-error-50 px-2 py-0.5 text-xs font-medium text-utility-error-700">
+                                ↓
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                      {columnVisibility.position && (
+                        <td className="px-4 py-3 text-center">
+                          {isRefreshing ? (
+                            <RefreshCw01 className="h-4 w-4 animate-spin text-brand-600 inline-block" />
+                          ) : keyword.currentPosition ? (
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPositionBadgeClass(
+                                keyword.currentPosition
+                              )}`}
+                            >
+                              {keyword.currentPosition}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-tertiary">—</span>
+                          )}
+                        </td>
+                      )}
+                      {columnVisibility.previous && (
+                        <td className="px-4 py-3 text-center">
+                          {keyword.previousPosition ? (
+                            <span className="inline-flex items-center rounded-full bg-utility-gray-50 px-2.5 py-0.5 text-xs font-medium text-utility-gray-600">
+                              {keyword.previousPosition}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-tertiary">—</span>
+                          )}
+                        </td>
+                      )}
+                      {columnVisibility.change && (
+                        <td className="px-4 py-3 text-center">
+                          {keyword.change !== null && keyword.change !== 0 ? (
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                keyword.change > 0
+                                  ? "bg-utility-success-50 text-utility-success-700"
+                                  : "bg-utility-error-50 text-utility-error-700"
+                              }`}
+                            >
+                              {keyword.change > 0 ? "↑" : "↓"} {Math.abs(keyword.change)}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-tertiary">—</span>
+                          )}
+                        </td>
+                      )}
+                      {columnVisibility.volume && (
+                        <td className="px-4 py-3 text-right text-sm text-primary">
+                          {formatNumber(keyword.searchVolume)}
+                        </td>
+                      )}
+                      {columnVisibility.difficulty && (
+                        <td className="px-4 py-3 text-center">
+                          {keyword.difficulty !== undefined && keyword.difficulty !== null ? (
+                            <span
+                              className={`text-sm font-medium ${
+                                keyword.difficulty < 30 ? 'text-utility-success-600' :
+                                keyword.difficulty < 70 ? 'text-utility-warning-600' :
+                                'text-utility-error-600'
+                              }`}
+                            >
+                              {keyword.difficulty}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-tertiary">—</span>
+                          )}
+                        </td>
+                      )}
+                      {columnVisibility.cpc && (
+                        <td className="px-4 py-3 text-right text-sm text-primary">
+                          {keyword.cpc !== undefined && keyword.cpc !== null ? `$${keyword.cpc.toFixed(2)}` : "—"}
+                        </td>
+                      )}
+                      {columnVisibility.etv && (
+                        <td className="px-4 py-3 text-right text-sm text-primary">
+                          {keyword.etv !== undefined && keyword.etv !== null ? keyword.etv.toFixed(2) : "—"}
+                        </td>
+                      )}
+                      {columnVisibility.competition && (
+                        <td className="px-4 py-3 text-center text-sm text-primary">
+                          {keyword.competition !== undefined && keyword.competition !== null ? (
+                            `${(keyword.competition * 100).toFixed(0)}%`
+                          ) : keyword.competitionLevel ? (
+                            <span className="text-xs text-tertiary">{keyword.competitionLevel}</span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                      )}
+                      {columnVisibility.intent && (
+                        <td className="px-4 py-3 text-center">
+                          {keyword.intent ? (
+                            <span className="inline-flex items-center rounded-full bg-utility-gray-50 px-2 py-0.5 text-xs font-medium text-utility-gray-700">
+                              {keyword.intent}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-tertiary">—</span>
+                          )}
+                        </td>
+                      )}
+                      {columnVisibility.actions && (
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRefresh(keyword.keywordId);
+                              }}
+                              disabled={isRefreshing}
+                              className="text-tertiary hover:text-primary transition-colors disabled:opacity-50"
+                              title={t('refreshPosition')}
+                            >
+                              <RefreshCw01 className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(keyword.keywordId, keyword.phrase);
+                              }}
+                              className="text-tertiary hover:text-utility-error-600 transition-colors"
+                              title={t('deleteKeyword')}
+                            >
+                              <Trash01 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-tertiary">
-          Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredAndSortedKeywords.length)} of {filteredAndSortedKeywords.length} keywords
-        </p>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="rounded-lg border border-secondary bg-primary px-3 py-1.5 text-sm font-medium text-primary hover:bg-secondary-subtle disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="rounded-lg border border-secondary bg-primary px-3 py-1.5 text-sm font-medium text-primary hover:bg-secondary-subtle disabled:opacity-50"
-          >
-            Next
-          </button>
+                    {/* Expanded row content */}
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={12} className="bg-secondary/20 p-6">
+                          <div className="space-y-6">
+                            {/* Position History Chart */}
+                            {keyword.positionHistory && keyword.positionHistory.length > 0 && (
+                              <div>
+                                <h4 className="text-sm font-semibold text-primary mb-3">{t('positionHistory')}</h4>
+                                <KeywordPositionChart positionHistory={keyword.positionHistory} />
+                              </div>
+                            )}
+
+                            {/* Additional details */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div className="rounded-lg border border-secondary bg-primary p-4">
+                                <p className="text-xs text-tertiary mb-1">{t('url')}</p>
+                                <p className="text-sm text-primary font-medium truncate" title={keyword.url}>
+                                  {keyword.url || "—"}
+                                </p>
+                              </div>
+                              <div className="rounded-lg border border-secondary bg-primary p-4">
+                                <p className="text-xs text-tertiary mb-1">{t('potential')}</p>
+                                <p className="text-sm text-primary font-medium">
+                                  {keyword.potential ? formatNumber(keyword.potential) : "—"}
+                                </p>
+                              </div>
+                              <div className="rounded-lg border border-secondary bg-primary p-4">
+                                <p className="text-xs text-tertiary mb-1">{t('lastUpdated')}</p>
+                                <p className="text-sm text-primary font-medium">
+                                  {keyword.lastUpdated ? new Date(keyword.lastUpdated).toLocaleDateString() : "—"}
+                                </p>
+                              </div>
+                              <div className="rounded-lg border border-secondary bg-primary p-4">
+                                <p className="text-xs text-tertiary mb-1">{tc('status')}</p>
+                                <p className="text-sm text-primary font-medium capitalize">
+                                  {keyword.status || "—"}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-secondary pt-4">
+            <p className="text-sm text-secondary">
+              {t('paginationInfo', { current: currentPage, total: totalPages, count: sortedAndFilteredKeywords.length })}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                color="secondary"
+                iconLeading={ChevronLeft}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                {tc('previous')}
+              </Button>
+              <Button
+                size="sm"
+                color="secondary"
+                iconTrailing={ChevronRight}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                {tc('next')}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* View Modal */}
-      <DialogTrigger isOpen={viewModalOpen} onOpenChange={setViewModalOpen}>
-        <ModalOverlay isDismissable>
-          <Modal>
-            <Dialog className="overflow-hidden">
-              <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-2xl">
-                <CloseButton onClick={() => setViewModalOpen(false)} theme="light" size="lg" className="absolute top-3 right-3 z-10" />
-                <div className="flex flex-col gap-4 px-6 pt-6">
-                  <Heading slot="title" className="text-lg font-semibold text-primary">
-                    Podgląd frazy: {selectedKeyword?.phrase}
-                  </Heading>
-                </div>
-                <div className="px-6 py-4">
-                  <div className="grid grid-cols-2 gap-4 rounded-lg border border-secondary p-4">
-                    <div>
-                      <p className="text-xs font-medium text-tertiary">Aktualna pozycja</p>
-                      <p className="text-lg font-semibold text-primary">{selectedKeyword?.currentPosition ? `#${selectedKeyword.currentPosition}` : "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-tertiary">Poprzednia pozycja</p>
-                      <p className="text-lg font-semibold text-primary">{selectedKeyword?.previousPosition ? `#${selectedKeyword.previousPosition}` : "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-tertiary">Zmiana</p>
-                      <p className="text-lg font-semibold text-primary">{selectedKeyword?.change || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-tertiary">Wolumen</p>
-                      <p className="text-lg font-semibold text-primary">{formatNumber(selectedKeyword?.searchVolume || 0)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-tertiary">Trudność</p>
-                      <p className="text-lg font-semibold text-primary">{selectedKeyword?.difficulty || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-tertiary">Potencjał</p>
-                      <p className="text-lg font-semibold text-primary">{selectedKeyword?.potential || 0}</p>
-                    </div>
-                  </div>
-                  {selectedKeyword?.url && (
-                    <div className="mt-4">
-                      <p className="text-xs font-medium text-tertiary">URL</p>
-                      <p className="text-sm text-primary break-all">{selectedKeyword.url}</p>
-                    </div>
-                  )}
-                  <div className="mt-4">
-                    <p className="text-xs font-medium text-tertiary mb-2">Historia pozycji</p>
-                    <div className="max-h-60 overflow-y-auto rounded-lg border border-secondary">
-                      <table className="w-full">
-                        <thead className="bg-secondary-subtle sticky top-0">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-tertiary">Data</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-tertiary">Pozycja</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedKeyword?.positionHistory.slice().reverse().map((item, idx) => (
-                            <tr key={idx} className="border-t border-secondary">
-                              <td className="px-4 py-2 text-sm text-primary">{new Date(item.date).toLocaleDateString()}</td>
-                              <td className="px-4 py-2 text-sm text-primary">#{item.position}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-3 px-6 py-4 border-t border-secondary">
-                  <Button size="md" color="secondary" onClick={() => setViewModalOpen(false)} className="flex-1">
-                    Zamknij
-                  </Button>
-                </div>
-              </div>
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
+      {/* Add Keywords Modal */}
+      <AddKeywordsModal
+        domainId={domainId}
+        isOpen={addKeywordsModalOpen}
+        onClose={() => setAddKeywordsModalOpen(false)}
+      />
 
-      {/* Edit Modal */}
-      <DialogTrigger isOpen={editModalOpen} onOpenChange={setEditModalOpen}>
-        <ModalOverlay isDismissable>
-          <Modal>
-            <Dialog className="overflow-hidden">
-              <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-md">
-                <CloseButton onClick={() => setEditModalOpen(false)} theme="light" size="lg" className="absolute top-3 right-3 z-10" />
-                <div className="flex flex-col gap-4 px-6 pt-6">
-                  <Heading slot="title" className="text-lg font-semibold text-primary">
-                    Edytuj frazę
-                  </Heading>
-                </div>
-                <div className="px-6 py-4">
-                  <Input
-                    size="md"
-                    label="Fraza kluczowa"
-                    defaultValue={selectedKeyword?.phrase}
-                    placeholder="Wprowadź frazę kluczową"
-                  />
-                </div>
-                <div className="flex gap-3 px-6 py-4 border-t border-secondary">
-                  <Button size="md" color="secondary" onClick={() => setEditModalOpen(false)} className="flex-1">
-                    Anuluj
-                  </Button>
-                  <Button
-                    size="md"
-                    color="primary"
-                    onClick={() => {
-                      toast.success("Fraza zaktualizowana");
-                      setEditModalOpen(false);
-                    }}
-                    className="flex-1"
-                  >
-                    Zapisz
-                  </Button>
-                </div>
-              </div>
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
-    </div>
+      {/* Keyword Detail Modal */}
+      <KeywordMonitoringDetailModal
+        keyword={selectedKeyword}
+        isOpen={!!selectedKeyword}
+        onClose={() => setSelectedKeyword(null)}
+      />
+    </>
   );
 }

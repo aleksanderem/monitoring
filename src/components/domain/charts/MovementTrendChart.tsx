@@ -7,20 +7,38 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 import { ChartLegendContent, ChartTooltipContent } from "@/components/application/charts/charts-base";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
+import { useTranslations } from "next-intl";
 
 interface MovementTrendChartProps {
   domainId: Id<"domains">;
 }
 
 export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
+  const t = useTranslations("keywords");
   const isDesktop = useBreakpoint("lg");
   const trend = useQuery(api.keywords.getMovementTrend, { domainId, days: 30 });
 
   if (trend === undefined) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-        <h3 className="text-sm font-semibold text-primary">Position Movement Trend (30d)</h3>
+        <h3 className="text-sm font-semibold text-primary">{t("positionMovementTrend")}</h3>
         <LoadingState type="card" />
+      </div>
+    );
+  }
+
+  // Check if there's no historical data yet
+  if (trend.length === 0) {
+    return (
+      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <h3 className="text-sm font-semibold text-primary">{t("positionMovementTrend")}</h3>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <svg className="h-12 w-12 text-tertiary mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+          </svg>
+          <p className="text-sm font-medium text-primary">{t("noHistoricalDataYet")}</p>
+          <p className="text-sm text-tertiary mt-1">{t("refreshToFetchHistory")}</p>
+        </div>
       </div>
     );
   }
@@ -33,7 +51,7 @@ export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-      <h3 className="text-sm font-semibold text-primary">Position Movement Trend (30d)</h3>
+      <h3 className="text-sm font-semibold text-primary">{t('positionMovementTrend')}</h3>
 
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
@@ -69,8 +87,8 @@ export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
 
             <Tooltip
               content={<ChartTooltipContent />}
-              formatter={(value) => Number(value).toLocaleString()}
-              labelFormatter={(value) => value.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              formatter={(value: any) => Number(value).toLocaleString()}
+              labelFormatter={(value: any) => value.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
             />
 
             <Line

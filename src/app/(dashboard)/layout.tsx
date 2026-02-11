@@ -9,6 +9,7 @@ import {
   BarChartSquare02,
   Folder,
   Globe01,
+  LayersThree01,
   SearchSm,
   Settings01,
   Users01,
@@ -16,12 +17,15 @@ import {
 import { usePathname } from "next/navigation";
 import { GlobalJobStatus } from "@/components/domain/job-status/GlobalJobStatus";
 import { JobCompletionNotifier } from "@/components/domain/job-status/JobCompletionNotifier";
+import { useTranslations } from "next-intl";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const t = useTranslations("nav");
+  const tc = useTranslations("common");
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -37,7 +41,7 @@ export default function DashboardLayout({
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
-          <p className="mt-4 text-sm text-tertiary">Loading...</p>
+          <p className="mt-4 text-sm text-tertiary">{tc("loading")}</p>
         </div>
       </div>
     );
@@ -48,53 +52,55 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-primary">
-      {/* Top bar with only right-side elements */}
-      <TopBar activeUrl={pathname} />
+    <div className="flex min-h-screen bg-primary">
+      {/* Sidebar */}
+      <SidebarNavigationSectionDividers
+        activeUrl={pathname}
+        items={[
+          {
+            label: t("dashboard"),
+            href: "/dashboard",
+            icon: BarChartSquare02,
+          },
+          {
+            label: t("projects"),
+            href: "/projects",
+            icon: Folder,
+          },
+          {
+            label: t("domains"),
+            href: "/domains",
+            icon: Globe01,
+          },
+          {
+            label: t("keywords"),
+            href: "/keywords",
+            icon: SearchSm,
+          },
+          {
+            label: t("jobs"),
+            href: "/jobs",
+            icon: LayersThree01,
+          },
+          { divider: true },
+          {
+            label: t("teams"),
+            href: "/teams",
+            icon: Users01,
+          },
+          {
+            label: t("settings"),
+            href: "/settings",
+            icon: Settings01,
+          },
+        ]}
+      />
 
-      {/* Sidebar + Content */}
-      <div className="flex flex-1">
-        <SidebarNavigationSectionDividers
-          activeUrl={pathname}
-          items={[
-            {
-              label: "Dashboard",
-              href: "/dashboard",
-              icon: BarChartSquare02,
-            },
-            {
-              label: "Projects",
-              href: "/projects",
-              icon: Folder,
-            },
-            {
-              label: "Domains",
-              href: "/domains",
-              icon: Globe01,
-            },
-            {
-              label: "Keywords",
-              href: "/keywords",
-              icon: SearchSm,
-            },
-            { divider: true },
-            {
-              label: "Teams",
-              href: "/teams",
-              icon: Users01,
-            },
-            {
-              label: "Settings",
-              href: "/settings",
-              icon: Settings01,
-            },
-          ]}
-        />
-
-        <main className="min-w-0 flex-1">
-          {children}
-        </main>
-      </div>
+      {/* Main content area (right of sidebar) */}
+      <main className="min-w-0 flex-1 flex flex-col">
+        <TopBar activeUrl={pathname} />
+        {children}
+      </main>
 
       {/* Global job status indicator */}
       <GlobalJobStatus />

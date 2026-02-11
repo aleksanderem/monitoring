@@ -7,6 +7,7 @@ import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/mod
 import { Button } from "@/components/base/buttons/button";
 import { CloseButton } from "@/components/base/buttons/close-button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { useTranslations } from "next-intl";
 
 interface DeleteConfirmationDialogProps {
   title: string;
@@ -27,6 +28,7 @@ export function DeleteConfirmationDialog({
   children,
   isDestructive = true,
 }: DeleteConfirmationDialogProps) {
+  const tc = useTranslations("common");
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -92,7 +94,7 @@ export function DeleteConfirmationDialog({
                   type="button"
                   isDisabled={isSubmitting}
                 >
-                  {isSubmitting ? "Deleting..." : confirmLabel}
+                  {isSubmitting ? tc("deleting") : confirmLabel}
                 </Button>
               </div>
             </div>

@@ -2,6 +2,7 @@
 
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 import { Globe01 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import {
   ChartContainer,
   ChartTooltip,
@@ -15,6 +16,8 @@ interface TLDDistributionChartProps {
 }
 
 export function TLDDistributionChart({ data, isLoading }: TLDDistributionChartProps) {
+  const t = useTranslations('backlinks');
+  const barColor = "#3b82f6"; // Modern blue
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
@@ -42,12 +45,12 @@ export function TLDDistributionChart({ data, isLoading }: TLDDistributionChartPr
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div>
-          <h3 className="text-md font-semibold text-primary">TLD Distribution</h3>
-          <p className="text-sm text-tertiary">Top level domains of referring sites</p>
+          <h3 className="text-md font-semibold text-primary">{t('tldTitle')}</h3>
+          <p className="text-sm text-tertiary">{t('tldSubtitle')}</p>
         </div>
         <div className="flex flex-col items-center justify-center py-12">
           <Globe01 className="h-10 w-10 text-fg-quaternary" />
-          <p className="mt-2 text-sm text-tertiary">No TLD data available</p>
+          <p className="mt-2 text-sm text-tertiary">{t('tldEmpty')}</p>
         </div>
       </div>
     );
@@ -55,7 +58,7 @@ export function TLDDistributionChart({ data, isLoading }: TLDDistributionChartPr
 
   const chartConfig = {
     count: {
-      label: "Backlinks",
+      label: t('backlinks'),
       color: "var(--chart-1)",
     },
   } satisfies ChartConfig;
@@ -63,12 +66,18 @@ export function TLDDistributionChart({ data, isLoading }: TLDDistributionChartPr
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
-        <h3 className="text-md font-semibold text-primary">TLD Distribution</h3>
-        <p className="text-sm text-tertiary">Top 10 domains by backlink count</p>
+        <h3 className="text-md font-semibold text-primary">{t('tldTitle')}</h3>
+        <p className="text-sm text-tertiary">{t('tldDescription')}</p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">
         <BarChart data={chartData} layout="vertical" margin={{ left: 20 }}>
+          <defs>
+            <linearGradient id="barGradientTLD" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor={barColor} stopOpacity={0.8} />
+              <stop offset="100%" stopColor={barColor} stopOpacity={1} />
+            </linearGradient>
+          </defs>
           <XAxis type="number" dataKey="count" hide />
           <YAxis
             type="category"
@@ -77,8 +86,12 @@ export function TLDDistributionChart({ data, isLoading }: TLDDistributionChartPr
             axisLine={false}
             width={60}
           />
-          <ChartTooltip content={<ChartTooltipContent />} cursor={false} />
-          <Bar dataKey="count" fill="var(--color-count)" radius={[0, 4, 4, 0]} />
+          <ChartTooltip
+            content={<ChartTooltipContent />}
+            cursor={false}
+            wrapperStyle={{ zIndex: 1000 }}
+          />
+          <Bar dataKey="count" fill="url(#barGradientTLD)" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ChartContainer>
     </div>

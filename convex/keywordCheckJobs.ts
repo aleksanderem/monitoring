@@ -226,6 +226,14 @@ export const processKeywordCheckJobInternal = internalAction({
         error: "Domain not found",
         completedAt: Date.now(),
       });
+      await ctx.runMutation(internal.notifications.createJobNotification, {
+        domainId: job.domainId,
+        type: "job_failed",
+        title: "Keyword check failed",
+        message: "Domain not found",
+        jobType: "keyword_check",
+        jobId: args.jobId,
+      });
       return;
     }
 
@@ -233,15 +241,19 @@ export const processKeywordCheckJobInternal = internalAction({
     let failedCount = 0;
 
     // Process each keyword
-    for (const keywordId of job.keywordIds) {
-      // Check if job was cancelled
-      const currentJob = await ctx.runQuery(internal.keywordCheckJobs.getJobInternal, {
-        jobId: args.jobId,
-      });
+    for (let i = 0; i < job.keywordIds.length; i++) {
+      const keywordId = job.keywordIds[i];
 
-      if (currentJob?.status === "cancelled") {
-        console.log(`[processKeywordCheckJob] Job ${args.jobId} cancelled during processing`);
-        return;
+      // Check if job was cancelled (every 5 keywords to reduce query overhead)
+      if (i % 5 === 0) {
+        const currentJob = await ctx.runQuery(internal.keywordCheckJobs.getJobInternal, {
+          jobId: args.jobId,
+        });
+
+        if (currentJob?.status === "cancelled") {
+          console.log(`[processKeywordCheckJob] Job ${args.jobId} cancelled during processing`);
+          return;
+        }
       }
 
       // Get keyword
@@ -270,11 +282,8 @@ export const processKeywordCheckJobInternal = internalAction({
       });
 
       try {
-        // Check if keyword has any position history
-        const existingPositions = await ctx.runQuery(internal.keywordCheckJobs.getKeywordPositionsCountInternal, {
-          keywordId,
-        });
-        const needsHistory = existingPositions === 0;
+        // Check if keyword has position history via denormalized data (zero extra queries)
+        const needsHistory = !keyword.positionUpdatedAt && !(keyword.recentPositions?.length);
 
         if (needsHistory) {
           // Use fetchSinglePosition with history
@@ -345,12 +354,26 @@ export const processKeywordCheckJobInternal = internalAction({
       completedAt: Date.now(),
     });
 
-    // Clear checking status from all keywords
-    for (const keywordId of job.keywordIds) {
-      await ctx.runMutation(internal.keywordCheckJobs.clearKeywordCheckingStatusInternal, {
-        keywordId,
-      });
-    }
+    // Notify team
+    await ctx.runMutation(internal.notifications.createJobNotification, {
+      domainId: job.domainId,
+      type: failedCount > 0 ? "job_failed" : "job_completed",
+      title: "Keyword position check completed",
+      message: `Checked ${processedCount} keywords${failedCount > 0 ? `, ${failedCount} failed` : ""}`,
+      jobType: "keyword_check",
+      jobId: args.jobId,
+    });
+
+    // Clear checking status from all keywords in one mutation (not N individual calls)
+    await ctx.runMutation(internal.keywordCheckJobs.clearKeywordCheckingStatusBatch, {
+      keywordIds: job.keywordIds,
+    });
+
+    // Trigger page scoring recomputation after keyword positions updated
+    await ctx.scheduler.runAfter(0, internal.pageScoring.computePageScores, {
+      domainId: job.domainId,
+      offset: 0,
+    });
 
     console.log(`[processKeywordCheckJob] Job ${args.jobId} completed: ${processedCount}/${job.totalKeywords} processed, ${failedCount} failed`);
   },
@@ -457,16 +480,20 @@ export const clearKeywordCheckingStatusInternal = internalMutation({
   },
 });
 
-export const getKeywordPositionsCountInternal = internalQuery({
+// Batch clear checking status for multiple keywords (single mutation instead of N calls)
+export const clearKeywordCheckingStatusBatch = internalMutation({
   args: {
-    keywordId: v.id("keywords"),
+    keywordIds: v.array(v.id("keywords")),
   },
   handler: async (ctx, args) => {
-    const positions = await ctx.db
-      .query("keywordPositions")
-      .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
-      .collect();
-    return positions.length;
+    for (const keywordId of args.keywordIds) {
+      const keyword = await ctx.db.get(keywordId);
+      if (!keyword) continue; // Skip deleted keywords — don't crash the batch
+      await ctx.db.patch(keywordId, {
+        checkingStatus: undefined,
+        checkJobId: undefined,
+      });
+    }
   },
 });
 

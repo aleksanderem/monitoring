@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query, action, internalQuery, internalMutation } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { mutation, query, action, internalQuery, internalMutation, internalAction } from "./_generated/server";
+import { api, internal } from "./_generated/api";
 import { auth } from "./auth";
 import { checkKeywordLimit } from "./limits";
 import type { Id } from "./_generated/dataModel";
@@ -100,12 +100,21 @@ export const createDomain = mutation({
       projectId: args.projectId,
     });
 
-    return await ctx.db.insert("domains", {
+    const domainId = await ctx.db.insert("domains", {
       projectId: args.projectId,
       domain: args.domain,
       settings: args.settings,
       createdAt: Date.now(),
     });
+
+    // Schedule automatic initial data fetch (keywords + visibility)
+    await ctx.scheduler.runAfter(0, internal.domains.initializeDomainData, {
+      domainId,
+      domain: args.domain,
+      location: args.settings.location,
+    });
+
+    return domainId;
   },
 });
 
@@ -733,6 +742,14 @@ export const getDomainsInternal = internalQuery({
   },
 });
 
+// Internal query to get single domain by ID (for actions)
+export const getDomainInternal = internalQuery({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.domainId);
+  },
+});
+
 // List all domains for current user (across all projects)
 export const list = query({
   args: {},
@@ -828,6 +845,13 @@ export const create = mutation({
       createdAt: Date.now(),
     });
 
+    // Schedule automatic initial data fetch (keywords + visibility)
+    await ctx.scheduler.runAfter(0, internal.domains.initializeDomainData, {
+      domainId,
+      domain: args.domain,
+      location: "Poland",
+    });
+
     return domainId;
   },
 });
@@ -886,14 +910,14 @@ export const remove = mutation({
 export const getVisibilityStats = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
-    // Get all keywords for this domain
-    const keywords = await ctx.db
-      .query("keywords")
+    // Get all discovered keywords for this domain with actual rankings (bestPosition !== 999)
+    const discoveredKeywords = await ctx.db
+      .query("discoveredKeywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .filter((q) => q.eq(q.field("status"), "active"))
+      .filter((q) => q.neq(q.field("bestPosition"), 999)) // Exclude keywords without rankings
       .collect();
 
-    if (keywords.length === 0) {
+    if (discoveredKeywords.length === 0) {
       return {
         totalKeywords: 0,
         avgPosition: 0,
@@ -905,7 +929,7 @@ export const getVisibilityStats = query({
       };
     }
 
-    // Get latest positions for all keywords
+    // Calculate stats from discovered keywords (they already have positions)
     let totalPosition = 0;
     let positionCount = 0;
     let top3Count = 0;
@@ -913,30 +937,24 @@ export const getVisibilityStats = query({
     let top100Count = 0;
     let visibilityScore = 0;
 
-    await Promise.all(
-      keywords.map(async (keyword) => {
-        const latestPosition = await ctx.db
-          .query("keywordPositions")
-          .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-          .order("desc")
-          .first();
+    for (const keyword of discoveredKeywords) {
+      const pos = keyword.bestPosition;
 
-        if (latestPosition?.position) {
-          const pos = latestPosition.position;
-          totalPosition += pos;
-          positionCount++;
+      // Only process valid positions (1-100)
+      if (pos > 0 && pos <= 100) {
+        totalPosition += pos;
+        positionCount++;
 
-          if (pos <= 3) top3Count++;
-          if (pos <= 10) top10Count++;
-          if (pos <= 100) top100Count++;
+        if (pos <= 3) top3Count++;
+        if (pos <= 10) top10Count++;
+        if (pos <= 100) top100Count++;
 
-          // Calculate visibility score (weighted by position)
-          // Higher positions = higher score (volume data not available yet)
-          const positionWeight = Math.max(0, (100 - pos) / 100);
-          visibilityScore += positionWeight * 100; // Base weight of 100 per keyword
-        }
-      })
-    );
+        // Calculate visibility score weighted by position and search volume
+        const positionWeight = Math.max(0, (100 - pos) / 100);
+        const volumeWeight = keyword.searchVolume ? Math.log10(keyword.searchVolume + 1) : 1;
+        visibilityScore += positionWeight * volumeWeight * 100;
+      }
+    }
 
     const avgPosition = positionCount > 0 ? totalPosition / positionCount : 0;
 
@@ -944,7 +962,7 @@ export const getVisibilityStats = query({
     const visibilityChange = 0;
 
     return {
-      totalKeywords: keywords.length,
+      totalKeywords: discoveredKeywords.length,
       avgPosition: Math.round(avgPosition * 10) / 10,
       top3Count,
       top10Count,
@@ -957,7 +975,7 @@ export const getVisibilityStats = query({
 
 // Get top keywords by position ranges
 export const getTopKeywords = query({
-  args: { 
+  args: {
     domainId: v.id("domains"),
     limit: v.optional(v.number()),
     positionRange: v.optional(v.object({
@@ -968,46 +986,36 @@ export const getTopKeywords = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 10;
 
-    // Get all keywords for this domain
-    const keywords = await ctx.db
-      .query("keywords")
+    // Get all discovered keywords with actual rankings (bestPosition !== 999)
+    const discoveredKeywords = await ctx.db
+      .query("discoveredKeywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .filter((q) => q.eq(q.field("status"), "active"))
+      .filter((q) => q.neq(q.field("bestPosition"), 999))
       .collect();
 
-    // Get latest position for each keyword
-    const keywordsWithPositions = await Promise.all(
-      keywords.map(async (keyword) => {
-        const positions = await ctx.db
-          .query("keywordPositions")
-          .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-          .order("desc")
-          .take(2);
+    // Map to expected format
+    const keywordsWithPositions = discoveredKeywords.map((keyword) => {
+      const change = keyword.previousPosition && keyword.bestPosition
+        ? keyword.previousPosition - keyword.bestPosition
+        : null;
 
-        const latestPosition = positions[0]?.position || null;
-        const previousPosition = positions[1]?.position || null;
-        const change = latestPosition && previousPosition 
-          ? previousPosition - latestPosition 
-          : null;
-
-        return {
-          _id: keyword._id,
-          phrase: keyword.phrase,
-          position: latestPosition,
-          previousPosition,
-          change,
-          volume: 0, // TODO: Add volume to keywords schema
-          difficulty: 0, // TODO: Add difficulty to keywords schema
-        };
-      })
-    );
+      return {
+        _id: keyword._id,
+        phrase: keyword.keyword,
+        position: keyword.bestPosition,
+        previousPosition: keyword.previousPosition || null,
+        change,
+        volume: keyword.searchVolume || 0,
+        difficulty: keyword.difficulty || 0,
+      };
+    });
 
     // Filter by position range if provided
-    let filtered = keywordsWithPositions.filter(k => k.position !== null);
+    let filtered = keywordsWithPositions.filter(k => k.position !== null && k.position > 0 && k.position <= 100);
     if (args.positionRange) {
-      filtered = filtered.filter(k => 
-        k.position !== null && 
-        k.position >= args.positionRange!.min && 
+      filtered = filtered.filter(k =>
+        k.position !== null &&
+        k.position >= args.positionRange!.min &&
         k.position <= args.positionRange!.max
       );
     }
@@ -1016,5 +1024,77 @@ export const getTopKeywords = query({
     return filtered
       .sort((a, b) => (a.position || 999) - (b.position || 999))
       .slice(0, limit);
+  },
+});
+
+// =================================================================
+// Automatic Domain Initialization (Keywords + Visibility)
+// =================================================================
+
+/**
+ * Internal action that runs automatically after domain creation
+ * Fetches initial keyword suggestions and visibility history from DataForSEO
+ */
+export const initializeDomainData = internalAction({
+  args: {
+    domainId: v.id("domains"),
+    domain: v.string(),
+    location: v.string(),
+  },
+  handler: async (ctx, args) => {
+    console.log(`[INIT] Starting automatic initialization for domain: ${args.domain}`);
+
+    try {
+      // 1. Fetch domain visibility (discovered keywords the domain ranks for)
+      console.log(`[INIT] Fetching domain visibility and discovered keywords...`);
+      const visibilityResult = await ctx.runAction(api.dataforseo.fetchAndStoreVisibility, {
+        domainId: args.domainId,
+        domain: args.domain,
+        location: args.location,
+        language: "pl", // TODO: use domain language setting
+      });
+
+      if (visibilityResult.success) {
+        console.log(`[INIT] ✓ Successfully fetched ${visibilityResult.count || 0} discovered keywords`);
+      } else {
+        console.error(`[INIT] ✗ Failed to fetch visibility: ${visibilityResult.error}`);
+      }
+
+      // 2. Fetch visibility history (12 months of position distribution)
+      console.log(`[INIT] Fetching 12 months of visibility history...`);
+      const historyResult = await ctx.runAction(api.dataforseo.fetchAndStoreVisibilityHistory, {
+        domainId: args.domainId,
+        domain: args.domain,
+        location: args.location,
+        language: "pl", // TODO: use domain language setting
+      });
+
+      if (historyResult.success) {
+        console.log(`[INIT] ✓ Successfully fetched ${historyResult.datesStored || 0} months of visibility history`);
+      } else {
+        console.error(`[INIT] ✗ Failed to fetch history: ${historyResult.error}`);
+      }
+
+      // 3. Log completion
+      const successCount = (visibilityResult.success ? 1 : 0) + (historyResult.success ? 1 : 0);
+      console.log(`[INIT] Initialization complete: ${successCount}/2 tasks successful`);
+
+      // Log to system logs
+      await ctx.runMutation(internal.logs.logSystemMessage, {
+        level: successCount === 2 ? "info" : "warning",
+        message: `Domain initialization for ${args.domain}: ${successCount}/2 tasks successful (discovered ${visibilityResult.count || 0} keywords, ${historyResult.datesStored || 0} months history)`,
+        eventType: "domain_initialization",
+      });
+
+    } catch (error) {
+      console.error(`[INIT] Error during domain initialization:`, error);
+
+      // Log error to system logs
+      await ctx.runMutation(internal.logs.logSystemMessage, {
+        level: "error",
+        message: `Domain initialization failed for ${args.domain}: ${error instanceof Error ? error.message : "Unknown error"}`,
+        eventType: "domain_initialization_error",
+      });
+    }
   },
 });

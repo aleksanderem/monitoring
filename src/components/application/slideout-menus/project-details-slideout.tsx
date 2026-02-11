@@ -12,6 +12,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 interface ProjectDetailsSlideoutProps {
   projectId: Id<"projects">;
@@ -20,23 +21,14 @@ interface ProjectDetailsSlideoutProps {
   onDelete?: () => void;
 }
 
-const tabs = [
-  {
-    id: "overview",
-    value: "overview",
-    label: "Overview",
-  },
-  {
-    id: "domains",
-    value: "domains",
-    label: "Domains",
-  },
-  {
-    id: "activity",
-    value: "activity",
-    label: "Activity",
-  },
-];
+function useTabs() {
+  const t = useTranslations('projects');
+  return [
+    { id: "overview", value: "overview", label: t('slideoutOverview') },
+    { id: "domains", value: "domains", label: t('slideoutDomains') },
+    { id: "activity", value: "activity", label: t('slideoutActivity') },
+  ];
+}
 
 export function ProjectDetailsSlideout({
   projectId,
@@ -44,6 +36,8 @@ export function ProjectDetailsSlideout({
   onEdit,
   onDelete,
 }: ProjectDetailsSlideoutProps) {
+  const t = useTranslations('projects');
+  const tabs = useTabs();
   const [isOpen, setIsOpen] = useState(false);
 
   const project = useQuery(api.projects.getProject, { projectId });
@@ -52,24 +46,15 @@ export function ProjectDetailsSlideout({
   // TODO: Check if reports are configured
   const hasConfiguredReports = false;
 
-  // Helper to format date
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
   // Helper to format relative time
   const formatRelativeTime = (timestamp: number) => {
     const days = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
-    if (days === 0) return "Today";
-    if (days === 1) return "Yesterday";
-    if (days < 7) return `${days} days ago`;
-    if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
-    if (days < 365) return `${Math.floor(days / 30)} months ago`;
-    return `${Math.floor(days / 365)} years ago`;
+    if (days === 0) return t('relativeTimeToday');
+    if (days === 1) return t('relativeTimeYesterday');
+    if (days < 7) return t('relativeTimeDaysAgo', { days });
+    if (days < 30) return t('relativeTimeWeeksAgo', { weeks: Math.floor(days / 7) });
+    if (days < 365) return t('relativeTimeMonthsAgo', { months: Math.floor(days / 30) });
+    return t('relativeTimeYearsAgo', { years: Math.floor(days / 365) });
   };
 
   return (
@@ -87,27 +72,27 @@ export function ProjectDetailsSlideout({
             </div>
             <div className="flex-1">
               <h1 className="text-md font-semibold text-primary md:text-lg">
-                {project?.name || "Loading..."}
+                {project?.name || t('loading')}
               </h1>
               <p className="text-sm text-tertiary">
-                Created {project ? formatRelativeTime(project.createdAt) : ""}
+                {project ? t('createdAgo', { time: formatRelativeTime(project.createdAt) }) : ""}
               </p>
             </div>
             <span className="flex gap-0.5">
               <ButtonUtility
                 size="xs"
                 color="tertiary"
-                tooltip="Edit"
+                tooltip={t('editTooltipSlideout')}
                 icon={Edit01}
                 onClick={() => {
-                  toast.info("Edit dialog coming soon");
+                  toast.info(t('editDialogComingSoon'));
                   onEdit?.();
                 }}
               />
               <ButtonUtility
                 size="xs"
                 color="tertiary"
-                tooltip="Delete"
+                tooltip={t('deleteTooltipSlideout')}
                 icon={Trash01}
                 onClick={() => {
                   onDelete?.();
@@ -128,7 +113,7 @@ export function ProjectDetailsSlideout({
                 {/* Summary section with icons */}
                 <section className="flex items-center justify-between py-[15px]">
                   <BadgeWithDot size="md" type="modern" color="success">
-                    Active
+                    {t('active')}
                   </BadgeWithDot>
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
@@ -155,11 +140,11 @@ export function ProjectDetailsSlideout({
                         subtitle={domain.domain}
                         change="+12%"
                         changeTrend="positive"
-                        changeDescription="vs last month"
+                        changeDescription={t('vsLastMonth')}
                       />
                     ))
                   ) : (
-                    <p className="text-sm text-tertiary">No domains added yet</p>
+                    <p className="text-sm text-tertiary">{t('noDomainsAddedYet')}</p>
                   )}
                 </section>
 
@@ -167,19 +152,19 @@ export function ProjectDetailsSlideout({
 
                 {/* Reports section */}
                 <section className="mt-4 flex flex-col gap-3">
-                  <p className="text-sm font-semibold text-primary">Reports</p>
+                  <p className="text-sm font-semibold text-primary">{t('reports')}</p>
                   {hasConfiguredReports ? (
                     <div className="flex gap-3">
                       <Button size="md" color="secondary" iconLeading={FileCheck02} className="flex-1">
-                        Wygeneruj raport
+                        {t('generateReport')}
                       </Button>
                       <Button size="md" color="secondary" iconLeading={Send01} className="flex-1">
-                        Wyślij raport
+                        {t('sendReport')}
                       </Button>
                     </div>
                   ) : (
                     <Button size="md" color="secondary">
-                      Skonfiguruj raporty
+                      {t('configureReports')}
                     </Button>
                   )}
                 </section>
@@ -189,9 +174,9 @@ export function ProjectDetailsSlideout({
                 {domains && domains.length > 0 ? (
                   <section className="flex flex-col gap-4">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-primary">Domains</p>
+                      <p className="text-sm font-semibold text-primary">{t('slideoutDomains')}</p>
                       <BadgeWithDot size="sm" type="modern" color="gray">
-                        {domains.length} {domains.length === 1 ? 'domain' : 'domains'}
+                        {t('domainsCount', { count: domains.length })}
                       </BadgeWithDot>
                     </div>
 
@@ -219,8 +204,8 @@ export function ProjectDetailsSlideout({
                 ) : (
                   <section className="flex flex-col items-center gap-2 py-8 text-center">
                     <Globe01 className="h-10 w-10 text-fg-quaternary" />
-                    <p className="text-sm font-medium text-primary">No domains yet</p>
-                    <p className="text-sm text-tertiary">Add domains to start tracking keywords</p>
+                    <p className="text-sm font-medium text-primary">{t('noDomainsYetSlideout')}</p>
+                    <p className="text-sm text-tertiary">{t('addDomainsToStart')}</p>
                   </section>
                 )}
               </TabPanel>
@@ -228,8 +213,8 @@ export function ProjectDetailsSlideout({
               <TabPanel id="activity">
                 <section className="flex flex-col items-center gap-2 py-8 text-center">
                   <Hash01 className="h-10 w-10 text-fg-quaternary" />
-                  <p className="text-sm font-medium text-primary">Activity Timeline</p>
-                  <p className="text-sm text-tertiary">Activity tracking coming soon</p>
+                  <p className="text-sm font-medium text-primary">{t('activityTimeline')}</p>
+                  <p className="text-sm text-tertiary">{t('activityTrackingComingSoon')}</p>
                 </section>
               </TabPanel>
             </Tabs>

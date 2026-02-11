@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { checkKeywordLimit } from "./limits";
 import { requirePermission, getContextFromDomain, getContextFromKeyword } from "./permissions";
@@ -18,7 +18,7 @@ function getCTRForPosition(position: number): number {
   return 0;
 }
 
-// Get keywords for a domain
+// Get keywords for a domain (uses denormalized position data — single query, no N+1)
 export const getKeywords = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
@@ -27,38 +27,17 @@ export const getKeywords = query({
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
       .collect();
 
-    // Get latest position for each keyword
-    const keywordsWithPositions = await Promise.all(
-      keywords.map(async (keyword) => {
-        const positions = await ctx.db
-          .query("keywordPositions")
-          .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-          .order("desc")
-          .take(2);
-
-        const currentPosition = positions[0] || null;
-        const previousPosition = positions[1] || null;
-
-        let change = null;
-        if (currentPosition?.position && previousPosition?.position) {
-          change = previousPosition.position - currentPosition.position;
-        }
-
-        return {
-          ...keyword,
-          currentPosition: currentPosition?.position ?? null,
-          url: currentPosition?.url ?? null,
-          searchVolume: currentPosition?.searchVolume,
-          difficulty: currentPosition?.difficulty,
-          lastUpdated: keyword.lastUpdated ?? currentPosition?.fetchedAt,
-          change,
-          checkingStatus: keyword.checkingStatus,
-          checkJobId: keyword.checkJobId,
-        };
-      })
-    );
-
-    return keywordsWithPositions;
+    return keywords.map((keyword) => ({
+      ...keyword,
+      currentPosition: keyword.currentPosition ?? null,
+      url: keyword.currentUrl ?? null,
+      searchVolume: keyword.searchVolume,
+      difficulty: keyword.difficulty,
+      lastUpdated: keyword.lastUpdated ?? keyword.positionUpdatedAt,
+      change: keyword.positionChange ?? null,
+      checkingStatus: keyword.checkingStatus,
+      checkJobId: keyword.checkJobId,
+    }));
   },
 });
 
@@ -117,9 +96,11 @@ export const getKeywordWithHistory = query({
 export const getPositionDistribution = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
-    const keywords = await ctx.db
-      .query("keywords")
+    // Get all discovered keywords with actual rankings (bestPosition !== 999)
+    const discoveredKeywords = await ctx.db
+      .query("discoveredKeywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .filter((q) => q.neq(q.field("bestPosition"), 999))
       .collect();
 
     const distribution = {
@@ -131,23 +112,16 @@ export const getPositionDistribution = query({
       pos100plus: 0,
     };
 
-    for (const keyword of keywords) {
-      // Get latest position for this keyword
-      const latestPosition = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .order("desc")
-        .first();
+    for (const keyword of discoveredKeywords) {
+      const pos = keyword.bestPosition;
 
-      if (!latestPosition?.position) continue;
-
-      const pos = latestPosition.position;
-      if (pos <= 3) distribution.top3++;
-      else if (pos <= 10) distribution.pos4_10++;
-      else if (pos <= 20) distribution.pos11_20++;
-      else if (pos <= 50) distribution.pos21_50++;
-      else if (pos <= 100) distribution.pos51_100++;
-      else distribution.pos100plus++;
+      // Only process valid positions
+      if (pos > 0 && pos <= 3) distribution.top3++;
+      else if (pos > 3 && pos <= 10) distribution.pos4_10++;
+      else if (pos > 10 && pos <= 20) distribution.pos11_20++;
+      else if (pos > 20 && pos <= 50) distribution.pos21_50++;
+      else if (pos > 50 && pos <= 100) distribution.pos51_100++;
+      else if (pos > 100) distribution.pos100plus++;
     }
 
     return distribution;
@@ -161,63 +135,32 @@ export const getMovementTrend = query({
     days: v.optional(v.number())
   },
   handler: async (ctx, args) => {
-    const daysToFetch = args.days || 30;
+    // Note: domainVisibilityHistory stores MONTHLY data (first day of each month)
+    // So we need to fetch more months to have enough data points for the trend
+    const monthsToFetch = 6; // Get last 6 months of data
     const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysToFetch);
+    cutoffDate.setMonth(cutoffDate.getMonth() - monthsToFetch);
     const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
 
-    const keywords = await ctx.db
-      .query("keywords")
+    // Get visibility history from domainVisibilityHistory table
+    const history = await ctx.db
+      .query("domainVisibilityHistory")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .filter((q) => q.gte(q.field("date"), cutoffDateStr))
       .collect();
 
-    // Build a map of date -> {gainers, losers}
-    const trendMap = new Map<string, { gainers: number; losers: number }>();
-
-    for (const keyword of keywords) {
-      const positions = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .filter((q) => q.gte(q.field("date"), cutoffDateStr))
-        .collect();
-
-      // Sort by date to compare consecutive positions
-      positions.sort((a, b) => a.date.localeCompare(b.date));
-
-      for (let i = 1; i < positions.length; i++) {
-        const prev = positions[i - 1];
-        const curr = positions[i];
-        const dateKey = curr.date;
-
-        if (!trendMap.has(dateKey)) {
-          trendMap.set(dateKey, { gainers: 0, losers: 0 });
-        }
-
-        const trend = trendMap.get(dateKey)!;
-
-        // Only count if both positions are valid numbers
-        if (curr.position !== null && prev.position !== null) {
-          if (curr.position < prev.position) {
-            trend.gainers++;
-          } else if (curr.position > prev.position) {
-            trend.losers++;
-          }
-        }
-      }
-    }
-
-    // Convert map to array sorted by date
-    return Array.from(trendMap.entries())
-      .map(([date, data]) => ({
-        date: new Date(date).getTime(),
-        gainers: data.gainers,
-        losers: data.losers,
+    // Map to chart format
+    return history
+      .map((entry) => ({
+        date: new Date(entry.date).getTime(),
+        gainers: entry.metrics.is_up || 0,
+        losers: entry.metrics.is_down || 0,
       }))
       .sort((a, b) => a.date - b.date);
   },
 });
 
-// Get monitoring statistics for overview cards
+// Get monitoring statistics for overview cards (uses denormalized data — single query, no N+1)
 export const getMonitoringStats = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
@@ -226,8 +169,7 @@ export const getMonitoringStats = query({
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
       .collect();
 
-    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-    const sevenDaysAgoStr = new Date(sevenDaysAgo).toISOString().split('T')[0];
+    const sevenDaysAgoStr = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     let totalPosition = 0;
     let positionCount = 0;
@@ -239,48 +181,33 @@ export const getMonitoringStats = query({
     let stable = 0;
 
     for (const keyword of keywords) {
-      // Get latest position
-      const latestPosition = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .order("desc")
-        .first();
+      const currentPos = keyword.currentPosition;
 
-      if (latestPosition?.position) {
-        totalPosition += latestPosition.position;
+      if (currentPos != null && currentPos !== null) {
+        totalPosition += currentPos;
         positionCount++;
 
-        // Calculate potential traffic for keywords in top 50
-        if (latestPosition.position <= 50 && latestPosition.searchVolume) {
-          const ctr = getCTRForPosition(latestPosition.position);
-          estimatedMonthlyTraffic += latestPosition.searchVolume * ctr;
+        if (currentPos <= 50 && keyword.searchVolume) {
+          estimatedMonthlyTraffic += keyword.searchVolume * getCTRForPosition(currentPos);
         }
       }
 
-      // Get positions from the last 7 days to compare
-      const positions = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .filter((q) => q.gte(q.field("date"), sevenDaysAgoStr))
-        .collect();
+      // Use recentPositions for 7-day comparison (no DB query needed)
+      const recent = keyword.recentPositions ?? [];
+      if (recent.length >= 2) {
+        // Filter to entries within the last 7 days
+        const weekEntries = recent.filter((p) => p.date >= sevenDaysAgoStr);
+        if (weekEntries.length >= 2) {
+          const oldPos = weekEntries[0].position;
+          const newPos = weekEntries[weekEntries.length - 1].position;
 
-      if (positions.length >= 2) {
-        // Sort by date
-        positions.sort((a, b) => a.date.localeCompare(b.date));
-        const oldPos = positions[0].position;
-        const newPos = positions[positions.length - 1].position;
+          if (oldPos !== null && newPos !== null) {
+            totalPositionSevenDaysAgo += oldPos;
+            positionCountSevenDaysAgo++;
 
-        if (oldPos !== null && newPos !== null) {
-          totalPositionSevenDaysAgo += oldPos;
-          positionCountSevenDaysAgo++;
-
-          // Determine movement status (lower position number = better)
-          if (newPos < oldPos) {
-            gainers++;
-          } else if (newPos > oldPos) {
-            losers++;
-          } else {
-            stable++;
+            if (newPos < oldPos) gainers++;
+            else if (newPos > oldPos) losers++;
+            else stable++;
           }
         }
       }
@@ -290,9 +217,8 @@ export const getMonitoringStats = query({
     const avgPositionSevenDaysAgo = positionCountSevenDaysAgo > 0
       ? totalPositionSevenDaysAgo / positionCountSevenDaysAgo
       : 0;
-
     const avgPositionChange7d = avgPositionSevenDaysAgo > 0
-      ? avgPositionSevenDaysAgo - avgPosition // Negative means improvement
+      ? avgPositionSevenDaysAgo - avgPosition
       : 0;
 
     return {
@@ -307,95 +233,114 @@ export const getMonitoringStats = query({
 });
 
 // Get keyword monitoring data with sparklines and status
+// Optimized: batch-fetches discoveredKeywords once, uses denormalized position data
+// Reduced from ~4 queries/keyword to ~0 queries/keyword (uses recentPositions from keyword record)
 export const getKeywordMonitoring = query({
-  args: { domainId: v.id("domains") },
+  args: { domainId: v.id("domains"), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .take(args.limit ?? 100);
+
+    // Batch: fetch ALL discoveredKeywords for domain once, build a Map by phrase
+    const allDiscovered = await ctx.db
+      .query("discoveredKeywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
       .collect();
+    const discoveredMap = new Map<string, typeof allDiscovered[0]>();
+    for (const dk of allDiscovered) {
+      discoveredMap.set(dk.keyword, dk);
+    }
 
-    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    return keywords.map((keyword) => {
+      const discovered = discoveredMap.get(keyword.phrase) ?? null;
 
-    const results = [];
+      // Use denormalized position data (no DB queries needed)
+      const currentPosition = keyword.currentPosition ??
+        (discovered?.bestPosition && discovered.bestPosition !== 999
+          ? discovered.bestPosition
+          : null);
 
-    for (const keyword of keywords) {
-      // Get positions for the last 30 days for sparkline
-      const positions = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .filter((q) => q.gte(q.field("date"), new Date(thirtyDaysAgo).toISOString().split('T')[0]))
-        .collect();
-
-      positions.sort((a, b) => a.date.localeCompare(b.date));
-
-      // Get current position (most recent)
-      const latestPosition = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .order("desc")
-        .first();
-
-      const currentPosition = latestPosition?.position || null;
-
-      // Get previous position (second most recent)
-      const allPositionsDesc = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .order("desc")
-        .take(2);
-
-      const previousPosition = allPositionsDesc.length >= 2
-        ? allPositionsDesc[1].position
-        : null;
-      const change = currentPosition && previousPosition
-        ? previousPosition - currentPosition // Negative means dropped
-        : null;
-
-      // Determine status
-      let status: "rising" | "stable" | "falling" | "new" = "stable";
-      if (previousPosition === null && currentPosition !== null) {
-        status = "new";
-      } else if (change && change > 0) {
-        status = "rising"; // Improved (lower position number)
-      } else if (change && change < 0) {
-        status = "falling"; // Dropped (higher position number)
+      // Previous position: denormalized, then fall back to discoveredKeywords
+      let previousPosition: number | null = keyword.previousPosition ?? null;
+      if (previousPosition == null) {
+        if (discovered?.previousPosition != null && discovered.previousPosition !== 999) {
+          previousPosition = discovered.previousPosition;
+        } else if (discovered?.previousRankAbsolute != null && discovered.previousRankAbsolute !== 999) {
+          previousPosition = discovered.previousRankAbsolute;
+        }
       }
 
-      // Calculate potential
-      const potential = currentPosition && latestPosition?.searchVolume
-        ? Math.round(latestPosition.searchVolume * getCTRForPosition(currentPosition))
+      // Change: denormalized first, then discoveredKeywords fallback
+      let change: number | null = keyword.positionChange ?? null;
+      if (change == null) {
+        if (currentPosition != null && previousPosition != null) {
+          change = previousPosition - currentPosition;
+        } else if (discovered?.isUp) {
+          change = 1;
+        } else if (discovered?.isDown) {
+          change = -1;
+        }
+      }
+
+      // Status
+      let status: "rising" | "stable" | "falling" | "new" = "stable";
+      if (discovered?.isNew || (!keyword.positionUpdatedAt && discovered)) {
+        status = "new";
+      } else if (change && change > 0) {
+        status = "rising";
+      } else if (change && change < 0) {
+        status = "falling";
+      }
+
+      // Potential traffic
+      const sv = discovered?.searchVolume || keyword.searchVolume || null;
+      const potential = currentPosition != null && sv
+        ? Math.round(sv * getCTRForPosition(currentPosition))
         : null;
 
-      // Build position history array for sparkline (last 30 days)
-      const positionHistory = positions.map(p => ({
+      // Sparkline from denormalized recentPositions (no DB query needed)
+      const positionHistory = (keyword.recentPositions ?? []).map((p) => ({
         date: new Date(p.date).getTime(),
         position: p.position,
       }));
 
-      results.push({
+      return {
         keywordId: keyword._id,
+        domainId: keyword.domainId,
         phrase: keyword.phrase,
         currentPosition,
         previousPosition,
         change,
         status,
-        searchVolume: latestPosition?.searchVolume || null,
-        difficulty: latestPosition?.difficulty || null,
-        url: latestPosition?.url || null,
+        searchVolume: discovered?.searchVolume || keyword.searchVolume || null,
+        difficulty: discovered?.difficulty || keyword.difficulty || null,
+        url: keyword.currentUrl || discovered?.url || null,
         positionHistory,
-        lastUpdated: latestPosition?._creationTime || keyword._creationTime,
+        lastUpdated: keyword.positionUpdatedAt || keyword._creationTime,
         potential,
         checkingStatus: keyword.checkingStatus,
-      });
-    }
 
-    return results;
+        // Rich data from discoveredKeywords
+        cpc: discovered?.cpc || keyword.latestCpc || null,
+        etv: discovered?.etv || null,
+        competition: discovered?.competition || null,
+        competitionLevel: discovered?.competitionLevel || null,
+        intent: discovered?.intent || null,
+        serpFeatures: discovered?.serpFeatures || null,
+        estimatedPaidTrafficCost: discovered?.estimatedPaidTrafficCost || null,
+        monthlySearches: discovered?.monthlySearches || null,
+        isNew: discovered?.isNew || null,
+        isUp: discovered?.isUp || null,
+        isDown: discovered?.isDown || null,
+      };
+    });
   },
 });
 
 // Get recent keyword position changes (for recent changes table)
+// Optimized: for 7-day window uses denormalized recentPositions (zero DB queries per keyword)
 export const getRecentChanges = query({
   args: {
     domainId: v.id("domains"),
@@ -405,10 +350,7 @@ export const getRecentChanges = query({
   handler: async (ctx, args) => {
     const daysAgo = args.days || 7;
     const limit = args.limit || 10;
-
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
-    const cutoffStr = cutoffDate.toISOString().split("T")[0];
+    const cutoffStr = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
     const keywords = await ctx.db
       .query("keywords")
@@ -416,44 +358,61 @@ export const getRecentChanges = query({
       .filter((q) => q.eq(q.field("status"), "active"))
       .collect();
 
-    const changesPromises = keywords.map(async (keyword) => {
-      const positions = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .order("desc")
-        .take(50);
+    const useRecentPositions = daysAgo <= 7;
 
-      if (positions.length < 2) return null;
+    const changes: {
+      keywordId: typeof keywords[0]["_id"];
+      phrase: string;
+      oldPosition: number;
+      newPosition: number;
+      change: number;
+      searchVolume: number | undefined;
+      url: string | null | undefined;
+    }[] = [];
 
-      const current = positions[0];
-      const oldPosition = positions.find(p => p.date <= cutoffStr);
+    for (const keyword of keywords) {
+      const currentPos = keyword.currentPosition;
+      if (currentPos == null) continue;
 
-      if (!current.position || !oldPosition?.position) return null;
+      let oldPos: number | null = null;
 
-      const change = oldPosition.position - current.position;
-      if (change === 0) return null;
+      if (useRecentPositions) {
+        const recent = keyword.recentPositions ?? [];
+        const old = recent.find((p) => p.date <= cutoffStr);
+        oldPos = old?.position ?? null;
+      } else {
+        // Fall back to DB for longer periods
+        const positions = await ctx.db
+          .query("keywordPositions")
+          .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+          .order("desc")
+          .take(50);
+        const old = positions.find((p) => p.date <= cutoffStr);
+        oldPos = old?.position ?? null;
+      }
 
-      return {
+      if (oldPos == null) continue;
+      const change = oldPos - currentPos;
+      if (change === 0) continue;
+
+      changes.push({
         keywordId: keyword._id,
         phrase: keyword.phrase,
-        oldPosition: oldPosition.position,
-        newPosition: current.position,
+        oldPosition: oldPos,
+        newPosition: currentPos,
         change,
-        searchVolume: current.searchVolume,
-        url: current.url,
-      };
-    });
+        searchVolume: keyword.searchVolume,
+        url: keyword.currentUrl,
+      });
+    }
 
-    const changes = (await Promise.all(changesPromises)).filter(c => c !== null);
-
-    // Sort by absolute change, biggest first
-    changes.sort((a, b) => Math.abs(b!.change) - Math.abs(a!.change));
-
+    changes.sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
     return changes.slice(0, limit);
   },
 });
 
 // Get top gainers and losers (for performance tables)
+// Optimized: for <=7 day window uses denormalized data; longer periods still need DB queries
 export const getTopPerformers = query({
   args: {
     domainId: v.id("domains"),
@@ -463,10 +422,7 @@ export const getTopPerformers = query({
   handler: async (ctx, args) => {
     const daysAgo = args.days || 30;
     const limit = args.limit || 10;
-
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
-    const cutoffStr = cutoffDate.toISOString().split("T")[0];
+    const cutoffStr = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
     const keywords = await ctx.db
       .query("keywords")
@@ -474,43 +430,63 @@ export const getTopPerformers = query({
       .filter((q) => q.eq(q.field("status"), "active"))
       .collect();
 
-    const changesPromises = keywords.map(async (keyword) => {
-      const positions = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .order("desc")
-        .take(100);
+    const useRecentPositions = daysAgo <= 7;
 
-      if (positions.length < 2) return null;
+    type ChangeEntry = {
+      keywordId: typeof keywords[0]["_id"];
+      phrase: string;
+      oldPosition: number;
+      newPosition: number;
+      change: number;
+      searchVolume: number | undefined;
+      url: string | null | undefined;
+    };
 
-      const current = positions[0];
-      const oldPosition = positions.find(p => p.date <= cutoffStr);
+    const allChanges: ChangeEntry[] = [];
 
-      if (!current.position || !oldPosition?.position) return null;
+    for (const keyword of keywords) {
+      const currentPos = keyword.currentPosition;
+      if (currentPos == null) continue;
 
-      const change = oldPosition.position - current.position;
+      let oldPos: number | null = null;
 
-      return {
+      if (useRecentPositions) {
+        const recent = keyword.recentPositions ?? [];
+        const old = recent.find((p) => p.date <= cutoffStr);
+        oldPos = old?.position ?? null;
+      } else {
+        const positions = await ctx.db
+          .query("keywordPositions")
+          .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+          .order("desc")
+          .take(100);
+        const old = positions.find((p) => p.date <= cutoffStr);
+        oldPos = old?.position ?? null;
+      }
+
+      if (oldPos == null) continue;
+      const change = oldPos - currentPos;
+
+      allChanges.push({
         keywordId: keyword._id,
         phrase: keyword.phrase,
-        oldPosition: oldPosition.position,
-        newPosition: current.position,
+        oldPosition: oldPos,
+        newPosition: currentPos,
         change,
-        searchVolume: current.searchVolume,
-        url: current.url,
-      };
-    });
+        searchVolume: keyword.searchVolume,
+        url: keyword.currentUrl,
+      });
+    }
 
-    const allChanges = (await Promise.all(changesPromises)).filter(c => c !== null);
-
-    const gainers = allChanges.filter(c => c!.change > 0).sort((a, b) => b!.change - a!.change).slice(0, limit);
-    const losers = allChanges.filter(c => c!.change < 0).sort((a, b) => a!.change - b!.change).slice(0, limit);
+    const gainers = allChanges.filter((c) => c.change > 0).sort((a, b) => b.change - a.change).slice(0, limit);
+    const losers = allChanges.filter((c) => c.change < 0).sort((a, b) => a.change - b.change).slice(0, limit);
 
     return { gainers, losers };
   },
 });
 
 // Get top keywords by search volume (for top keywords table)
+// Optimized: uses denormalized data, zero per-keyword DB queries
 export const getTopKeywordsByVolume = query({
   args: {
     domainId: v.id("domains"),
@@ -525,37 +501,21 @@ export const getTopKeywordsByVolume = query({
       .filter((q) => q.eq(q.field("status"), "active"))
       .collect();
 
-    const keywordsWithDataPromises = keywords.map(async (keyword) => {
-      const positions = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .order("desc")
-        .take(8);
-
-      if (positions.length === 0) return null;
-
-      const current = positions[0];
-      if (!current.searchVolume) return null;
-
-      const previous = positions.find(p => p.date !== current.date);
-      const change = previous?.position && current.position
-        ? previous.position - current.position
-        : null;
-
-      return {
-        keywordId: keyword._id,
-        phrase: keyword.phrase,
-        position: current.position,
-        searchVolume: current.searchVolume,
-        url: current.url,
-        change,
-        history: positions.slice(0, 7).reverse(),
-      };
-    });
-
-    const keywordsWithData = (await Promise.all(keywordsWithDataPromises))
-      .filter(k => k !== null)
-      .sort((a, b) => b!.searchVolume! - a!.searchVolume!);
+    const keywordsWithData = keywords
+      .filter((kw) => kw.searchVolume && kw.searchVolume > 0)
+      .map((kw) => ({
+        keywordId: kw._id,
+        phrase: kw.phrase,
+        position: kw.currentPosition,
+        searchVolume: kw.searchVolume!,
+        url: kw.currentUrl,
+        change: kw.positionChange ?? null,
+        history: (kw.recentPositions ?? []).map((p) => ({
+          date: p.date,
+          position: p.position,
+        })),
+      }))
+      .sort((a, b) => b.searchVolume - a.searchVolume);
 
     return keywordsWithData.slice(0, limit);
   },
@@ -763,6 +723,7 @@ export const deleteKeywords = mutation({
 });
 
 // Store position data (called by DataForSEO integration)
+// Also maintains denormalized position data on the keyword record
 export const storePosition = mutation({
   args: {
     keywordId: v.id("keywords"),
@@ -782,8 +743,8 @@ export const storePosition = mutation({
       )
       .unique();
 
+    let positionId;
     if (existing) {
-      // Update existing
       await ctx.db.patch(existing._id, {
         position: args.position,
         url: args.url,
@@ -792,19 +753,56 @@ export const storePosition = mutation({
         cpc: args.cpc,
         fetchedAt: Date.now(),
       });
-      return existing._id;
+      positionId = existing._id;
+    } else {
+      positionId = await ctx.db.insert("keywordPositions", {
+        keywordId: args.keywordId,
+        date: args.date,
+        position: args.position,
+        url: args.url,
+        searchVolume: args.searchVolume,
+        difficulty: args.difficulty,
+        cpc: args.cpc,
+        fetchedAt: Date.now(),
+      });
     }
 
-    return await ctx.db.insert("keywordPositions", {
-      keywordId: args.keywordId,
-      date: args.date,
-      position: args.position,
-      url: args.url,
-      searchVolume: args.searchVolume,
-      difficulty: args.difficulty,
-      cpc: args.cpc,
-      fetchedAt: Date.now(),
-    });
+    // Denormalize: update keyword record with current position data
+    const keyword = await ctx.db.get(args.keywordId);
+    if (keyword) {
+      const oldPosition = keyword.currentPosition;
+      const recentPositions = keyword.recentPositions ?? [];
+
+      // Update recentPositions: add/replace entry for this date, keep last 7 by date
+      const filtered = recentPositions.filter((p) => p.date !== args.date);
+      filtered.push({ date: args.date, position: args.position });
+      filtered.sort((a, b) => a.date.localeCompare(b.date));
+      const trimmed = filtered.slice(-7);
+
+      // Determine current and previous from the sorted recent list
+      const latestEntry = trimmed[trimmed.length - 1];
+      const prevEntry = trimmed.length >= 2 ? trimmed[trimmed.length - 2] : null;
+
+      const currentPos = latestEntry?.position ?? null;
+      const previousPos = prevEntry?.position ?? oldPosition ?? null;
+      const change = (currentPos != null && previousPos != null)
+        ? previousPos - currentPos
+        : null;
+
+      await ctx.db.patch(args.keywordId, {
+        currentPosition: currentPos,
+        previousPosition: previousPos,
+        positionChange: change,
+        currentUrl: args.url,
+        searchVolume: args.searchVolume,
+        difficulty: args.difficulty,
+        latestCpc: args.cpc,
+        positionUpdatedAt: Date.now(),
+        recentPositions: trimmed,
+      });
+    }
+
+    return positionId;
   },
 });
 
@@ -981,5 +979,406 @@ export const importKeywords = mutation({
     }
 
     return results;
+  },
+});
+
+/**
+ * Internal query to get a keyword by ID
+ */
+export const getKeywordInternal = internalQuery({
+  args: {
+    keywordId: v.id("keywords"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.keywordId);
+  },
+});
+
+/**
+ * Internal query to get all monitored keywords for a domain
+ */
+export const getMonitoredKeywordsInternal = internalQuery({
+  args: {
+    domainId: v.id("domains"),
+  },
+  handler: async (ctx, args) => {
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    return keywords.map((kw) => ({
+      _id: kw._id,
+      phrase: kw.phrase,
+    }));
+  },
+});
+
+/**
+ * Internal query to get keyword by phrase
+ */
+export const getKeywordByPhraseInternal = internalQuery({
+  args: {
+    domainId: v.id("domains"),
+    phrase: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const keyword = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .filter((q) => q.eq(q.field("phrase"), args.phrase))
+      .first();
+
+    return keyword;
+  },
+});
+
+/**
+ * Internal mutation to create a keyword
+ */
+export const createKeywordInternal = internalMutation({
+  args: {
+    domainId: v.id("domains"),
+    phrase: v.string(),
+    status: v.union(v.literal("active"), v.literal("paused"), v.literal("pending_approval")),
+    searchVolume: v.optional(v.number()),
+    difficulty: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const keywordId = await ctx.db.insert("keywords", {
+      domainId: args.domainId,
+      phrase: args.phrase,
+      status: args.status,
+      createdAt: Date.now(),
+      searchVolume: args.searchVolume,
+      difficulty: args.difficulty,
+    });
+
+    return keywordId;
+  },
+});
+
+/**
+ * Query to get SERP results for a keyword
+ */
+export const getSerpResultsForKeyword = query({
+  args: {
+    keywordId: v.id("keywords"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 10;
+
+    // Get the most recent SERP results for this keyword
+    const results = await ctx.db
+      .query("keywordSerpResults")
+      .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
+      .order("desc")
+      .take(100); // Get up to 100 results
+
+    if (results.length === 0) {
+      return null;
+    }
+
+    // Group by date and get the most recent date
+    const latestDate = results[0].date;
+    const latestResults = results.filter((r) => r.date === latestDate);
+
+    // Sort by position and take top N
+    const topResults = latestResults
+      .sort((a, b) => a.position - b.position)
+      .slice(0, limit);
+
+    return {
+      date: latestDate,
+      fetchedAt: results[0].fetchedAt,
+      results: topResults.map((r) => ({
+        // Ranking info
+        position: r.position,
+        rankGroup: r.rankGroup,
+        rankAbsolute: r.rankAbsolute,
+
+        // Basic info
+        domain: r.domain,
+        url: r.url,
+        title: r.title,
+        description: r.description,
+        breadcrumb: r.breadcrumb,
+        websiteName: r.websiteName,
+        relativeUrl: r.relativeUrl,
+        mainDomain: r.mainDomain,
+
+        // Highlighted text
+        highlighted: r.highlighted,
+
+        // Sitelinks
+        sitelinks: r.sitelinks,
+
+        // Traffic & Value
+        etv: r.etv,
+        estimatedPaidTrafficCost: r.estimatedPaidTrafficCost,
+
+        // SERP Features
+        isFeaturedSnippet: r.isFeaturedSnippet,
+        isMalicious: r.isMalicious,
+        isWebStory: r.isWebStory,
+        ampVersion: r.ampVersion,
+
+        // Rating
+        rating: r.rating,
+
+        // Price
+        price: r.price,
+
+        // Timestamps
+        timestamp: r.timestamp,
+
+        // About this result
+        aboutThisResult: r.aboutThisResult,
+
+        // Your domain flag
+        isYourDomain: r.isYourDomain,
+      })),
+    };
+  },
+});
+
+// Position aggregation: temporal comparison of keyword positions
+// Optimized: uses denormalized currentPosition (eliminates 1 query/keyword), still needs old-position query
+export const getPositionAggregation = query({
+  args: {
+    domainId: v.id("domains"),
+    days: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const days = args.days ?? 30;
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    if (keywords.length === 0) return null;
+
+    let improving = 0;
+    let declining = 0;
+    let stable = 0;
+    let newEntries = 0;
+    let totalCurrentPos = 0;
+    let totalPreviousPos = 0;
+    let keywordsWithPositions = 0;
+
+    const positionBuckets = {
+      top3: { current: 0, previous: 0 },
+      top10: { current: 0, previous: 0 },
+      top20: { current: 0, previous: 0 },
+      top50: { current: 0, previous: 0 },
+      beyond: { current: 0, previous: 0 },
+    };
+
+    // For short periods (<=7 days), use recentPositions to avoid DB queries entirely
+    const useRecentPositions = days <= 7;
+
+    for (const kw of keywords) {
+      const currentPos = kw.currentPosition;
+      if (currentPos == null) continue;
+
+      keywordsWithPositions++;
+      totalCurrentPos += currentPos;
+
+      // Bucket current position
+      if (currentPos <= 3) positionBuckets.top3.current++;
+      else if (currentPos <= 10) positionBuckets.top10.current++;
+      else if (currentPos <= 20) positionBuckets.top20.current++;
+      else if (currentPos <= 50) positionBuckets.top50.current++;
+      else positionBuckets.beyond.current++;
+
+      let prevPos: number | null = null;
+
+      if (useRecentPositions) {
+        // Use denormalized recentPositions for 7-day comparison
+        const recent = kw.recentPositions ?? [];
+        const oldEntry = recent.find((p) => p.date <= cutoffDate);
+        prevPos = oldEntry?.position ?? null;
+      } else {
+        // For longer periods, still need a DB query
+        const oldPositions = await ctx.db
+          .query("keywordPositions")
+          .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
+          .filter((q) => q.lte(q.field("date"), cutoffDate))
+          .order("desc")
+          .first();
+        prevPos = oldPositions?.position ?? null;
+      }
+
+      if (prevPos !== null) {
+        totalPreviousPos += prevPos;
+
+        if (prevPos <= 3) positionBuckets.top3.previous++;
+        else if (prevPos <= 10) positionBuckets.top10.previous++;
+        else if (prevPos <= 20) positionBuckets.top20.previous++;
+        else if (prevPos <= 50) positionBuckets.top50.previous++;
+        else positionBuckets.beyond.previous++;
+
+        const diff = prevPos - currentPos;
+        if (diff > 1) improving++;
+        else if (diff < -1) declining++;
+        else stable++;
+      } else {
+        newEntries++;
+      }
+    }
+
+    const avgCurrentPos = keywordsWithPositions > 0 ? Math.round((totalCurrentPos / keywordsWithPositions) * 10) / 10 : null;
+    const compared = improving + declining + stable;
+    const avgPreviousPos = compared > 0 ? Math.round((totalPreviousPos / compared) * 10) / 10 : null;
+    const avgChange = avgCurrentPos !== null && avgPreviousPos !== null ? Math.round((avgPreviousPos - avgCurrentPos) * 10) / 10 : null;
+
+    return {
+      totalKeywords: keywords.length,
+      keywordsWithPositions,
+      improving,
+      declining,
+      stable,
+      newEntries,
+      avgCurrentPosition: avgCurrentPos,
+      avgPreviousPosition: avgPreviousPos,
+      avgPositionChange: avgChange,
+      positionDistributionShift: Object.entries(positionBuckets).map(([bucket, data]) => ({
+        bucket,
+        current: data.current,
+        previous: data.previous,
+        change: data.current - data.previous,
+      })),
+      period: days,
+    };
+  },
+});
+
+// Backfill denormalized position data for keywords that are missing it.
+// This populates currentPosition, previousPosition, positionChange,
+// currentUrl, recentPositions from existing keywordPositions records.
+// Safe to run multiple times — idempotent.
+export const backfillDenormalizedPositions = internalMutation({
+  args: { domainId: v.optional(v.id("domains")) },
+  handler: async (ctx, args) => {
+    // Get keywords — optionally scoped to a domain
+    let keywords;
+    const domainId = args.domainId;
+    if (domainId) {
+      keywords = await ctx.db
+        .query("keywords")
+        .withIndex("by_domain", (q) => q.eq("domainId", domainId))
+        .collect();
+    } else {
+      keywords = await ctx.db.query("keywords").collect();
+    }
+
+    // Only process keywords missing denormalized data
+    const needsBackfill = keywords.filter(
+      (k) => k.currentPosition === undefined && k.recentPositions === undefined
+    );
+
+    let updated = 0;
+    for (const keyword of needsBackfill) {
+      // Get last 7 positions sorted by date desc
+      const positions = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+        .order("desc")
+        .take(7);
+
+      if (positions.length === 0) continue;
+
+      // Build recentPositions (sorted by date asc, last 7)
+      const recentPositions = positions
+        .map((p) => ({ date: p.date, position: p.position }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      const latest = recentPositions[recentPositions.length - 1];
+      const prev = recentPositions.length >= 2 ? recentPositions[recentPositions.length - 2] : null;
+
+      const currentPos = latest?.position ?? null;
+      const previousPos = prev?.position ?? null;
+      const change = (currentPos != null && previousPos != null)
+        ? previousPos - currentPos
+        : null;
+
+      // Get URL and metadata from the most recent position record
+      const latestRecord = positions[0]; // already sorted desc
+
+      await ctx.db.patch(keyword._id, {
+        currentPosition: currentPos,
+        previousPosition: previousPos,
+        positionChange: change,
+        currentUrl: latestRecord.url,
+        searchVolume: latestRecord.searchVolume ?? keyword.searchVolume,
+        difficulty: latestRecord.difficulty ?? keyword.difficulty,
+        latestCpc: latestRecord.cpc ?? keyword.latestCpc,
+        positionUpdatedAt: latestRecord.fetchedAt ?? Date.now(),
+        recentPositions,
+      });
+      updated++;
+    }
+
+    console.log(`[backfill] Updated ${updated}/${needsBackfill.length} keywords (${keywords.length} total)`);
+    return { updated, total: keywords.length, needsBackfill: needsBackfill.length };
+  },
+});
+
+// One-time cleanup: remove duplicate keywordPositions (same keywordId + date)
+export const deduplicatePositions = internalMutation({
+  args: { domainId: v.optional(v.id("domains")) },
+  handler: async (ctx, args) => {
+    let keywords;
+    const domainId = args.domainId;
+    if (domainId) {
+      keywords = await ctx.db
+        .query("keywords")
+        .withIndex("by_domain", (q) => q.eq("domainId", domainId))
+        .collect();
+    } else {
+      keywords = await ctx.db.query("keywords").collect();
+    }
+
+    let totalDeleted = 0;
+    let keywordsProcessed = 0;
+
+    for (const keyword of keywords) {
+      const positions = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+        .collect();
+
+      // Group by date
+      const byDate = new Map<string, typeof positions>();
+      for (const pos of positions) {
+        const existing = byDate.get(pos.date);
+        if (existing) {
+          existing.push(pos);
+        } else {
+          byDate.set(pos.date, [pos]);
+        }
+      }
+
+      // For each date with duplicates, keep the one with latest fetchedAt
+      for (const [, group] of byDate) {
+        if (group.length <= 1) continue;
+
+        group.sort((a, b) => (b.fetchedAt ?? b._creationTime) - (a.fetchedAt ?? a._creationTime));
+
+        // Delete all but the first (most recent)
+        for (let i = 1; i < group.length; i++) {
+          await ctx.db.delete(group[i]._id);
+          totalDeleted++;
+        }
+      }
+
+      keywordsProcessed++;
+    }
+
+    console.log(`[dedup] Deleted ${totalDeleted} duplicate positions across ${keywordsProcessed} keywords`);
+    return { deleted: totalDeleted, keywordsProcessed };
   },
 });

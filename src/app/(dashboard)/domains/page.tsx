@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -19,20 +20,21 @@ import { CreateDomainDialog } from "@/components/application/modals/create-domai
 import { toast } from "sonner";
 
 // Helper to format relative time
-function formatRelativeTime(timestamp: number): string {
+function formatRelativeTime(timestamp: number, t: (key: any, params?: any) => string): string {
   const now = Date.now();
   const diff = now - timestamp;
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
-  if (days < 365) return `${Math.floor(days / 30)} months ago`;
-  return `${Math.floor(days / 365)} years ago`;
+  if (days === 0) return t('relativeTimeToday');
+  if (days === 1) return t('relativeTimeYesterday');
+  if (days < 7) return t('relativeTimeDaysAgo', { days });
+  if (days < 30) return t('relativeTimeWeeksAgo', { weeks: Math.floor(days / 7) });
+  if (days < 365) return t('relativeTimeMonthsAgo', { months: Math.floor(days / 30) });
+  return t('relativeTimeYearsAgo', { years: Math.floor(days / 365) });
 }
 
 export default function DomainsPage() {
+  const t = useTranslations('domains');
   const router = useRouter();
   const domains = useQuery(api.domains.list);
   const deleteDomain = useMutation(api.domains.remove);
@@ -123,9 +125,9 @@ export default function DomainsPage() {
   const handleDelete = async (id: Id<"domains">) => {
     try {
       await deleteDomain({ id });
-      toast.success("Domain deleted successfully");
+      toast.success(t('domainDeletedSuccess'));
     } catch (error) {
-      toast.error("Failed to delete domain");
+      toast.error(t('failedToDeleteDomain'));
       console.error(error);
     }
   };
@@ -144,17 +146,17 @@ export default function DomainsPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
           <div className="flex flex-col gap-0.5 lg:gap-1">
             <p className="text-xl font-semibold text-primary lg:text-display-xs">
-              Domains
+              {t('domains')}
             </p>
             <p className="text-md text-tertiary">
-              Manage domains and track their keyword rankings.
+              {t('domainsDescription')}
             </p>
           </div>
           <div className="flex flex-col gap-4 lg:flex-row">
             <div className="flex items-start gap-3">
               <CreateDomainDialog>
                 <Button size="md">
-                  Add Domain
+                  {t('addDomain')}
                 </Button>
               </CreateDomainDialog>
             </div>
@@ -169,16 +171,16 @@ export default function DomainsPage() {
           </EmptyState.Header>
 
           <EmptyState.Content>
-            <EmptyState.Title>No domains found</EmptyState.Title>
+            <EmptyState.Title>{t('noDomains')}</EmptyState.Title>
             <EmptyState.Description>
-              Get started by adding your first domain to track keywords.
+              {t('noDomainsDescription')}
             </EmptyState.Description>
           </EmptyState.Content>
 
           <EmptyState.Footer>
             <CreateDomainDialog>
               <Button size="md">
-                Add Domain
+                {t('addDomain')}
               </Button>
             </CreateDomainDialog>
           </EmptyState.Footer>
@@ -186,8 +188,8 @@ export default function DomainsPage() {
       ) : (
         <TableCard.Root>
           <TableCard.Header
-            title="All Domains"
-            badge={`${domains.length} domain${domains.length !== 1 ? "s" : ""}`}
+            title={t('allDomains')}
+            badge={`${domains.length} ${domains.length !== 1 ? t('domainsPlural') : t('domainSingular')}`}
           />
 
           {/* Filters section - inside TableCard */}
@@ -197,7 +199,7 @@ export default function DomainsPage() {
                 size="sm"
                 type="search"
                 aria-label="Search"
-                placeholder="Search domains..."
+                placeholder={t('searchDomains')}
                 icon={SearchLg}
                 value={searchQuery}
                 onChange={(value) => {
@@ -213,7 +215,7 @@ export default function DomainsPage() {
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-1.5 text-sm text-secondary">
                   <Tag03 className="h-4 w-4" />
-                  <span>Tags:</span>
+                  <span>{t('tagsFilter')}</span>
                 </div>
                 {allTags.map((tag) => (
                   <button
@@ -237,7 +239,7 @@ export default function DomainsPage() {
                     iconLeading={XClose}
                     onClick={clearAllFilters}
                   >
-                    Clear filters
+                    {t('clearFilters')}
                   </Button>
                 )}
               </div>
@@ -247,7 +249,7 @@ export default function DomainsPage() {
           {sortedItems.length === 0 ? (
             <div className="p-12 text-center">
               <p className="text-sm text-tertiary">
-                No domains match your search &quot;{searchQuery}&quot;
+                {t('noDomainsMatch')}
               </p>
               <Button
                 size="sm"
@@ -255,7 +257,7 @@ export default function DomainsPage() {
                 onClick={() => setSearchQuery("")}
                 className="mt-4"
               >
-                Clear search
+                {t('clearSearch')}
               </Button>
             </div>
           ) : (
@@ -269,21 +271,21 @@ export default function DomainsPage() {
             <Table.Header>
               <Table.Head
                 id="domain"
-                label="Domain"
+                label={t('colDomain')}
                 isRowHeader
                 allowsSorting
                 className="w-full max-w-1/3"
               />
-              <Table.Head id="project" label="Project" allowsSorting />
-              <Table.Head id="tags" label="Tags" />
-              <Table.Head id="keywordCount" label="Keywords" allowsSorting />
+              <Table.Head id="project" label={t('colProject')} allowsSorting />
+              <Table.Head id="tags" label={t('colTags')} />
+              <Table.Head id="keywordCount" label={t('colKeywords')} allowsSorting />
               <Table.Head
                 id="createdAt"
-                label="Created"
+                label={t('colCreated')}
                 allowsSorting
                 className="md:hidden xl:table-cell"
               />
-              <Table.Head id="status" label="Status" />
+              <Table.Head id="status" label={t('colStatus')} />
               <Table.Head id="actions" />
             </Table.Header>
 
@@ -309,7 +311,7 @@ export default function DomainsPage() {
                     <div className="flex items-center gap-2">
                       <FolderClosed className="h-4 w-4 text-fg-quaternary" />
                       <span className="text-sm font-medium text-primary">
-                        {item.project?.name || "Unknown"}
+                        {item.project?.name || t('unknown')}
                       </span>
                     </div>
                   </Table.Cell>
@@ -341,7 +343,7 @@ export default function DomainsPage() {
                   <Table.Cell className="whitespace-nowrap md:hidden xl:table-cell">
                     <div className="flex flex-col">
                       <span className="text-sm text-primary">
-                        {formatRelativeTime(item.createdAt)}
+                        {formatRelativeTime(item.createdAt, t)}
                       </span>
                       <span className="text-sm text-tertiary">
                         {new Date(item.createdAt).toLocaleDateString()}
@@ -354,7 +356,7 @@ export default function DomainsPage() {
                       color="success"
                       type="modern"
                     >
-                      Active
+                      {t('active')}
                     </BadgeWithDot>
                   </Table.Cell>
                   <Table.Cell className="px-4">
@@ -362,17 +364,17 @@ export default function DomainsPage() {
                       <ButtonUtility
                         size="xs"
                         color="tertiary"
-                        tooltip="Edit"
+                        tooltip={t('edit')}
                         icon={Edit05}
                         onClick={(e: React.MouseEvent) => {
                           e.stopPropagation();
-                          toast.info("Edit dialog coming soon");
+                          toast.info(t('editDialogComingSoon'));
                         }}
                       />
                       <DeleteConfirmationDialog
-                        title={`Delete "${item.domain}"?`}
-                        description="This will permanently delete the domain and all associated keywords and ranking data. This action cannot be undone."
-                        confirmLabel="Delete domain"
+                        title={t('deleteDomainTitle', { domain: item.domain })}
+                        description={t('deleteDomainDescription')}
+                        confirmLabel={t('deleteDomainConfirm')}
                         onConfirm={async () => {
                           await handleDelete(item._id);
                         }}
@@ -380,7 +382,7 @@ export default function DomainsPage() {
                         <ButtonUtility
                           size="xs"
                           color="tertiary"
-                          tooltip="Delete"
+                          tooltip={t('delete')}
                           icon={Trash01}
                           onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();

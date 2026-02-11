@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/base/badges/badges";
 import { TrendUp02, TrendDown02 } from "@untitledui/icons";
 
@@ -22,14 +23,15 @@ interface TopKeywordsTableProps {
 
 function getPositionBadgeColor(position: number | null): "blue" | "success" | "warning" | "error" | "gray" {
   if (position === null) return "gray";
-  if (position <= 3) return "blue";
+  if (position <= 3) return "success";
   if (position <= 10) return "success";
   if (position <= 20) return "warning";
-  if (position <= 50) return "error";
+  if (position <= 50) return "gray";
   return "gray";
 }
 
 export function TopKeywordsTable({ keywords, title, description, isLoading }: TopKeywordsTableProps) {
+  const t = useTranslations('keywords');
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
@@ -54,7 +56,7 @@ export function TopKeywordsTable({ keywords, title, description, isLoading }: To
           <p className="text-sm text-tertiary">{description}</p>
         </div>
         <div className="py-8 text-center">
-          <p className="text-sm text-tertiary">No keywords found in this range</p>
+          <p className="text-sm text-tertiary">{t('noKeywordsInRange')}</p>
         </div>
       </div>
     );
@@ -72,19 +74,19 @@ export function TopKeywordsTable({ keywords, title, description, isLoading }: To
           <thead className="bg-secondary-subtle">
             <tr className="border-b border-secondary">
               <th className="px-4 py-3 text-left text-xs font-medium uppercase text-secondary">
-                Position
+                {t('columnPosition')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase text-secondary">
-                Keyword
+                {t('columnKeyword')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase text-secondary">
-                Change
+                {t('columnChange')}
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium uppercase text-secondary">
-                Volume
+                {t('columnVolume')}
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium uppercase text-secondary">
-                Difficulty
+                {t('columnDifficulty')}
               </th>
             </tr>
           </thead>
@@ -94,7 +96,7 @@ export function TopKeywordsTable({ keywords, title, description, isLoading }: To
                 key={keyword._id}
                 className={`border-b border-secondary ${
                   index % 2 === 0 ? "bg-primary" : "bg-secondary-subtle"
-                } hover:bg-secondary-subtle`}
+                } hover:bg-primary_hover transition-colors`}
               >
                 <td className="px-4 py-3">
                   <Badge

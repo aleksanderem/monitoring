@@ -1,7 +1,8 @@
 "use client";
 
-import { Pie, PieChart } from "recharts";
+import { PolarAngleAxis, PolarGrid, Radar, RadarChart, PolarRadiusAxis } from "recharts";
 import { Dataflow03 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import {
   ChartContainer,
   ChartTooltip,
@@ -17,6 +18,8 @@ interface PlatformTypesChartProps {
 }
 
 export function PlatformTypesChart({ data, isLoading }: PlatformTypesChartProps) {
+  const t = useTranslations('backlinks');
+  const radarColor = "#3b82f6"; // blue
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
@@ -31,59 +34,63 @@ export function PlatformTypesChart({ data, isLoading }: PlatformTypesChartProps)
     );
   }
 
-  // Convert object to array and sort
+  // Convert object to array for radar chart (take top 8 for readability)
   const chartData = Object.entries(data)
     .map(([name, value]) => ({
       platform: name.charAt(0).toUpperCase() + name.slice(1).replace(/-/g, " "),
       backlinks: value,
-      fill: `var(--color-${name})`,
     }))
-    .sort((a, b) => b.backlinks - a.backlinks);
+    .sort((a, b) => b.backlinks - a.backlinks)
+    .slice(0, 8);
 
   if (chartData.length === 0) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div>
-          <h3 className="text-md font-semibold text-primary">Platform Types</h3>
-          <p className="text-sm text-tertiary">Distribution by website platform</p>
+          <h3 className="text-md font-semibold text-primary">{t('platformsTitle')}</h3>
+          <p className="text-sm text-tertiary">{t('platformsSubtitle')}</p>
         </div>
         <div className="flex flex-col items-center justify-center py-12">
           <Dataflow03 className="h-10 w-10 text-fg-quaternary" />
-          <p className="mt-2 text-sm text-tertiary">No platform data available</p>
+          <p className="mt-2 text-sm text-tertiary">{t('platformsEmpty')}</p>
         </div>
       </div>
     );
   }
 
-  // Create chart config with colors using chart CSS variables
-  const chartConfig = Object.entries(data).reduce((acc, [key], index) => {
-    const colorVars = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
-    acc[key] = {
-      label: key.charAt(0).toUpperCase() + key.slice(1).replace(/-/g, " "),
-      color: `var(--${colorVars[index % colorVars.length]})`,
-    };
-    return acc;
-  }, {} as ChartConfig);
+  const chartConfig = {
+    backlinks: {
+      label: t('backlinks'),
+      color: radarColor,
+    },
+  } satisfies ChartConfig;
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
-        <h3 className="text-md font-semibold text-primary">Platform Types</h3>
-        <p className="text-sm text-tertiary">Backlink sources by platform</p>
+        <h3 className="text-md font-semibold text-primary">{t('platformsTitle')}</h3>
+        <p className="text-sm text-tertiary">{t('platformsDescription')}</p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">
-        <PieChart>
-          <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-          <ChartLegend content={<ChartLegendContent />} />
-          <Pie
-            data={chartData}
-            dataKey="backlinks"
-            nameKey="platform"
-            innerRadius={60}
-            strokeWidth={5}
+        <RadarChart data={chartData}>
+          <PolarGrid strokeDasharray="3 3" opacity={0.3} />
+          <PolarAngleAxis dataKey="platform" tick={{ fontSize: 12 }} />
+          <PolarRadiusAxis angle={90} domain={[0, "auto"]} tick={{ fontSize: 10 }} />
+          <ChartTooltip
+            content={<ChartTooltipContent />}
+            wrapperStyle={{ zIndex: 1000 }}
           />
-        </PieChart>
+          <Radar
+            name={t('backlinks')}
+            dataKey="backlinks"
+            stroke={radarColor}
+            fill={radarColor}
+            fillOpacity={0.3}
+            strokeWidth={2}
+          />
+          <ChartLegend content={<ChartLegendContent payload={[]} />} />
+        </RadarChart>
       </ChartContainer>
     </div>
   );

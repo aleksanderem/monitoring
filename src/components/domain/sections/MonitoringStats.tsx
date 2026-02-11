@@ -1,9 +1,10 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { Hash01, TrendUp02, TrendDown02, BarChart03, RefreshCcw01 } from "@untitledui/icons";
+import { Hash01, TrendUp02, TrendDown02, BarChart03, RefreshCw01 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useTranslations } from "next-intl";
 import { MetricCard } from "@/components/domain/cards/MetricCard";
 import { LiveBadge } from "@/components/domain/badges/LiveBadge";
 import { LoadingState } from "@/components/shared/LoadingState";
@@ -13,6 +14,7 @@ interface MonitoringStatsProps {
 }
 
 export function MonitoringStats({ domainId }: MonitoringStatsProps) {
+  const t = useTranslations('keywords');
   const stats = useQuery(api.keywords.getMonitoringStats, { domainId });
 
   if (stats === undefined) {
@@ -43,37 +45,37 @@ export function MonitoringStats({ domainId }: MonitoringStatsProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <h2 className="text-lg font-semibold text-primary">Statistics</h2>
+      <h2 className="text-lg font-semibold text-primary">{t('statistics')}</h2>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
-          title="Total Monitored"
+          title={t('totalMonitored')}
           value={totalKeywords}
-          subtitle="Active keywords"
+          subtitle={t('activeKeywords')}
           icon={Hash01}
           badge={<LiveBadge size="sm" />}
         />
 
         <MetricCard
-          title="Average Position"
+          title={t('averagePosition')}
           value={avgPosition.toFixed(1)}
           icon={avgPosTrendIcon}
           trend={avgPosTrend}
           change={Math.abs(avgPositionChange7d).toFixed(1)}
-          changeDescription="vs. last week"
+          changeDescription={t('vsLastWeek')}
         />
 
         <MetricCard
-          title="Est. Monthly Traffic"
+          title={t('estMonthlyTraffic')}
           value={formatTraffic(estimatedMonthlyTraffic)}
-          subtitle="Potential monthly visitors"
+          subtitle={t('basedOnMonitoredKeywords')}
           icon={BarChart03}
         />
 
         <MetricCard
-          title="Position Changes (7d)"
+          title={t('positionChanges7d')}
           value={netMovement7d > 0 ? `+${netMovement7d}` : netMovement7d}
           subtitle={movementText}
-          icon={RefreshCcw01}
+          icon={RefreshCw01}
           trend={netMovement7d > 0 ? "positive" : netMovement7d < 0 ? "negative" : null}
         />
       </div>

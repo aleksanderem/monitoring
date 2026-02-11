@@ -6,9 +6,12 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { Button } from "@/components/base/buttons/button";
 import { Form } from "@/components/base/form/form";
 import { Input } from "@/components/base/input/input";
+import { AppLogo } from "@/components/foundations/logo/app-logo";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 export default function LoginPage() {
+  const t = useTranslations("auth");
   const { signIn } = useAuthActions();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -24,9 +27,9 @@ export default function LoginPage() {
 
       await signIn("password", { email, password, flow: "signIn" });
       router.push("/dashboard");
-      toast.success("Logged in successfully");
+      toast.success(t("loginSuccess"));
     } catch (error) {
-      toast.error("Invalid email or password");
+      toast.error(t("invalidCredentials"));
       console.error("Login error:", error);
     } finally {
       setIsLoading(false);
@@ -36,11 +39,9 @@ export default function LoginPage() {
   return (
     <div className="flex flex-col gap-8 rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
       <div className="flex flex-col gap-3">
-        <h1 className="text-display-xs font-semibold text-primary md:text-display-sm">
-          SEO Monitor
-        </h1>
+        <AppLogo className="h-9" />
         <p className="text-md text-tertiary">
-          Welcome back! Please enter your details.
+          {t("welcomeBack")}
         </p>
       </div>
 
@@ -49,17 +50,17 @@ export default function LoginPage() {
           <Input
             isRequired
             hideRequiredIndicator
-            label="Email"
+            label={t("email")}
             type="email"
             name="email"
-            placeholder="Enter your email"
+            placeholder={t("enterEmail")}
             size="md"
             isDisabled={isLoading}
           />
           <Input
             isRequired
             hideRequiredIndicator
-            label="Password"
+            label={t("password")}
             type="password"
             name="password"
             size="md"
@@ -69,14 +70,14 @@ export default function LoginPage() {
         </div>
 
         <Button type="submit" size="lg" isLoading={isLoading}>
-          Sign in
+          {t("signIn")}
         </Button>
       </Form>
 
       <div className="flex justify-center gap-1 text-center text-sm text-tertiary">
-        <span>Don't have an account?</span>
-        <Button href="/signup" color="link-color" size="md">
-          Sign up
+        <span>{t("noAccount")}</span>
+        <Button href="/register" color="link-color" size="md">
+          {t("signUp")}
         </Button>
       </div>
     </div>

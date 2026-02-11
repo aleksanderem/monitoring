@@ -2,6 +2,7 @@
 
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 import { Globe01 } from "@untitledui/icons";
+import { useTranslations } from "next-intl";
 import {
   ChartContainer,
   ChartTooltip,
@@ -18,6 +19,8 @@ export function CountriesDistributionChart({
   data,
   isLoading,
 }: CountriesDistributionChartProps) {
+  const t = useTranslations('backlinks');
+  const barColor = "#10b981"; // Modern green
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
@@ -46,12 +49,12 @@ export function CountriesDistributionChart({
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div>
-          <h3 className="text-md font-semibold text-primary">Countries Distribution</h3>
-          <p className="text-sm text-tertiary">Geographic distribution of backlinks</p>
+          <h3 className="text-md font-semibold text-primary">{t('countriesTitle')}</h3>
+          <p className="text-sm text-tertiary">{t('countriesSubtitle')}</p>
         </div>
         <div className="flex flex-col items-center justify-center py-12">
           <Globe01 className="h-10 w-10 text-fg-quaternary" />
-          <p className="mt-2 text-sm text-tertiary">No country data available</p>
+          <p className="mt-2 text-sm text-tertiary">{t('countriesEmpty')}</p>
         </div>
       </div>
     );
@@ -59,7 +62,7 @@ export function CountriesDistributionChart({
 
   const chartConfig = {
     count: {
-      label: "Backlinks",
+      label: t('backlinks'),
       color: "var(--chart-2)",
     },
   } satisfies ChartConfig;
@@ -67,12 +70,18 @@ export function CountriesDistributionChart({
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
-        <h3 className="text-md font-semibold text-primary">Countries Distribution</h3>
-        <p className="text-sm text-tertiary">Top 10 countries by backlink count</p>
+        <h3 className="text-md font-semibold text-primary">{t('countriesTitle')}</h3>
+        <p className="text-sm text-tertiary">{t('countriesDescription')}</p>
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">
         <BarChart data={chartData} layout="vertical" margin={{ left: 30 }}>
+          <defs>
+            <linearGradient id="barGradientCountry" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor={barColor} stopOpacity={0.8} />
+              <stop offset="100%" stopColor={barColor} stopOpacity={1} />
+            </linearGradient>
+          </defs>
           <XAxis type="number" dataKey="count" hide />
           <YAxis
             type="category"
@@ -81,8 +90,12 @@ export function CountriesDistributionChart({
             axisLine={false}
             width={80}
           />
-          <ChartTooltip content={<ChartTooltipContent />} cursor={false} />
-          <Bar dataKey="count" fill="var(--color-count)" radius={[0, 4, 4, 0]} />
+          <ChartTooltip
+            content={<ChartTooltipContent />}
+            cursor={false}
+            wrapperStyle={{ zIndex: 1000 }}
+          />
+          <Bar dataKey="count" fill="url(#barGradientCountry)" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ChartContainer>
     </div>

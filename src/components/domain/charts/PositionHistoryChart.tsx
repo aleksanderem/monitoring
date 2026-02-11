@@ -10,27 +10,31 @@ import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/but
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { cx } from "@/utils/cx";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { DateRangePicker } from "@/components/common/DateRangePicker";
+import { useDateRange } from "@/hooks/useDateRange";
+import { useTranslations } from "next-intl";
 
 interface PositionHistoryChartProps {
   domainId: Id<"domains">;
 }
 
-type DateRange = 30 | 90 | 180 | 365 | "all";
-
 export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
-  const [dateRange, setDateRange] = useState<DateRange>("all");
+  const t = useTranslations("keywords");
+  const { dateRange, setDateRange } = useDateRange({ initialPreset: "1y" });
   const isDesktop = useBreakpoint("lg");
 
+  // Always fetch all data — filter on the frontend based on selected range
+  // This prevents empty charts when short ranges are selected on monthly data
   const history = useQuery(
     api.domains.getVisibilityHistory,
-    { domainId, days: dateRange === "all" ? undefined : dateRange }
+    { domainId }
   );
 
   if (history === undefined) {
     return (
       <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-primary">Position History</h2>
+          <h2 className="text-lg font-semibold text-primary">{t("positionHistory")}</h2>
         </div>
         <LoadingState type="card" />
       </div>
@@ -41,18 +45,41 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
     return (
       <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-primary">Position History</h2>
+          <h2 className="text-lg font-semibold text-primary">{t("positionHistory")}</h2>
         </div>
         <div className="flex flex-col items-center gap-2 py-12 text-center">
-          <p className="text-sm font-medium text-primary">No historical data yet</p>
-          <p className="text-sm text-tertiary">Check back after the first ranking update</p>
+          <p className="text-sm font-medium text-primary">{t("noHistoricalDataYet")}</p>
+          <p className="text-sm text-tertiary">{t("checkBackAfterRankingUpdate")}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Filter by selected date range on the frontend
+  const filteredHistory = dateRange.preset === "all"
+    ? history
+    : history.filter((point) => {
+        const pointDate = new Date(point.date);
+        return pointDate >= dateRange.from && pointDate <= dateRange.to;
+      });
+
+  if (filteredHistory.length === 0) {
+    return (
+      <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <h2 className="text-lg font-semibold text-primary">{t("positionHistory")}</h2>
+          <DateRangePicker value={dateRange} onChange={setDateRange} excludePresets={["7d", "30d"]} />
+        </div>
+        <div className="flex flex-col items-center gap-2 py-12 text-center">
+          <p className="text-sm font-medium text-primary">{t("noHistoricalDataYet")}</p>
+          <p className="text-sm text-tertiary">{t("checkBackAfterRankingUpdate")}</p>
         </div>
       </div>
     );
   }
 
   // Transform data for chart - group top positions for cleaner visualization
-  const chartData = history.map((point) => ({
+  const chartData = filteredHistory.map((point) => ({
     date: new Date(point.date),
     "Top 3": (point.metrics.pos_1 || 0) + (point.metrics.pos_2_3 || 0),
     "4-10": point.metrics.pos_4_10 || 0,
@@ -74,24 +101,11 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
   return (
     <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <h2 className="text-lg font-semibold text-primary">Position History</h2>
-        <ButtonGroup size="sm">
-          <ButtonGroupItem isSelected={dateRange === 30} onClick={() => setDateRange(30)}>
-            30d
-          </ButtonGroupItem>
-          <ButtonGroupItem isSelected={dateRange === 90} onClick={() => setDateRange(90)}>
-            90d
-          </ButtonGroupItem>
-          <ButtonGroupItem isSelected={dateRange === 180} onClick={() => setDateRange(180)}>
-            180d
-          </ButtonGroupItem>
-          <ButtonGroupItem isSelected={dateRange === 365} onClick={() => setDateRange(365)}>
-            1y
-          </ButtonGroupItem>
-          <ButtonGroupItem isSelected={dateRange === "all"} onClick={() => setDateRange("all")}>
-            All
-          </ButtonGroupItem>
-        </ButtonGroup>
+        <h2 className="text-lg font-semibold text-primary">{t('positionHistory')}</h2>
+        <DateRangePicker
+          value={dateRange}
+          onChange={setDateRange}
+        />
       </div>
 
       <div className="h-80">
@@ -140,7 +154,7 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
               tickFormatter={(value) => Number(value).toLocaleString()}
             >
               <Label
-                value="Keywords"
+                value={t("keywordsLabel")}
                 fill="currentColor"
                 className="!text-xs font-medium"
                 style={{ textAnchor: "middle" }}
@@ -151,8 +165,8 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
 
             <Tooltip
               content={<ChartTooltipContent />}
-              formatter={(value) => Number(value).toLocaleString()}
-              labelFormatter={(value) => value.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+              formatter={(value: any) => Number(value).toLocaleString()}
+              labelFormatter={(value: any) => value.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
               cursor={{
                 className: "stroke-utility-brand-600 stroke-2",
               }}

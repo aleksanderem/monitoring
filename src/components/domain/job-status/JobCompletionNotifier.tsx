@@ -4,12 +4,14 @@ import { useEffect, useRef } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 /**
  * Component that monitors job completion and shows toast notifications
  * Should be mounted once in the app layout
  */
 export function JobCompletionNotifier() {
+  const t = useTranslations("jobs");
   const allJobs = useQuery(api.keywordCheckJobs.getRecentCompletedJobs);
   const notifiedJobsRef = useRef<Set<string>>(new Set());
 
@@ -31,25 +33,25 @@ export function JobCompletionNotifier() {
       if (job.status === "completed") {
         const successCount = job.totalKeywords - job.failedKeywords;
         toast.success(
-          `✓ Position refresh completed for ${job.domainName || "domain"}`,
+          t("refreshCompleted", { domain: job.domainName || t("domainFallback") }),
           {
-            description: `${successCount}/${job.totalKeywords} keywords updated successfully${job.failedKeywords > 0 ? `. ${job.failedKeywords} failed.` : ""}`,
+            description: t("refreshCompletedDescription", { success: successCount, total: job.totalKeywords, failed: job.failedKeywords }),
             duration: 5000,
           }
         );
       } else if (job.status === "failed") {
         toast.error(
-          `✗ Position refresh failed for ${job.domainName || "domain"}`,
+          t("refreshFailed", { domain: job.domainName || t("domainFallback") }),
           {
-            description: job.error || "Unknown error occurred",
+            description: job.error || t("unknownError"),
             duration: 7000,
           }
         );
       } else if (job.status === "cancelled") {
         toast.info(
-          `Position refresh cancelled for ${job.domainName || "domain"}`,
+          t("refreshCancelled", { domain: job.domainName || t("domainFallback") }),
           {
-            description: `${job.processedKeywords}/${job.totalKeywords} keywords were processed`,
+            description: t("refreshCancelledDescription", { processed: job.processedKeywords, total: job.totalKeywords }),
             duration: 4000,
           }
         );

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, internalAction, internalMutation, internalQuery } from "./_generated/server";
+import { action, internalAction, internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
@@ -501,23 +501,71 @@ export const storePositionInternal = internalMutation({
     cpc: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Always create a new record for each check (don't patch existing)
-    // This allows tracking position changes throughout the day
-    const positionId = await ctx.db.insert("keywordPositions", {
-      keywordId: args.keywordId,
-      date: args.date,
-      position: args.position,
-      url: args.url,
-      searchVolume: args.searchVolume,
-      difficulty: args.difficulty,
-      cpc: args.cpc,
-      fetchedAt: Date.now(),
-    });
+    // Upsert: check for existing record to prevent duplicates on action retries
+    const existing = await ctx.db
+      .query("keywordPositions")
+      .withIndex("by_keyword_date", (q) =>
+        q.eq("keywordId", args.keywordId).eq("date", args.date)
+      )
+      .unique();
 
-    // Update keyword lastUpdated timestamp
-    await ctx.db.patch(args.keywordId, {
-      lastUpdated: Date.now(),
-    });
+    let positionId: Id<"keywordPositions">;
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        position: args.position,
+        url: args.url,
+        searchVolume: args.searchVolume,
+        difficulty: args.difficulty,
+        cpc: args.cpc,
+        fetchedAt: Date.now(),
+      });
+      positionId = existing._id;
+    } else {
+      positionId = await ctx.db.insert("keywordPositions", {
+        keywordId: args.keywordId,
+        date: args.date,
+        position: args.position,
+        url: args.url,
+        searchVolume: args.searchVolume,
+        difficulty: args.difficulty,
+        cpc: args.cpc,
+        fetchedAt: Date.now(),
+      });
+    }
+
+    // Denormalize: update keyword record with current position data
+    const keyword = await ctx.db.get(args.keywordId);
+    if (keyword) {
+      const recentPositions = keyword.recentPositions ?? [];
+
+      // Add/replace entry for this date, keep last 7 sorted by date
+      const filtered = recentPositions.filter((p) => p.date !== args.date);
+      filtered.push({ date: args.date, position: args.position });
+      filtered.sort((a, b) => a.date.localeCompare(b.date));
+      const trimmed = filtered.slice(-7);
+
+      const latestEntry = trimmed[trimmed.length - 1];
+      const prevEntry = trimmed.length >= 2 ? trimmed[trimmed.length - 2] : null;
+
+      const currentPos = latestEntry?.position ?? null;
+      const previousPos = prevEntry?.position ?? keyword.currentPosition ?? null;
+      const change = (currentPos != null && previousPos != null)
+        ? previousPos - currentPos
+        : null;
+
+      await ctx.db.patch(args.keywordId, {
+        currentPosition: currentPos,
+        previousPosition: previousPos,
+        positionChange: change,
+        currentUrl: args.url,
+        searchVolume: args.searchVolume,
+        difficulty: args.difficulty,
+        latestCpc: args.cpc,
+        positionUpdatedAt: Date.now(),
+        lastUpdated: Date.now(),
+        recentPositions: trimmed,
+      });
+    }
 
     return positionId;
   },
@@ -1268,10 +1316,60 @@ export const fetchHistoricalPositions = action({
 
 interface DomainVisibilityKeyword {
   keyword: string;
-  position: number;
+  position: number | null; // null for keyword suggestions without ranking data
   url: string;
   searchVolume?: number;
   date: string;
+
+  // SEO metrics (from Ranked Keywords API)
+  competition?: number; // 0-1 scale
+  competitionLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+  cpc?: number;
+  difficulty?: number; // 0-100
+
+  // Search intent
+  intent?: 'commercial' | 'informational' | 'navigational' | 'transactional';
+
+  // SERP features
+  serpFeatures?: string[]; // e.g., ['organic', 'people_also_ask', 'related_searches']
+
+  // Traffic value
+  etv?: number; // Estimated Traffic Value
+  estimatedPaidTrafficCost?: number;
+
+  // Rank changes
+  previousRankAbsolute?: number;
+  isNew?: boolean;
+  isUp?: boolean;
+  isDown?: boolean;
+
+  // Monthly search volumes (last 12 months)
+  monthlySearches?: Array<{
+    year: number;
+    month: number;
+    search_volume: number;
+  }>;
+
+  // Backlinks info
+  backlinksInfo?: {
+    referringDomains?: number;
+    referringPages?: number;
+    dofollow?: number;
+    backlinks?: number;
+  };
+
+  // SERP details
+  title?: string;
+  description?: string;
+  rating?: {
+    value: number;
+    votesCount: number;
+    ratingMax: number;
+  };
+
+  // Page/domain rank
+  pageRank?: number;
+  mainDomainRank?: number;
 }
 
 interface HistoricalRankItem {
@@ -1427,7 +1525,7 @@ export const fetchDomainVisibility = action({
             const existing = keywordMap.get(keyword);
             const position = kwData.position || kwData.rank_absolute || 0;
 
-            if (!existing || position < existing.position) {
+            if (!existing || (existing.position !== null && position < existing.position)) {
               keywordMap.set(keyword, {
                 keyword,
                 position,
@@ -1501,7 +1599,12 @@ export const fetchDomainVisibility = action({
       }
 
       const keywords = Array.from(keywordMap.values())
-        .sort((a, b) => a.position - b.position)
+        .sort((a, b) => {
+          // Sort by position, nulls at the end
+          if (a.position === null) return 1;
+          if (b.position === null) return -1;
+          return a.position - b.position;
+        })
         .slice(0, limit);
 
       console.log(`Found ${keywords.length} keywords with positions`);
@@ -1527,14 +1630,61 @@ export const storeDiscoveredKeywords = internalMutation({
     domainId: v.id("domains"),
     keywords: v.array(v.object({
       keyword: v.string(),
-      position: v.number(),
-      previousPosition: v.optional(v.number()), // Previous position from SE Ranking
+      position: v.optional(v.number()),
+      previousPosition: v.optional(v.number()),
       url: v.string(),
       searchVolume: v.optional(v.number()),
       cpc: v.optional(v.number()),
       difficulty: v.optional(v.number()),
       traffic: v.optional(v.number()),
       date: v.string(),
+
+      // Extended SEO metrics
+      competition: v.optional(v.number()),
+      competitionLevel: v.optional(v.union(v.literal("LOW"), v.literal("MEDIUM"), v.literal("HIGH"))),
+      intent: v.optional(v.union(
+        v.literal("commercial"),
+        v.literal("informational"),
+        v.literal("navigational"),
+        v.literal("transactional")
+      )),
+      serpFeatures: v.optional(v.array(v.string())),
+      etv: v.optional(v.number()),
+      estimatedPaidTrafficCost: v.optional(v.number()),
+
+      // Rank changes
+      previousRankAbsolute: v.optional(v.number()),
+      isNew: v.optional(v.boolean()),
+      isUp: v.optional(v.boolean()),
+      isDown: v.optional(v.boolean()),
+
+      // Monthly searches
+      monthlySearches: v.optional(v.array(v.object({
+        year: v.number(),
+        month: v.number(),
+        search_volume: v.number(),
+      }))),
+
+      // Backlinks
+      backlinksInfo: v.optional(v.object({
+        referringDomains: v.optional(v.number()),
+        referringPages: v.optional(v.number()),
+        dofollow: v.optional(v.number()),
+        backlinks: v.optional(v.number()),
+      })),
+
+      // SERP details
+      title: v.optional(v.string()),
+      description: v.optional(v.string()),
+      rating: v.optional(v.object({
+        value: v.number(),
+        votesCount: v.number(),
+        ratingMax: v.number(),
+      })),
+
+      // Ranks
+      pageRank: v.optional(v.number()),
+      mainDomainRank: v.optional(v.number()),
     })),
   },
   handler: async (ctx, args) => {
@@ -1549,9 +1699,8 @@ export const storeDiscoveredKeywords = internalMutation({
         .unique();
 
       if (existing) {
-        // Always update with latest data from SE Ranking
-        await ctx.db.patch(existing._id, {
-          bestPosition: Math.min(kw.position, existing.bestPosition),
+        // Always update with latest data
+        const updateData: any = {
           previousPosition: kw.previousPosition,
           url: kw.url,
           searchVolume: kw.searchVolume,
@@ -1559,12 +1708,48 @@ export const storeDiscoveredKeywords = internalMutation({
           difficulty: kw.difficulty,
           traffic: kw.traffic,
           lastSeenDate: kw.date,
-        });
+
+          // Extended SEO metrics
+          competition: kw.competition,
+          competitionLevel: kw.competitionLevel,
+          intent: kw.intent,
+          serpFeatures: kw.serpFeatures,
+          etv: kw.etv,
+          estimatedPaidTrafficCost: kw.estimatedPaidTrafficCost,
+
+          // Rank changes
+          previousRankAbsolute: kw.previousRankAbsolute,
+          isNew: kw.isNew,
+          isUp: kw.isUp,
+          isDown: kw.isDown,
+
+          // Monthly searches
+          monthlySearches: kw.monthlySearches,
+
+          // Backlinks
+          backlinksInfo: kw.backlinksInfo,
+
+          // SERP details
+          title: kw.title,
+          description: kw.description,
+          rating: kw.rating,
+
+          // Ranks
+          pageRank: kw.pageRank,
+          mainDomainRank: kw.mainDomainRank,
+        };
+
+        // Only update bestPosition if we have position data (not keyword suggestions)
+        if (kw.position !== null && kw.position !== undefined) {
+          updateData.bestPosition = Math.min(kw.position, existing.bestPosition || 999);
+        }
+
+        await ctx.db.patch(existing._id, updateData);
       } else {
         await ctx.db.insert("discoveredKeywords", {
           domainId: args.domainId,
           keyword: kw.keyword,
-          bestPosition: kw.position,
+          bestPosition: kw.position ?? 999,
           previousPosition: kw.previousPosition,
           url: kw.url,
           searchVolume: kw.searchVolume,
@@ -1572,8 +1757,37 @@ export const storeDiscoveredKeywords = internalMutation({
           difficulty: kw.difficulty,
           traffic: kw.traffic,
           lastSeenDate: kw.date,
-          status: "discovered", // not yet monitored
+          status: "discovered",
           createdAt: Date.now(),
+
+          // Extended SEO metrics
+          competition: kw.competition,
+          competitionLevel: kw.competitionLevel,
+          intent: kw.intent,
+          serpFeatures: kw.serpFeatures,
+          etv: kw.etv,
+          estimatedPaidTrafficCost: kw.estimatedPaidTrafficCost,
+
+          // Rank changes
+          previousRankAbsolute: kw.previousRankAbsolute,
+          isNew: kw.isNew,
+          isUp: kw.isUp,
+          isDown: kw.isDown,
+
+          // Monthly searches
+          monthlySearches: kw.monthlySearches,
+
+          // Backlinks
+          backlinksInfo: kw.backlinksInfo,
+
+          // SERP details
+          title: kw.title,
+          description: kw.description,
+          rating: kw.rating,
+
+          // Ranks
+          pageRank: kw.pageRank,
+          mainDomainRank: kw.mainDomainRank,
         });
       }
     }
@@ -1581,22 +1795,29 @@ export const storeDiscoveredKeywords = internalMutation({
 });
 
 // Get discovered keywords for a domain (not yet being monitored)
-export const getDiscoveredKeywords = internalQuery({
+export const getDiscoveredKeywords = query({
   args: {
     domainId: v.id("domains"),
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db
+    let queryBuilder = ctx.db
       .query("discoveredKeywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId));
 
-    const keywords = await query.collect();
+    const keywords = await queryBuilder.collect();
 
+    let filtered = keywords;
     if (args.status) {
-      return keywords.filter(k => k.status === args.status);
+      filtered = keywords.filter(k => k.status === args.status);
     }
-    return keywords;
+
+    // Sort by position (null/999 at the end)
+    return filtered.sort((a, b) => {
+      const aPos = a.bestPosition ?? 999;
+      const bPos = b.bestPosition ?? 999;
+      return aPos - bPos;
+    });
   },
 });
 
@@ -1625,10 +1846,13 @@ export const fetchAndStoreVisibility = action({
 
     console.log(`Storing ${result.keywords.length} discovered keywords`);
 
-    // Store discovered keywords
+    // Store discovered keywords (convert null to undefined for Convex schema)
     await ctx.runMutation(internal.dataforseo.storeDiscoveredKeywords, {
       domainId: args.domainId,
-      keywords: result.keywords,
+      keywords: result.keywords.map(kw => ({
+        ...kw,
+        position: kw.position ?? undefined, // Convert null to undefined for optional fields
+      })),
     });
 
     return { success: true, count: result.keywords.length };
@@ -1654,13 +1878,37 @@ export const fetchDomainVisibilityInternal = internalAction({
     const login = process.env.DATAFORSEO_LOGIN;
     const password = process.env.DATAFORSEO_PASSWORD;
 
+    // Normalize domain - remove protocol and trailing slash
+    let normalizedDomain = args.domain
+      .replace(/^https?:\/\//, '')  // Remove http:// or https://
+      .replace(/^www\./, '')         // Remove www.
+      .replace(/\/$/, '');           // Remove trailing slash
+
     const now = new Date();
     const dateTo = args.dateTo || now.toISOString().split("T")[0];
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
     const dateFrom = args.dateFrom || sixMonthsAgo.toISOString().split("T")[0];
     const limit = args.limit || 100;
 
-    console.log(`=== fetchDomainVisibilityInternal: ${args.domain} ===`);
+    // Map common location names to DataForSEO location codes for more reliable API calls
+    const locationCodeMap: Record<string, number> = {
+      "Poland": 2616,
+      "United States": 2840,
+      "United Kingdom": 2826,
+      "Germany": 2276,
+      "France": 2250,
+      "Spain": 2724,
+      "Italy": 2380,
+      "Netherlands": 2528,
+    };
+
+    // Use location code if available, otherwise use location name
+    const locationParam = locationCodeMap[args.location]
+      ? { location_code: locationCodeMap[args.location] }
+      : { location_name: args.location };
+
+    console.log(`=== fetchDomainVisibilityInternal: ${normalizedDomain} (was: ${args.domain}) ===`);
+    console.log(`Location param:`, locationParam);
 
     if (!login || !password) {
       // Mock data
@@ -1672,7 +1920,7 @@ export const fetchDomainVisibilityInternal = internalAction({
       ].map((kw) => ({
         keyword: kw,
         position: Math.floor(Math.random() * 30) + 1,
-        url: `https://${args.domain}/${kw.replace(/\s+/g, '-')}`,
+        url: `https://${normalizedDomain}/${kw.replace(/\s+/g, '-')}`,
         searchVolume: Math.floor(Math.random() * 5000) + 100,
         date: dateTo,
       }));
@@ -1682,88 +1930,241 @@ export const fetchDomainVisibilityInternal = internalAction({
 
     try {
       const authHeader = btoa(`${login}:${password}`);
+      const now = new Date();
+      const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
 
-      // Use Ranked Keywords API - returns keywords a domain ranks for
-      const response = await fetch(`${DATAFORSEO_API_URL}/dataforseo_labs/google/ranked_keywords/live`, {
+      // STRATEGY: Try both APIs and merge results
+      // 1. Ranked Keywords API (has positions) - for domains with rankings
+      // 2. Google Ads API (has suggestions) - for all domains, especially new ones
+
+      console.log(`[HYBRID API] Fetching keywords for ${normalizedDomain}`);
+
+      // Step 1: Try Ranked Keywords API first (has position data)
+      const rankedPayload = {
+        target: normalizedDomain,
+        ...locationParam,
+        language_code: args.language,
+        historical_serp_mode: "all",
+        ignore_synonyms: true,
+        include_clickstream_data: true,
+        item_types: ["organic"],
+        load_rank_absolute: true,
+        limit: limit,
+        // Request rich keyword data
+        include_serp_info: true,
+        calculate_rectangles: true,
+      };
+
+      console.log("[RANKED API] Requesting ranked keywords...");
+      const rankedResponse = await fetch(`${DATAFORSEO_API_URL}/dataforseo_labs/google/ranked_keywords/live`, {
         method: "POST",
         headers: {
           "Authorization": `Basic ${authHeader}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify([{
-          target: args.domain,
-          location_name: args.location,
-          language_code: args.language,
-          limit: limit,
-          order_by: ["keyword_data.keyword_info.search_volume,desc"],
-        }]),
+        body: JSON.stringify([rankedPayload]),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Ranked Keywords API error:", response.status, errorText);
-        return { success: false, error: `API error: ${response.status}` };
+      let rankedKeywords: DomainVisibilityKeyword[] = [];
+      if (rankedResponse.ok) {
+        const rankedData = await rankedResponse.json();
+        const rankedTask = rankedData?.tasks?.[0];
+
+        if (rankedTask?.status_code === 20000) {
+          const rankedItems = rankedTask?.result?.[0]?.items;
+
+          if (Array.isArray(rankedItems) && rankedItems.length > 0) {
+            console.log(`[RANKED API] ✅ Found ${rankedItems.length} keywords with positions`);
+
+            // Process ranked keywords (have positions!)
+            for (const item of rankedItems) {
+              const keyword = item?.keyword_data?.keyword || item?.keyword;
+              if (!keyword) continue;
+
+              const rse = item.ranked_serp_element ?? item.ranked_serp_elements;
+              if (!rse) continue;
+
+              const elements = Array.isArray(rse) ? rse : [rse];
+
+              for (const el of elements) {
+                const serp_item = el?.serp_item ?? el;
+                if (!serp_item) continue;
+
+                const position = serp_item?.rank_absolute ?? serp_item?.rank_group ?? null;
+                const pageUrl = serp_item?.url || `https://${normalizedDomain}`;
+
+                // Extract rich data from API response
+                const keywordInfo = item?.keyword_data?.keyword_info;
+                const keywordProps = item?.keyword_data?.keyword_properties;
+                const searchIntent = item?.keyword_data?.search_intent_info;
+                const serpInfo = item?.keyword_data?.serp_info;
+                const rankChanges = serp_item?.rank_changes;
+
+                // DEBUG: Log first keyword's rich data structure
+                if (rankedKeywords.length === 0) {
+                  console.log("=== FIRST KEYWORD DEBUG ===");
+                  console.log("keyword:", keyword);
+                  console.log("keywordInfo:", JSON.stringify(keywordInfo));
+                  console.log("keywordProps:", JSON.stringify(keywordProps));
+                  console.log("searchIntent:", JSON.stringify(searchIntent));
+                  console.log("serpInfo:", JSON.stringify(serpInfo));
+                  console.log("serp_item:", JSON.stringify(serp_item));
+                  console.log("rankChanges:", JSON.stringify(rankChanges));
+                  console.log("========================");
+                }
+
+                if (position && position > 0 && position <= 100) {
+                  rankedKeywords.push({
+                    keyword,
+                    position,
+                    url: pageUrl,
+                    searchVolume: keywordInfo?.search_volume ?? undefined,
+                    date: dateTo,
+
+                    // SEO metrics - convert null to undefined for Convex
+                    competition: keywordInfo?.competition ?? undefined,
+                    competitionLevel: keywordInfo?.competition_level ?? undefined,
+                    cpc: keywordInfo?.cpc ?? undefined,
+                    difficulty: keywordProps?.keyword_difficulty ?? undefined,
+
+                    // Search intent
+                    intent: searchIntent?.main_intent ?? undefined,
+
+                    // SERP features
+                    serpFeatures: serpInfo?.serp_item_types ?? undefined,
+
+                    // Traffic value
+                    etv: serp_item?.etv ?? undefined,
+                    estimatedPaidTrafficCost: serp_item?.estimated_paid_traffic_cost ?? undefined,
+
+                    // Rank changes
+                    previousRankAbsolute: rankChanges?.previous_rank_absolute ?? undefined,
+                    isNew: rankChanges?.is_new ?? undefined,
+                    isUp: rankChanges?.is_up ?? undefined,
+                    isDown: rankChanges?.is_down ?? undefined,
+
+                    // Monthly search volumes
+                    monthlySearches: keywordInfo?.monthly_searches ?? undefined,
+
+                    // Backlinks info
+                    backlinksInfo: serp_item?.backlinks_info ? {
+                      referringDomains: serp_item.backlinks_info.referring_domains ?? undefined,
+                      referringPages: serp_item.backlinks_info.referring_pages ?? undefined,
+                      dofollow: serp_item.backlinks_info.dofollow ?? undefined,
+                      backlinks: serp_item.backlinks_info.backlinks ?? undefined,
+                    } : undefined,
+
+                    // SERP details
+                    title: serp_item?.title ?? undefined,
+                    description: serp_item?.description ?? undefined,
+                    rating: serp_item?.rating ? {
+                      value: serp_item.rating.value,
+                      votesCount: serp_item.rating.votes_count,
+                      ratingMax: serp_item.rating.rating_max,
+                    } : undefined,
+
+                    // Page/domain rank
+                    pageRank: serp_item?.rank_info?.page_rank ?? undefined,
+                    mainDomainRank: serp_item?.rank_info?.main_domain_rank ?? undefined,
+                  });
+                  break; // Only take best position for this keyword
+                }
+              }
+            }
+            console.log(`[RANKED API] Processed ${rankedKeywords.length} keywords with valid positions`);
+          } else {
+            console.log("[RANKED API] ⚠️ No ranked keywords found (domain might be new or not ranking)");
+          }
+        }
       }
 
-      const data = await response.json();
-      console.log("Ranked Keywords response:", JSON.stringify({
-        status_code: data.status_code,
-        items_count: data.tasks?.[0]?.result?.[0]?.items?.length,
-      }));
+      // Step 2: Fetch Google Ads suggestions (always, as fallback and supplement)
+      const googleAdsPayload = {
+        target: normalizedDomain,
+        ...locationParam,
+        language_code: args.language,
+        date_from: oneYearAgo.toISOString().split("T")[0],
+        date_to: now.toISOString().split("T")[0],
+        search_partners: true,
+        sort_by: "search_volume",
+        include_adult_keywords: true,
+      };
 
-      if (data.status_code !== 20000 || !data.tasks?.[0]?.result?.[0]?.items) {
-        // Fallback to Keywords for Site
-        console.log("Trying Keywords for Site API as fallback");
+      console.log("[GOOGLE ADS API] Requesting keyword suggestions...");
+      const googleAdsResponse = await fetch(`${DATAFORSEO_API_URL}/keywords_data/google_ads/keywords_for_site/live`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Basic ${authHeader}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify([googleAdsPayload]),
+      });
 
-        const kwResponse = await fetch(`${DATAFORSEO_API_URL}/dataforseo_labs/google/keywords_for_site/live`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Basic ${authHeader}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify([{
-            target: args.domain,
-            location_name: args.location,
-            language_code: args.language,
-            limit: limit,
-          }]),
-        });
+      let googleAdsKeywords: DomainVisibilityKeyword[] = [];
+      if (googleAdsResponse.ok) {
+        const googleAdsData = await googleAdsResponse.json();
+        const googleAdsTask = googleAdsData?.tasks?.[0];
 
-        if (!kwResponse.ok) {
-          return { success: false, error: "Both APIs failed" };
+        if (googleAdsTask?.status_code === 20000) {
+          const googleAdsItems = googleAdsTask?.result;
+
+          if (Array.isArray(googleAdsItems) && googleAdsItems.length > 0) {
+            console.log(`[GOOGLE ADS API] ✅ Found ${googleAdsItems.length} keyword suggestions`);
+
+            googleAdsKeywords = googleAdsItems
+              .filter((item: any) => item?.keyword)
+              .map((item: any) => ({
+                keyword: item.keyword,
+                position: null, // Google Ads doesn't have position data
+                url: `https://${normalizedDomain}`,
+                searchVolume: item.search_volume ?? 0,
+                date: dateTo,
+
+                // Extract rich data from Google Ads API
+                // Note: Google Ads has different field names than Ranked Keywords
+                // IMPORTANT: Convert null to undefined for Convex optional fields
+                competition: item.competition_index ? item.competition_index / 100 : undefined, // 0-100 to 0-1
+                competitionLevel: item.competition ?? undefined, // "LOW", "MEDIUM", "HIGH"
+                cpc: item.cpc ?? undefined,
+                difficulty: undefined, // Google Ads doesn't have keyword_difficulty
+                intent: undefined, // Google Ads doesn't have search_intent
+
+                // Monthly searches
+                monthlySearches: item.monthly_searches ?? undefined,
+              }));
+          } else {
+            console.log("[GOOGLE ADS API] ⚠️ No keyword suggestions found");
+          }
         }
-
-        const kwData = await kwResponse.json();
-        if (kwData.status_code !== 20000) {
-          return { success: false, error: kwData.status_message };
-        }
-
-        const items = kwData.tasks?.[0]?.result?.[0]?.items || [];
-        const keywords: DomainVisibilityKeyword[] = items.map((item: any) => ({
-          keyword: item.keyword,
-          position: item.keyword_info?.competition_level === "HIGH" ? 10 : 20, // Estimate
-          url: `https://${args.domain}`,
-          searchVolume: item.keyword_info?.search_volume,
-          date: dateTo,
-        }));
-
-        return { success: true, keywords, totalFound: keywords.length };
       }
 
-      // Process Ranked Keywords results
-      const items = data.tasks[0].result[0].items as HistoricalRankItem[];
-      const keywords: DomainVisibilityKeyword[] = items
-        .filter((item) => item.keyword_data?.keyword) // Filter out items without keyword
-        .map((item) => ({
-          keyword: item.keyword_data!.keyword, // Keyword is in keyword_data, not at top level
-          position: item.ranked_serp_element?.serp_item?.rank_absolute || 0,
-          url: item.ranked_serp_element?.serp_item?.url || `https://${args.domain}`,
-          searchVolume: item.keyword_data?.keyword_info?.search_volume,
-          date: dateTo,
-        }))
-        .filter(k => k.position > 0 && k.position <= 100);
+      // Step 3: Merge results - prefer ranked keywords (have positions), supplement with Google Ads suggestions
+      const keywordsMap = new Map<string, DomainVisibilityKeyword>();
 
-      return { success: true, keywords, totalFound: keywords.length };
+      // First, add all ranked keywords (priority - they have positions!)
+      for (const kw of rankedKeywords) {
+        keywordsMap.set(kw.keyword.toLowerCase(), kw);
+      }
+
+      // Then, add Google Ads keywords that aren't already in the map
+      for (const kw of googleAdsKeywords) {
+        const key = kw.keyword.toLowerCase();
+        if (!keywordsMap.has(key)) {
+          keywordsMap.set(key, kw);
+        }
+      }
+
+      const mergedKeywords = Array.from(keywordsMap.values())
+        .sort((a, b) => (b.searchVolume || 0) - (a.searchVolume || 0)) // Sort by search volume
+        .slice(0, limit); // Respect limit
+
+      console.log(`[HYBRID API] Final result: ${mergedKeywords.length} keywords (${rankedKeywords.length} with positions, ${googleAdsKeywords.length - (mergedKeywords.length - rankedKeywords.length)} suggestions)`);
+
+      if (mergedKeywords.length === 0) {
+        return { success: false, error: "No keywords found from either API" };
+      }
+
+      return { success: true, keywords: mergedKeywords, totalFound: mergedKeywords.length };
     } catch (error) {
       console.error("Error:", error);
       return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
@@ -1881,12 +2282,36 @@ export const fetchAndStoreVisibilityHistory = action({
     const login = process.env.DATAFORSEO_LOGIN;
     const password = process.env.DATAFORSEO_PASSWORD;
 
+    // Normalize domain - remove protocol and trailing slash
+    let normalizedDomain = args.domain
+      .replace(/^https?:\/\//, '')  // Remove http:// or https://
+      .replace(/^www\./, '')         // Remove www.
+      .replace(/\/$/, '');           // Remove trailing slash
+
     const now = new Date();
     const dateTo = now.toISOString().split("T")[0];
     const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1);
     const dateFrom = twelveMonthsAgo.toISOString().split("T")[0];
 
-    console.log(`=== fetchAndStoreVisibilityHistory: ${args.domain} (${dateFrom} to ${dateTo}) ===`);
+    // Map common location names to DataForSEO location codes
+    const locationCodeMap: Record<string, number> = {
+      "Poland": 2616,
+      "United States": 2840,
+      "United Kingdom": 2826,
+      "Germany": 2276,
+      "France": 2250,
+      "Spain": 2724,
+      "Italy": 2380,
+      "Netherlands": 2528,
+    };
+
+    // Use location code if available, otherwise use location name
+    const locationParam = locationCodeMap[args.location]
+      ? { location_code: locationCodeMap[args.location] }
+      : { location_name: args.location };
+
+    console.log(`=== fetchAndStoreVisibilityHistory: ${normalizedDomain} (was: ${args.domain}) (${dateFrom} to ${dateTo}) ===`);
+    console.log(`Location param:`, locationParam);
 
     if (!login || !password) {
       // Generate mock historical data for dev mode
@@ -1931,6 +2356,15 @@ export const fetchAndStoreVisibilityHistory = action({
     try {
       const authHeader = btoa(`${login}:${password}`);
 
+      const historyPayload = {
+        target: normalizedDomain,
+        ...locationParam,
+        language_code: args.language,
+        date_from: dateFrom,
+        date_to: dateTo,
+      };
+      console.log("Historical Rank Overview API REQUEST:", JSON.stringify(historyPayload, null, 2));
+
       // Use Historical Rank Overview API for aggregate visibility metrics
       const response = await fetch(`${DATAFORSEO_API_URL}/dataforseo_labs/google/historical_rank_overview/live`, {
         method: "POST",
@@ -1938,13 +2372,7 @@ export const fetchAndStoreVisibilityHistory = action({
           "Authorization": `Basic ${authHeader}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify([{
-          target: args.domain,
-          location_name: args.location,
-          language_code: args.language,
-          date_from: dateFrom,
-          date_to: dateTo,
-        }]),
+        body: JSON.stringify([historyPayload]),
       });
 
       if (!response.ok) {
@@ -1954,16 +2382,37 @@ export const fetchAndStoreVisibilityHistory = action({
       }
 
       const data = await response.json();
-      console.log("Historical Rank Overview response:", JSON.stringify({
-        status_code: data.status_code,
-        items_count: data.tasks?.[0]?.result?.[0]?.items?.length,
-      }));
+      console.log("Historical Rank Overview FULL RESPONSE:", JSON.stringify(data, null, 2));
 
-      if (data.status_code !== 20000 || !data.tasks?.[0]?.result?.[0]?.items) {
-        return { success: false, error: data.status_message || "No historical data found" };
+      // Handle both response structures
+      let items: any[] = [];
+      let responseStructure = 'unknown';
+
+      if (Array.isArray(data)) {
+        items = data[0]?.items ?? [];
+        responseStructure = 'labs_array';
+      } else if (data?.items) {
+        items = data.items;
+        responseStructure = 'direct_items';
+      } else if (data?.tasks?.[0]?.result?.[0]?.items) {
+        items = data.tasks[0].result[0].items;
+        responseStructure = 'tasks';
       }
 
-      const items = data.tasks[0].result[0].items;
+      // Handle null
+      if (!items || items === null) {
+        items = [];
+      }
+
+      console.log("Historical Rank Overview response summary:", JSON.stringify({
+        response_structure: responseStructure,
+        items_count: items.length,
+        has_items: items.length > 0,
+      }));
+
+      if (items.length === 0) {
+        return { success: false, error: "No historical data found" };
+      }
       // Historical Rank Overview returns year/month fields, not date
       const history: HistoricalVisibilityItem[] = items
         .filter((item: any) => item.year && item.month)
@@ -2904,8 +3353,22 @@ export const storeOnsiteAnalysisInternal = internalMutation({
     const thinContent = args.pages.filter(p => p.wordCount < 300).length;
     const slowPages = args.pages.filter(p => (p.loadTime || 0) > 3).length;
 
+    // Create a scan record for backwards compatibility
+    const tempScanId = await ctx.db.insert("onSiteScans", {
+      domainId: args.domainId,
+      status: "complete",
+      startedAt: now,
+      completedAt: now,
+      summary: {
+        totalPages: args.totalPages,
+        totalIssues: args.criticalIssues + args.warnings + args.recommendations,
+        crawlTime: 0,
+      },
+    });
+
     const analysisData = {
       domainId: args.domainId,
+      scanId: tempScanId,
       healthScore: args.healthScore,
       totalPages: args.totalPages,
       criticalIssues: args.criticalIssues,
@@ -2951,9 +3414,430 @@ export const storeOnsiteAnalysisInternal = internalMutation({
     for (const page of args.pages) {
       await ctx.db.insert("domainOnsitePages", {
         domainId: args.domainId,
+        scanId: tempScanId,
         analysisId,
+        pageSize: 0,
         ...page,
       });
     }
+  },
+});
+
+/**
+ * Internal mutation to store SERP results for a keyword
+ */
+export const storeSerpResultsInternal = internalMutation({
+  args: {
+    keywordId: v.id("keywords"),
+    domainId: v.id("domains"),
+    yourDomain: v.string(),
+    results: v.array(
+      v.object({
+        // Ranking info
+        position: v.number(),
+        rankGroup: v.optional(v.number()),
+        rankAbsolute: v.optional(v.number()),
+
+        // Basic info
+        domain: v.string(),
+        url: v.string(),
+        title: v.optional(v.string()),
+        description: v.optional(v.string()),
+        breadcrumb: v.optional(v.string()),
+        websiteName: v.optional(v.string()),
+        relativeUrl: v.optional(v.string()),
+        mainDomain: v.optional(v.string()),
+
+        // Highlighted text
+        highlighted: v.optional(v.array(v.string())),
+
+        // Sitelinks
+        sitelinks: v.optional(
+          v.array(
+            v.object({
+              title: v.optional(v.string()),
+              description: v.optional(v.string()),
+              url: v.optional(v.string()),
+            })
+          )
+        ),
+
+        // Traffic & Value
+        etv: v.optional(v.number()),
+        estimatedPaidTrafficCost: v.optional(v.number()),
+
+        // SERP Features
+        isFeaturedSnippet: v.optional(v.boolean()),
+        isMalicious: v.optional(v.boolean()),
+        isWebStory: v.optional(v.boolean()),
+        ampVersion: v.optional(v.boolean()),
+
+        // Rating
+        rating: v.optional(
+          v.object({
+            ratingType: v.optional(v.string()),
+            value: v.optional(v.number()),
+            votesCount: v.optional(v.number()),
+            ratingMax: v.optional(v.number()),
+          })
+        ),
+
+        // Price
+        price: v.optional(
+          v.object({
+            current: v.optional(v.number()),
+            regular: v.optional(v.number()),
+            maxValue: v.optional(v.number()),
+            currency: v.optional(v.string()),
+            isPriceRange: v.optional(v.boolean()),
+            displayedPrice: v.optional(v.string()),
+          })
+        ),
+
+        // Timestamps
+        timestamp: v.optional(v.string()),
+
+        // About this result
+        aboutThisResult: v.optional(
+          v.object({
+            url: v.optional(v.string()),
+            source: v.optional(v.string()),
+            sourceInfo: v.optional(v.string()),
+            sourceUrl: v.optional(v.string()),
+          })
+        ),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const today = new Date(now).toISOString().split("T")[0];
+
+    // Delete old results for this keyword from today
+    const existingResults = await ctx.db
+      .query("keywordSerpResults")
+      .withIndex("by_keyword_date", (q) =>
+        q.eq("keywordId", args.keywordId).eq("date", today)
+      )
+      .collect();
+
+    for (const result of existingResults) {
+      await ctx.db.delete(result._id);
+    }
+
+    // Insert new results with all fields
+    for (const result of args.results) {
+      const isYourDomain = result.domain === args.yourDomain;
+
+      await ctx.db.insert("keywordSerpResults", {
+        keywordId: args.keywordId,
+        domainId: args.domainId,
+        date: today,
+
+        // Ranking info
+        position: result.position,
+        rankGroup: result.rankGroup,
+        rankAbsolute: result.rankAbsolute,
+
+        // Basic info
+        domain: result.domain,
+        url: result.url,
+        title: result.title,
+        description: result.description,
+        breadcrumb: result.breadcrumb,
+        websiteName: result.websiteName,
+        relativeUrl: result.relativeUrl,
+        mainDomain: result.mainDomain,
+
+        // Highlighted text
+        highlighted: result.highlighted,
+
+        // Sitelinks
+        sitelinks: result.sitelinks,
+
+        // Traffic & Value
+        etv: result.etv,
+        estimatedPaidTrafficCost: result.estimatedPaidTrafficCost,
+
+        // SERP Features
+        isFeaturedSnippet: result.isFeaturedSnippet,
+        isMalicious: result.isMalicious,
+        isWebStory: result.isWebStory,
+        ampVersion: result.ampVersion,
+
+        // Rating
+        rating: result.rating,
+
+        // Price
+        price: result.price,
+
+        // Timestamps
+        timestamp: result.timestamp,
+
+        // About this result
+        aboutThisResult: result.aboutThisResult,
+
+        // Your domain flag
+        isYourDomain,
+
+        fetchedAt: now,
+      });
+    }
+  },
+});
+
+/**
+ * Bulk fetch SERP results for monitored keywords
+ */
+export const bulkFetchSerpResults = action({
+  args: {
+    domainId: v.id("domains"),
+    keywordIds: v.optional(v.array(v.id("keywords"))),
+  },
+  handler: async (ctx, args) => {
+    // Get domain info
+    const domain = await ctx.runQuery(internal.domains.getDomainInternal, {
+      domainId: args.domainId,
+    });
+
+    if (!domain) {
+      throw new Error("Domain not found");
+    }
+
+    // Get keywords to fetch SERP data for
+    let keywords: Array<{ _id: Id<"keywords">; phrase: string }>;
+
+    if (args.keywordIds && args.keywordIds.length > 0) {
+      // Fetch specific keywords
+      keywords = [];
+      for (const keywordId of args.keywordIds) {
+        const keyword = await ctx.runQuery(
+          internal.keywords.getKeywordInternal,
+          { keywordId }
+        );
+        if (keyword) {
+          keywords.push({ _id: keyword._id, phrase: keyword.phrase });
+        }
+      }
+    } else {
+      // Fetch all monitored keywords for this domain
+      keywords = await ctx.runQuery(
+        internal.keywords.getMonitoredKeywordsInternal,
+        { domainId: args.domainId }
+      );
+    }
+
+    if (keywords.length === 0) {
+      throw new Error("No keywords to fetch SERP data for");
+    }
+
+    // Get API credentials from environment
+    const login = process.env.DATAFORSEO_LOGIN;
+    const password = process.env.DATAFORSEO_PASSWORD;
+
+    if (!login || !password) {
+      throw new Error(
+        "DataForSEO credentials not configured. Please set DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD environment variables."
+      );
+    }
+
+    const auth = btoa(`${login}:${password}`);
+
+    // Process keywords in batches of 10
+    const batchSize = 10;
+    const batches: Array<Array<{ _id: Id<"keywords">; phrase: string }>> = [];
+
+    for (let i = 0; i < keywords.length; i += batchSize) {
+      batches.push(keywords.slice(i, i + batchSize));
+    }
+
+    let totalProcessed = 0;
+    let totalErrors = 0;
+
+    for (const batch of batches) {
+      // Process each keyword individually (live/advanced only accepts 1 task per request)
+      for (const keyword of batch) {
+        try {
+          // Single task request
+          const task = {
+            keyword: keyword.phrase,
+            location_code: 2840, // USA - can be made configurable later
+            language_code: "en", // English - can be made configurable later
+            device: "desktop",
+            os: "windows",
+            depth: 100, // Get top 100 results
+          };
+
+          const response = await fetch(
+            "https://api.dataforseo.com/v3/serp/google/organic/live/advanced",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Basic ${auth}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify([task]), // Array with single task
+            }
+          );
+
+          if (!response.ok) {
+            console.error(
+              `DataForSEO SERP API error for "${keyword.phrase}": ${response.status} ${response.statusText}`
+            );
+            totalErrors++;
+            continue;
+          }
+
+          const data = await response.json();
+
+          if (data.status_code !== 20000) {
+            console.error(
+              `DataForSEO SERP API returned error status for "${keyword.phrase}": ${data.status_code}`
+            );
+            totalErrors++;
+            continue;
+          }
+
+          const taskResult = data.tasks?.[0];
+
+          if (!taskResult) {
+            console.error(
+              `No task result for keyword: ${keyword.phrase}`
+            );
+            totalErrors++;
+            continue;
+          }
+
+          if (taskResult.status_code !== 20000) {
+            console.error(
+              `SERP API error for keyword "${keyword.phrase}": status ${taskResult.status_code}, message: ${taskResult.status_message || 'unknown'}`
+            );
+            totalErrors++;
+            continue;
+          }
+
+          if (!taskResult.result?.[0]?.items) {
+            console.error(
+              `No SERP items returned for keyword: ${keyword.phrase}`
+            );
+            totalErrors++;
+            continue;
+          }
+
+          // Extract organic results with all available fields
+          const items = taskResult.result[0].items;
+          const organicResults = items
+            .filter((item: any) => item.type === "organic")
+            .slice(0, 100) // Take top 100
+            .map((item: any) => ({
+              // Ranking info
+              position: item.rank_absolute || item.rank_group || 0,
+              rankGroup: item.rank_group,
+              rankAbsolute: item.rank_absolute,
+
+              // Basic info
+              domain: item.domain || (item.url ? new URL(item.url).hostname : ""),
+              url: item.url || "",
+              title: item.title,
+              description: item.description,
+              breadcrumb: item.breadcrumb,
+              websiteName: item.website_name,
+              relativeUrl: item.relative_url,
+              mainDomain: item.main_domain,
+
+              // Highlighted text
+              highlighted: item.highlighted,
+
+              // Sitelinks
+              sitelinks: item.links
+                ?.filter((link: any) => link.type === "sitelink")
+                ?.map((link: any) => ({
+                  title: link.title,
+                  description: link.description,
+                  url: link.url,
+                })),
+
+              // Traffic & Value
+              etv: item.etv,
+              estimatedPaidTrafficCost: item.estimated_paid_traffic_cost,
+
+              // SERP Features
+              isFeaturedSnippet: item.is_featured_snippet,
+              isMalicious: item.is_malicious,
+              isWebStory: item.is_web_story,
+              ampVersion: item.amp_version,
+
+              // Rating
+              rating: item.rating
+                ? {
+                    ratingType: item.rating.rating_type,
+                    value: item.rating.value,
+                    votesCount: item.rating.votes_count,
+                    ratingMax: item.rating.rating_max,
+                  }
+                : undefined,
+
+              // Price
+              price: item.price
+                ? {
+                    current: item.price.current,
+                    regular: item.price.regular,
+                    maxValue: item.price.max_value,
+                    currency: item.price.currency,
+                    isPriceRange: item.price.is_price_range,
+                    displayedPrice: item.price.displayed_price,
+                  }
+                : undefined,
+
+              // Timestamps
+              timestamp: item.timestamp,
+
+              // About this result
+              aboutThisResult: item.about_this_result
+                ? {
+                    url: item.about_this_result.url,
+                    source: item.about_this_result.source,
+                    sourceInfo: item.about_this_result.source_info,
+                    sourceUrl: item.about_this_result.source_url,
+                  }
+                : undefined,
+            }));
+
+          // Store results
+          try {
+            await ctx.runMutation(internal.dataforseo.storeSerpResultsInternal, {
+              keywordId: keyword._id,
+              domainId: args.domainId,
+              yourDomain: domain.domain,
+              results: organicResults,
+            });
+            totalProcessed++;
+          } catch (error) {
+            console.error(
+              `Failed to store SERP results for keyword ${keyword.phrase}:`,
+              error
+            );
+            totalErrors++;
+          }
+        } catch (error) {
+          console.error(
+            `Error fetching SERP data for keyword "${keyword.phrase}":`,
+            error
+          );
+          totalErrors++;
+        }
+      }
+
+      // Add delay between batches to avoid rate limiting
+      if (batches.indexOf(batch) < batches.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+
+    return {
+      totalKeywords: keywords.length,
+      processed: totalProcessed,
+      errors: totalErrors,
+    };
   },
 });

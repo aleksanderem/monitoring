@@ -1,0 +1,239 @@
+import { v } from "convex/values";
+import { query, internalMutation, internalAction, QueryCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
+
+// Helper function to fetch velocity history
+async function fetchVelocityHistory(
+  ctx: QueryCtx,
+  domainId: Id<"domains">,
+  days: number = 30
+) {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  const cutoffDateStr = cutoffDate.toISOString().split("T")[0];
+
+  const history = await ctx.db
+    .query("backlinkVelocityHistory")
+    .withIndex("by_domain", (q) => q.eq("domainId", domainId))
+    .collect();
+
+  // Filter by date and sort
+  return history
+    .filter((h) => h.date >= cutoffDateStr)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Get velocity history for a domain (last N days)
+export const getVelocityHistory = query({
+  args: {
+    domainId: v.id("domains"),
+    days: v.optional(v.number()), // Default: 30 days
+  },
+  handler: async (ctx, args) => {
+    const days = args.days || 30;
+    return fetchVelocityHistory(ctx, args.domainId, days);
+  },
+});
+
+// Get velocity statistics (averages, trends)
+export const getVelocityStats = query({
+  args: {
+    domainId: v.id("domains"),
+    days: v.optional(v.number()), // Period to calculate stats for (default: 30)
+  },
+  handler: async (ctx, args) => {
+    const days = args.days || 30;
+    const history = await fetchVelocityHistory(ctx, args.domainId, days);
+
+    if (history.length === 0) {
+      return {
+        avgNewPerDay: 0,
+        avgLostPerDay: 0,
+        avgNetChange: 0,
+        totalNew: 0,
+        totalLost: 0,
+        netChange: 0,
+        daysTracked: 0,
+      };
+    }
+
+    const totalNew = history.reduce((sum, h) => sum + h.newBacklinks, 0);
+    const totalLost = history.reduce((sum, h) => sum + h.lostBacklinks, 0);
+    const daysTracked = history.length;
+
+    return {
+      avgNewPerDay: totalNew / daysTracked,
+      avgLostPerDay: totalLost / daysTracked,
+      avgNetChange: (totalNew - totalLost) / daysTracked,
+      totalNew,
+      totalLost,
+      netChange: totalNew - totalLost,
+      daysTracked,
+    };
+  },
+});
+
+// Detect velocity anomalies (spikes/drops > 2 standard deviations)
+export const detectVelocityAnomalies = query({
+  args: {
+    domainId: v.id("domains"),
+    days: v.optional(v.number()), // Period to analyze (default: 30)
+  },
+  handler: async (ctx, args) => {
+    const days = args.days || 30;
+    const history = await fetchVelocityHistory(ctx, args.domainId, days);
+
+    if (history.length < 3) {
+      return []; // Need at least 3 data points to detect anomalies
+    }
+
+    // Calculate mean and standard deviation of net change
+    const netChanges = history.map((h) => h.netChange);
+    const mean = netChanges.reduce((sum: number, val: number) => sum + val, 0) / netChanges.length;
+    const variance =
+      netChanges.reduce((sum: number, val: number) => sum + Math.pow(val - mean, 2), 0) /
+      netChanges.length;
+    const stdDev = Math.sqrt(variance);
+
+    const threshold = 2; // 2 standard deviations
+
+    // Find anomalies
+    const anomalies = history
+      .map((h) => {
+        const zScore = stdDev === 0 ? 0 : (h.netChange - mean) / stdDev;
+        const isAnomaly = Math.abs(zScore) > threshold;
+
+        if (!isAnomaly) return null;
+
+        return {
+          date: h.date,
+          newBacklinks: h.newBacklinks,
+          lostBacklinks: h.lostBacklinks,
+          netChange: h.netChange,
+          zScore,
+          type: zScore > 0 ? ("spike" as const) : ("drop" as const),
+          severity:
+            Math.abs(zScore) > 3
+              ? ("high" as const)
+              : Math.abs(zScore) > 2.5
+                ? ("medium" as const)
+                : ("low" as const),
+        };
+      })
+      .filter((a: any): a is NonNullable<typeof a> => a !== null);
+
+    return anomalies;
+  },
+});
+
+// Internal mutation to save daily velocity calculation
+export const saveDailyVelocity = internalMutation({
+  args: {
+    domainId: v.id("domains"),
+    date: v.string(), // YYYY-MM-DD
+    newBacklinks: v.number(),
+    lostBacklinks: v.number(),
+    totalBacklinks: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // Check if entry already exists for this date
+    const existing = await ctx.db
+      .query("backlinkVelocityHistory")
+      .withIndex("by_domain_date", (q) =>
+        q.eq("domainId", args.domainId).eq("date", args.date)
+      )
+      .unique();
+
+    const netChange = args.newBacklinks - args.lostBacklinks;
+
+    if (existing) {
+      // Update existing entry
+      await ctx.db.patch(existing._id, {
+        newBacklinks: args.newBacklinks,
+        lostBacklinks: args.lostBacklinks,
+        netChange,
+        totalBacklinks: args.totalBacklinks,
+        createdAt: Date.now(),
+      });
+      return { updated: true };
+    } else {
+      // Insert new entry
+      await ctx.db.insert("backlinkVelocityHistory", {
+        domainId: args.domainId,
+        date: args.date,
+        newBacklinks: args.newBacklinks,
+        lostBacklinks: args.lostBacklinks,
+        netChange,
+        totalBacklinks: args.totalBacklinks,
+        createdAt: Date.now(),
+      });
+      return { created: true };
+    }
+  },
+});
+
+// Recalculate velocity history from actual backlink firstSeen/lastSeen dates.
+// Groups backlinks by firstSeen date to get accurate new-per-day counts.
+export const recalculateVelocityHistory = internalMutation({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const backlinks = await ctx.db
+      .query("domainBacklinks")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    const summary = await ctx.db
+      .query("domainBacklinksSummary")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .unique();
+
+    const totalBacklinks = summary?.totalBacklinks ?? backlinks.length;
+
+    // Group by firstSeen date
+    const newByDate = new Map<string, number>();
+    const lostByDate = new Map<string, number>();
+
+    for (const bl of backlinks) {
+      if (bl.firstSeen) {
+        newByDate.set(bl.firstSeen, (newByDate.get(bl.firstSeen) ?? 0) + 1);
+      }
+      if (bl.isLost && bl.lastSeen) {
+        lostByDate.set(bl.lastSeen, (lostByDate.get(bl.lastSeen) ?? 0) + 1);
+      }
+    }
+
+    // Delete existing velocity records for this domain
+    const existing = await ctx.db
+      .query("backlinkVelocityHistory")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    for (const record of existing) {
+      await ctx.db.delete(record._id);
+    }
+
+    // Collect all unique dates
+    const allDates = new Set([...newByDate.keys(), ...lostByDate.keys()]);
+    let inserted = 0;
+
+    for (const date of allDates) {
+      const newCount = newByDate.get(date) ?? 0;
+      const lostCount = lostByDate.get(date) ?? 0;
+
+      await ctx.db.insert("backlinkVelocityHistory", {
+        domainId: args.domainId,
+        date,
+        newBacklinks: newCount,
+        lostBacklinks: lostCount,
+        netChange: newCount - lostCount,
+        totalBacklinks: totalBacklinks,
+        createdAt: Date.now(),
+      });
+      inserted++;
+    }
+
+    console.log(`[recalculate] Rebuilt ${inserted} velocity records for domain from ${backlinks.length} backlinks`);
+    return { inserted, backlinksAnalyzed: backlinks.length };
+  },
+});

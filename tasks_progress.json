@@ -1,59 +1,118 @@
 {
-  "session_id": "S0010",
-  "date": "2026-01-31",
+  "session_id": "S0029",
+  "date": "2026-02-06",
   "tasks": [
     {
-      "id": 38,
-      "name": "serp_features_schema_and_tracking",
-      "status": "not_started",
-      "created_session": "S0010",
-      "last_updated_session": "S0010"
+      "id": 1,
+      "name": "content_gap_detail_modal",
+      "status": "passing",
+      "created_session": "S0027",
+      "last_updated_session": "S0027"
     },
     {
-      "id": 39,
-      "name": "keyword_grouping_system",
-      "status": "not_started",
-      "created_session": "S0010",
-      "last_updated_session": "S0010"
+      "id": 2,
+      "name": "content_gap_table_rewrite",
+      "status": "passing",
+      "created_session": "S0027",
+      "last_updated_session": "S0027"
     },
     {
-      "id": 40,
-      "name": "enhanced_date_range_picker",
-      "status": "not_started",
-      "created_session": "S0010",
-      "last_updated_session": "S0010"
+      "id": 3,
+      "name": "content_gap_tooltips",
+      "status": "passing",
+      "created_session": "S0027",
+      "last_updated_session": "S0027"
     },
     {
-      "id": 41,
-      "name": "backlink_velocity_tracking",
-      "status": "not_started",
-      "created_session": "S0010",
-      "last_updated_session": "S0010"
+      "id": 4,
+      "name": "user_system_admin_panel",
+      "status": "passing",
+      "created_session": "S0027",
+      "last_updated_session": "S0028"
     },
     {
-      "id": 42,
-      "name": "competitor_tracking_foundation",
-      "status": "not_started",
-      "created_session": "S0010",
-      "last_updated_session": "S0010"
-    },
-    {
-      "id": 43,
-      "name": "content_gap_analysis",
-      "status": "not_started",
-      "created_session": "S0010",
-      "last_updated_session": "S0010"
-    },
-    {
-      "id": 44,
-      "name": "forecasting_predictions",
-      "status": "not_started",
-      "created_session": "S0010",
-      "last_updated_session": "S0010"
+      "id": 5,
+      "name": "domain_onboarding_system",
+      "status": "passing",
+      "created_session": "S0029",
+      "last_updated_session": "S0029"
     }
   ],
-  "reason": "Implementing comprehensive monitoring enhancements from context analysis. Focus on Phase 1 (Quick Wins) and Phase 2 (Core Enhancements) to maximize user value.",
-  "thinking_process": "Starting with SERP features tracking (#38) as foundation for content recommendations. Then keyword grouping (#39) for better organization. Enhanced date picker (#40) improves UX across all charts. Backlink velocity (#41) adds time-based insights. Competitor tracking (#42) and content gaps (#43) build strategic analysis. Forecasting (#44) adds predictive capabilities.",
-  "connected_tasks": [38, 39, 40, 41, 42, 43, 44],
-  "how_to_test": []
+  "reason": "Domain onboarding system implemented: wizard (3-step) + inline checklist + auto-chaining between steps.",
+  "thinking_process": "Created 8 new files + edited 1 existing. Schema already had onboarding fields from previous session. All TypeScript checks pass.",
+  "connected_tasks": [5],
+  "how_to_test": [
+    {
+      "id": 1,
+      "name": "Content Gap table: column visibility, sorting, search, filters, pagination all work",
+      "status": "done",
+      "is_ok": true,
+      "data_for_next_step": [],
+      "session_id": "S0027"
+    },
+    {
+      "id": 2,
+      "name": "Row click opens detail modal with score breakdown, competitor info, recommendations",
+      "status": "done",
+      "is_ok": true,
+      "data_for_next_step": [],
+      "session_id": "S0027"
+    },
+    {
+      "id": 3,
+      "name": "Tooltips visible on: section header, summary cards, chart headings, table columns",
+      "status": "done",
+      "is_ok": true,
+      "data_for_next_step": [],
+      "session_id": "S0027"
+    },
+    {
+      "id": 4,
+      "name": "npx tsc --noEmit passes with zero errors (including all onboarding files)",
+      "status": "done",
+      "is_ok": true,
+      "data_for_next_step": [],
+      "session_id": "S0029"
+    },
+    {
+      "id": 10,
+      "name": "New domain -> wizard auto-opens with 3 steps: Keywords, Competitors, Analysis",
+      "status": "not_started",
+      "is_ok": null,
+      "data_for_next_step": [],
+      "session_id": "S0029"
+    },
+    {
+      "id": 11,
+      "name": "Step 1: discovered keywords table, Select Recommended, Add to Monitoring works",
+      "status": "not_started",
+      "is_ok": null,
+      "data_for_next_step": [],
+      "session_id": "S0029"
+    },
+    {
+      "id": 12,
+      "name": "Step 2: SERP auto-runs, progress bar updates, competitor cards with checkboxes appear",
+      "status": "not_started",
+      "is_ok": null,
+      "data_for_next_step": [],
+      "session_id": "S0029"
+    },
+    {
+      "id": 13,
+      "name": "Step 3: analysis auto-runs, summary shows counts, Go to Dashboard works",
+      "status": "not_started",
+      "is_ok": null,
+      "data_for_next_step": [],
+      "session_id": "S0029"
+    },
+    {
+      "id": 14,
+      "name": "After wizard close -> inline checklist shows remaining steps",
+      "status": "not_started",
+      "is_ok": null,
+      "data_for_next_step": [],
+      "session_id": "S0029"
+    }
+  ]
 }
