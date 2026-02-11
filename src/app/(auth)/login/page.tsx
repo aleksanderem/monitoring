@@ -26,7 +26,7 @@ export default function LoginPage() {
       const password = formData.get("password") as string;
 
       await signIn("password", { email, password, flow: "signIn" });
-      router.push("/dashboard");
+      router.push("/domains");
       toast.success(t("loginSuccess"));
     } catch (error) {
       toast.error(t("invalidCredentials"));

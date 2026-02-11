@@ -32,7 +32,7 @@ export default function RegisterPage() {
         name,
         flow: "signUp",
       });
-      router.push("/dashboard");
+      router.push("/domains");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("registrationFailed"));
     } finally {
