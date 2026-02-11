@@ -149,7 +149,6 @@ export default function DomainDetailPage() {
   const backlinksSummary = useQuery(api.backlinks.getBacklinkSummary, { domainId });
   const isBacklinkDataStale = useQuery(api.backlinks.isBacklinkDataStale, { domainId });
   const backlinksDistributions = useQuery(api.backlinks.getBacklinkDistributions, { domainId });
-  const backlinksHistory = useQuery(api.backlinks.getBacklinksHistory, { domainId });
   const fetchBacklinksAction = useAction(api.backlinks.fetchBacklinksFromAPI);
 
   // Backlink velocity queries
@@ -608,10 +607,7 @@ export default function DomainDetailPage() {
 
                 {/* Backlinks History Chart */}
                 {backlinksSummary && (
-                  <BacklinksHistoryChart
-                    data={backlinksHistory || []}
-                    isLoading={backlinksHistory === undefined}
-                  />
+                  <BacklinksHistoryChart domainId={domainId} />
                 )}
 
                 {/* Backlink Velocity Section */}

@@ -113,37 +113,24 @@ export const getCompetitorOverview = query({
       })
     );
 
-    // Also get your own domain's positions for comparison
+    // Your domain's positions: use denormalized recentPositions from keywords (zero extra queries)
     const domain = await ctx.db.get(args.domainId);
     if (!domain) {
       return { yourDomain: null, competitors: competitorData };
     }
 
-    const yourPositions = await ctx.db
-      .query("keywordPositions")
-      .withIndex("by_keyword", (q) => q.eq("keywordId", keywordIds[0])) // This is inefficient, but works for now
-      .filter((q) => q.gte(q.field("date"), startDateStr))
-      .collect();
-
-    // Group your positions by date
     const yourDateMap = new Map<string, { total: number; count: number }>();
-
-    for (const keywordId of keywordIds) {
-      const keywordPositions = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keywordId))
-        .filter((q) => q.gte(q.field("date"), startDateStr))
-        .collect();
-
-      keywordPositions.forEach((pos) => {
-        if (pos.position !== null) {
+    for (const kw of keywords) {
+      const recent = kw.recentPositions ?? [];
+      for (const pos of recent) {
+        if (pos.position !== null && pos.date >= startDateStr) {
           const existing = yourDateMap.get(pos.date) || { total: 0, count: 0 };
           yourDateMap.set(pos.date, {
             total: existing.total + pos.position,
             count: existing.count + 1,
           });
         }
-      });
+      }
     }
 
     const yourDateAverages = Array.from(yourDateMap.entries()).map(([date, data]) => ({
@@ -197,7 +184,6 @@ export const getKeywordGaps = query({
       return [];
     }
 
-    const today = new Date().toISOString().split("T")[0];
     const gaps: Array<{
       keywordId: Id<"keywords">;
       phrase: string;
@@ -210,54 +196,48 @@ export const getKeywordGaps = query({
       gapScore: number;
     }> = [];
 
-    // For each keyword, check if there's a gap
-    for (const keyword of keywords) {
-      // Get your latest position
-      const yourPositions = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+    // Batch: fetch ALL competitor positions per competitor (1 query per competitor, not K*C)
+    // Build a Map: competitorId -> keywordId -> latest position
+    const compPositionMaps = new Map<Id<"competitors">, Map<Id<"keywords">, number | null>>();
+    for (const competitor of competitors) {
+      const allPositions = await ctx.db
+        .query("competitorKeywordPositions")
+        .withIndex("by_competitor", (q) => q.eq("competitorId", competitor._id))
         .order("desc")
-        .take(1);
+        .collect();
 
-      const yourPosition = yourPositions[0]?.position ?? null;
+      // Group by keywordId, take latest (already desc sorted)
+      const kwMap = new Map<Id<"keywords">, number | null>();
+      for (const pos of allPositions) {
+        if (!kwMap.has(pos.keywordId)) {
+          kwMap.set(pos.keywordId, pos.position);
+        }
+      }
+      compPositionMaps.set(competitor._id, kwMap);
+    }
 
-      // Get competitor positions
+    // Process keywords: use denormalized currentPosition (zero DB queries per keyword)
+    for (const keyword of keywords) {
+      const yourPosition = keyword.currentPosition ?? null;
+
       for (const competitor of competitors) {
-        const competitorPositions = await ctx.db
-          .query("competitorKeywordPositions")
-          .withIndex("by_competitor_keyword", (q) =>
-            q.eq("competitorId", competitor._id).eq("keywordId", keyword._id)
-          )
-          .order("desc")
-          .take(1);
+        const kwMap = compPositionMaps.get(competitor._id);
+        const competitorPosition = kwMap?.get(keyword._id) ?? null;
 
-        const competitorPosition = competitorPositions[0]?.position ?? null;
-
-        // Calculate gap score
-        // Gap exists if: competitor ranks and (you don't rank OR you rank worse)
         if (competitorPosition !== null) {
-          const yourPos = yourPosition ?? 100; // Treat not ranking as position 100+
+          const yourPos = yourPosition ?? 100;
           const compPos = competitorPosition;
 
-          // Only include if competitor ranks better than you
           if (compPos < yourPos) {
             const volume = keyword.searchVolume ?? 100;
             const difficulty = keyword.difficulty ?? 50;
-
-            // Gap score formula: (yourPos / compPos) × log(volume) × (1 - difficulty/100)
-            // Higher score = better opportunity
             const positionGap = yourPos / compPos;
-            const volumeWeight = Math.log10(volume + 1); // +1 to avoid log(0)
+            const volumeWeight = Math.log10(volume + 1);
             const difficultyWeight = 1 - difficulty / 100;
             const rawScore = positionGap * volumeWeight * difficultyWeight;
-
-            // Normalize to 0-100 range (adjust multiplier as needed)
             const gapScore = Math.min(100, Math.round(rawScore * 10));
 
-            // Filter by minimum gap score if specified
-            if (args.minGapScore && gapScore < args.minGapScore) {
-              continue;
-            }
+            if (args.minGapScore && gapScore < args.minGapScore) continue;
 
             gaps.push({
               keywordId: keyword._id,
@@ -275,7 +255,6 @@ export const getKeywordGaps = query({
       }
     }
 
-    // Sort by gap score descending (best opportunities first)
     return gaps.sort((a, b) => b.gapScore - a.gapScore);
   },
 });

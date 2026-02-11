@@ -25,26 +25,18 @@ export const getDomainHealthScore = query({
         let improving = 0;
         let declining = 0;
 
+        // Use denormalized data — zero per-keyword DB queries
         for (const kw of activeKeywords.slice(0, 100)) {
-            const latestPos = await ctx.db
-                .query("keywordPositions")
-                .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
-                .order("desc")
-                .first();
-
-            if (latestPos?.position) {
+            const currentPos = kw.currentPosition;
+            if (currentPos != null) {
                 keywordsWithPosition++;
-                avgPosition += latestPos.position;
+                avgPosition += currentPos;
 
-                const oldPositions = await ctx.db
-                    .query("keywordPositions")
-                    .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
-                    .filter((q) => q.lte(q.field("date"), sevenDaysAgo))
-                    .order("desc")
-                    .first();
-
-                if (oldPositions?.position) {
-                    const diff = oldPositions.position - latestPos.position;
+                // Use recentPositions for 7-day comparison
+                const recent = kw.recentPositions ?? [];
+                const oldEntry = recent.find((p) => p.date <= sevenDaysAgo);
+                if (oldEntry?.position != null) {
+                    const diff = oldEntry.position - currentPos;
                     if (diff > 1) improving++;
                     else if (diff < -1) declining++;
                 }
@@ -151,51 +143,41 @@ export const getKeywordInsights = query({
         const opportunities: Array<{ keyword: string; currentPosition: number; previousPosition: number; gain: number }> = [];
         const nearPage1: Array<{ keyword: string; position: number; searchVolume: number | null }> = [];
 
+        // Use denormalized data — zero per-keyword DB queries
         for (const kw of activeKeywords) {
-            const latestPos = await ctx.db
-                .query("keywordPositions")
-                .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
-                .order("desc")
-                .first();
-
-            if (!latestPos?.position) continue;
-
-            const oldPos = await ctx.db
-                .query("keywordPositions")
-                .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
-                .filter((q) => q.lte(q.field("date"), sevenDaysAgo))
-                .order("desc")
-                .first();
+            const currentPos = kw.currentPosition;
+            if (currentPos == null) continue;
 
             // Near page 1 (position 11-20)
-            if (latestPos.position >= 11 && latestPos.position <= 20) {
+            if (currentPos >= 11 && currentPos <= 20) {
                 nearPage1.push({
                     keyword: kw.phrase,
-                    position: latestPos.position,
-                    searchVolume: latestPos.searchVolume ?? null,
+                    position: currentPos,
+                    searchVolume: kw.searchVolume ?? null,
                 });
             }
 
-            if (!oldPos?.position) continue;
+            // Use recentPositions for 7-day comparison
+            const recent = kw.recentPositions ?? [];
+            const oldEntry = recent.find((p) => p.date <= sevenDaysAgo);
+            if (!oldEntry?.position) continue;
 
-            const diff = oldPos.position - latestPos.position; // positive = improved
+            const diff = oldEntry.position - currentPos; // positive = improved
 
-            // At-risk: dropped 5+ positions
             if (diff < -5) {
                 atRisk.push({
                     keyword: kw.phrase,
-                    currentPosition: latestPos.position,
-                    previousPosition: oldPos.position,
+                    currentPosition: currentPos,
+                    previousPosition: oldEntry.position,
                     drop: Math.abs(diff),
                 });
             }
 
-            // Opportunities: gained 5+ positions (trending up)
             if (diff > 5) {
                 opportunities.push({
                     keyword: kw.phrase,
-                    currentPosition: latestPos.position,
-                    previousPosition: oldPos.position,
+                    currentPosition: currentPos,
+                    previousPosition: oldEntry.position,
                     gain: diff,
                 });
             }
@@ -305,25 +287,16 @@ export const getRecommendations = query({
         let droppingCount = 0;
         let nearPage1Count = 0;
 
+        // Use denormalized data — zero per-keyword DB queries
         for (const kw of activeKeywords.slice(0, 100)) {
-            const latestPos = await ctx.db
-                .query("keywordPositions")
-                .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
-                .order("desc")
-                .first();
+            const currentPos = kw.currentPosition;
+            if (currentPos == null) continue;
 
-            if (!latestPos?.position) continue;
+            if (currentPos >= 11 && currentPos <= 20) nearPage1Count++;
 
-            if (latestPos.position >= 11 && latestPos.position <= 20) nearPage1Count++;
-
-            const oldPos = await ctx.db
-                .query("keywordPositions")
-                .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
-                .filter((q) => q.lte(q.field("date"), sevenDaysAgo))
-                .order("desc")
-                .first();
-
-            if (oldPos?.position && latestPos.position - oldPos.position > 5) {
+            const recent = kw.recentPositions ?? [];
+            const oldEntry = recent.find((p) => p.date <= sevenDaysAgo);
+            if (oldEntry?.position != null && currentPos - oldEntry.position > 5) {
                 droppingCount++;
             }
         }

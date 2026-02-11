@@ -45,36 +45,44 @@ export const getDomainKeywords = internalQuery({
   },
 });
 
+// Shared refresh logic — sequential because of external API rate limits
+async function refreshDomains(
+  ctx: any,
+  domains: Doc<"domains">[],
+  label: string,
+): Promise<{ refreshed: number }> {
+  console.log(`Refreshing ${domains.length} ${label} domains`);
+
+  for (const domain of domains) {
+    try {
+      const keywords = await ctx.runQuery(internal.scheduler.getDomainKeywords, {
+        domainId: domain._id,
+      });
+
+      if (keywords.length > 0) {
+        await ctx.runAction(internal.dataforseo.fetchPositionsInternal, {
+          domainId: domain._id,
+          keywords: keywords.map((k: Doc<"keywords">) => ({ id: k._id, phrase: k.phrase })),
+          domain: domain.domain,
+          searchEngine: domain.settings.searchEngine,
+          location: domain.settings.location,
+          language: domain.settings.language,
+        });
+      }
+    } catch (error) {
+      console.error(`Failed to refresh domain ${domain.domain}:`, error);
+    }
+  }
+
+  return { refreshed: domains.length };
+}
+
 // Refresh all daily domains
 export const refreshDailyDomains = internalAction({
   args: {},
   handler: async (ctx): Promise<{ refreshed: number }> => {
     const domains = await ctx.runQuery(internal.scheduler.getDailyDomains);
-
-    console.log(`Refreshing ${domains.length} daily domains`);
-
-    for (const domain of domains) {
-      try {
-        const keywords = await ctx.runQuery(internal.scheduler.getDomainKeywords, {
-          domainId: domain._id,
-        });
-
-        if (keywords.length > 0) {
-          await ctx.runAction(internal.dataforseo.fetchPositionsInternal, {
-            domainId: domain._id,
-            keywords: keywords.map((k: Doc<"keywords">) => ({ id: k._id, phrase: k.phrase })),
-            domain: domain.domain,
-            searchEngine: domain.settings.searchEngine,
-            location: domain.settings.location,
-            language: domain.settings.language,
-          });
-        }
-      } catch (error) {
-        console.error(`Failed to refresh domain ${domain.domain}:`, error);
-      }
-    }
-
-    return { refreshed: domains.length };
+    return refreshDomains(ctx, domains, "daily");
   },
 });
 
@@ -83,31 +91,7 @@ export const refreshWeeklyDomains = internalAction({
   args: {},
   handler: async (ctx): Promise<{ refreshed: number }> => {
     const domains = await ctx.runQuery(internal.scheduler.getWeeklyDomains);
-
-    console.log(`Refreshing ${domains.length} weekly domains`);
-
-    for (const domain of domains) {
-      try {
-        const keywords = await ctx.runQuery(internal.scheduler.getDomainKeywords, {
-          domainId: domain._id,
-        });
-
-        if (keywords.length > 0) {
-          await ctx.runAction(internal.dataforseo.fetchPositionsInternal, {
-            domainId: domain._id,
-            keywords: keywords.map((k: Doc<"keywords">) => ({ id: k._id, phrase: k.phrase })),
-            domain: domain.domain,
-            searchEngine: domain.settings.searchEngine,
-            location: domain.settings.location,
-            language: domain.settings.language,
-          });
-        }
-      } catch (error) {
-        console.error(`Failed to refresh domain ${domain.domain}:`, error);
-      }
-    }
-
-    return { refreshed: domains.length };
+    return refreshDomains(ctx, domains, "weekly");
   },
 });
 
@@ -170,32 +154,33 @@ export const calculateDailyBacklinkVelocity = internalAction({
     let processed = 0;
     let errors = 0;
 
+    const today = new Date().toISOString().split("T")[0];
+
     for (const domain of domains) {
       try {
-        // Get current and previous backlinks summary
-        const summary = await ctx.runQuery(internal.scheduler.getDomainBacklinkSummary, {
-          domainId: domain._id,
-        });
+        // Parallelize the 2 independent queries per domain
+        const [summary, backlinks] = await Promise.all([
+          ctx.runQuery(internal.scheduler.getDomainBacklinkSummary, {
+            domainId: domain._id,
+          }),
+          ctx.runQuery(internal.scheduler.getDomainBacklinks, {
+            domainId: domain._id,
+          }),
+        ]);
 
         if (!summary) {
           continue; // Skip domains without backlink data
         }
 
-        // Get all backlinks for this domain to calculate new/lost
-        const backlinks = await ctx.runQuery(internal.scheduler.getDomainBacklinks, {
-          domainId: domain._id,
-        });
-
-        const today = new Date().toISOString().split("T")[0];
-
-        // Count new backlinks (firstSeen == today)
+        // Count new backlinks: only those first seen today (not the permanent isNew flag)
         const newBacklinks = backlinks.filter(
-          (b: any) => b.firstSeen === today || (b.isNew === true)
+          (b: any) => b.firstSeen === today
         ).length;
 
-        // Count lost backlinks (lastSeen < today and previously active)
+        // Count lost backlinks: only those whose lastSeen is yesterday (newly lost today)
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
         const lostBacklinks = backlinks.filter(
-          (b: any) => b.isLost === true
+          (b: any) => b.isLost === true && b.lastSeen === yesterday
         ).length;
 
         // Save velocity data

@@ -501,8 +501,6 @@ export const storePositionInternal = internalMutation({
     cpc: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Always create a new record for each check (don't patch existing)
-    // This allows tracking position changes throughout the day
     const positionId = await ctx.db.insert("keywordPositions", {
       keywordId: args.keywordId,
       date: args.date,
@@ -514,10 +512,39 @@ export const storePositionInternal = internalMutation({
       fetchedAt: Date.now(),
     });
 
-    // Update keyword lastUpdated timestamp
-    await ctx.db.patch(args.keywordId, {
-      lastUpdated: Date.now(),
-    });
+    // Denormalize: update keyword record with current position data
+    const keyword = await ctx.db.get(args.keywordId);
+    if (keyword) {
+      const recentPositions = keyword.recentPositions ?? [];
+
+      // Add/replace entry for this date, keep last 7 sorted by date
+      const filtered = recentPositions.filter((p) => p.date !== args.date);
+      filtered.push({ date: args.date, position: args.position });
+      filtered.sort((a, b) => a.date.localeCompare(b.date));
+      const trimmed = filtered.slice(-7);
+
+      const latestEntry = trimmed[trimmed.length - 1];
+      const prevEntry = trimmed.length >= 2 ? trimmed[trimmed.length - 2] : null;
+
+      const currentPos = latestEntry?.position ?? null;
+      const previousPos = prevEntry?.position ?? keyword.currentPosition ?? null;
+      const change = (currentPos != null && previousPos != null)
+        ? previousPos - currentPos
+        : null;
+
+      await ctx.db.patch(args.keywordId, {
+        currentPosition: currentPos,
+        previousPosition: previousPos,
+        positionChange: change,
+        currentUrl: args.url,
+        searchVolume: args.searchVolume,
+        difficulty: args.difficulty,
+        latestCpc: args.cpc,
+        positionUpdatedAt: Date.now(),
+        lastUpdated: Date.now(),
+        recentPositions: trimmed,
+      });
+    }
 
     return positionId;
   },

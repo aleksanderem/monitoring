@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { query, internalMutation, QueryCtx } from "./_generated/server";
+import { query, internalMutation, internalAction, QueryCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
 // Helper function to fetch velocity history
@@ -169,5 +170,70 @@ export const saveDailyVelocity = internalMutation({
       });
       return { created: true };
     }
+  },
+});
+
+// Recalculate velocity history from actual backlink firstSeen/lastSeen dates.
+// Groups backlinks by firstSeen date to get accurate new-per-day counts.
+export const recalculateVelocityHistory = internalMutation({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const backlinks = await ctx.db
+      .query("domainBacklinks")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    const summary = await ctx.db
+      .query("domainBacklinksSummary")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .unique();
+
+    const totalBacklinks = summary?.totalBacklinks ?? backlinks.length;
+
+    // Group by firstSeen date
+    const newByDate = new Map<string, number>();
+    const lostByDate = new Map<string, number>();
+
+    for (const bl of backlinks) {
+      if (bl.firstSeen) {
+        newByDate.set(bl.firstSeen, (newByDate.get(bl.firstSeen) ?? 0) + 1);
+      }
+      if (bl.isLost && bl.lastSeen) {
+        lostByDate.set(bl.lastSeen, (lostByDate.get(bl.lastSeen) ?? 0) + 1);
+      }
+    }
+
+    // Delete existing velocity records for this domain
+    const existing = await ctx.db
+      .query("backlinkVelocityHistory")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    for (const record of existing) {
+      await ctx.db.delete(record._id);
+    }
+
+    // Collect all unique dates
+    const allDates = new Set([...newByDate.keys(), ...lostByDate.keys()]);
+    let inserted = 0;
+
+    for (const date of allDates) {
+      const newCount = newByDate.get(date) ?? 0;
+      const lostCount = lostByDate.get(date) ?? 0;
+
+      await ctx.db.insert("backlinkVelocityHistory", {
+        domainId: args.domainId,
+        date,
+        newBacklinks: newCount,
+        lostBacklinks: lostCount,
+        netChange: newCount - lostCount,
+        totalBacklinks: totalBacklinks,
+        createdAt: Date.now(),
+      });
+      inserted++;
+    }
+
+    console.log(`[recalculate] Rebuilt ${inserted} velocity records for domain from ${backlinks.length} backlinks`);
+    return { inserted, backlinksAnalyzed: backlinks.length };
   },
 });

@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import {
   Folder,
-  Globe01,
   SearchSm,
   Settings01,
   Users01
@@ -30,50 +29,50 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/50"
+      className="fixed inset-0 z-50 bg-overlay/70 backdrop-blur"
       onClick={() => onOpenChange(false)}
     >
       <div
-        className="fixed top-20 left-1/2 -translate-x-1/2 w-full max-w-lg bg-white rounded-lg shadow-xl p-4"
+        className="fixed top-20 left-1/2 -translate-x-1/2 w-full max-w-lg rounded-xl bg-primary shadow-xl ring-1 ring-border-secondary p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <input
           type="text"
           placeholder={t("searchOrJumpTo")}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4"
+          className="w-full px-4 py-2 border border-primary rounded-lg bg-primary text-primary placeholder:text-placeholder mb-4 outline-none focus:ring-2 focus:ring-brand-500"
           autoFocus
         />
 
         <div className="space-y-1">
           <button
             onClick={() => navigate("/dashboard")}
-            className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-100 rounded-lg"
+            className="w-full flex items-center gap-3 px-3 py-2 text-left text-secondary hover:bg-primary_hover rounded-lg transition-colors"
           >
-            <SearchSm className="h-4 w-4" />
+            <SearchSm className="h-4 w-4 text-quaternary" />
             {t("dashboard")}
           </button>
 
           <button
             onClick={() => navigate("/projects")}
-            className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-100 rounded-lg"
+            className="w-full flex items-center gap-3 px-3 py-2 text-left text-secondary hover:bg-primary_hover rounded-lg transition-colors"
           >
-            <Folder className="h-4 w-4" />
+            <Folder className="h-4 w-4 text-quaternary" />
             {t("projects")}
           </button>
 
           <button
             onClick={() => navigate("/teams")}
-            className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-100 rounded-lg"
+            className="w-full flex items-center gap-3 px-3 py-2 text-left text-secondary hover:bg-primary_hover rounded-lg transition-colors"
           >
-            <Users01 className="h-4 w-4" />
+            <Users01 className="h-4 w-4 text-quaternary" />
             {t("teams")}
           </button>
 
           <button
             onClick={() => navigate("/settings")}
-            className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-100 rounded-lg"
+            className="w-full flex items-center gap-3 px-3 py-2 text-left text-secondary hover:bg-primary_hover rounded-lg transition-colors"
           >
-            <Settings01 className="h-4 w-4" />
+            <Settings01 className="h-4 w-4 text-quaternary" />
             {t("settings")}
           </button>
         </div>

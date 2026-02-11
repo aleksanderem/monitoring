@@ -240,6 +240,7 @@ export const getProjectTopPerformers = query({
             change: number;
         }> = [];
 
+        // Use denormalized currentPosition/previousPosition — zero per-keyword DB queries
         for (const domain of domains) {
             const keywords = await ctx.db
                 .query("keywords")
@@ -247,20 +248,16 @@ export const getProjectTopPerformers = query({
                 .collect();
 
             for (const kw of keywords) {
-                const positions = await ctx.db
-                    .query("keywordPositions")
-                    .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
-                    .order("desc")
-                    .take(2);
-
-                if (positions.length >= 2 && positions[0].position !== null && positions[1].position !== null) {
-                    const change = positions[1].position - positions[0].position; // positive = improved
+                const current = kw.currentPosition;
+                const previous = kw.previousPosition;
+                if (current != null && previous != null) {
+                    const change = previous - current; // positive = improved
                     if (Math.abs(change) > 0) {
                         movers.push({
                             keyword: kw.phrase,
                             domain: domain.domain,
-                            currentPosition: positions[0].position,
-                            previousPosition: positions[1].position,
+                            currentPosition: current,
+                            previousPosition: previous,
                             change,
                         });
                     }

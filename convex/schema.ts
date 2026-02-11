@@ -89,6 +89,17 @@ export default defineSchema({
     checkJobId: v.optional(v.id("keywordCheckJobs")),
     searchVolume: v.optional(v.number()),
     difficulty: v.optional(v.number()),
+    // Denormalized position data (updated by storePosition to avoid N+1 queries)
+    currentPosition: v.optional(v.union(v.number(), v.null())),
+    previousPosition: v.optional(v.union(v.number(), v.null())),
+    positionChange: v.optional(v.union(v.number(), v.null())),
+    currentUrl: v.optional(v.union(v.string(), v.null())),
+    latestCpc: v.optional(v.number()),
+    positionUpdatedAt: v.optional(v.number()),
+    recentPositions: v.optional(v.array(v.object({
+      date: v.string(),
+      position: v.union(v.number(), v.null()),
+    }))),
     tags: v.optional(v.array(v.string())), // Tags for keyword organization
     keywordType: v.optional(v.union(
       v.literal("core"),

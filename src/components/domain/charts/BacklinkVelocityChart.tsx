@@ -34,11 +34,11 @@ export function BacklinkVelocityChart({
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div className="flex items-center justify-between">
           <div>
-            <div className="h-5 w-48 animate-pulse rounded bg-gray-100" />
-            <div className="mt-1 h-4 w-64 animate-pulse rounded bg-gray-100" />
+            <div className="h-5 w-48 animate-pulse rounded bg-quaternary" />
+            <div className="mt-1 h-4 w-64 animate-pulse rounded bg-quaternary" />
           </div>
         </div>
-        <div className="h-[300px] animate-pulse rounded bg-gray-50" />
+        <div className="h-[300px] animate-pulse rounded bg-secondary" />
       </div>
     );
   }
@@ -64,15 +64,15 @@ export function BacklinkVelocityChart({
   const chartConfig = {
     newBacklinks: {
       label: t('velocityNewBacklinks'),
-      color: "hsl(var(--chart-2))", // Green
+      color: "#22c55e",
     },
     lostBacklinks: {
       label: t('velocityLostBacklinks'),
-      color: "hsl(var(--chart-1))", // Red
+      color: "#ef4444",
     },
     netChange: {
       label: t('velocityNetChange'),
-      color: "hsl(var(--chart-3))", // Blue
+      color: "#3b82f6",
     },
   } satisfies ChartConfig;
 
@@ -137,21 +137,21 @@ export function BacklinkVelocityChart({
           />
           <Bar
             dataKey="newBacklinks"
-            fill="var(--color-newBacklinks)"
+            fill="#22c55e"
             radius={[4, 4, 0, 0]}
           />
           <Bar
             dataKey="lostBacklinks"
-            fill="var(--color-lostBacklinks)"
+            fill="#ef4444"
             radius={[4, 4, 0, 0]}
           />
           <Line
             dataKey="netChange"
             type="monotone"
-            stroke="var(--color-netChange)"
+            stroke="#3b82f6"
             strokeWidth={2}
             dot={{
-              fill: "var(--color-netChange)",
+              fill: "#3b82f6",
               r: 3,
             }}
           />

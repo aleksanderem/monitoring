@@ -816,25 +816,20 @@ export const computePageScores = internalMutation({
       }
     }
 
-    // 3. Load latest keyword positions for each monitored keyword
+    // 3. Build keyword→URL map from denormalized data (zero per-keyword DB queries)
     const kwPositionMap = new Map<string, KeywordWithPosition[]>();
 
     for (const kw of keywords) {
-      const latestPos = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
-        .order("desc")
-        .first();
-
-      if (latestPos?.url) {
-        const normUrl = normalizeUrlForMatching(latestPos.url);
+      const url = kw.currentUrl;
+      if (url) {
+        const normUrl = normalizeUrlForMatching(url);
         const entry: KeywordWithPosition = {
           phrase: kw.phrase,
           intent: intentLookup.get(kw.phrase.toLowerCase()),
-          searchVolume: latestPos.searchVolume ?? kw.searchVolume,
-          difficulty: latestPos.difficulty ?? kw.difficulty,
-          position: latestPos.position,
-          url: latestPos.url,
+          searchVolume: kw.searchVolume,
+          difficulty: kw.difficulty,
+          position: kw.currentPosition ?? null,
+          url,
         };
         const existing = kwPositionMap.get(normUrl) ?? [];
         existing.push(entry);

@@ -23,18 +23,11 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
   const { dateRange, setDateRange } = useDateRange({ initialPreset: "all" });
   const isDesktop = useBreakpoint("lg");
 
-  // Convert preset to days for API
-  const days = dateRange.preset === "all" ? undefined :
-    dateRange.preset === "7d" ? 7 :
-    dateRange.preset === "30d" ? 30 :
-    dateRange.preset === "3m" ? 90 :
-    dateRange.preset === "6m" ? 180 :
-    dateRange.preset === "1y" ? 365 :
-    undefined;
-
+  // Always fetch all data — filter on the frontend based on selected range
+  // This prevents empty charts when short ranges are selected on monthly data
   const history = useQuery(
     api.domains.getVisibilityHistory,
-    { domainId, days }
+    { domainId }
   );
 
   if (history === undefined) {
@@ -62,8 +55,31 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
     );
   }
 
+  // Filter by selected date range on the frontend
+  const filteredHistory = dateRange.preset === "all"
+    ? history
+    : history.filter((point) => {
+        const pointDate = new Date(point.date);
+        return pointDate >= dateRange.from && pointDate <= dateRange.to;
+      });
+
+  if (filteredHistory.length === 0) {
+    return (
+      <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <h2 className="text-lg font-semibold text-primary">{t("positionHistory")}</h2>
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
+        </div>
+        <div className="flex flex-col items-center gap-2 py-12 text-center">
+          <p className="text-sm font-medium text-primary">{t("noHistoricalDataYet")}</p>
+          <p className="text-sm text-tertiary">{t("checkBackAfterRankingUpdate")}</p>
+        </div>
+      </div>
+    );
+  }
+
   // Transform data for chart - group top positions for cleaner visualization
-  const chartData = history.map((point) => ({
+  const chartData = filteredHistory.map((point) => ({
     date: new Date(point.date),
     "Top 3": (point.metrics.pos_1 || 0) + (point.metrics.pos_2_3 || 0),
     "4-10": point.metrics.pos_4_10 || 0,

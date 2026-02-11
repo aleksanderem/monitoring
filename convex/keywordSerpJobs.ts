@@ -189,15 +189,19 @@ export const processSerpFetchJobInternal = internalAction({
     let processedCount = 0;
     let failedCount = 0;
 
-    for (const keywordId of job.keywordIds) {
-      // Check if job was cancelled
-      const currentJob = await ctx.runQuery(internal.keywordSerpJobs.getJobInternal, {
-        jobId: args.jobId,
-      });
+    for (let i = 0; i < job.keywordIds.length; i++) {
+      const keywordId = job.keywordIds[i];
 
-      if (currentJob?.status === "cancelled") {
-        console.log(`[processSerpFetchJob] Job ${args.jobId} was cancelled during processing`);
-        return;
+      // Check if job was cancelled (every 5 keywords to reduce query overhead)
+      if (i % 5 === 0) {
+        const currentJob = await ctx.runQuery(internal.keywordSerpJobs.getJobInternal, {
+          jobId: args.jobId,
+        });
+
+        if (currentJob?.status === "cancelled") {
+          console.log(`[processSerpFetchJob] Job ${args.jobId} was cancelled during processing`);
+          return;
+        }
       }
 
       // Update current keyword
@@ -338,31 +342,26 @@ export const processSerpFetchJobInternal = internalAction({
         });
 
         // Auto-extract and track top competitors (positions 1-10, excluding own domain)
+        // Single batch mutation instead of 2 × N individual mutations
         const topCompetitors = organicResults
           .filter((r: any) => r.position <= 10 && r.domain !== domain.domain)
           .slice(0, 10);
 
-        for (const competitor of topCompetitors) {
+        if (topCompetitors.length > 0) {
+          const today = new Date().toISOString().split("T")[0];
           try {
-            // Add competitor (will check if exists and reactivate if paused)
-            const competitorId = await ctx.runMutation(internal.competitors.addCompetitorInternal, {
+            await ctx.runMutation(internal.keywordSerpJobs.trackCompetitorsBatch, {
               domainId: job.domainId,
-              competitorDomain: competitor.domain,
-              name: competitor.domain,
-            });
-
-            // Save competitor position for this keyword
-            const today = new Date().toISOString().split("T")[0];
-            await ctx.runMutation(internal.competitors.saveCompetitorPosition, {
-              competitorId,
               keywordId: keyword._id,
               date: today,
-              position: competitor.position,
-              url: competitor.url,
+              competitors: topCompetitors.map((c: any) => ({
+                domain: c.domain,
+                position: c.position,
+                url: c.url,
+              })),
             });
           } catch (error) {
-            console.error(`[processSerpFetchJob] Error tracking competitor ${competitor.domain}:`, error);
-            // Continue with other competitors
+            console.error(`[processSerpFetchJob] Error tracking competitors batch:`, error);
           }
         }
 
@@ -414,5 +413,74 @@ export const processSerpFetchJobInternal = internalAction({
     console.log(
       `[processSerpFetchJob] Job ${args.jobId} completed: ${processedCount} processed, ${failedCount} failed`
     );
+  },
+});
+
+// Batch mutation: add/update competitors + save positions in one transaction
+// Replaces N × (addCompetitorInternal + saveCompetitorPosition) individual calls
+export const trackCompetitorsBatch = internalMutation({
+  args: {
+    domainId: v.id("domains"),
+    keywordId: v.id("keywords"),
+    date: v.string(),
+    competitors: v.array(
+      v.object({
+        domain: v.string(),
+        position: v.number(),
+        url: v.string(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    for (const comp of args.competitors) {
+      // Check if competitor exists
+      const existing = await ctx.db
+        .query("competitors")
+        .withIndex("by_domain_competitor", (q) =>
+          q.eq("domainId", args.domainId).eq("competitorDomain", comp.domain)
+        )
+        .first();
+
+      let competitorId: Id<"competitors">;
+      if (existing) {
+        competitorId = existing._id;
+        if (existing.status === "active") {
+          await ctx.db.patch(existing._id, { lastCheckedAt: Date.now() });
+        }
+      } else {
+        competitorId = await ctx.db.insert("competitors", {
+          domainId: args.domainId,
+          competitorDomain: comp.domain,
+          name: comp.domain,
+          status: "paused",
+          createdAt: Date.now(),
+        });
+      }
+
+      // Save position (upsert)
+      const existingPos = await ctx.db
+        .query("competitorKeywordPositions")
+        .withIndex("by_competitor_keyword_date", (q) =>
+          q.eq("competitorId", competitorId).eq("keywordId", args.keywordId).eq("date", args.date)
+        )
+        .first();
+
+      if (existingPos) {
+        await ctx.db.patch(existingPos._id, {
+          position: comp.position,
+          url: comp.url,
+          fetchedAt: Date.now(),
+        });
+      } else {
+        await ctx.db.insert("competitorKeywordPositions", {
+          competitorId,
+          keywordId: args.keywordId,
+          date: args.date,
+          position: comp.position,
+          url: comp.url,
+          fetchedAt: Date.now(),
+        });
+      }
+    }
   },
 });
