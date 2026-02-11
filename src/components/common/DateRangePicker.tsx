@@ -18,6 +18,7 @@ export interface DateRangePickerProps {
   comparisonEnabled?: boolean;
   comparisonValue?: ComparisonRange;
   onComparisonChange?: (value: ComparisonRange | undefined) => void;
+  excludePresets?: DateRangePreset[];
   className?: string;
 }
 
@@ -44,6 +45,7 @@ export function DateRangePicker({
   comparisonEnabled = false,
   comparisonValue,
   onComparisonChange,
+  excludePresets,
   className,
 }: DateRangePickerProps) {
   const t = useTranslations('keywords');
@@ -70,7 +72,7 @@ export function DateRangePicker({
     }
   };
 
-  const presets: Array<{ value: DateRangePreset; label: string }> = [
+  const allPresets: Array<{ value: DateRangePreset; label: string }> = [
     { value: "7d", label: t('dateRangeLast7Days') },
     { value: "30d", label: t('dateRangeLast30Days') },
     { value: "3m", label: t('dateRangeLast3Months') },
@@ -78,6 +80,10 @@ export function DateRangePicker({
     { value: "1y", label: t('dateRangeLastYear') },
     { value: "all", label: t('dateRangeAllTime') },
   ];
+
+  const presets = excludePresets
+    ? allPresets.filter((p) => !excludePresets.includes(p.value))
+    : allPresets;
 
   return (
     <div className={cn("relative inline-block", className)}>

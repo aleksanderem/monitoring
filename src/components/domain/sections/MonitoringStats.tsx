@@ -67,7 +67,7 @@ export function MonitoringStats({ domainId }: MonitoringStatsProps) {
         <MetricCard
           title={t('estMonthlyTraffic')}
           value={formatTraffic(estimatedMonthlyTraffic)}
-          subtitle={t('potentialMonthlyVisitors')}
+          subtitle={t('basedOnMonitoredKeywords')}
           icon={BarChart03}
         />
 

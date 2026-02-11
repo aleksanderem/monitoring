@@ -487,6 +487,8 @@ export const clearKeywordCheckingStatusBatch = internalMutation({
   },
   handler: async (ctx, args) => {
     for (const keywordId of args.keywordIds) {
+      const keyword = await ctx.db.get(keywordId);
+      if (!keyword) continue; // Skip deleted keywords — don't crash the batch
       await ctx.db.patch(keywordId, {
         checkingStatus: undefined,
         checkJobId: undefined,

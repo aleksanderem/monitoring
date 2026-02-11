@@ -1326,3 +1326,59 @@ export const backfillDenormalizedPositions = internalMutation({
     return { updated, total: keywords.length, needsBackfill: needsBackfill.length };
   },
 });
+
+// One-time cleanup: remove duplicate keywordPositions (same keywordId + date)
+export const deduplicatePositions = internalMutation({
+  args: { domainId: v.optional(v.id("domains")) },
+  handler: async (ctx, args) => {
+    let keywords;
+    const domainId = args.domainId;
+    if (domainId) {
+      keywords = await ctx.db
+        .query("keywords")
+        .withIndex("by_domain", (q) => q.eq("domainId", domainId))
+        .collect();
+    } else {
+      keywords = await ctx.db.query("keywords").collect();
+    }
+
+    let totalDeleted = 0;
+    let keywordsProcessed = 0;
+
+    for (const keyword of keywords) {
+      const positions = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+        .collect();
+
+      // Group by date
+      const byDate = new Map<string, typeof positions>();
+      for (const pos of positions) {
+        const existing = byDate.get(pos.date);
+        if (existing) {
+          existing.push(pos);
+        } else {
+          byDate.set(pos.date, [pos]);
+        }
+      }
+
+      // For each date with duplicates, keep the one with latest fetchedAt
+      for (const [, group] of byDate) {
+        if (group.length <= 1) continue;
+
+        group.sort((a, b) => (b.fetchedAt ?? b._creationTime) - (a.fetchedAt ?? a._creationTime));
+
+        // Delete all but the first (most recent)
+        for (let i = 1; i < group.length; i++) {
+          await ctx.db.delete(group[i]._id);
+          totalDeleted++;
+        }
+      }
+
+      keywordsProcessed++;
+    }
+
+    console.log(`[dedup] Deleted ${totalDeleted} duplicate positions across ${keywordsProcessed} keywords`);
+    return { deleted: totalDeleted, keywordsProcessed };
+  },
+});

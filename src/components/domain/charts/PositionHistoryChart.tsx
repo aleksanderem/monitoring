@@ -20,7 +20,7 @@ interface PositionHistoryChartProps {
 
 export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
   const t = useTranslations("keywords");
-  const { dateRange, setDateRange } = useDateRange({ initialPreset: "all" });
+  const { dateRange, setDateRange } = useDateRange({ initialPreset: "1y" });
   const isDesktop = useBreakpoint("lg");
 
   // Always fetch all data — filter on the frontend based on selected range
@@ -68,7 +68,7 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
       <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <h2 className="text-lg font-semibold text-primary">{t("positionHistory")}</h2>
-          <DateRangePicker value={dateRange} onChange={setDateRange} />
+          <DateRangePicker value={dateRange} onChange={setDateRange} excludePresets={["7d", "30d"]} />
         </div>
         <div className="flex flex-col items-center gap-2 py-12 text-center">
           <p className="text-sm font-medium text-primary">{t("noHistoricalDataYet")}</p>

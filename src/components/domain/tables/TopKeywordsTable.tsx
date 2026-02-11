@@ -23,10 +23,10 @@ interface TopKeywordsTableProps {
 
 function getPositionBadgeColor(position: number | null): "blue" | "success" | "warning" | "error" | "gray" {
   if (position === null) return "gray";
-  if (position <= 3) return "blue";
+  if (position <= 3) return "success";
   if (position <= 10) return "success";
   if (position <= 20) return "warning";
-  if (position <= 50) return "error";
+  if (position <= 50) return "gray";
   return "gray";
 }
 

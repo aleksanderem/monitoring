@@ -149,6 +149,7 @@
   "vsLastWeek": "vs. last week",
   "estMonthlyTraffic": "Est. Monthly Traffic",
   "potentialMonthlyVisitors": "Potential monthly visitors",
+  "basedOnMonitoredKeywords": "Based on monitored keywords only",
   "positionChanges7d": "Position Changes (7d)",
 
   "currentPositionDistribution": "Current Position Distribution",
@@ -323,7 +324,7 @@
   "vs7DaysAgo": "vs 7 days ago",
   "newAndLost": "New: {newCount} | Lost: {lostCount}",
   "trafficValueEtv": "Traffic Value (ETV)",
-  "estimatedTrafficValue": "Estimated traffic value",
+  "estimatedTrafficValue": "DataForSEO estimate, all keywords",
   "keywordMovement": "Keyword Movement",
   "newRankings": "New Rankings",
   "newLabel": "New",

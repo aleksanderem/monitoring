@@ -149,6 +149,7 @@
   "vsLastWeek": "vs. ostatni tydzień",
   "estMonthlyTraffic": "Szac. miesięczny ruch",
   "potentialMonthlyVisitors": "Potencjalni miesięczni odwiedzający",
+  "basedOnMonitoredKeywords": "Na podstawie monitorowanych słów kluczowych",
   "positionChanges7d": "Zmiany pozycji (7 dni)",
 
   "currentPositionDistribution": "Aktualny rozkład pozycji",
@@ -323,7 +324,7 @@
   "vs7DaysAgo": "vs 7 dni temu",
   "newAndLost": "Nowe: {newCount} | Utracone: {lostCount}",
   "trafficValueEtv": "Wartość ruchu (ETV)",
-  "estimatedTrafficValue": "Szacowana wartość ruchu",
+  "estimatedTrafficValue": "Szacunek DataForSEO, wszystkie słowa",
   "keywordMovement": "Ruch słów kluczowych",
   "newRankings": "Nowe pozycje",
   "newLabel": "Nowe",

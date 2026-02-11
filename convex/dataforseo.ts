@@ -501,16 +501,37 @@ export const storePositionInternal = internalMutation({
     cpc: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const positionId = await ctx.db.insert("keywordPositions", {
-      keywordId: args.keywordId,
-      date: args.date,
-      position: args.position,
-      url: args.url,
-      searchVolume: args.searchVolume,
-      difficulty: args.difficulty,
-      cpc: args.cpc,
-      fetchedAt: Date.now(),
-    });
+    // Upsert: check for existing record to prevent duplicates on action retries
+    const existing = await ctx.db
+      .query("keywordPositions")
+      .withIndex("by_keyword_date", (q) =>
+        q.eq("keywordId", args.keywordId).eq("date", args.date)
+      )
+      .unique();
+
+    let positionId: Id<"keywordPositions">;
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        position: args.position,
+        url: args.url,
+        searchVolume: args.searchVolume,
+        difficulty: args.difficulty,
+        cpc: args.cpc,
+        fetchedAt: Date.now(),
+      });
+      positionId = existing._id;
+    } else {
+      positionId = await ctx.db.insert("keywordPositions", {
+        keywordId: args.keywordId,
+        date: args.date,
+        position: args.position,
+        url: args.url,
+        searchVolume: args.searchVolume,
+        difficulty: args.difficulty,
+        cpc: args.cpc,
+        fetchedAt: Date.now(),
+      });
+    }
 
     // Denormalize: update keyword record with current position data
     const keyword = await ctx.db.get(args.keywordId);
