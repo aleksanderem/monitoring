@@ -94,6 +94,16 @@
   "maxProjects": "Max projects",
   "maxDomainsPerProject": "Max domains per project",
   "maxKeywordsPerDomain": "Max keywords per domain",
+  "entityLimits": "Entity limits",
+  "refreshLimits": "Refresh limits",
+  "refreshCooldownMinutes": "Cooldown between refreshes (min)",
+  "refreshCooldownHint": "Minimum minutes between manual refreshes per domain. 0 = disabled.",
+  "maxDailyRefreshes": "Daily refresh limit (org)",
+  "maxDailyRefreshesHint": "Max manual refreshes per day for this org. 0 = unlimited.",
+  "maxDailyRefreshesPerUser": "Daily refresh limit (per user)",
+  "maxDailyRefreshesPerUserHint": "Max manual refreshes per user per day. 0 = unlimited.",
+  "disabled": "Disabled",
+  "unlimited": "Unlimited",
   "currentUsage": "Current Usage",
   "activate": "Activate",
   "suspend": "Suspend",
@@ -101,5 +111,7 @@
   "deleteOrg": "Delete Organization",
   "deleteOrgWarning": "This action cannot be undone. All projects, domains, and keywords will be permanently deleted.",
   "auditLogsDescription": "History of all admin actions in the system.",
-  "noAuditLogs": "No audit logs found"
+  "noAuditLogs": "No audit logs found",
+  "maxKeywordsPerBulkRefresh": "Max keywords per bulk action",
+  "maxKeywordsPerBulkRefreshHint": "Maximum keywords that can be refreshed in a single bulk action. 0 = unlimited."
 }

@@ -18,6 +18,7 @@ import {
   Trash01,
   Edit05,
   Plus,
+  DotsVertical,
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -28,6 +29,7 @@ import { Button } from "@/components/base/buttons/button";
 import { KeywordPositionChart } from "../charts/KeywordPositionChart";
 import { AddKeywordsModal } from "../modals/AddKeywordsModal";
 import { KeywordMonitoringDetailModal } from "../modals/KeywordMonitoringDetailModal";
+import { RefreshConfirmModal } from "../modals/RefreshConfirmModal";
 
 interface KeywordMonitoringTableProps {
   domainId: Id<"domains">;
@@ -79,6 +81,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [addKeywordsModalOpen, setAddKeywordsModalOpen] = useState(false);
   const [selectedKeyword, setSelectedKeyword] = useState<any | null>(null);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [refreshModalOpen, setRefreshModalOpen] = useState(false);
+  const [refreshModalAction, setRefreshModalAction] = useState<"refresh" | "serp">("refresh");
 
   // Column visibility state - load from localStorage on mount
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(() => {
@@ -319,58 +324,6 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
         </div>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            {/* Add Keywords Button */}
-            <Button
-              size="sm"
-              color="primary"
-              iconLeading={Plus}
-              onClick={() => setAddKeywordsModalOpen(true)}
-            >
-              {t('addKeywords')}
-            </Button>
-
-            {/* Refresh All Button */}
-            <Button
-              size="sm"
-              color="secondary"
-              iconLeading={RefreshCw01}
-              onClick={async () => {
-                if (!keywords || keywords.length === 0) return;
-                try {
-                  const allKeywordIds = keywords.map(kw => kw.keywordId);
-                  await refreshPositions({ keywordIds: allKeywordIds });
-                  toast.success(t('queuedRefreshForKeywords', { count: keywords.length }));
-                } catch (error) {
-                  toast.error(error instanceof Error ? error.message : t('failedToRefreshPositions'));
-                }
-              }}
-              disabled={!keywords || keywords.length === 0}
-            >
-              {t('refreshAll')}
-            </Button>
-
-            {/* Fetch SERP Data Button */}
-            <Button
-              size="sm"
-              color="secondary"
-              onClick={async () => {
-                if (!keywords || keywords.length === 0) return;
-                try {
-                  const allKeywordIds = keywords.map(kw => kw.keywordId);
-                  await createSerpFetchJob({
-                    domainId,
-                    keywordIds: allKeywordIds
-                  });
-                  toast.success(t('serpFetchJobQueued', { count: keywords.length }));
-                } catch (error) {
-                  toast.error(error instanceof Error ? error.message : t('failedToQueueSerpFetch'));
-                }
-              }}
-              disabled={!keywords || keywords.length === 0 || (!!activeSerpJob && activeSerpJob.status !== "completed")}
-            >
-              {activeSerpJob && activeSerpJob.status !== "completed" ? t('fetching') : t('fetchSerpData')}
-            </Button>
-
             {/* Search */}
             <div className="w-64">
               <Input
@@ -423,6 +376,54 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     ))}
                   </div>
                 </div>
+              )}
+            </div>
+
+            {/* Actions dropdown (icon-only) */}
+            <div className="relative">
+              <button
+                onClick={() => setShowActionsMenu(!showActionsMenu)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-secondary bg-primary text-secondary hover:bg-secondary/50 hover:text-primary transition-colors"
+              >
+                <DotsVertical className="h-5 w-5" />
+              </button>
+              {showActionsMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowActionsMenu(false)} />
+                  <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-secondary bg-primary p-1 shadow-lg">
+                    <button
+                      onClick={() => { setAddKeywordsModalOpen(true); setShowActionsMenu(false); }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-primary hover:bg-secondary/50 transition-colors"
+                    >
+                      <Plus className="h-4 w-4" />
+                      {t('addKeywords')}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        setRefreshModalAction("refresh");
+                        setRefreshModalOpen(true);
+                      }}
+                      disabled={!keywords || keywords.length === 0}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-primary hover:bg-secondary/50 transition-colors disabled:opacity-50"
+                    >
+                      <RefreshCw01 className="h-4 w-4" />
+                      {t('refreshAll')}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        setRefreshModalAction("serp");
+                        setRefreshModalOpen(true);
+                      }}
+                      disabled={!keywords || keywords.length === 0 || (!!activeSerpJob && activeSerpJob.status !== "completed")}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-primary hover:bg-secondary/50 transition-colors disabled:opacity-50"
+                    >
+                      <SearchLg className="h-4 w-4" />
+                      {activeSerpJob && activeSerpJob.status !== "completed" ? t('fetching') : t('fetchSerpData')}
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -493,21 +494,20 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
           <table className="w-full">
             <thead className="bg-secondary/50">
               <tr>
-                <th className="w-8 px-4 py-3"></th>
-                {columnVisibility.keyword && (
-                  <th
-                    className="cursor-pointer px-4 py-3 text-left text-xs font-medium text-tertiary transition-colors hover:bg-secondary/70"
-                    onClick={() => toggleSort("phrase")}
-                  >
-                    <div className="flex items-center gap-2">
+                <th
+                  className="sticky left-0 z-20 bg-secondary cursor-pointer px-4 py-3 text-left text-xs font-medium text-tertiary border-r border-secondary transition-colors hover:bg-secondary/70"
+                  onClick={() => toggleSort("phrase")}
+                >
+                  {columnVisibility.keyword && (
+                    <div className="flex items-center gap-2 pl-6">
                       {t('columnKeyword')}
                       <SortIcon column="phrase" />
                     </div>
-                  </th>
-                )}
+                  )}
+                </th>
                 {columnVisibility.position && (
                   <th
-                    className="cursor-pointer px-4 py-3 text-center text-xs font-medium text-tertiary transition-colors hover:bg-secondary/70"
+                    className="cursor-pointer whitespace-nowrap px-4 py-3 text-center text-xs font-medium text-tertiary transition-colors hover:bg-secondary/70"
                     onClick={() => toggleSort("currentPosition")}
                   >
                     <div className="flex items-center justify-center gap-2">
@@ -517,12 +517,12 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   </th>
                 )}
                 {columnVisibility.previous && (
-                  <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
+                  <th className="whitespace-nowrap px-4 py-3 text-center text-xs font-medium text-tertiary">
                     {t('columnPrevious')}
                   </th>
                 )}
                 {columnVisibility.change && (
-                  <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
+                  <th className="whitespace-nowrap px-4 py-3 text-center text-xs font-medium text-tertiary">
                     {t('columnChange')}
                   </th>
                 )}
@@ -583,48 +583,31 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                 return (
                   <React.Fragment key={keyword.keywordId}>
                     <tr
-                      className="transition-colors hover:bg-primary_hover cursor-pointer"
+                      className="group transition-colors hover:bg-primary_hover cursor-pointer"
                       onClick={() => setSelectedKeyword(keyword)}
                     >
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleRowExpansion(keyword.keywordId);
-                          }}
-                          className="text-tertiary hover:text-primary transition-colors"
-                        >
-                          {isExpanded ? (
-                            <ExpandIcon className="h-4 w-4" />
-                          ) : (
-                            <CollapseIcon className="h-4 w-4" />
-                          )}
-                        </button>
-                      </td>
                       {columnVisibility.keyword && (
-                        <td className="px-4 py-3">
+                        <td className="sticky left-0 z-10 bg-primary group-hover:bg-primary_hover border-r border-secondary px-4 py-3 transition-colors">
                           <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleRowExpansion(keyword.keywordId);
+                              }}
+                              className="text-tertiary hover:text-primary transition-colors flex-shrink-0"
+                            >
+                              {isExpanded ? (
+                                <ExpandIcon className="h-4 w-4" />
+                              ) : (
+                                <CollapseIcon className="h-4 w-4" />
+                              )}
+                            </button>
                             <span className="text-sm font-medium text-primary">{keyword.phrase}</span>
-                            {keyword.status === "new" && (
-                              <span className="inline-flex items-center rounded-full bg-utility-blue-50 px-2 py-0.5 text-xs font-medium text-utility-blue-700">
-                                {tc('new')}
-                              </span>
-                            )}
-                            {keyword.status === "rising" && (
-                              <span className="inline-flex items-center rounded-full bg-utility-success-50 px-2 py-0.5 text-xs font-medium text-utility-success-700">
-                                ↑
-                              </span>
-                            )}
-                            {keyword.status === "falling" && (
-                              <span className="inline-flex items-center rounded-full bg-utility-error-50 px-2 py-0.5 text-xs font-medium text-utility-error-700">
-                                ↓
-                              </span>
-                            )}
                           </div>
                         </td>
                       )}
                       {columnVisibility.position && (
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
                           {isRefreshing ? (
                             <RefreshCw01 className="h-4 w-4 animate-spin text-brand-600 inline-block" />
                           ) : keyword.currentPosition ? (
@@ -641,7 +624,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                         </td>
                       )}
                       {columnVisibility.previous && (
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
                           {keyword.previousPosition ? (
                             <span className="inline-flex items-center rounded-full bg-utility-gray-50 px-2.5 py-0.5 text-xs font-medium text-utility-gray-600">
                               {keyword.previousPosition}
@@ -652,7 +635,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                         </td>
                       )}
                       {columnVisibility.change && (
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
                           {keyword.change !== null && keyword.change !== 0 ? (
                             <span
                               className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
@@ -754,7 +737,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     {/* Expanded row content */}
                     {isExpanded && (
                       <tr>
-                        <td colSpan={12} className="bg-secondary/20 p-6">
+                        <td colSpan={20} className="bg-secondary/20 p-6">
                           <div className="space-y-6">
                             {/* Position History Chart */}
                             {keyword.positionHistory && keyword.positionHistory.length > 0 && (
@@ -844,6 +827,26 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
         keyword={selectedKeyword}
         isOpen={!!selectedKeyword}
         onClose={() => setSelectedKeyword(null)}
+      />
+
+      {/* Refresh Confirm Modal */}
+      <RefreshConfirmModal
+        isOpen={refreshModalOpen}
+        onClose={() => setRefreshModalOpen(false)}
+        domainId={domainId}
+        actionType={refreshModalAction}
+        keywordCount={keywords?.length ?? 0}
+        onConfirm={async () => {
+          if (!keywords || keywords.length === 0) return;
+          const allKeywordIds = keywords.map(kw => kw.keywordId);
+          if (refreshModalAction === "refresh") {
+            await refreshPositions({ keywordIds: allKeywordIds });
+            toast.success(t('queuedRefreshForKeywords', { count: keywords.length }));
+          } else {
+            await createSerpFetchJob({ domainId, keywordIds: allKeywordIds });
+            toast.success(t('serpFetchJobQueued', { count: keywords.length }));
+          }
+        }}
       />
     </>
   );

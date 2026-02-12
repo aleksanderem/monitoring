@@ -43,6 +43,7 @@
   "tabKeywords": "Słowa kluczowe",
   "tabBacklinks": "Backlinki",
   "tabMonitoring": "Monitoring",
+  "tabSettings": "Ustawienia",
   "overviewDomains": "Domeny",
   "overviewMonitoredKeywords": "Monitorowane słowa kluczowe",
   "overviewDiscovered": "{count} odkrytych",
@@ -106,5 +107,18 @@
   "relativeTimeDaysAgo": "{days, plural, one {# dzień temu} few {# dni temu} many {# dni temu} other {# dni temu}}",
   "relativeTimeWeeksAgo": "{weeks, plural, one {# tydzień temu} few {# tygodnie temu} many {# tygodni temu} other {# tygodni temu}}",
   "relativeTimeMonthsAgo": "{months, plural, one {# miesiąc temu} few {# miesiące temu} many {# miesięcy temu} other {# miesięcy temu}}",
-  "relativeTimeYearsAgo": "{years, plural, one {# rok temu} few {# lata temu} many {# lat temu} other {# lat temu}}"
+  "relativeTimeYearsAgo": "{years, plural, one {# rok temu} few {# lata temu} many {# lat temu} other {# lat temu}}",
+
+  "projectLimitsTitle": "Limity projektu",
+  "projectLimitsDescription": "Nadpisz limity na poziomie organizacji dla tego projektu.",
+  "maxDomainsLabel": "Maks. domen",
+  "maxDomainsHint": "Maksymalna liczba domen w tym projekcie. 0 = dziedzicz z organizacji.",
+  "maxKeywordsPerDomainLabel": "Maks. słów kluczowych na domenę",
+  "maxKeywordsPerDomainHint": "Maksymalna liczba słów kluczowych na domenę w tym projekcie. 0 = dziedzicz z organizacji.",
+  "maxDailyRefreshesLabel": "Dzienny limit odświeżeń",
+  "maxDailyRefreshesHint": "Maksymalna liczba ręcznych odświeżeń dziennie dla tego projektu. 0 = dziedzicz z organizacji.",
+  "limitsInheritFromOrg": "0 = dziedzicz z organizacji",
+  "limitsSave": "Zapisz limity",
+  "limitsUpdated": "Limity projektu zaktualizowane pomyślnie",
+  "limitsUpdateFailed": "Nie udało się zaktualizować limitów projektu"
 }

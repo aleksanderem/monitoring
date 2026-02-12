@@ -23,6 +23,14 @@ export default defineSchema({
       maxDomains: v.optional(v.number()),            // Max domains globally
       maxDomainsPerProject: v.optional(v.number()),  // Default per project
       maxKeywordsPerDomain: v.optional(v.number()),  // Default per domain
+      refreshCooldownMinutes: v.optional(v.number()), // Min minutes between manual refreshes per domain
+      maxDailyRefreshes: v.optional(v.number()),      // Max manual refreshes per org per day
+      maxDailyRefreshesPerUser: v.optional(v.number()), // Max manual refreshes per user per day
+      maxKeywordsPerBulkRefresh: v.optional(v.number()), // Max keywords per single bulk refresh/SERP action
+    })),
+    branding: v.optional(v.object({
+      logoStorageId: v.optional(v.string()),
+      logoUrl: v.optional(v.string()),
     })),
   }).index("by_slug", ["slug"]),
 
@@ -41,6 +49,7 @@ export default defineSchema({
     limits: v.optional(v.object({
       maxDomains: v.optional(v.number()),            // Override org limit
       maxKeywordsPerDomain: v.optional(v.number()),  // Override org default
+      maxDailyRefreshes: v.optional(v.number()),     // Max refreshes per project per day
     })),
   }).index("by_team", ["teamId"]),
 
@@ -63,6 +72,7 @@ export default defineSchema({
     lastRefreshedAt: v.optional(v.number()),
     limits: v.optional(v.object({
       maxKeywords: v.optional(v.number()),
+      maxDailyRefreshes: v.optional(v.number()),     // Max refreshes per domain per day
     })),
     onboardingCompleted: v.optional(v.boolean()),
     onboardingDismissed: v.optional(v.boolean()),
@@ -131,6 +141,7 @@ export default defineSchema({
   // Background jobs for keyword position checking
   keywordCheckJobs: defineTable({
     domainId: v.id("domains"),
+    createdBy: v.optional(v.id("users")),
     status: v.union(
       v.literal("pending"),
       v.literal("processing"),
@@ -153,6 +164,7 @@ export default defineSchema({
   // SERP fetching jobs (for bulk competitor analysis)
   keywordSerpJobs: defineTable({
     domainId: v.id("domains"),
+    createdBy: v.optional(v.id("users")),
     status: v.union(
       v.literal("pending"),
       v.literal("processing"),

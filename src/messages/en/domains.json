@@ -152,6 +152,7 @@
 
   "back": "Back",
   "generateFullReport": "Generate full report",
+  "shareMonitoring": "Share monitoring",
   "fetchedBacklinks": "Fetched {count} backlinks successfully",
   "failedToFetchBacklinks": "Failed to fetch backlinks data",
   "fetchingVisibilityData": "Fetching visibility data...",
@@ -299,5 +300,16 @@
 
   "pathLabel": "Path:",
   "pathContains": "contains",
-  "pathDoesNotContain": "does not contain"
+  "pathDoesNotContain": "does not contain",
+
+  "refreshLimitsTitle": "Refresh Limits",
+  "refreshLimitsDescription": "Override organization-level refresh limits for this domain.",
+  "maxKeywordsLabel": "Max keywords",
+  "maxKeywordsHint": "Maximum keywords allowed for this domain. 0 = inherit from organization.",
+  "maxDailyRefreshesLabel": "Daily refresh limit",
+  "maxDailyRefreshesHint": "Maximum manual refreshes per day for this domain. 0 = inherit from organization.",
+  "limitsInheritFromOrg": "0 = inherit from organization",
+  "limitsSave": "Save limits",
+  "limitsUpdated": "Domain limits updated successfully",
+  "limitsUpdateFailed": "Failed to update domain limits"
 }

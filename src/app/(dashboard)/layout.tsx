@@ -6,13 +6,10 @@ import { useConvexAuth } from "convex/react";
 import { SidebarNavigationSectionDividers } from "@/components/application/app-navigation/sidebar-navigation/sidebar-section-dividers";
 import { TopBar } from "@/components/application/app-navigation/TopBar";
 import {
-  BarChartSquare02,
   Folder,
   Globe01,
   LayersThree01,
-  SearchSm,
   Settings01,
-  Users01,
 } from "@untitledui/icons";
 import { usePathname } from "next/navigation";
 import { GlobalJobStatus } from "@/components/domain/job-status/GlobalJobStatus";
@@ -58,11 +55,6 @@ export default function DashboardLayout({
         activeUrl={pathname}
         items={[
           {
-            label: t("dashboard"),
-            href: "/dashboard",
-            icon: BarChartSquare02,
-          },
-          {
             label: t("projects"),
             href: "/projects",
             icon: Folder,
@@ -73,21 +65,11 @@ export default function DashboardLayout({
             icon: Globe01,
           },
           {
-            label: t("keywords"),
-            href: "/keywords",
-            icon: SearchSm,
-          },
-          {
             label: t("jobs"),
             href: "/jobs",
             icon: LayersThree01,
           },
           { divider: true },
-          {
-            label: t("teams"),
-            href: "/teams",
-            icon: Users01,
-          },
           {
             label: t("settings"),
             href: "/settings",

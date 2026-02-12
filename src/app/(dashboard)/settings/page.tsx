@@ -13,6 +13,10 @@ import {
   Trash01,
   Plus,
   Check,
+  Image01,
+  Upload01,
+  Users01,
+  Speedometer02,
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
@@ -20,6 +24,7 @@ import { Toggle } from "@/components/base/toggle/toggle";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Badge } from "@/components/base/badges/badges";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { FileTrigger } from "@/components/base/file-upload-trigger/file-upload-trigger";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
@@ -666,6 +671,444 @@ function APIKeysSection() {
   );
 }
 
+// ─── Branding section ────────────────────────────────────────────────
+
+function BrandingSection() {
+  const t = useTranslations("settings");
+  const branding = useQuery(api.branding.getOrganizationBranding);
+  const generateUploadUrl = useMutation(api.branding.generateLogoUploadUrl);
+  const saveLogo = useMutation(api.branding.saveOrganizationLogo);
+  const removeLogo = useMutation(api.branding.removeOrganizationLogo);
+
+  const [isUploading, setIsUploading] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  const handleFileSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
+    // Client-side validation
+    if (!file.type.startsWith("image/")) {
+      toast.error(t("logoUploadError"));
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error(t("logoUploadError"));
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      const { storageId } = await response.json();
+      await saveLogo({ storageId });
+      toast.success(t("logoUploadedSuccess"));
+    } catch {
+      toast.error(t("logoUploadError"));
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    setIsRemoving(true);
+    try {
+      await removeLogo();
+      toast.success(t("logoRemovedSuccess"));
+    } catch {
+      toast.error(t("logoUploadError"));
+    } finally {
+      setIsRemoving(false);
+    }
+  };
+
+  if (branding === undefined) {
+    return <LoadingState type="card" rows={2} />;
+  }
+
+  const logoUrl = branding?.branding?.logoUrl;
+
+  return (
+    <Section
+      title={t("brandingTitle")}
+      description={t("brandingDescription")}
+    >
+      {/* Logo preview */}
+      <div className="mb-6 flex items-center gap-6">
+        <div className="flex h-20 w-40 items-center justify-center rounded-lg border border-dashed border-secondary bg-secondary/30">
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt="Company logo"
+              className="max-h-16 max-w-36 object-contain"
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-1">
+              <Image01 className="h-6 w-6 text-quaternary" />
+              <span className="text-xs text-quaternary">{t("noLogoUploaded")}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <FileTrigger
+            acceptedFileTypes={["image/png", "image/jpeg", "image/svg+xml"]}
+            onSelect={handleFileSelect}
+          >
+            <Button
+              color="secondary"
+              size="sm"
+              iconLeading={Upload01}
+              isLoading={isUploading}
+            >
+              {t("uploadLogo")}
+            </Button>
+          </FileTrigger>
+
+          {logoUrl && (
+            <Button
+              color="primary-destructive"
+              size="sm"
+              iconLeading={Trash01}
+              onClick={handleRemove}
+              isLoading={isRemoving}
+            >
+              {t("removeLogo")}
+            </Button>
+          )}
+
+          <p className="text-xs text-quaternary">{t("logoRequirements")}</p>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+// ─── Members section ─────────────────────────────────────────────────
+
+const ROLE_OPTIONS = [
+  { value: "admin", label: "Admin" },
+  { value: "member", label: "Member" },
+  { value: "viewer", label: "Viewer" },
+];
+
+function MembersSection() {
+  const t = useTranslations("settings");
+  const orgs = useQuery(api.organizations.getUserOrganizations);
+  const orgId = orgs?.[0]?._id;
+  const members = useQuery(
+    api.organizations.getOrganizationMembers,
+    orgId ? { organizationId: orgId } : "skip",
+  );
+  const inviteMember = useMutation(api.organizations.inviteMember);
+  const updateRole = useMutation(api.organizations.updateMemberRole);
+  const removeMember = useMutation(api.organizations.removeMember);
+
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"admin" | "member" | "viewer">("member");
+  const [isInviting, setIsInviting] = useState(false);
+
+  // Current user's role in org (to show/hide admin controls)
+  const currentUserRole = orgs?.[0]?.role;
+  const isAdmin = currentUserRole === "owner" || currentUserRole === "admin";
+
+  const handleInvite = async () => {
+    if (!inviteEmail.trim() || !orgId) return;
+    setIsInviting(true);
+    try {
+      await inviteMember({
+        organizationId: orgId,
+        email: inviteEmail.trim(),
+        role: inviteRole,
+      });
+      toast.success(t("memberInvitedSuccess"));
+      setInviteEmail("");
+    } catch (e: any) {
+      toast.error(e?.message || t("memberInvitedError"));
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  const handleRoleChange = async (membershipId: Id<"organizationMembers">, role: string) => {
+    try {
+      await updateRole({
+        membershipId,
+        role: role as "admin" | "member" | "viewer",
+      });
+      toast.success(t("memberRoleUpdatedSuccess"));
+    } catch {
+      toast.error(t("memberRoleUpdatedError"));
+    }
+  };
+
+  const handleRemove = async (membershipId: Id<"organizationMembers">) => {
+    if (!confirm(t("confirmRemoveMember"))) return;
+    try {
+      await removeMember({ membershipId });
+      toast.success(t("memberRemovedSuccess"));
+    } catch {
+      toast.error(t("memberRemovedError"));
+    }
+  };
+
+  if (orgs === undefined || members === undefined) {
+    return <LoadingState type="table" rows={3} />;
+  }
+
+  const roleLabel = (role: string) => {
+    const map: Record<string, string> = {
+      owner: t("roleOwner"),
+      admin: t("roleAdmin"),
+      member: t("roleMember"),
+      viewer: t("roleViewer"),
+    };
+    return map[role] || role;
+  };
+
+  return (
+    <Section
+      title={t("membersTitle")}
+      description={t("membersDescription")}
+    >
+      {/* Invite form (admin/owner only) */}
+      {isAdmin && (
+        <div className="mb-6 rounded-lg border border-secondary p-4">
+          <h3 className="mb-3 text-sm font-medium text-primary">
+            {t("inviteMember")}
+          </h3>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+            <div className="flex-1">
+              <Input
+                label={t("memberColumnEmail")}
+                size="sm"
+                placeholder={t("inviteEmailPlaceholder")}
+                value={inviteEmail}
+                onChange={(v) => setInviteEmail(v)}
+              />
+            </div>
+            <div className="w-40">
+              <NativeSelect
+                label={t("inviteRoleLabel")}
+                value={inviteRole}
+                onChange={(v) => setInviteRole(v as "admin" | "member" | "viewer")}
+                options={ROLE_OPTIONS}
+              />
+            </div>
+            <Button
+              color="primary"
+              size="sm"
+              iconLeading={Plus}
+              onClick={handleInvite}
+              isLoading={isInviting}
+            >
+              {t("inviteButton")}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Members list */}
+      {!members || members.length === 0 ? (
+        <p className="py-8 text-center text-sm text-tertiary">
+          {t("noMembers")}
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-secondary">
+                <th className="pb-3 pr-4 font-medium text-tertiary">{t("memberColumnName")}</th>
+                <th className="pb-3 pr-4 font-medium text-tertiary">{t("memberColumnEmail")}</th>
+                <th className="pb-3 pr-4 font-medium text-tertiary">{t("memberColumnRole")}</th>
+                <th className="pb-3 pr-4 font-medium text-tertiary">{t("memberColumnJoined")}</th>
+                {isAdmin && (
+                  <th className="pb-3 font-medium text-tertiary" />
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((member) => (
+                <tr
+                  key={member._id}
+                  className="border-b border-secondary last:border-0"
+                >
+                  <td className="py-3 pr-4 font-medium text-primary">
+                    {member.user?.name || "—"}
+                  </td>
+                  <td className="py-3 pr-4 text-tertiary">
+                    {member.user?.email || "—"}
+                  </td>
+                  <td className="py-3 pr-4">
+                    {isAdmin && member.role !== "owner" ? (
+                      <select
+                        value={member.role}
+                        onChange={(e) =>
+                          handleRoleChange(
+                            member._id as Id<"organizationMembers">,
+                            e.target.value,
+                          )
+                        }
+                        className="rounded-md border border-secondary bg-primary px-2 py-1 text-sm text-primary"
+                      >
+                        {ROLE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {roleLabel(opt.value)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Badge size="sm" type="pill-color" color={
+                        member.role === "owner" ? "brand" :
+                        member.role === "admin" ? "blue" :
+                        member.role === "viewer" ? "gray" : "success"
+                      }>
+                        {roleLabel(member.role)}
+                      </Badge>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap py-3 pr-4 text-tertiary">
+                    {new Date(member.joinedAt).toLocaleDateString()}
+                  </td>
+                  {isAdmin && (
+                    <td className="py-3">
+                      {member.role !== "owner" && (
+                        <Button
+                          color="primary-destructive"
+                          size="sm"
+                          iconLeading={Trash01}
+                          onClick={() =>
+                            handleRemove(member._id as Id<"organizationMembers">)
+                          }
+                        >
+                          {t("removeMember")}
+                        </Button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Section>
+  );
+}
+
+// ─── Limits section ─────────────────────────────────────────────────
+
+function LimitsSection() {
+  const t = useTranslations("settings");
+  const limits = useQuery(api.limits.getOrgRefreshLimits);
+  const updateLimits = useMutation(api.limits.updateOrganizationLimits);
+
+  const [refreshCooldownMinutes, setRefreshCooldownMinutes] = useState<number | null>(null);
+  const [maxDailyRefreshes, setMaxDailyRefreshes] = useState<number | null>(null);
+  const [maxDailyRefreshesPerUser, setMaxDailyRefreshesPerUser] = useState<number | null>(null);
+  const [maxKeywordsPerBulkRefresh, setMaxKeywordsPerBulkRefresh] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const currentCooldown = refreshCooldownMinutes ?? limits?.refreshCooldownMinutes ?? 0;
+  const currentOrgDaily = maxDailyRefreshes ?? limits?.maxDailyRefreshes ?? 0;
+  const currentUserDaily = maxDailyRefreshesPerUser ?? limits?.maxDailyRefreshesPerUser ?? 0;
+  const currentBulkCap = maxKeywordsPerBulkRefresh ?? limits?.maxKeywordsPerBulkRefresh ?? 0;
+
+  const handleSave = async () => {
+    if (!limits?.organizationId) return;
+    setIsSaving(true);
+    try {
+      await updateLimits({
+        organizationId: limits.organizationId,
+        limits: {
+          refreshCooldownMinutes: currentCooldown,
+          maxDailyRefreshes: currentOrgDaily,
+          maxDailyRefreshesPerUser: currentUserDaily,
+          maxKeywordsPerBulkRefresh: currentBulkCap,
+        },
+      });
+      toast.success(t("limitsUpdated"));
+    } catch {
+      toast.error(t("limitsUpdateFailed"));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (limits === undefined) {
+    return <LoadingState type="card" rows={2} />;
+  }
+
+  if (limits === null) {
+    return null;
+  }
+
+  const fields = [
+    {
+      label: t("refreshCooldownLabel"),
+      hint: t("refreshCooldownHint"),
+      value: currentCooldown,
+      onChange: setRefreshCooldownMinutes,
+    },
+    {
+      label: t("maxDailyRefreshesLabel"),
+      hint: t("maxDailyRefreshesHint"),
+      value: currentOrgDaily,
+      onChange: setMaxDailyRefreshes,
+    },
+    {
+      label: t("maxDailyRefreshesPerUserLabel"),
+      hint: t("maxDailyRefreshesPerUserHint"),
+      value: currentUserDaily,
+      onChange: setMaxDailyRefreshesPerUser,
+    },
+    {
+      label: t("maxKeywordsPerBulkRefreshLabel"),
+      hint: t("maxKeywordsPerBulkRefreshHint"),
+      value: currentBulkCap,
+      onChange: setMaxKeywordsPerBulkRefresh,
+    },
+  ];
+
+  return (
+    <Section title={t("limitsTitle")} description={t("limitsDescription")}>
+      <div className="flex flex-col gap-4">
+        {fields.map((field) => (
+          <div key={field.label} className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-secondary">
+              {field.label}
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={field.value}
+              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+              className="rounded-lg border border-secondary bg-primary px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-brand-solid"
+            />
+            <p className="text-xs text-tertiary">{field.hint}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <Button
+          color="primary"
+          size="sm"
+          onClick={handleSave}
+          isLoading={isSaving}
+        >
+          {t("limitsSave")}
+        </Button>
+      </div>
+    </Section>
+  );
+}
+
 // ─── Main page ──────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -676,6 +1119,9 @@ export default function SettingsPage() {
     { id: "preferences", label: t("tabPreferences"), icon: Settings01 },
     { id: "notifications", label: t("tabNotifications"), icon: Bell01 },
     { id: "api-keys", label: t("tabApiKeys"), icon: Key01 },
+    { id: "branding", label: t("tabBranding"), icon: Image01 },
+    { id: "members", label: t("tabMembers"), icon: Users01 },
+    { id: "limits", label: t("tabLimits"), icon: Speedometer02 },
   ];
 
   return (
@@ -725,6 +1171,19 @@ export default function SettingsPage() {
             <TabPanel id="api-keys">
               <APIKeysSection />
             </TabPanel>
+
+            <TabPanel id="branding">
+              <BrandingSection />
+            </TabPanel>
+
+            <TabPanel id="members">
+              <MembersSection />
+            </TabPanel>
+
+            <TabPanel id="limits">
+              <LimitsSection />
+            </TabPanel>
+
           </div>
         </div>
       </Tabs>

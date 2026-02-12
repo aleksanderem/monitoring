@@ -30,6 +30,7 @@ import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { BadgeWithDot } from "@/components/base/badges/badges";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
+import { ShareLinkDialog } from "@/components/domain/modals/ShareLinkDialog";
 import { Breadcrumbs } from "@/components/application/breadcrumbs/breadcrumbs";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { CloseButton } from "@/components/base/buttons/close-button";
@@ -71,6 +72,10 @@ import { CompetitorBacklinksSection } from "@/components/domain/sections/Competi
 import { CompetitorContentAnalysisSection } from "@/components/domain/sections/CompetitorContentAnalysisSection";
 import { AddKeywordsModal } from "@/components/domain/modals/AddKeywordsModal";
 import { CompetitorOverviewChart } from "@/components/domain/charts/CompetitorOverviewChart";
+import { CompetitorPositionScatterChart } from "@/components/domain/charts/CompetitorPositionScatterChart";
+import { CompetitorKeywordBarsChart } from "@/components/domain/charts/CompetitorKeywordBarsChart";
+import { CompetitorBacklinkRadarChart } from "@/components/domain/charts/CompetitorBacklinkRadarChart";
+import { BacklinkQualityComparisonChart } from "@/components/domain/charts/BacklinkQualityComparisonChart";
 import { CompetitorKeywordGapTable } from "@/components/domain/tables/CompetitorKeywordGapTable";
 import { ForecastSummaryCard } from "@/components/domain/cards/ForecastSummaryCard";
 import { CompetitorAnalysisReportsSection } from "@/components/domain/sections/CompetitorAnalysisReportsSection";
@@ -102,6 +107,82 @@ function formatRelativeTime(timestamp: number) {
   if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
   if (days < 365) return `${Math.floor(days / 30)} months ago`;
   return `${Math.floor(days / 365)} years ago`;
+}
+
+function DomainLimitsSection({ domainId, currentLimits }: { domainId: Id<"domains">; currentLimits?: { maxKeywords?: number; maxDailyRefreshes?: number } }) {
+  const t = useTranslations("domains");
+  const updateDomainLimits = useMutation(api.limits.updateDomainLimits);
+
+  const [maxKeywords, setMaxKeywords] = useState<number | null>(null);
+  const [maxDailyRefreshes, setMaxDailyRefreshes] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const currentMaxKeywords = maxKeywords ?? currentLimits?.maxKeywords ?? 0;
+  const currentMaxDailyRefreshes = maxDailyRefreshes ?? currentLimits?.maxDailyRefreshes ?? 0;
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateDomainLimits({
+        domainId,
+        limits: {
+          maxKeywords: currentMaxKeywords || null,
+          maxDailyRefreshes: currentMaxDailyRefreshes || null,
+        },
+      });
+      toast.success(t("limitsUpdated"));
+    } catch {
+      toast.error(t("limitsUpdateFailed"));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold text-primary">{t("refreshLimitsTitle")}</h2>
+        <p className="mt-1 text-sm text-tertiary">{t("refreshLimitsDescription")}</p>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-secondary">{t("maxKeywordsLabel")}</label>
+          <input
+            type="number"
+            min={0}
+            value={currentMaxKeywords}
+            onChange={(e) => setMaxKeywords(parseInt(e.target.value) || 0)}
+            className="rounded-lg border border-secondary bg-primary px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-brand-solid"
+          />
+          <p className="text-xs text-tertiary">{t("maxKeywordsHint")}</p>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-secondary">{t("maxDailyRefreshesLabel")}</label>
+          <input
+            type="number"
+            min={0}
+            value={currentMaxDailyRefreshes}
+            onChange={(e) => setMaxDailyRefreshes(parseInt(e.target.value) || 0)}
+            className="rounded-lg border border-secondary bg-primary px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-brand-solid"
+          />
+          <p className="text-xs text-tertiary">{t("maxDailyRefreshesHint")}</p>
+        </div>
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <Button
+          color="primary"
+          size="sm"
+          onClick={handleSave}
+          isLoading={isSaving}
+        >
+          {t("limitsSave")}
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export default function DomainDetailPage() {
@@ -404,6 +485,14 @@ export default function DomainDetailPage() {
             </div>
 
             <div className="flex gap-2">
+              <ShareLinkDialog domainId={domainId}>
+                <ButtonUtility
+                  size="sm"
+                  color="tertiary"
+                  tooltip={t('shareMonitoring')}
+                  icon={Link03}
+                />
+              </ShareLinkDialog>
               <ButtonUtility
                 size="sm"
                 color="tertiary"
@@ -704,11 +793,19 @@ export default function DomainDetailPage() {
 
                 <CompetitorManagementSection domainId={domainId} />
 
+                <CompetitorOverviewChart domainId={domainId} />
+
+                <CompetitorPositionScatterChart domainId={domainId} />
+
+                <CompetitorKeywordBarsChart domainId={domainId} />
+
+                <CompetitorBacklinkRadarChart domainId={domainId} />
+
+                <BacklinkQualityComparisonChart domainId={domainId} />
+
                 <CompetitorBacklinksSection domainId={domainId} />
 
                 <CompetitorContentAnalysisSection domainId={domainId} />
-
-                <CompetitorOverviewChart domainId={domainId} />
 
                 <CompetitorKeywordGapTable domainId={domainId} />
               </div>
@@ -745,32 +842,36 @@ export default function DomainDetailPage() {
 
             {/* Settings Tab */}
             <TabPanel id="settings">
-              <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
-                <h2 className="text-lg font-semibold text-primary">{t('settings')}</h2>
+              <div className="flex flex-col gap-6">
+                <div className="rounded-xl border border-secondary bg-primary p-6">
+                  <h2 className="text-lg font-semibold text-primary">{t('settings')}</h2>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-secondary">{t('searchEngine')}</p>
-                    <p className="text-sm text-primary">{domain.settings.searchEngine}</p>
-                  </div>
+                  <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-secondary">{t('searchEngine')}</p>
+                      <p className="text-sm text-primary">{domain.settings.searchEngine}</p>
+                    </div>
 
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-secondary">{t('refreshFrequency')}</p>
-                    <BadgeWithDot size="sm" color="gray" type="modern">
-                      {domain.settings.refreshFrequency}
-                    </BadgeWithDot>
-                  </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-secondary">{t('refreshFrequency')}</p>
+                      <BadgeWithDot size="sm" color="gray" type="modern">
+                        {domain.settings.refreshFrequency}
+                      </BadgeWithDot>
+                    </div>
 
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-secondary">{t('location')}</p>
-                    <p className="text-sm text-primary">{domain.settings.location}</p>
-                  </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-secondary">{t('location')}</p>
+                      <p className="text-sm text-primary">{domain.settings.location}</p>
+                    </div>
 
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-secondary">{t('language')}</p>
-                    <p className="text-sm text-primary">{domain.settings.language}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-secondary">{t('language')}</p>
+                      <p className="text-sm text-primary">{domain.settings.language}</p>
+                    </div>
                   </div>
                 </div>
+
+                <DomainLimitsSection domainId={domainId} currentLimits={domain.limits} />
               </div>
             </TabPanel>
             </div>

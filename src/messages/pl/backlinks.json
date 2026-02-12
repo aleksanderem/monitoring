@@ -476,7 +476,7 @@
     "summaryReferringDomains": "Domeny odsyłające",
     "summaryReferringIPs": "Odsyłające IP",
     "summaryDofollowLinks": "Linki dofollow",
-    "summaryDofollowPercent": "{percent}% wszystkich backlinków",
+    "summaryDofollowPercent": "{percent}% dofollow · {nofollow} nofollow",
     "velocityAvgNewPerDay": "Śr. nowych/dzień",
     "velocityAvgLostPerDay": "Śr. utraconych/dzień",
     "velocityNetGrowth": "Wzrost netto",

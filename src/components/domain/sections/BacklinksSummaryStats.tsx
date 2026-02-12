@@ -92,6 +92,7 @@ export function BacklinksSummaryStats({ summary, isLoading }: BacklinksSummarySt
   const dofollowPercent = summary.totalBacklinks > 0
     ? ((summary.dofollow / summary.totalBacklinks) * 100).toFixed(1)
     : "0";
+  const nofollowCount = summary.nofollow ?? 0;
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -121,7 +122,7 @@ export function BacklinksSummaryStats({ summary, isLoading }: BacklinksSummarySt
         value={summary.dofollow}
         icon={Link03}
         iconColor="green"
-        secondaryText={t("summaryDofollowPercent", { percent: dofollowPercent })}
+        secondaryText={t("summaryDofollowPercent", { percent: dofollowPercent, nofollow: nofollowCount.toLocaleString() })}
       />
     </div>
   );

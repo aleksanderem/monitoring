@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 import { mutation, query, internalQuery, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { checkKeywordLimit } from "./limits";
+import { auth } from "./auth";
+import { checkKeywordLimit, checkRefreshLimits } from "./limits";
 import { requirePermission, getContextFromDomain, getContextFromKeyword } from "./permissions";
 
 // CTR curve based on organic search position (industry standard)
@@ -841,9 +842,16 @@ export const refreshKeywordPositions = mutation({
     }
     await requirePermission(ctx, "keywords.refresh", context);
 
+    // Get userId for per-user rate limiting and job tracking
+    const userId = await auth.getUserId(ctx);
+
+    // Check refresh rate limits (cooldown + daily quota + per-user + per-project + per-domain + bulk cap)
+    await checkRefreshLimits(ctx, domainId, userId, args.keywordIds.length);
+
     // Create a check job for these keywords
     const jobId = await ctx.db.insert("keywordCheckJobs", {
       domainId,
+      createdBy: userId ?? undefined,
       status: "pending",
       totalKeywords: args.keywordIds.length,
       processedKeywords: 0,

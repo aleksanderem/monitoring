@@ -41,9 +41,9 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex flex-col gap-8 rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+    <div className="flex flex-col gap-8 rounded-xl border border-white/10 bg-gray-900/80 p-8 backdrop-blur-sm">
       <div className="flex flex-col items-center gap-4 text-center">
-        <AppLogo className="h-10" />
+        <AppLogo variant="white" className="h-10" />
         <div className="flex flex-col gap-2">
           <h1 className="text-display-xs font-semibold text-primary md:text-display-sm">{t("createAccount")}</h1>
           <p className="text-md text-tertiary">{t("startFreeTrial")}</p>

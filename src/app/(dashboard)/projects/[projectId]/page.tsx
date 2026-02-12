@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import type { Id } from "../../../../../convex/_generated/dataModel";
-import { ArrowLeft, BarChart03, Hash01, Link03, Activity } from "@untitledui/icons";
+import { ArrowLeft, BarChart03, Hash01, Link03, Activity, Settings01 } from "@untitledui/icons";
+import { Button } from "@/components/base/buttons/button";
+import { toast } from "sonner";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { ProjectOverviewSection } from "@/components/project/sections/ProjectOverviewSection";
@@ -12,6 +15,76 @@ import { ProjectPositionMonitoring } from "@/components/project/sections/Project
 import { ProjectBacklinksOverview } from "@/components/project/sections/ProjectBacklinksOverview";
 import { ProjectDomainsTable } from "@/components/project/tables/ProjectDomainsTable";
 import { useTranslations } from "next-intl";
+
+function ProjectLimitsSection({ projectId, currentLimits }: { projectId: Id<"projects">; currentLimits?: { maxDomains?: number; maxKeywordsPerDomain?: number; maxDailyRefreshes?: number } }) {
+  const t = useTranslations("projects");
+  const updateProjectLimits = useMutation(api.limits.updateProjectLimits);
+
+  const [maxDomains, setMaxDomains] = useState<number | null>(null);
+  const [maxKeywordsPerDomain, setMaxKeywordsPerDomain] = useState<number | null>(null);
+  const [maxDailyRefreshes, setMaxDailyRefreshes] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const currentMaxDomains = maxDomains ?? currentLimits?.maxDomains ?? 0;
+  const currentMaxKeywords = maxKeywordsPerDomain ?? currentLimits?.maxKeywordsPerDomain ?? 0;
+  const currentMaxDaily = maxDailyRefreshes ?? currentLimits?.maxDailyRefreshes ?? 0;
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateProjectLimits({
+        projectId,
+        limits: {
+          maxDomains: currentMaxDomains || null,
+          maxKeywordsPerDomain: currentMaxKeywords || null,
+          maxDailyRefreshes: currentMaxDaily || null,
+        },
+      });
+      toast.success(t("limitsUpdated"));
+    } catch {
+      toast.error(t("limitsUpdateFailed"));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const fields = [
+    { label: t("maxDomainsLabel"), hint: t("maxDomainsHint"), value: currentMaxDomains, onChange: setMaxDomains },
+    { label: t("maxKeywordsPerDomainLabel"), hint: t("maxKeywordsPerDomainHint"), value: currentMaxKeywords, onChange: setMaxKeywordsPerDomain },
+    { label: t("maxDailyRefreshesLabel"), hint: t("maxDailyRefreshesHint"), value: currentMaxDaily, onChange: setMaxDailyRefreshes },
+  ];
+
+  return (
+    <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold text-primary">{t("projectLimitsTitle")}</h2>
+        <p className="mt-1 text-sm text-tertiary">{t("projectLimitsDescription")}</p>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        {fields.map((field) => (
+          <div key={field.label} className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-secondary">{field.label}</label>
+            <input
+              type="number"
+              min={0}
+              value={field.value}
+              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+              className="rounded-lg border border-secondary bg-primary px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-brand-solid"
+            />
+            <p className="text-xs text-tertiary">{field.hint}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <Button color="primary" size="sm" onClick={handleSave} isLoading={isSaving}>
+          {t("limitsSave")}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function ProjectDetailPage() {
     const t = useTranslations("projects");
@@ -21,6 +94,7 @@ export default function ProjectDetailPage() {
         { id: "keywords", label: t("tabKeywords"), icon: Hash01 },
         { id: "backlinks", label: t("tabBacklinks"), icon: Link03 },
         { id: "monitoring", label: t("tabMonitoring"), icon: Activity },
+        { id: "settings", label: t("tabSettings"), icon: Settings01 },
     ];
     const params = useParams();
     const router = useRouter();
@@ -85,6 +159,11 @@ export default function ProjectDetailPage() {
                 {/* Monitoring Tab */}
                 <TabPanel id="monitoring">
                     <ProjectPositionMonitoring projectId={projectId} />
+                </TabPanel>
+
+                {/* Settings Tab */}
+                <TabPanel id="settings">
+                    <ProjectLimitsSection projectId={projectId} currentLimits={project.limits} />
                 </TabPanel>
             </Tabs>
         </div>

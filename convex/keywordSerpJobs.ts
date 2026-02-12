@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { mutation, query, action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { auth } from "./auth";
+import { checkRefreshLimits } from "./limits";
 
 // Create a new SERP fetch job
 export const createSerpFetchJob = mutation({
@@ -10,9 +12,16 @@ export const createSerpFetchJob = mutation({
     keywordIds: v.array(v.id("keywords")),
   },
   handler: async (ctx, args) => {
+    // Get userId for per-user rate limiting and job tracking
+    const userId = await auth.getUserId(ctx);
+
+    // Check refresh rate limits (cooldown + daily quota + per-user + per-project + per-domain + bulk cap)
+    await checkRefreshLimits(ctx, args.domainId, userId, args.keywordIds.length);
+
     // Create job record
     const jobId = await ctx.db.insert("keywordSerpJobs", {
       domainId: args.domainId,
+      createdBy: userId ?? undefined,
       status: "pending",
       totalKeywords: args.keywordIds.length,
       processedKeywords: 0,

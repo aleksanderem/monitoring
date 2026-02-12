@@ -100,24 +100,6 @@ export default function ProjectsPage() {
 
   return (
     <div className="mx-auto flex max-w-container flex-col gap-8 px-4 py-8 lg:px-8">
-      <div className="relative flex flex-col gap-5 bg-primary">
-        <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
-          <div className="flex flex-col gap-0.5 lg:gap-1">
-            <p className="text-xl font-semibold text-primary lg:text-display-xs">
-              {t("title")}
-            </p>
-            <p className="text-md text-tertiary">
-              {t("description")}
-            </p>
-          </div>
-          <div className="flex flex-col gap-4 lg:flex-row">
-            <div className="flex items-start gap-3">
-              <CreateProjectDialog />
-            </div>
-          </div>
-        </div>
-      </div>
-
       {projects.length === 0 ? (
         <EmptyState size="md">
           <EmptyState.Header>
@@ -136,6 +118,25 @@ export default function ProjectsPage() {
           </EmptyState.Footer>
         </EmptyState>
       ) : (
+        <>
+        <div className="relative flex flex-col gap-5 bg-primary">
+          <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
+            <div className="flex flex-col gap-0.5 lg:gap-1">
+              <p className="text-xl font-semibold text-primary lg:text-display-xs">
+                {t("title")}
+              </p>
+              <p className="text-md text-tertiary">
+                {t("description")}
+              </p>
+            </div>
+            <div className="flex flex-col gap-4 lg:flex-row">
+              <div className="flex items-start gap-3">
+                <CreateProjectDialog />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <TableCard.Root>
           <TableCard.Header
             title={t("allProjects")}
@@ -330,6 +331,7 @@ export default function ProjectsPage() {
           </Table>
           )}
         </TableCard.Root>
+        </>
       )}
     </div>
   );
