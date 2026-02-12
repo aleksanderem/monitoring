@@ -12,6 +12,7 @@ import { AddCompetitorModal } from "../modals/AddCompetitorModal";
 import { GapSummaryCards } from "../cards/GapSummaryCards";
 import { ContentGapOpportunitiesTable } from "../tables/ContentGapOpportunitiesTable";
 import { ContentGapTrendsChart } from "../charts/ContentGapTrendsChart";
+import { ContentGapBubbleChart } from "../charts/ContentGapBubbleChart";
 import { TopicClustersCard } from "../cards/TopicClustersCard";
 import { CompetitorGapComparisonCard } from "../cards/CompetitorGapComparisonCard";
 
@@ -102,6 +103,9 @@ export function ContentGapSection({ domainId }: ContentGapSectionProps) {
                 <ContentGapTrendsChart domainId={domainId} />
                 <CompetitorGapComparisonCard domainId={domainId} />
             </div>
+
+            {/* Content Gap Bubble Chart */}
+            <ContentGapBubbleChart domainId={domainId} />
 
             {/* Topic Clusters */}
             <TopicClustersCard domainId={domainId} />

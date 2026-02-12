@@ -152,6 +152,7 @@
 
   "back": "Wstecz",
   "generateFullReport": "Generuj pełny raport",
+  "shareMonitoring": "Udostępnij monitoring",
   "fetchedBacklinks": "Pobrano {count} backlinków pomyślnie",
   "failedToFetchBacklinks": "Nie udało się pobrać danych backlinków",
   "fetchingVisibilityData": "Pobieranie danych widoczności...",
@@ -299,5 +300,16 @@
 
   "pathLabel": "Ścieżka:",
   "pathContains": "zawiera",
-  "pathDoesNotContain": "nie zawiera"
+  "pathDoesNotContain": "nie zawiera",
+
+  "refreshLimitsTitle": "Limity odświeżania",
+  "refreshLimitsDescription": "Nadpisz limity odświeżania na poziomie organizacji dla tej domeny.",
+  "maxKeywordsLabel": "Maks. słów kluczowych",
+  "maxKeywordsHint": "Maksymalna liczba słów kluczowych dla tej domeny. 0 = dziedzicz z organizacji.",
+  "maxDailyRefreshesLabel": "Dzienny limit odświeżeń",
+  "maxDailyRefreshesHint": "Maksymalna liczba ręcznych odświeżeń dziennie dla tej domeny. 0 = dziedzicz z organizacji.",
+  "limitsInheritFromOrg": "0 = dziedzicz z organizacji",
+  "limitsSave": "Zapisz limity",
+  "limitsUpdated": "Limity domeny zaktualizowane pomyślnie",
+  "limitsUpdateFailed": "Nie udało się zaktualizować limitów domeny"
 }

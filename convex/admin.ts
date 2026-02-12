@@ -703,6 +703,10 @@ export const adminUpdateOrganizationLimits = mutation({
       maxDomains: v.optional(v.union(v.number(), v.null())),
       maxDomainsPerProject: v.optional(v.union(v.number(), v.null())),
       maxKeywordsPerDomain: v.optional(v.union(v.number(), v.null())),
+      refreshCooldownMinutes: v.optional(v.union(v.number(), v.null())),
+      maxDailyRefreshes: v.optional(v.union(v.number(), v.null())),
+      maxDailyRefreshesPerUser: v.optional(v.union(v.number(), v.null())),
+      maxKeywordsPerBulkRefresh: v.optional(v.union(v.number(), v.null())),
     }),
   },
   handler: async (ctx, args) => {

@@ -94,6 +94,16 @@
   "maxProjects": "Maks. projektów",
   "maxDomainsPerProject": "Maks. domen na projekt",
   "maxKeywordsPerDomain": "Maks. słów kluczowych na domenę",
+  "entityLimits": "Limity encji",
+  "refreshLimits": "Limity odświeżania",
+  "refreshCooldownMinutes": "Przerwa między odświeżeniami (min)",
+  "refreshCooldownHint": "Minimalna liczba minut między ręcznymi odświeżeniami na domenę. 0 = wyłączone.",
+  "maxDailyRefreshes": "Dzienny limit odświeżeń (org)",
+  "maxDailyRefreshesHint": "Maks. ręcznych odświeżeń dziennie dla tej organizacji. 0 = bez limitu.",
+  "maxDailyRefreshesPerUser": "Dzienny limit odświeżeń (na użytkownika)",
+  "maxDailyRefreshesPerUserHint": "Maks. ręcznych odświeżeń na użytkownika dziennie. 0 = bez limitu.",
+  "disabled": "Wyłączone",
+  "unlimited": "Bez limitu",
   "currentUsage": "Bieżące użycie",
   "activate": "Aktywuj",
   "suspend": "Zawieś",
@@ -101,5 +111,7 @@
   "deleteOrg": "Usuń organizację",
   "deleteOrgWarning": "Tej czynności nie można cofnąć. Wszystkie projekty, domeny i słowa kluczowe zostaną trwale usunięte.",
   "auditLogsDescription": "Historia wszystkich działań administracyjnych w systemie.",
-  "noAuditLogs": "Nie znaleziono logów audytu"
+  "noAuditLogs": "Nie znaleziono logów audytu",
+  "maxKeywordsPerBulkRefresh": "Maks. słów kluczowych na akcję zbiorczą",
+  "maxKeywordsPerBulkRefreshHint": "Maksymalna liczba słów kluczowych odświeżanych w jednej akcji zbiorczej. 0 = bez limitu."
 }

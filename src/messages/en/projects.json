@@ -43,6 +43,7 @@
   "tabKeywords": "Keywords",
   "tabBacklinks": "Backlinks",
   "tabMonitoring": "Monitoring",
+  "tabSettings": "Settings",
   "overviewDomains": "Domains",
   "overviewMonitoredKeywords": "Monitored Keywords",
   "overviewDiscovered": "{count} discovered",
@@ -106,5 +107,18 @@
   "relativeTimeDaysAgo": "{days} days ago",
   "relativeTimeWeeksAgo": "{weeks} weeks ago",
   "relativeTimeMonthsAgo": "{months} months ago",
-  "relativeTimeYearsAgo": "{years} years ago"
+  "relativeTimeYearsAgo": "{years} years ago",
+
+  "projectLimitsTitle": "Project Limits",
+  "projectLimitsDescription": "Override organization-level limits for this project.",
+  "maxDomainsLabel": "Max domains",
+  "maxDomainsHint": "Maximum domains allowed in this project. 0 = inherit from organization.",
+  "maxKeywordsPerDomainLabel": "Max keywords per domain",
+  "maxKeywordsPerDomainHint": "Maximum keywords per domain in this project. 0 = inherit from organization.",
+  "maxDailyRefreshesLabel": "Daily refresh limit",
+  "maxDailyRefreshesHint": "Maximum manual refreshes per day for this project. 0 = inherit from organization.",
+  "limitsInheritFromOrg": "0 = inherit from organization",
+  "limitsSave": "Save limits",
+  "limitsUpdated": "Project limits updated successfully",
+  "limitsUpdateFailed": "Failed to update project limits"
 }

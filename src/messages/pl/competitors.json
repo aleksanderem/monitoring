@@ -481,5 +481,40 @@
     "featuredSnippetBadge": "Featured Snippet",
     "contentGapStartMonitoring": "Rozpocznij monitoring",
     "contentGapDismiss": "Odrzuć",
-    "clickToDiscoverCompetitors": "Kliknij poniżej, aby odkryć swoich konkurentów w organicznych wynikach wyszukiwania"
+    "clickToDiscoverCompetitors": "Kliknij poniżej, aby odkryć swoich konkurentów w organicznych wynikach wyszukiwania",
+
+    "positionScatterTitle": "Pokrycie pozycji",
+    "positionScatterDescription": "Twoja pozycja vs pozycja konkurenta na słowo kluczowe. Punkty poniżej przekątnej = Ty masz lepszą pozycję.",
+    "positionScatterXAxis": "Twoja pozycja",
+    "positionScatterYAxis": "Pozycja konkurenta",
+    "positionScatterYourPos": "Twoja pozycja",
+    "positionScatterVolume": "Wolumen wyszukiwań",
+
+    "backlinkRadarTitle": "Porównanie profilu backlinków",
+    "backlinkRadarDescription": "Znormalizowane metryki backlinków w porównaniu Twojej domeny i konkurencji (skala 0-100).",
+    "backlinkRadarTotalBacklinks": "Łącznie backlinków",
+    "backlinkRadarRefDomains": "Domeny odsyłające",
+    "backlinkRadarDofollow": "Dofollow %",
+    "backlinkRadarDomainRank": "Śr. rank domeny",
+    "backlinkRadarFreshLinks": "Nowe linki %",
+
+    "backlinkQualityTitle": "Rozkład jakości backlinków",
+    "backlinkQualityDescription": "Backlinki pogrupowane wg ranku domeny odsyłającej (DR).",
+    "backlinkQualityHigh": "Wysoki DR (60+)",
+    "backlinkQualityMedium": "Średni DR (30-59)",
+    "backlinkQualityLow": "Niski DR (0-29)",
+
+    "keywordBarsTitle": "Porównanie top słów kluczowych",
+    "keywordBarsDescription": "Porównanie pozycji dla słów kluczowych o najwyższym wolumenie. Niższy numer pozycji = lepsza pozycja.",
+
+    "contentGapBubbleTitle": "Mapa szans z luk w treści",
+    "contentGapBubbleDescription": "Słowa kluczowe z luk wykreślone wg trudności vs wolumenu wyszukiwań. Rozmiar bąbelka = liczba konkurentów. Kolor = wynik szansy.",
+    "contentGapBubbleCompetitors": "Konkurenci w rankingu",
+    "contentGapBubbleHighOpp": "Wysoka szansa (70+)",
+    "contentGapBubbleMedOpp": "Średnia szansa (40-69)",
+    "contentGapBubbleLowOpp": "Niska szansa (<40)",
+
+    "chartYourDomain": "Twoja domena",
+    "chartNoData": "Brak dostępnych danych",
+    "chartPosition": "Pozycja"
 }

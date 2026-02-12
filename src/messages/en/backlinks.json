@@ -476,7 +476,7 @@
     "summaryReferringDomains": "Referring Domains",
     "summaryReferringIPs": "Referring IPs",
     "summaryDofollowLinks": "Dofollow Links",
-    "summaryDofollowPercent": "{percent}% of total backlinks",
+    "summaryDofollowPercent": "{percent}% dofollow · {nofollow} nofollow",
     "velocityAvgNewPerDay": "Avg New/Day",
     "velocityAvgLostPerDay": "Avg Lost/Day",
     "velocityNetGrowth": "Net Growth",

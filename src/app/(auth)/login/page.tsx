@@ -26,7 +26,7 @@ export default function LoginPage() {
       const password = formData.get("password") as string;
 
       await signIn("password", { email, password, flow: "signIn" });
-      router.push("/dashboard");
+      router.push("/domains");
       toast.success(t("loginSuccess"));
     } catch (error) {
       toast.error(t("invalidCredentials"));
@@ -37,9 +37,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col gap-8 rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+    <div className="flex flex-col gap-8 rounded-xl border border-white/10 bg-gray-900/80 p-8 backdrop-blur-sm">
       <div className="flex flex-col gap-3">
-        <AppLogo className="h-9" />
+        <AppLogo variant="white" className="h-9" />
         <p className="text-md text-tertiary">
           {t("welcomeBack")}
         </p>

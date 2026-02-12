@@ -481,5 +481,40 @@
     "featuredSnippetBadge": "Featured Snippet",
     "contentGapStartMonitoring": "Start monitoring",
     "contentGapDismiss": "Dismiss",
-    "clickToDiscoverCompetitors": "Click below to discover your organic search competitors"
+    "clickToDiscoverCompetitors": "Click below to discover your organic search competitors",
+
+    "positionScatterTitle": "Position Overlap",
+    "positionScatterDescription": "Your position vs competitor position per keyword. Points below the diagonal = you rank better.",
+    "positionScatterXAxis": "Your Position",
+    "positionScatterYAxis": "Competitor Position",
+    "positionScatterYourPos": "Your position",
+    "positionScatterVolume": "Search volume",
+
+    "backlinkRadarTitle": "Backlink Profile Comparison",
+    "backlinkRadarDescription": "Normalized backlink metrics comparison across your domain and competitors (0-100 scale).",
+    "backlinkRadarTotalBacklinks": "Total Backlinks",
+    "backlinkRadarRefDomains": "Referring Domains",
+    "backlinkRadarDofollow": "Dofollow %",
+    "backlinkRadarDomainRank": "Avg Domain Rank",
+    "backlinkRadarFreshLinks": "Fresh Links %",
+
+    "backlinkQualityTitle": "Backlink Quality Distribution",
+    "backlinkQualityDescription": "Backlinks grouped by referring domain rank tier (DR).",
+    "backlinkQualityHigh": "High DR (60+)",
+    "backlinkQualityMedium": "Medium DR (30-59)",
+    "backlinkQualityLow": "Low DR (0-29)",
+
+    "keywordBarsTitle": "Top Keywords Comparison",
+    "keywordBarsDescription": "Position comparison for your highest-volume keywords. Lower position number = better ranking.",
+
+    "contentGapBubbleTitle": "Content Gap Opportunity Map",
+    "contentGapBubbleDescription": "Gap keywords plotted by difficulty vs search volume. Bubble size = competitors ranking. Color = opportunity score.",
+    "contentGapBubbleCompetitors": "Competitors ranking",
+    "contentGapBubbleHighOpp": "High opportunity (70+)",
+    "contentGapBubbleMedOpp": "Medium opportunity (40-69)",
+    "contentGapBubbleLowOpp": "Low opportunity (<40)",
+
+    "chartYourDomain": "Your Domain",
+    "chartNoData": "No data available",
+    "chartPosition": "Position"
 }

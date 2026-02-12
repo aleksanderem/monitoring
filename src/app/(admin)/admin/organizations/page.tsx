@@ -84,6 +84,10 @@ export default function AdminOrganizationsPage() {
     maxProjects: number;
     maxDomainsPerProject: number;
     maxKeywordsPerDomain: number;
+    refreshCooldownMinutes: number;
+    maxDailyRefreshes: number;
+    maxDailyRefreshesPerUser: number;
+    maxKeywordsPerBulkRefresh: number;
   } | null>(null);
 
   const organizations = useQuery(api.admin.listAllOrganizations, { search: search || undefined, limit: 100 });
@@ -116,6 +120,10 @@ export default function AdminOrganizationsPage() {
         maxProjects: orgDetails.limits?.maxProjects ?? 5,
         maxDomainsPerProject: orgDetails.limits?.maxDomainsPerProject ?? 10,
         maxKeywordsPerDomain: orgDetails.limits?.maxKeywordsPerDomain ?? 100,
+        refreshCooldownMinutes: (orgDetails.limits as any)?.refreshCooldownMinutes ?? 0,
+        maxDailyRefreshes: (orgDetails.limits as any)?.maxDailyRefreshes ?? 0,
+        maxDailyRefreshesPerUser: (orgDetails.limits as any)?.maxDailyRefreshesPerUser ?? 0,
+        maxKeywordsPerBulkRefresh: (orgDetails.limits as any)?.maxKeywordsPerBulkRefresh ?? 0,
       });
       setIsEditingLimits(true);
     }
@@ -318,20 +326,40 @@ export default function AdminOrganizationsPage() {
                   </div>
                   {isEditingLimits && editedLimits ? (
                     <div className="space-y-4">
+                      <p className="text-xs font-medium text-tertiary uppercase tracking-wider">{t("entityLimits")}</p>
                       {[
-                        { label: t("maxProjects"), key: "maxProjects" as const },
-                        { label: t("maxDomainsPerProject"), key: "maxDomainsPerProject" as const },
-                        { label: t("maxKeywordsPerDomain"), key: "maxKeywordsPerDomain" as const },
+                        { label: t("maxProjects"), key: "maxProjects" as const, min: 1 },
+                        { label: t("maxDomainsPerProject"), key: "maxDomainsPerProject" as const, min: 1 },
+                        { label: t("maxKeywordsPerDomain"), key: "maxKeywordsPerDomain" as const, min: 1 },
                       ].map((field) => (
                         <div key={field.key}>
                           <label className="block text-sm font-medium text-secondary mb-1">{field.label}</label>
                           <input
                             type="number"
-                            min={1}
+                            min={field.min}
                             value={editedLimits[field.key]}
-                            onChange={(e) => setEditedLimits({ ...editedLimits, [field.key]: parseInt(e.target.value) || 1 })}
+                            onChange={(e) => setEditedLimits({ ...editedLimits, [field.key]: parseInt(e.target.value) || field.min })}
                             className="w-full px-3 py-2 border border-primary rounded-lg bg-primary text-primary focus:outline-none focus:ring-2 focus:ring-brand-solid"
                           />
+                        </div>
+                      ))}
+                      <p className="text-xs font-medium text-tertiary uppercase tracking-wider pt-2">{t("refreshLimits")}</p>
+                      {[
+                        { label: t("refreshCooldownMinutes"), key: "refreshCooldownMinutes" as const, min: 0, hint: t("refreshCooldownHint") },
+                        { label: t("maxDailyRefreshes"), key: "maxDailyRefreshes" as const, min: 0, hint: t("maxDailyRefreshesHint") },
+                        { label: t("maxDailyRefreshesPerUser"), key: "maxDailyRefreshesPerUser" as const, min: 0, hint: t("maxDailyRefreshesPerUserHint") },
+                        { label: t("maxKeywordsPerBulkRefresh"), key: "maxKeywordsPerBulkRefresh" as const, min: 0, hint: t("maxKeywordsPerBulkRefreshHint") },
+                      ].map((field) => (
+                        <div key={field.key}>
+                          <label className="block text-sm font-medium text-secondary mb-1">{field.label}</label>
+                          <input
+                            type="number"
+                            min={field.min}
+                            value={editedLimits[field.key]}
+                            onChange={(e) => setEditedLimits({ ...editedLimits, [field.key]: parseInt(e.target.value) || 0 })}
+                            className="w-full px-3 py-2 border border-primary rounded-lg bg-primary text-primary focus:outline-none focus:ring-2 focus:ring-brand-solid"
+                          />
+                          <p className="text-xs text-tertiary mt-1">{field.hint}</p>
                         </div>
                       ))}
                       <div className="flex gap-2">
@@ -344,6 +372,13 @@ export default function AdminOrganizationsPage() {
                       <div className="flex justify-between"><dt className="text-sm text-tertiary">{t("maxProjects")}</dt><dd className="text-sm font-medium text-primary">{orgDetails.limits?.maxProjects ?? "∞"}</dd></div>
                       <div className="flex justify-between"><dt className="text-sm text-tertiary">{t("maxDomainsPerProject")}</dt><dd className="text-sm font-medium text-primary">{orgDetails.limits?.maxDomainsPerProject ?? "∞"}</dd></div>
                       <div className="flex justify-between"><dt className="text-sm text-tertiary">{t("maxKeywordsPerDomain")}</dt><dd className="text-sm font-medium text-primary">{orgDetails.limits?.maxKeywordsPerDomain ?? "∞"}</dd></div>
+                      <div className="border-t border-primary mt-3 pt-3">
+                        <p className="text-xs font-medium text-tertiary uppercase tracking-wider mb-3">{t("refreshLimits")}</p>
+                        <div className="flex justify-between"><dt className="text-sm text-tertiary">{t("refreshCooldownMinutes")}</dt><dd className="text-sm font-medium text-primary">{(orgDetails.limits as any)?.refreshCooldownMinutes || t("disabled")}</dd></div>
+                        <div className="flex justify-between mt-3"><dt className="text-sm text-tertiary">{t("maxDailyRefreshes")}</dt><dd className="text-sm font-medium text-primary">{(orgDetails.limits as any)?.maxDailyRefreshes || t("unlimited")}</dd></div>
+                        <div className="flex justify-between mt-3"><dt className="text-sm text-tertiary">{t("maxDailyRefreshesPerUser")}</dt><dd className="text-sm font-medium text-primary">{(orgDetails.limits as any)?.maxDailyRefreshesPerUser || t("unlimited")}</dd></div>
+                        <div className="flex justify-between mt-3"><dt className="text-sm text-tertiary">{t("maxKeywordsPerBulkRefresh")}</dt><dd className="text-sm font-medium text-primary">{(orgDetails.limits as any)?.maxKeywordsPerBulkRefresh || t("unlimited")}</dd></div>
+                      </div>
                     </dl>
                   )}
                 </div>

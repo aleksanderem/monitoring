@@ -515,5 +515,25 @@
   "serpAboutThisResult": "About this result:",
   "serpSource": "Source: {value}",
   "serpPublished": "Published: {value}",
-  "serpLastFetched": "Last fetched: {value}"
+  "serpLastFetched": "Last fetched: {value}",
+
+  "refreshConfirmTitle": "Refresh Keyword Positions",
+  "serpConfirmTitle": "Fetch SERP Data",
+  "refreshConfirmDescription": "This will queue a position check for {count} keywords.",
+  "serpConfirmDescription": "This will queue SERP data fetch for {count} keywords.",
+  "limitStatus": "Limit Status",
+  "limitCooldown": "Domain cooldown",
+  "limitCooldownReady": "Ready",
+  "limitCooldownWait": "Wait until {time}",
+  "limitOrgDaily": "Organization daily",
+  "limitUserDaily": "Your daily usage",
+  "limitProjectDaily": "Project daily",
+  "limitDomainDaily": "Domain daily",
+  "limitUsage": "{used} / {limit} used",
+  "limitExhausted": "Limit reached",
+  "noLimitsConfigured": "No refresh limits configured",
+  "confirmRefresh": "Confirm",
+  "cannotRefresh": "Refresh not available",
+  "limitBulkCap": "Keywords per action",
+  "limitBulkCapExceeded": "Max {limit} keywords per bulk action ({count} selected)"
 }

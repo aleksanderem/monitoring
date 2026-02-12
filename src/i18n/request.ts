@@ -23,6 +23,7 @@ export default getRequestConfig(async () => {
         "settings",
         "admin",
         "jobs",
+        "share",
     ];
 
     const messages: Record<string, any> = {};

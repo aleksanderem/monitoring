@@ -515,5 +515,25 @@
   "serpAboutThisResult": "O tym wyniku:",
   "serpSource": "Źródło: {value}",
   "serpPublished": "Opublikowano: {value}",
-  "serpLastFetched": "Ostatnio pobrano: {value}"
+  "serpLastFetched": "Ostatnio pobrano: {value}",
+
+  "refreshConfirmTitle": "Odśwież pozycje słów kluczowych",
+  "serpConfirmTitle": "Pobierz dane SERP",
+  "refreshConfirmDescription": "Sprawdzenie pozycji zostanie dodane do kolejki dla {count} słów kluczowych.",
+  "serpConfirmDescription": "Pobieranie danych SERP zostanie dodane do kolejki dla {count} słów kluczowych.",
+  "limitStatus": "Status limitów",
+  "limitCooldown": "Przerwa między odświeżeniami",
+  "limitCooldownReady": "Gotowe",
+  "limitCooldownWait": "Poczekaj do {time}",
+  "limitOrgDaily": "Dzienny limit organizacji",
+  "limitUserDaily": "Twoje dzienne użycie",
+  "limitProjectDaily": "Dzienny limit projektu",
+  "limitDomainDaily": "Dzienny limit domeny",
+  "limitUsage": "{used} / {limit} wykorzystano",
+  "limitExhausted": "Limit wyczerpany",
+  "noLimitsConfigured": "Brak skonfigurowanych limitów odświeżania",
+  "confirmRefresh": "Potwierdź",
+  "cannotRefresh": "Odświeżanie niedostępne",
+  "limitBulkCap": "Słów kluczowych na akcję",
+  "limitBulkCapExceeded": "Maks. {limit} słów kluczowych na akcję zbiorczą ({count} wybrano)"
 }
