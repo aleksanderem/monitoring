@@ -8,8 +8,12 @@
  * @module
  */
 
+import type * as actions_aiKeywordResearch from "../actions/aiKeywordResearch.js";
 import type * as actions_competitorPositions from "../actions/competitorPositions.js";
+import type * as actions_dataforseoLocations from "../actions/dataforseoLocations.js";
 import type * as admin from "../admin.js";
+import type * as aiResearch from "../aiResearch.js";
+import type * as apiUsage from "../apiUsage.js";
 import type * as auth from "../auth.js";
 import type * as backlinkAnalysis_queries from "../backlinkAnalysis_queries.js";
 import type * as backlinkVelocity from "../backlinkVelocity.js";
@@ -34,6 +38,9 @@ import type * as contentGaps_queries from "../contentGaps_queries.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as dataforseo from "../dataforseo.js";
+import type * as dataforseoLocations from "../dataforseoLocations.js";
+import type * as debugLog from "../debugLog.js";
+import type * as diagnostic from "../diagnostic.js";
 import type * as domainReports from "../domainReports.js";
 import type * as domains from "../domains.js";
 import type * as forecasts_actions from "../forecasts_actions.js";
@@ -52,6 +59,8 @@ import type * as keywordPositions_internal from "../keywordPositions_internal.js
 import type * as keywordSerpJobs from "../keywordSerpJobs.js";
 import type * as keywords from "../keywords.js";
 import type * as keywords_internal from "../keywords_internal.js";
+import type * as lib_debugLogger from "../lib/debugLogger.js";
+import type * as lib_keywordValidation from "../lib/keywordValidation.js";
 import type * as limits from "../limits.js";
 import type * as linkBuilding_mutations from "../linkBuilding_mutations.js";
 import type * as linkBuilding_queries from "../linkBuilding_queries.js";
@@ -91,8 +100,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "actions/aiKeywordResearch": typeof actions_aiKeywordResearch;
   "actions/competitorPositions": typeof actions_competitorPositions;
+  "actions/dataforseoLocations": typeof actions_dataforseoLocations;
   admin: typeof admin;
+  aiResearch: typeof aiResearch;
+  apiUsage: typeof apiUsage;
   auth: typeof auth;
   backlinkAnalysis_queries: typeof backlinkAnalysis_queries;
   backlinkVelocity: typeof backlinkVelocity;
@@ -117,6 +130,9 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   dashboard: typeof dashboard;
   dataforseo: typeof dataforseo;
+  dataforseoLocations: typeof dataforseoLocations;
+  debugLog: typeof debugLog;
+  diagnostic: typeof diagnostic;
   domainReports: typeof domainReports;
   domains: typeof domains;
   forecasts_actions: typeof forecasts_actions;
@@ -135,6 +151,8 @@ declare const fullApi: ApiFromModules<{
   keywordSerpJobs: typeof keywordSerpJobs;
   keywords: typeof keywords;
   keywords_internal: typeof keywords_internal;
+  "lib/debugLogger": typeof lib_debugLogger;
+  "lib/keywordValidation": typeof lib_keywordValidation;
   limits: typeof limits;
   linkBuilding_mutations: typeof linkBuilding_mutations;
   linkBuilding_queries: typeof linkBuilding_queries;

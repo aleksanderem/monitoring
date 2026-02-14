@@ -41,7 +41,7 @@ import { BackgroundPattern } from "@/components/shared-assets/background-pattern
 import { Heading as AriaHeading, type Key } from "react-aria-components";
 import { Tag, TagGroup, type TagItem, TagList } from "@/components/base/tags/tags";
 import { Plus } from "@untitledui/icons";
-import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
+import { Tabs, TabList, Tab, TabPanel } from "@/components/application/tabs/tabs";
 import { MetricsChart04 } from "@/components/application/metrics/metrics";
 import { toast } from "sonner";
 import { PositionHistoryChart } from "@/components/domain/charts/PositionHistoryChart";
@@ -84,10 +84,29 @@ import { BacklinkProfileSection } from "@/components/domain/sections/BacklinkPro
 import { LinkBuildingSection } from "@/components/domain/sections/LinkBuildingSection";
 import { ContentGapSection } from "@/components/domain/sections/ContentGapSection";
 import { InsightsSection } from "@/components/domain/sections/InsightsSection";
-import { Target04, LinkExternal02 } from "@untitledui/icons";
+import { Target04, LinkExternal02, Stars01 } from "@untitledui/icons";
 import { GenerateReportModal } from "@/components/domain/modals/GenerateReportModal";
 import { DomainSetupWizard } from "@/components/domain/onboarding/DomainSetupWizard";
+import { AIKeywordResearchSection } from "@/components/domain/sections/AIKeywordResearchSection";
 import { OnboardingChecklist } from "@/components/domain/onboarding/OnboardingChecklist";
+import { getCountryFlag, getLanguageFlag } from "@/lib/countryFlags";
+import { EzIcon } from "@/components/foundations/ez-icon";
+
+const TAB_EZICONS: Record<string, string> = {
+  "overview": "analytics-02",
+  "monitoring": "activity-04",
+  "keyword-map": "map-pin",
+  "visibility": "eye",
+  "backlinks": "link-06",
+  "link-building": "share-08",
+  "competitors": "user-group",
+  "keyword-analysis": "search-02",
+  "on-site": "audit-01",
+  "content-gaps": "puzzle",
+  "insights": "idea",
+  "ai-research": "ai-magic",
+  "settings": "settings-05",
+};
 
 // Helper to format date
 function formatDate(timestamp: number) {
@@ -200,6 +219,7 @@ export default function DomainDetailPage() {
     { id: "on-site", label: t('tabOnSite'), icon: FileCheck02 },
     { id: "content-gaps", label: t('tabContentGaps'), icon: Lightbulb02 },
     { id: "insights", label: t('tabInsights'), icon: Lightning01 },
+    { id: "ai-research", label: t('tabAIResearch'), icon: Stars01 },
     { id: "settings", label: t('tabSettings'), icon: Settings01 },
   ];
   const params = useParams();
@@ -479,7 +499,7 @@ export default function DomainDetailPage() {
                   {domain.domain}
                 </h1>
                 <p className="text-md text-tertiary">
-                  {domain.settings.searchEngine} · {domain.settings.refreshFrequency}
+                  {getCountryFlag(domain.settings.location)} {domain.settings.location} · {getLanguageFlag(domain.settings.language)} {domain.settings.language} · {domain.settings.searchEngine} · {domain.settings.refreshFrequency}
                 </p>
               </div>
             </div>
@@ -545,11 +565,25 @@ export default function DomainDetailPage() {
         <Tabs orientation="vertical" defaultSelectedKey="overview">
           <div className="flex w-full gap-8 lg:gap-16">
             {/* Desktop Sidebar Navigation */}
-            <TabList size="sm" type="line" items={tabs} className="w-auto items-start max-lg:hidden" />
+            <TabList size="sm" type="line" items={tabs} className="w-auto items-start max-lg:hidden">
+              {(item: any) => (
+                <Tab id={item.id}>
+                  <EzIcon name={TAB_EZICONS[item.id] || "settings-05"} size={18} color="#94a3b8" strokeColor="#94a3b8" />
+                  {item.label}
+                </Tab>
+              )}
+            </TabList>
 
             <div className="flex min-w-0 flex-1 flex-col gap-6">
               {/* Mobile Horizontal Navigation */}
-              <TabList size="sm" type="line" items={tabs} className="lg:hidden" />
+              <TabList size="sm" type="line" items={tabs} className="lg:hidden">
+                {(item: any) => (
+                  <Tab id={item.id}>
+                    <EzIcon name={TAB_EZICONS[item.id] || "settings-05"} size={18} color="#94a3b8" strokeColor="#94a3b8" />
+                    {item.label}
+                  </Tab>
+                )}
+              </TabList>
 
             {/* Overview Tab */}
             <TabPanel id="overview">
@@ -701,11 +735,16 @@ export default function DomainDetailPage() {
 
                 {/* Backlink Velocity Section */}
                 <div className="flex flex-col gap-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-primary">{t('backlinkVelocity')}</h3>
-                    <p className="text-sm text-tertiary">
-                      {t('trackBacklinkAcquisition')}
-                    </p>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
+                      <EzIcon name="rocket-01" size={20} color="#059669" strokeColor="#059669" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-primary">{t('backlinkVelocity')}</h3>
+                      <p className="text-sm text-tertiary">
+                        {t('trackBacklinkAcquisition')}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Velocity Metrics Cards */}
@@ -784,11 +823,16 @@ export default function DomainDetailPage() {
             {/* Competitors Tab */}
             <TabPanel id="competitors">
               <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-primary mb-1">{t('competitorTracking')}</h2>
-                  <p className="text-sm text-tertiary">
-                    {t('monitorCompetitorOpportunities')}
-                  </p>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50">
+                    <EzIcon name="user-group" size={22} color="#ea580c" strokeColor="#ea580c" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-primary mb-1">{t('competitorTracking')}</h2>
+                    <p className="text-sm text-tertiary">
+                      {t('monitorCompetitorOpportunities')}
+                    </p>
+                  </div>
                 </div>
 
                 <CompetitorManagementSection domainId={domainId} />
@@ -814,11 +858,16 @@ export default function DomainDetailPage() {
             {/* Keyword Analysis Tab */}
             <TabPanel id="keyword-analysis">
               <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-primary mb-1">{t('keywordAnalysis')}</h2>
-                  <p className="text-sm text-tertiary">
-                    {t('deepDiveAnalysisDescription')}
-                  </p>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50">
+                    <EzIcon name="analytics-up" size={22} color="#2563eb" strokeColor="#2563eb" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-primary mb-1">{t('keywordAnalysis')}</h2>
+                    <p className="text-sm text-tertiary">
+                      {t('deepDiveAnalysisDescription')}
+                    </p>
+                  </div>
                 </div>
 
                 <CompetitorAnalysisReportsSection domainId={domainId} />
@@ -838,6 +887,11 @@ export default function DomainDetailPage() {
             {/* Insights Tab */}
             <TabPanel id="insights">
               <InsightsSection domainId={domainId} />
+            </TabPanel>
+
+            {/* AI Research Tab */}
+            <TabPanel id="ai-research">
+              <AIKeywordResearchSection domainId={domainId} />
             </TabPanel>
 
             {/* Settings Tab */}
@@ -861,12 +915,12 @@ export default function DomainDetailPage() {
 
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-secondary">{t('location')}</p>
-                      <p className="text-sm text-primary">{domain.settings.location}</p>
+                      <p className="text-sm text-primary">{getCountryFlag(domain.settings.location)} {domain.settings.location}</p>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-secondary">{t('language')}</p>
-                      <p className="text-sm text-primary">{domain.settings.language}</p>
+                      <p className="text-sm text-primary">{getLanguageFlag(domain.settings.language)} {domain.settings.language}</p>
                     </div>
                   </div>
                 </div>

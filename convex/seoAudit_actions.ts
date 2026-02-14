@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, action, internalAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { createDebugLogger } from "./lib/debugLogger";
 
 // SEO Audit API check types → severity, category, and analysis field mapping
 const CHECK_CONFIG: Record<
@@ -232,6 +233,7 @@ export const processSeoAuditInternal = internalAction({
   args: { scanId: v.id("onSiteScans") },
   handler: async (ctx, args) => {
     console.log(`[SEO_AUDIT] Starting for scanId=${args.scanId}`);
+    const debug = await createDebugLogger(ctx, "seo_audit");
 
     const scan = await ctx.runQuery(
       internal.seoAudit_queries.getScanById,
@@ -282,7 +284,9 @@ export const processSeoAuditInternal = internalAction({
         status: "crawling",
       });
 
-      const domainUrl = `https://${domain.domain}`;
+      const domainUrl = domain.domain.startsWith("http") ? domain.domain : `https://${domain.domain}`;
+      // Extract bare hostname for allowed_domains (strip protocol)
+      const domainHostname = domainUrl.replace(/^https?:\/\//, "");
 
       // Step A: Fetch Sitemap + Robots in parallel via Advertools
       console.log("[SEO_AUDIT] Fetching sitemap and robots.txt...");
@@ -338,22 +342,20 @@ export const processSeoAuditInternal = internalAction({
 
       // Step B: Start async Full Audit (audits ALL pages on the site)
       console.log("[SEO_AUDIT] Starting Full Audit async...");
-      const auditResponse = await fetch(`${baseUrl}/advertools/audit/full/async`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: domainUrl,
-          use_sitemap: true,
-          max_pages: 100,
-          crawl_delay: 0.5,
-        }),
+      const auditRequestBody = { url: domainUrl, use_sitemap: true, max_pages: 100, crawl_delay: 0.5 };
+      const auditJob = await debug.logStep("full_audit_async", auditRequestBody, async () => {
+        const auditResponse = await fetch(`${baseUrl}/advertools/audit/full/async`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(auditRequestBody),
+        });
+
+        if (!auditResponse.ok) {
+          throw new Error(`SEO Audit API error: ${auditResponse.status}`);
+        }
+
+        return await auditResponse.json();
       });
-
-      if (!auditResponse.ok) {
-        throw new Error(`SEO Audit API error: ${auditResponse.status}`);
-      }
-
-      const auditJob = await auditResponse.json();
       const jobId = auditJob.job_id;
       if (!jobId) throw new Error("No job_id returned from SEO Audit API");
 
@@ -380,24 +382,18 @@ export const processSeoAuditInternal = internalAction({
       // Step D: Start Advertools crawl in parallel
       try {
         console.log("[SEO_AUDIT] Starting Advertools crawl...");
-        const crawlResponse = await fetch(`${baseUrl}/advertools/crawl/async`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            url_list: [domainUrl],
-            follow_links: true,
-            allowed_domains: [domain.domain],
-            custom_settings: {
-              DEPTH_LIMIT: 2,
-              CLOSESPIDER_PAGECOUNT: 100,
-              CONCURRENT_REQUESTS_PER_DOMAIN: 2,
-              DOWNLOAD_DELAY: 1,
-            },
-          }),
+        const crawlRequestBody = { url_list: [domainUrl], follow_links: true, allowed_domains: [domainHostname], custom_settings: { DEPTH_LIMIT: 2, CLOSESPIDER_PAGECOUNT: 100, CONCURRENT_REQUESTS_PER_DOMAIN: 2, DOWNLOAD_DELAY: 1 } };
+        const crawlJob = await debug.logStep("crawl_async", crawlRequestBody, async () => {
+          const resp = await fetch(`${baseUrl}/advertools/crawl/async`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(crawlRequestBody),
+          });
+          if (!resp.ok) return null;
+          return await resp.json();
         });
 
-        if (crawlResponse.ok) {
-          const crawlJob = await crawlResponse.json();
+        if (crawlJob) {
           const crawlJobId = crawlJob.job_id;
           console.log(`[SEO_AUDIT] Crawl job started: ${crawlJobId}`);
 
@@ -417,7 +413,7 @@ export const processSeoAuditInternal = internalAction({
             { scanId: args.scanId, jobId: crawlJobId, domainId: scan.domainId, pollCount: 0 }
           );
         } else {
-          console.error("[SEO_AUDIT] Crawl start failed:", crawlResponse.status);
+          console.error("[SEO_AUDIT] Crawl start failed: no job returned");
           await ctx.runMutation(internal.seoAudit_actions.updateCrawlSubStatus, {
             scanId: args.scanId,
             advertoolsCrawlStatus: "failed",
@@ -1206,8 +1202,10 @@ export const fetchAvailableUrlsV2 = action({
     );
     if (!domainDoc) throw new Error("Domain not found");
 
+    const domainField = (domainDoc as any).domain || "";
+    const domainBase = domainField.startsWith("http") ? domainField : `https://${domainField}`;
     const sitemapUrl =
-      args.sitemapUrl || `https://${(domainDoc as any).domain}/sitemap.xml`;
+      args.sitemapUrl || `${domainBase}/sitemap.xml`;
     const baseUrl = process.env.SEO_API_BASE_URL;
 
     // Use Advertools if available
@@ -2130,7 +2128,8 @@ export const runPostCrawlAnalytics = internalAction({
       internal.domains.getDomainInternal,
       { domainId: args.domainId }
     );
-    const domainName = domain?.domain || "";
+    const rawDomain = domain?.domain || "";
+    const domainName = rawDomain.replace(/^https?:\/\//, "");
     const crawlJobId = scan.advertoolsCrawlJobId;
 
     // 1. Link Analysis
@@ -2183,7 +2182,7 @@ export const runPostCrawlAnalytics = internalAction({
       const redirectResp = await fetch(`${baseUrl}/advertools/analytics/redirects`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ job_id: crawlJobId }),
+        body: JSON.stringify(crawlJobId),
       });
       if (redirectResp.ok) {
         const redirectData = await redirectResp.json();
@@ -2250,7 +2249,7 @@ export const runPostCrawlAnalytics = internalAction({
       const imageResp = await fetch(`${baseUrl}/advertools/analytics/images`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ job_id: crawlJobId }),
+        body: JSON.stringify(crawlJobId),
       });
       if (imageResp.ok) {
         const imageData = await imageResp.json();

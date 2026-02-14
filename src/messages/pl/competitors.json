@@ -516,5 +516,13 @@
 
     "chartYourDomain": "Twoja domena",
     "chartNoData": "Brak dostępnych danych",
-    "chartPosition": "Pozycja"
+    "chartPosition": "Pozycja",
+    "chartKeyword": "Słowo kluczowe",
+
+    "winRateTitle": "Wskaźnik wygranych wg konkurenta",
+    "winRateDescription": "Wygrane, remisy i przegrane pozycji słów kluczowych vs każdy konkurent.",
+    "winRateYouLead": "Ty prowadzisz",
+    "winRateTied": "Remis",
+    "winRateTheyLead": "Oni prowadzą",
+    "winRateTotal": "Łącznie słów kluczowych"
 }

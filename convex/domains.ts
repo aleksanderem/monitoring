@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query, action, internalQuery, internalMutation, internalAction } from "./_generated/server";
+import { mutation, query, internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { auth } from "./auth";
 import { checkKeywordLimit } from "./limits";
@@ -100,9 +100,28 @@ export const createDomain = mutation({
       projectId: args.projectId,
     });
 
+    // Strip protocol — store bare hostname (e.g. "example.com" not "https://example.com")
+    const cleanDomain = args.domain.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+
+    // Uniqueness check: same domain + location + language in same project
+    const existing = await ctx.db
+      .query("domains")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("domain"), cleanDomain),
+          q.eq(q.field("settings.location"), args.settings.location),
+          q.eq(q.field("settings.language"), args.settings.language)
+        )
+      )
+      .first();
+    if (existing) {
+      throw new Error("Domain with this location/language already exists in this project");
+    }
+
     const domainId = await ctx.db.insert("domains", {
       projectId: args.projectId,
-      domain: args.domain,
+      domain: cleanDomain,
       settings: args.settings,
       createdAt: Date.now(),
     });
@@ -110,8 +129,9 @@ export const createDomain = mutation({
     // Schedule automatic initial data fetch (keywords + visibility)
     await ctx.scheduler.runAfter(0, internal.domains.initializeDomainData, {
       domainId,
-      domain: args.domain,
+      domain: cleanDomain,
       location: args.settings.location,
+      language: args.settings.language,
     });
 
     return domainId;
@@ -154,7 +174,7 @@ export const updateDomain = mutation({
     await requirePermission(ctx, "domains.edit", context);
 
     const updates: Record<string, unknown> = {};
-    if (args.domain) updates.domain = args.domain;
+    if (args.domain) updates.domain = args.domain.replace(/^https?:\/\//, "").replace(/\/+$/, "");
     if (args.projectId) updates.projectId = args.projectId;
     if (args.tags !== undefined) updates.tags = args.tags;
     if (args.settings) updates.settings = args.settings;
@@ -623,114 +643,6 @@ export const getLatestVisibilityMetrics = query({
   },
 });
 
-// =================================================================
-// Bulk Domain Checking
-// =================================================================
-
-// Check rankings for all domains in a project
-export const checkAllDomainsForProject = action({
-  args: { projectId: v.id("projects") },
-  handler: async (ctx, args): Promise<{
-    success: boolean;
-    totalDomains: number;
-    successCount: number;
-    failureCount: number;
-    totalKeywords: number;
-    errors: Array<{ domainName: string; error: string }>;
-  }> => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    // Get all domains for the project
-    const domains = await ctx.runQuery(internal.domains.getDomainsInternal, {
-      projectId: args.projectId,
-    });
-
-    let successCount = 0;
-    let failureCount = 0;
-    let totalKeywords = 0;
-    const errors: Array<{ domainName: string; error: string }> = [];
-
-    console.log(`[checkAllDomainsForProject] Checking ${domains.length} domains for project ${args.projectId}`);
-
-    // Check each domain sequentially
-    for (const domain of domains) {
-      try {
-        // Get keywords for this domain
-        const keywords = await ctx.runQuery(internal.scheduler.getDomainKeywords, {
-          domainId: domain._id,
-        });
-
-        if (keywords.length === 0) {
-          console.log(`[checkAllDomainsForProject] Skipping domain ${domain.domain} - no active keywords`);
-          continue;
-        }
-
-        console.log(`[checkAllDomainsForProject] Checking ${keywords.length} keywords for domain ${domain.domain}`);
-
-        // Call fetchPositions action
-        const result = await ctx.runAction(internal.dataforseo.fetchPositionsInternal, {
-          domainId: domain._id,
-          keywords: keywords.map((k: { _id: Id<"keywords">; phrase: string }) => ({ id: k._id, phrase: k.phrase })),
-          domain: domain.domain,
-          searchEngine: domain.settings.searchEngine,
-          location: domain.settings.location,
-          language: domain.settings.language,
-        });
-
-        if (result.success) {
-          successCount++;
-          totalKeywords += keywords.length;
-
-          // Update lastRefreshedAt
-          await ctx.runMutation(internal.domains.markRefreshedInternal, {
-            domainId: domain._id,
-          });
-
-          console.log(`[checkAllDomainsForProject] Successfully checked domain ${domain.domain}`);
-        } else {
-          failureCount++;
-          errors.push({
-            domainName: domain.domain,
-            error: result.error || "Unknown error",
-          });
-
-          console.error(`[checkAllDomainsForProject] Failed to check domain ${domain.domain}:`, result.error);
-        }
-      } catch (error) {
-        failureCount++;
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        errors.push({
-          domainName: domain.domain,
-          error: errorMessage,
-        });
-
-        console.error(`[checkAllDomainsForProject] Error checking domain ${domain.domain}:`, error);
-
-        // Log to system logs
-        await ctx.runMutation(internal.logs.logSystemMessage, {
-          level: "error",
-          message: `Failed to check domain ${domain.domain}: ${errorMessage}`,
-          eventType: "bulk_domain_check_error",
-        });
-      }
-    }
-
-    console.log(`[checkAllDomainsForProject] Complete: ${successCount} successful, ${failureCount} failed, ${totalKeywords} keywords updated`);
-
-    return {
-      success: successCount > 0,
-      totalDomains: domains.length,
-      successCount,
-      failureCount,
-      totalKeywords,
-      errors,
-    };
-  },
-});
-
 // Internal query to get domains for a project (for actions)
 export const getDomainsInternal = internalQuery({
   args: { projectId: v.id("projects") },
@@ -747,6 +659,31 @@ export const getDomainInternal = internalQuery({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.domainId);
+  },
+});
+
+// Internal query: get discovered keywords for a domain (for actions)
+export const getDiscoveredKeywordsInternal = internalQuery({
+  args: { domainId: v.id("domains"), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const all = await ctx.db
+      .query("discoveredKeywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+    // Sort by volume desc, then take top N
+    all.sort((a, b) => (b.searchVolume ?? 0) - (a.searchVolume ?? 0));
+    return all.slice(0, args.limit ?? 200);
+  },
+});
+
+// Internal query: get monitored keywords for a domain (for actions)
+export const getMonitoredKeywordsInternal = internalQuery({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
   },
 });
 
@@ -826,6 +763,8 @@ export const create = mutation({
       v.literal("weekly"),
       v.literal("on_demand")
     )),
+    location: v.string(),
+    language: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
@@ -833,14 +772,33 @@ export const create = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Strip protocol — store bare hostname (e.g. "example.com" not "https://example.com")
+    const cleanDomain = args.domain.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+
+    // Uniqueness check: same domain + location + language in same project
+    const existing = await ctx.db
+      .query("domains")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("domain"), cleanDomain),
+          q.eq(q.field("settings.location"), args.location),
+          q.eq(q.field("settings.language"), args.language)
+        )
+      )
+      .first();
+    if (existing) {
+      throw new Error("Domain with this location/language already exists in this project");
+    }
+
     const domainId = await ctx.db.insert("domains", {
       projectId: args.projectId,
-      domain: args.domain,
+      domain: cleanDomain,
       settings: {
         refreshFrequency: args.refreshFrequency || "weekly",
         searchEngine: args.searchEngine || "google.com",
-        location: "Poland",
-        language: "pl",
+        location: args.location,
+        language: args.language,
       },
       createdAt: Date.now(),
     });
@@ -848,8 +806,9 @@ export const create = mutation({
     // Schedule automatic initial data fetch (keywords + visibility)
     await ctx.scheduler.runAfter(0, internal.domains.initializeDomainData, {
       domainId,
-      domain: args.domain,
-      location: "Poland",
+      domain: cleanDomain,
+      location: args.location,
+      language: args.language,
     });
 
     return domainId;
@@ -1040,9 +999,11 @@ export const initializeDomainData = internalAction({
     domainId: v.id("domains"),
     domain: v.string(),
     location: v.string(),
+    language: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    console.log(`[INIT] Starting automatic initialization for domain: ${args.domain}`);
+    const language = args.language || "en";
+    console.log(`[INIT] Starting automatic initialization for domain: ${args.domain} (${args.location}/${language})`);
 
     try {
       // 1. Fetch domain visibility (discovered keywords the domain ranks for)
@@ -1051,7 +1012,7 @@ export const initializeDomainData = internalAction({
         domainId: args.domainId,
         domain: args.domain,
         location: args.location,
-        language: "pl", // TODO: use domain language setting
+        language,
       });
 
       if (visibilityResult.success) {
@@ -1066,7 +1027,7 @@ export const initializeDomainData = internalAction({
         domainId: args.domainId,
         domain: args.domain,
         location: args.location,
-        language: "pl", // TODO: use domain language setting
+        language,
       });
 
       if (historyResult.success) {

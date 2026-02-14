@@ -6,6 +6,7 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 import { LinkBuildingStatsCards } from "../cards/LinkBuildingStatsCards";
 import { LinkBuildingProspectsTable } from "../tables/LinkBuildingProspectsTable";
 import { RefreshCw01 } from "@untitledui/icons";
+import { EzIcon } from "@/components/foundations/ez-icon";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -35,9 +36,14 @@ export function LinkBuildingSection({ domainId }: LinkBuildingSectionProps) {
         <div className="flex flex-col gap-6">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-lg font-semibold text-primary">{t('linkBuildingTitle')}</h2>
-                    <p className="text-sm text-tertiary">{t('linkBuildingSubtitle')}</p>
+                <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50">
+                        <EzIcon name="link-06" size={22} color="#4f46e5" strokeColor="#4f46e5" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-semibold text-primary">{t('linkBuildingTitle')}</h2>
+                        <p className="text-sm text-tertiary">{t('linkBuildingSubtitle')}</p>
+                    </div>
                 </div>
                 <button
                     onClick={handleGenerate}

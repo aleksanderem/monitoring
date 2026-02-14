@@ -14,6 +14,9 @@ import {
   ChevronRight,
   ChevronDown as ExpandIcon,
   ChevronRight as CollapseIcon,
+  Plus,
+  Trash01,
+  MinusCircle,
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -25,6 +28,8 @@ import { KeywordDetailCard } from "../cards/KeywordDetailCard";
 import { MonthlySearchTrendChart } from "../charts/MonthlySearchTrendChart";
 import { KeywordTooltip } from "../tooltips/KeywordTooltip";
 import { KeywordDetailModal } from "../modals/KeywordDetailModal";
+import { useRowSelection } from "@/hooks/useRowSelection";
+import { BulkActionBar } from "@/components/patterns/BulkActionBar";
 
 interface DiscoveredKeywordsTableProps {
   domainId: Id<"domains">;
@@ -102,7 +107,19 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
   const [difficultyFilter, setDifficultyFilter] = useState<string>("all");
 
   const keywords = useQuery(api.dataforseo.getDiscoveredKeywords, { domainId });
+  const monitoredKeywords = useQuery(api.keywords.getKeywords, { domainId });
   const addKeywordMutation = useMutation(api.keywords.addKeyword);
+  const deleteKeywordMutation = useMutation(api.keywords.deleteKeyword);
+  const deleteKeywordsBulk = useMutation(api.keywords.deleteKeywords);
+  const addKeywordsBulk = useMutation(api.keywords.addKeywords);
+  const deleteDiscoveredKeywords = useMutation(api.dataforseo.deleteDiscoveredKeywords);
+  const selection = useRowSelection();
+
+  // Build a map of monitored phrase → keyword _id for O(1) lookup
+  const monitoredMap = useMemo(() => {
+    if (!monitoredKeywords) return new Map<string, Id<"keywords">>();
+    return new Map(monitoredKeywords.map((k: any) => [k.phrase.toLowerCase(), k._id]));
+  }, [monitoredKeywords]);
 
   const handleAddToMonitor = async (keyword: any) => {
     try {
@@ -113,6 +130,17 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
       toast.success(t('addedToMonitoring', { keyword: keyword.keyword }));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t('failedToAddKeyword'));
+    }
+  };
+
+  const handleRemoveFromMonitor = async (keyword: any) => {
+    const keywordId = monitoredMap.get(keyword.keyword.toLowerCase());
+    if (!keywordId) return;
+    try {
+      await deleteKeywordMutation({ keywordId });
+      toast.success(t('removedFromMonitoring', { keyword: keyword.keyword }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('failedToRemoveKeyword'));
     }
   };
 
@@ -208,6 +236,7 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+  const visibleIds = paginatedKeywords.map((kw: any) => kw._id as string);
 
   if (keywords === undefined) {
     return <LoadingState />;
@@ -385,10 +414,82 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
           </div>
         )}
 
+        <BulkActionBar
+          selectedCount={selection.count}
+          selectedIds={selection.selectedIds}
+          onClearSelection={selection.clear}
+          actions={[
+            {
+              label: tc('bulkAddToMonitoring'),
+              icon: Plus,
+              onClick: async (ids) => {
+                const phrases = sortedAndFilteredKeywords
+                  .filter((kw: any) => ids.has(kw._id))
+                  .map((kw: any) => kw.keyword)
+                  .filter((phrase: string) => !monitoredMap.has(phrase.toLowerCase()));
+                if (phrases.length === 0) return;
+                try {
+                  await addKeywordsBulk({ domainId, phrases });
+                  toast.success(tc('bulkActionSuccess', { count: phrases.length }));
+                  selection.clear();
+                } catch {
+                  toast.error(tc('bulkActionFailed'));
+                }
+              },
+            },
+            {
+              label: tc('bulkRemoveFromMonitoring'),
+              icon: MinusCircle,
+              variant: "destructive" as const,
+              onClick: async (ids) => {
+                const monitoredIds = sortedAndFilteredKeywords
+                  .filter((kw: any) => ids.has(kw._id))
+                  .map((kw: any) => monitoredMap.get(kw.keyword.toLowerCase()))
+                  .filter((id): id is Id<"keywords"> => !!id);
+                if (monitoredIds.length === 0) return;
+                try {
+                  await deleteKeywordsBulk({ keywordIds: monitoredIds });
+                  toast.success(tc('bulkActionSuccess', { count: monitoredIds.length }));
+                  selection.clear();
+                } catch {
+                  toast.error(tc('bulkActionFailed'));
+                }
+              },
+            },
+            {
+              label: tc('bulkDelete'),
+              icon: Trash01,
+              variant: "destructive" as const,
+              onClick: async (ids) => {
+                const keywordIds = sortedAndFilteredKeywords
+                  .filter((kw: any) => ids.has(kw._id))
+                  .map((kw: any) => kw._id);
+                if (keywordIds.length === 0) return;
+                try {
+                  await deleteDiscoveredKeywords({ keywordIds });
+                  toast.success(tc('bulkActionSuccess', { count: keywordIds.length }));
+                  selection.clear();
+                } catch {
+                  toast.error(tc('bulkActionFailed'));
+                }
+              },
+            },
+          ]}
+        />
+
         <div className="overflow-x-auto rounded-lg border border-secondary">
           <table className="w-full">
             <thead className="bg-secondary/50">
               <tr>
+                <th className="w-10 px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selection.isAllSelected(visibleIds)}
+                    ref={(el) => { if (el) el.indeterminate = selection.isIndeterminate(visibleIds); }}
+                    onChange={() => selection.toggleAll(visibleIds)}
+                    className="h-4 w-4 rounded border-secondary"
+                  />
+                </th>
                 <th className="w-8 px-4 py-3"></th>
                 {columnVisibility.keyword && (
                   <th
@@ -463,6 +564,14 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                       onMouseLeave={handleMouseLeave}
                       onClick={() => setSelectedKeyword(keyword)}
                     >
+                      <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selection.isSelected(keyword._id)}
+                          onChange={() => selection.toggle(keyword._id)}
+                          className="h-4 w-4 rounded border-secondary"
+                        />
+                      </td>
                       <td className="px-4 py-3">
                         <button
                           onClick={(e) => {
@@ -559,16 +668,29 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                       )}
                       {columnVisibility.actions && (
                         <td className="px-4 py-3 text-center">
-                          <Button
-                            size="sm"
-                            color="secondary"
-                            onClick={(e: React.MouseEvent) => {
-                              e.stopPropagation();
-                              handleAddToMonitor(keyword);
-                            }}
-                          >
-                            {t('addToMonitor')}
-                          </Button>
+                          {monitoredMap.has(keyword.keyword.toLowerCase()) ? (
+                            <Button
+                              size="sm"
+                              color="secondary-destructive"
+                              onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                handleRemoveFromMonitor(keyword);
+                              }}
+                            >
+                              {t('removeFromMonitor')}
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              color="secondary"
+                              onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                handleAddToMonitor(keyword);
+                              }}
+                            >
+                              {t('addToMonitor')}
+                            </Button>
+                          )}
                         </td>
                       )}
                     </tr>

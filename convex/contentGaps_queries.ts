@@ -2,6 +2,19 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 
+/** NaN-safe number read: returns fallback if value is null, undefined, NaN, or Infinity */
+function safeNum(val: number | null | undefined, fallback: number): number {
+  if (val == null || isNaN(val) || !isFinite(val)) return fallback;
+  return val;
+}
+
+/** Derive priority from opportunity score (single source of truth) */
+function derivePriority(score: number): "high" | "medium" | "low" {
+  if (score >= 70) return "high";
+  if (score >= 40) return "medium";
+  return "low";
+}
+
 /**
  * Get content gaps with advanced filtering
  * Returns gaps ordered by opportunity score
@@ -188,9 +201,9 @@ export const getGapSummary = query({
       dismissed: gaps.filter((g) => g.status === "dismissed").length,
     };
 
-    // Calculate total estimated traffic value
+    // Calculate total estimated traffic value (NaN-safe)
     const totalEstimatedValue = gaps.reduce(
-      (sum, gap) => sum + gap.estimatedTrafficValue,
+      (sum, gap) => sum + safeNum(gap.estimatedTrafficValue, 0),
       0
     );
 
@@ -386,11 +399,11 @@ export const getTopicClusters = query({
     const clusterArray = Array.from(clusters.entries()).map(
       ([topic, clusterGaps]) => {
         const totalScore = clusterGaps.reduce(
-          (sum, g) => sum + g.opportunityScore,
+          (sum, g) => sum + safeNum(g.opportunityScore, 0),
           0
         );
         const totalValue = clusterGaps.reduce(
-          (sum, g) => sum + g.estimatedTrafficValue,
+          (sum, g) => sum + safeNum(g.estimatedTrafficValue, 0),
           0
         );
         const avgScore =
@@ -404,21 +417,22 @@ export const getTopicClusters = query({
         // All keywords with details (sorted by score)
         const keywords = sorted.map((g) => ({
           phrase: g.phrase,
-          searchVolume: g.searchVolume,
-          opportunityScore: g.opportunityScore,
-          difficulty: isNaN(g.difficulty) ? 0 : g.difficulty,
-          estimatedTrafficValue: g.estimatedTrafficValue,
+          searchVolume: safeNum(g.searchVolume, 0),
+          opportunityScore: safeNum(g.opportunityScore, 0),
+          difficulty: safeNum(g.difficulty, 0),
+          estimatedTrafficValue: safeNum(g.estimatedTrafficValue, 0),
           competitorPosition: g.competitorPosition,
+          priority: derivePriority(safeNum(g.opportunityScore, 0)),
           status: g.status,
         }));
 
         const totalSearchVolume = clusterGaps.reduce(
-          (sum, g) => sum + g.searchVolume,
+          (sum, g) => sum + safeNum(g.searchVolume, 0),
           0
         );
         const avgDifficulty =
           clusterGaps.length > 0
-            ? clusterGaps.reduce((sum, g) => sum + (isNaN(g.difficulty) ? 0 : g.difficulty), 0) / clusterGaps.length
+            ? clusterGaps.reduce((sum, g) => sum + safeNum(g.difficulty, 0), 0) / clusterGaps.length
             : 0;
 
         return {
@@ -472,11 +486,13 @@ export const getCompetitorGapComparison = query({
         totalScore: 0,
       };
 
+      const score = safeNum(gap.opportunityScore, 0);
+      const priority = derivePriority(score);
       competitorMap.set(gap.competitorId, {
         gaps: [...existing.gaps, gap],
         highPriority:
-          existing.highPriority + (gap.priority === "high" ? 1 : 0),
-        totalScore: existing.totalScore + gap.opportunityScore,
+          existing.highPriority + (priority === "high" ? 1 : 0),
+        totalScore: existing.totalScore + score,
       });
     }
 

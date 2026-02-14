@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { checkKeywordLimit } from "./limits";
 
 // Submit keyword proposal from public report (no auth required)
 export const submitProposal = mutation({
@@ -196,7 +197,11 @@ export const approveProposal = mutation({
       .unique();
 
     if (!existing) {
-      // Add keyword
+      const limitCheck = await checkKeywordLimit(ctx, args.domainId);
+      if (!limitCheck.allowed) {
+        throw new Error(limitCheck.message ?? "Keyword limit reached for this domain");
+      }
+
       await ctx.db.insert("keywords", {
         domainId: args.domainId,
         phrase: proposal.phrase,
@@ -206,7 +211,6 @@ export const approveProposal = mutation({
       });
     }
 
-    // Update proposal status
     const userId = identity.subject as Id<"users">;
     await ctx.db.patch(args.proposalId, {
       status: "approved",
@@ -265,7 +269,11 @@ export const bulkApproveProposals = mutation({
         .unique();
 
       if (!existing) {
-        // Add keyword
+        const limitCheck = await checkKeywordLimit(ctx, args.domainId);
+        if (!limitCheck.allowed) {
+          throw new Error(limitCheck.message ?? "Keyword limit reached for this domain");
+        }
+
         await ctx.db.insert("keywords", {
           domainId: args.domainId,
           phrase: proposal.phrase,
@@ -275,7 +283,6 @@ export const bulkApproveProposals = mutation({
         });
       }
 
-      // Update proposal status
       await ctx.db.patch(proposalId, {
         status: "approved",
         reviewedBy: userId,

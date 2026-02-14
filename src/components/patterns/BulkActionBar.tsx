@@ -9,6 +9,7 @@ export interface BulkAction {
   icon?: FC<{ className?: string }> | React.ReactNode;
   onClick: (selectedIds: Set<string>) => void | Promise<void>;
   variant?: "default" | "destructive";
+  disabled?: boolean;
 }
 
 export interface BulkActionBarProps {
@@ -24,10 +25,12 @@ export function BulkActionBar({
   selectedIds,
   onClearSelection,
 }: BulkActionBarProps) {
+  if (selectedCount === 0) return null;
+
   return (
-    <div className="flex items-center justify-between rounded-lg border border-gray-300 bg-gray-50 px-4 py-3">
+    <div className="flex items-center justify-between rounded-lg border border-secondary bg-secondary/50 px-4 py-3">
       <div className="flex items-center gap-4">
-        <span className="text-sm font-medium text-gray-700">
+        <span className="text-sm font-medium text-primary">
           {selectedCount} selected
         </span>
 
@@ -36,9 +39,10 @@ export function BulkActionBar({
             <Button
               key={index}
               size="sm"
-              color="tertiary"
+              color={action.variant === "destructive" ? "secondary-destructive" : "tertiary"}
               iconLeading={action.icon}
               onClick={() => action.onClick(selectedIds)}
+              disabled={action.disabled}
             >
               {action.label}
             </Button>

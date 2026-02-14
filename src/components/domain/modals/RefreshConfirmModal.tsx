@@ -48,6 +48,7 @@ export function RefreshConfirmModal({
   };
 
   const title = actionType === "refresh" ? t("refreshConfirmTitle") : t("serpConfirmTitle");
+  const estimatedCost = (keywordCount * 0.003).toFixed(2);
   const description =
     actionType === "refresh"
       ? t("refreshConfirmDescription", { count: keywordCount })
@@ -87,6 +88,12 @@ export function RefreshConfirmModal({
         </div>
       ) : (
         <div className="space-y-3">
+          <div className="rounded-lg border border-utility-brand-200 bg-utility-brand-50 px-3 py-2">
+            <p className="text-sm text-utility-brand-700">
+              {t("refreshCostEstimate", { count: keywordCount, cost: estimatedCost })}
+            </p>
+          </div>
+
           <p className="text-xs font-medium text-tertiary uppercase tracking-wide">
             {t("limitStatus")}
           </p>

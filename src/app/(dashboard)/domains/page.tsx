@@ -18,6 +18,8 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
 import { CreateDomainDialog } from "@/components/application/modals/create-domain-dialog";
 import { toast } from "sonner";
+import { getCountryFlag, getLanguageFlag } from "@/lib/countryFlags";
+import { EzIcon } from "@/components/foundations/ez-icon";
 
 // Helper to format relative time
 function formatRelativeTime(timestamp: number, t: (key: any, params?: any) => string): string {
@@ -167,13 +169,18 @@ export default function DomainsPage() {
         <>
         <div className="relative flex flex-col gap-5 bg-primary">
           <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
-            <div className="flex flex-col gap-0.5 lg:gap-1">
-              <p className="text-xl font-semibold text-primary lg:text-display-xs">
-                {t('domains')}
-              </p>
-              <p className="text-md text-tertiary">
-                {t('domainsDescription')}
-              </p>
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                <EzIcon name="globe" size={24} color="#2563eb" strokeColor="#2563eb" />
+              </div>
+              <div className="flex flex-col gap-0.5 lg:gap-1">
+                <p className="text-xl font-semibold text-primary lg:text-display-xs">
+                  {t('domains')}
+                </p>
+                <p className="text-md text-tertiary">
+                  {t('domainsDescription')}
+                </p>
+              </div>
             </div>
             <div className="flex flex-col gap-4 lg:flex-row">
               <div className="flex items-start gap-3">
@@ -303,7 +310,7 @@ export default function DomainsPage() {
                           {item.domain}
                         </p>
                         <p className="text-sm text-tertiary">
-                          {item.settings.searchEngine} · {item.settings.refreshFrequency}
+                          {getCountryFlag(item.settings.location)} {item.settings.location} · {getLanguageFlag(item.settings.language)} {item.settings.language} · {item.settings.searchEngine}
                         </p>
                       </div>
                     </div>

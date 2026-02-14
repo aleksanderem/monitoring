@@ -15,15 +15,15 @@ Font.register({
   family: "Inter",
   fonts: [
     {
-      src: "https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2",
+      src: "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfMZg.ttf",
       fontWeight: 400,
     },
     {
-      src: "https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuI6fAZ9hiJ-Ek-_EeA.woff2",
+      src: "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuGKYMZg.ttf",
       fontWeight: 600,
     },
     {
-      src: "https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYAZ9hiJ-Ek-_EeA.woff2",
+      src: "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYMZg.ttf",
       fontWeight: 700,
     },
   ],
@@ -239,24 +239,25 @@ const styles = StyleSheet.create({
 
 // ─── Helper Components ──────────────────────────────────────────
 
-function MetricBox({ value, label }: { value: string | number; label: string }) {
+function MetricBox({ value, label }: { value: string | number | null | undefined; label: string }) {
   return (
     <View style={styles.metricBox}>
-      <Text style={styles.metricValue}>{value}</Text>
+      <Text style={styles.metricValue}>{String(value ?? "—")}</Text>
       <Text style={styles.metricLabel}>{label}</Text>
     </View>
   );
 }
 
 function HorizontalBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
-  const percentage = max > 0 ? Math.min((value / max) * 100, 100) : 0;
+  const safeValue = value ?? 0;
+  const percentage = max > 0 ? Math.min((safeValue / max) * 100, 100) : 0;
   return (
     <View style={styles.barRow}>
       <Text style={styles.barLabel}>{label}</Text>
       <View style={styles.barTrack}>
         <View style={[styles.barFill, { width: `${percentage}%`, backgroundColor: color }]} />
       </View>
-      <Text style={styles.barValue}>{value}</Text>
+      <Text style={styles.barValue}>{String(safeValue)}</Text>
     </View>
   );
 }
@@ -317,14 +318,14 @@ function SEOReportDocument({ data, domainName }: { data: any; domainName: string
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Executive Summary</Text>
 
-          {data.healthScore && (
+          {data.healthScore?.breakdown && (
             <>
               <Text style={styles.subsectionTitle}>Health Score Breakdown</Text>
               <View style={{ marginBottom: 10 }}>
-                <HorizontalBar label="Keywords" value={data.healthScore.breakdown.keywords.score} max={30} color={colors.brand} />
-                <HorizontalBar label="Backlinks" value={data.healthScore.breakdown.backlinks.score} max={30} color="#8B5CF6" />
-                <HorizontalBar label="On-Site" value={data.healthScore.breakdown.onsite.score} max={20} color="#06B6D4" />
-                <HorizontalBar label="Content" value={data.healthScore.breakdown.content.score} max={20} color="#10B981" />
+                <HorizontalBar label="Keywords" value={data.healthScore.breakdown.keywords?.score ?? 0} max={30} color={colors.brand} />
+                <HorizontalBar label="Backlinks" value={data.healthScore.breakdown.backlinks?.score ?? 0} max={30} color="#8B5CF6" />
+                <HorizontalBar label="On-Site" value={data.healthScore.breakdown.onsite?.score ?? 0} max={20} color="#06B6D4" />
+                <HorizontalBar label="Content" value={data.healthScore.breakdown.content?.score ?? 0} max={20} color="#10B981" />
               </View>
             </>
           )}

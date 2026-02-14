@@ -4,6 +4,9 @@ import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { buildLocationParam } from "./dataforseoLocations";
+import { createDebugLogger } from "./lib/debugLogger";
+import { API_COSTS } from "./apiUsage";
 
 // DataForSEO API configuration
 const DATAFORSEO_API_URL = "https://api.dataforseo.com/v3";
@@ -146,29 +149,34 @@ export const checkSingleCompetitorPosition = internalAction({
     }
 
     try {
-      const authHeader = btoa(`${login}:${password}`);
-
-      const response = await fetch(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Basic ${authHeader}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify([{
-          keyword: args.phrase,
-          location_name: args.location,
-          language_code: args.language,
-          device: "desktop",
-          os: "windows",
-          depth: 100,
-        }]),
+      // Check daily cost cap before making API call
+      const costCheck = await ctx.runQuery(internal.apiUsage.checkDailyCostCap, {
+        estimatedCost: API_COSTS.SERP_LIVE_ADVANCED,
       });
-
-      if (!response.ok) {
-        return { success: false, error: `API error: ${response.status}` };
+      if (!costCheck.allowed) {
+        return { success: false, error: `Daily API cost limit reached ($${costCheck.todayCost}/$${costCheck.cap})` };
       }
 
-      const data = await response.json();
+      const debug = await createDebugLogger(ctx, "competitor_check");
+      const authHeader = btoa(`${login}:${password}`);
+
+      const serpRequestBody = [{ keyword: args.phrase, ...buildLocationParam(args.location), language_code: args.language, device: "desktop", os: "windows", depth: 100 }];
+      const data = await debug.logStep("serp_live", serpRequestBody[0], async () => {
+        const response = await fetch(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Basic ${authHeader}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(serpRequestBody),
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        return await response.json();
+      });
 
       if (data.status_code !== 20000 || !data.tasks?.[0]?.result?.[0]?.items) {
         return { success: false, error: data.status_message || "No results" };
@@ -368,7 +376,7 @@ export const suggestCompetitors = action({
   args: {
     domainId: v.id("domains"),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ success: boolean; error?: string; competitors: Array<{ domain: string; intersections: number; avgPosition: number | null; etv: number }> }> => {
     const domain: any = await ctx.runQuery(internal.competitors_internal.getDomainSettings, {
       domainId: args.domainId,
     });
@@ -396,6 +404,15 @@ export const suggestCompetitors = action({
     }
 
     try {
+      // Check daily cost cap before making API call
+      const costCheck = await ctx.runQuery(internal.apiUsage.checkDailyCostCap, {
+        estimatedCost: API_COSTS.LABS_COMPETITORS_DOMAIN,
+        domainId: args.domainId,
+      });
+      if (!costCheck.allowed) {
+        return { success: false, error: `Daily API cost limit reached ($${costCheck.todayCost}/$${costCheck.cap})`, competitors: [] };
+      }
+
       const authHeader = btoa(`${login}:${password}`);
 
       // Get already tracked competitors to exclude
@@ -408,29 +425,42 @@ export const suggestCompetitors = action({
         ...existingCompetitors.map((c: any) => c.competitorDomain),
       ];
 
-      const response = await fetch(`${DATAFORSEO_API_URL}/dataforseo_labs/google/competitors_domain/live`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Basic ${authHeader}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify([{
-          target: domain.domain,
-          location_name: domain.settings.location,
-          language_code: domain.settings.language,
-          item_types: ["organic"],
-          limit: 50,
-          exclude_top_domains: true,
-          exclude_domains: excludeDomains,
-          order_by: ["metrics.organic.count,desc"],
-        }]),
+      const debug = await createDebugLogger(ctx, "competitor_discovery", args.domainId);
+      const requestBody = [{
+        target: domain.domain,
+        ...buildLocationParam(domain.settings.location),
+        language_code: domain.settings.language,
+        item_types: ["organic"],
+        limit: 50,
+        exclude_top_domains: true,
+        exclude_domains: excludeDomains,
+        order_by: ["metrics.organic.count,desc"],
+      }];
+      const data = await debug.logStep("competitors_domain", requestBody[0], async () => {
+        const response = await fetch(`${DATAFORSEO_API_URL}/dataforseo_labs/google/competitors_domain/live`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Basic ${authHeader}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        return await response.json();
       });
 
-      if (!response.ok) {
-        return { success: false, error: `API error: ${response.status}`, competitors: [] };
-      }
-
-      const data = await response.json();
+      // Log competitors domain API usage
+      await ctx.runMutation(internal.apiUsage.logApiUsage, {
+        endpoint: "/dataforseo_labs/google/competitors_domain/live",
+        taskCount: 1,
+        estimatedCost: API_COSTS.LABS_COMPETITORS_DOMAIN,
+        caller: "discoverCompetitors",
+        domainId: args.domainId,
+      });
 
       if (data.status_code !== 20000) {
         return { success: false, error: data.status_message || "Unknown API error", competitors: [] };

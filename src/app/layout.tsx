@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import Script from "next/script";
 import { RouteProvider } from "@/providers/router-provider";
 import { Theme } from "@/providers/theme";
 import { CommandProvider } from "@/providers/CommandProvider";
@@ -36,6 +37,9 @@ export default async function RootLayout({
 
     return (
         <html lang={locale} suppressHydrationWarning>
+            <head>
+                <Script src="https://ezicons.com/sdk.js" data-key="iek_rNzVYc9CxXGFO67HX8jqTnPpItL0PcRG" strategy="afterInteractive" />
+            </head>
             <body className={cx(inter.variable, "bg-primary antialiased")}>
                 <NextIntlClientProvider messages={messages}>
                     <ConvexClientProvider>

@@ -14,6 +14,7 @@ import {
 import { usePathname } from "next/navigation";
 import { GlobalJobStatus } from "@/components/domain/job-status/GlobalJobStatus";
 import { JobCompletionNotifier } from "@/components/domain/job-status/JobCompletionNotifier";
+import { SidebarUsageIndicator } from "@/components/domain/SidebarUsageIndicator";
 import { useTranslations } from "next-intl";
 
 export default function DashboardLayout({
@@ -53,6 +54,7 @@ export default function DashboardLayout({
       {/* Sidebar */}
       <SidebarNavigationSectionDividers
         activeUrl={pathname}
+        footer={<SidebarUsageIndicator />}
         items={[
           {
             label: t("projects"),

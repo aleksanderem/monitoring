@@ -235,9 +235,15 @@ export const getBacklinkInsights = query({
             lostBacklinks = Math.max(0, (previous.totalBacklinks ?? 0) - (current.totalBacklinks ?? 0));
         }
 
-        // Dofollow ratio
-        const dofollowCount = backlinks.filter((bl) => bl.dofollow === true).length;
-        const dofollowRatio = backlinks.length > 0 ? Math.round((dofollowCount / backlinks.length) * 100) : 0;
+        // Dofollow ratio: use summary data (full API counts) when available,
+        // fall back to table sample (capped at 1000 records) otherwise.
+        let dofollowRatio = 0;
+        if (current && (current.dofollow + current.nofollow) > 0) {
+            dofollowRatio = Math.round((current.dofollow / (current.dofollow + current.nofollow)) * 100);
+        } else if (backlinks.length > 0) {
+            const dofollowCount = backlinks.filter((bl) => bl.dofollow === true).length;
+            dofollowRatio = Math.round((dofollowCount / backlinks.length) * 100);
+        }
 
         // Link building prospects
         const prospects = await ctx.db
@@ -412,7 +418,14 @@ export const getRecommendations = query({
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
             .collect();
 
-        const highPriorityGaps = gaps.filter((g) => g.priority === "high" && g.status === "identified").length;
+        const highPriorityGaps = gaps.filter((g) => {
+            if (g.status !== "identified") return false;
+            const score = g.opportunityScore;
+            // Recalculate priority from score (stored priority may be stale from NaN-era data)
+            const priority = (score != null && !isNaN(score) && score >= 70) ? "high"
+              : (score != null && !isNaN(score) && score >= 40) ? "medium" : "low";
+            return priority === "high";
+        }).length;
 
         if (highPriorityGaps > 10) {
             recommendations.push({

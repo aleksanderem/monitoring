@@ -30,6 +30,8 @@ import { KeywordPositionChart } from "../charts/KeywordPositionChart";
 import { AddKeywordsModal } from "../modals/AddKeywordsModal";
 import { KeywordMonitoringDetailModal } from "../modals/KeywordMonitoringDetailModal";
 import { RefreshConfirmModal } from "../modals/RefreshConfirmModal";
+import { useRowSelection } from "@/hooks/useRowSelection";
+import { BulkActionBar } from "@/components/patterns/BulkActionBar";
 
 interface KeywordMonitoringTableProps {
   domainId: Id<"domains">;
@@ -129,6 +131,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const deleteKeyword = useMutation(api.keywords.deleteKeywords);
   const createSerpFetchJob = useMutation(api.keywordSerpJobs.createSerpFetchJob);
   const activeSerpJob = useQuery(api.keywordSerpJobs.getActiveJobForDomain, { domainId });
+  const selection = useRowSelection();
 
   // Track SERP job completion and show notification
   const [lastSerpJobId, setLastSerpJobId] = useState<string | null>(null);
@@ -241,6 +244,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+  const visibleIds = paginatedKeywords.map((kw: any) => kw.keywordId);
 
   if (keywords === undefined) {
     return <LoadingState />;
@@ -490,10 +494,54 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
           </div>
         )}
 
+        <BulkActionBar
+          selectedCount={selection.count}
+          selectedIds={selection.selectedIds}
+          onClearSelection={selection.clear}
+          actions={[
+            {
+              label: tc('bulkRefresh'),
+              icon: RefreshCw01,
+              onClick: async (ids) => {
+                try {
+                  await refreshPositions({ keywordIds: Array.from(ids) as Id<"keywords">[] });
+                  toast.success(tc('bulkActionSuccess', { count: ids.size }));
+                  selection.clear();
+                } catch {
+                  toast.error(tc('bulkActionFailed'));
+                }
+              },
+            },
+            {
+              label: tc('bulkDelete'),
+              icon: Trash01,
+              variant: "destructive",
+              onClick: async (ids) => {
+                try {
+                  await deleteKeyword({ keywordIds: Array.from(ids) as Id<"keywords">[] });
+                  toast.success(tc('bulkActionSuccess', { count: ids.size }));
+                  selection.clear();
+                } catch {
+                  toast.error(tc('bulkActionFailed'));
+                }
+              },
+            },
+          ]}
+        />
+
         <div className="overflow-x-auto rounded-lg border border-secondary">
           <table className="w-full">
             <thead className="bg-secondary/50">
               <tr>
+                <th className="w-10 px-2 py-3 bg-secondary" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selection.isAllSelected(visibleIds)}
+                    ref={(el) => { if (el) el.indeterminate = selection.isIndeterminate(visibleIds); }}
+                    onChange={() => selection.toggleAll(visibleIds)}
+                    className="h-4 w-4 rounded border-secondary"
+                  />
+                </th>
                 <th
                   className="sticky left-0 z-20 bg-secondary cursor-pointer px-4 py-3 text-left text-xs font-medium text-tertiary border-r border-secondary transition-colors hover:bg-secondary/70"
                   onClick={() => toggleSort("phrase")}
@@ -586,6 +634,14 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                       className="group transition-colors hover:bg-primary_hover cursor-pointer"
                       onClick={() => setSelectedKeyword(keyword)}
                     >
+                      <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selection.isSelected(keyword.keywordId)}
+                          onChange={() => selection.toggle(keyword.keywordId)}
+                          className="h-4 w-4 rounded border-secondary"
+                        />
+                      </td>
                       {columnVisibility.keyword && (
                         <td className="sticky left-0 z-10 bg-primary group-hover:bg-primary_hover border-r border-secondary px-4 py-3 transition-colors">
                           <div className="flex items-center gap-2">

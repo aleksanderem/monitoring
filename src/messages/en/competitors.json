@@ -516,5 +516,13 @@
 
     "chartYourDomain": "Your Domain",
     "chartNoData": "No data available",
-    "chartPosition": "Position"
+    "chartPosition": "Position",
+    "chartKeyword": "Keyword",
+
+    "winRateTitle": "Win Rate by Competitor",
+    "winRateDescription": "Keyword ranking wins, ties, and losses vs each competitor.",
+    "winRateYouLead": "You lead",
+    "winRateTied": "Tied",
+    "winRateTheyLead": "They lead",
+    "winRateTotal": "Total keywords"
 }

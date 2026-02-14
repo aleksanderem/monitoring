@@ -25,6 +25,8 @@ import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { toast } from "sonner";
 import { ContentGapDetailModal } from "../modals/ContentGapDetailModal";
 import { useTranslations } from "next-intl";
+import { useRowSelection } from "@/hooks/useRowSelection";
+import { BulkActionBar } from "@/components/patterns/BulkActionBar";
 
 interface ContentGapOpportunitiesTableProps {
   domainId: Id<"domains">;
@@ -173,6 +175,8 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
   // Mutations
   const markAsMonitoring = useMutation(api.contentGap.markOpportunityAsMonitoring);
   const dismissOpportunity = useMutation(api.contentGap.dismissOpportunity);
+  const dismissOpportunities = useMutation(api.contentGap.dismissOpportunities);
+  const selection = useRowSelection();
 
   // Sort & filter logic
   const toggleSort = (column: SortColumn) => {
@@ -224,6 +228,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+  const visibleIds = paginated.map((opp: any) => opp._id as string);
 
   // Handlers
   const handleMarkAsMonitoring = async (e: React.MouseEvent, gapId: Id<"contentGaps">, keyword: string) => {
@@ -541,10 +546,65 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
           </p>
         </div>
       ) : (
+        <>
+        <BulkActionBar
+          selectedCount={selection.count}
+          selectedIds={selection.selectedIds}
+          onClearSelection={selection.clear}
+          actions={[
+            {
+              label: tc('bulkMarkAsMonitoring'),
+              icon: Eye,
+              onClick: async (ids) => {
+                const identifiedGaps = sortedAndFiltered
+                  .filter((opp: any) => ids.has(opp._id) && opp.status === "identified");
+                let successCount = 0;
+                for (const gap of identifiedGaps) {
+                  try {
+                    await markAsMonitoring({ gapId: gap._id });
+                    successCount++;
+                  } catch { /* skip individual errors */ }
+                }
+                if (successCount > 0) {
+                  toast.success(tc('bulkActionSuccess', { count: successCount }));
+                }
+                selection.clear();
+              },
+            },
+            {
+              label: tc('bulkDismiss'),
+              icon: XClose,
+              variant: "destructive" as const,
+              onClick: async (ids) => {
+                const gapIds = sortedAndFiltered
+                  .filter((opp: any) => ids.has(opp._id) && opp.status === "identified")
+                  .map((opp: any) => opp._id);
+                if (gapIds.length === 0) return;
+                try {
+                  await dismissOpportunities({ gapIds });
+                  toast.success(tc('bulkActionSuccess', { count: gapIds.length }));
+                  selection.clear();
+                } catch {
+                  toast.error(tc('bulkActionFailed'));
+                }
+              },
+            },
+          ]}
+        />
+
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-secondary/30">
               <tr className="border-b border-secondary">
+                <th className="w-10 px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selection.isAllSelected(visibleIds)}
+                    ref={(el) => { if (el) el.indeterminate = selection.isIndeterminate(visibleIds); }}
+                    onChange={() => selection.toggleAll(visibleIds)}
+                    className="h-4 w-4 rounded border-secondary"
+                  />
+                </th>
                 {columnVisibility.keyword && (
                   <ColumnHeader id="keyword" label={t('columnKeywordPhrase')} sortable sortKey="keywordPhrase" />
                 )}
@@ -586,6 +646,14 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
                   className="cursor-pointer transition-colors hover:bg-primary_hover"
                   onClick={() => setSelectedOpportunity(opp)}
                 >
+                  <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selection.isSelected(opp._id)}
+                      onChange={() => selection.toggle(opp._id)}
+                      className="h-4 w-4 rounded border-secondary"
+                    />
+                  </td>
                   {columnVisibility.keyword && (
                     <td className="px-4 py-3">
                       <span className="text-sm font-medium text-primary">
@@ -699,6 +767,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {/* Pagination */}

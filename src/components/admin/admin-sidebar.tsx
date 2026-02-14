@@ -15,14 +15,16 @@ export function AdminSidebar() {
     { href: "/admin/organizations", label: t("navOrganizations"), icon: BuildingIcon },
     { href: "/admin/users", label: t("navUsers"), icon: UsersIcon },
     { href: "/admin/logs", label: t("navAuditLogs"), icon: ListIcon },
+    { href: "/admin/debug-logs", label: t("navDebugLogs"), icon: BugIcon },
+    { href: "/admin/api-usage", label: t("navApiUsage"), icon: CreditCardIcon },
   ];
   const pathname = usePathname();
   const router = useRouter();
   const { signOut } = useAuthActions();
 
   return (
-    <aside className="flex flex-col w-64 bg-utility-gray-900 min-h-screen">
-      <div className="flex items-center h-16 px-4 border-b border-utility-gray-800">
+    <aside className="flex flex-col w-64 bg-utility-gray-900 dark:bg-gray-900 min-h-screen">
+      <div className="flex items-center h-16 px-4 border-b border-utility-gray-800 dark:border-gray-800">
         <div className="flex items-center gap-3">
           <AppLogo variant="white" className="h-8" />
           <span className="text-sm font-semibold text-white">{t("sidebarTitle")}</span>
@@ -42,8 +44,8 @@ export function AdminSidebar() {
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive
-                  ? "bg-utility-gray-800 text-white"
-                  : "text-utility-gray-400 hover:bg-utility-gray-800 hover:text-white"
+                  ? "bg-utility-gray-800 dark:bg-gray-800 text-white"
+                  : "text-utility-gray-400 dark:text-gray-400 hover:bg-utility-gray-800 dark:hover:bg-gray-800 hover:text-white"
               }`}
             >
               <Icon className="w-5 h-5" />
@@ -53,9 +55,9 @@ export function AdminSidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-utility-gray-800 space-y-2">
+      <div className="p-4 border-t border-utility-gray-800 dark:border-gray-800 space-y-2">
         <Link href="/dashboard">
-          <Button color="secondary" size="sm" className="w-full justify-start">
+          <Button color="secondary" size="sm" className="w-full justify-start dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700">
             <ArrowLeftIcon className="w-4 h-4 mr-2" />
             {t("backToApp")}
           </Button>
@@ -63,7 +65,7 @@ export function AdminSidebar() {
         <Button
           color="tertiary"
           size="sm"
-          className="w-full justify-start text-utility-gray-400"
+          className="w-full justify-start text-utility-gray-400 dark:text-gray-400 dark:hover:text-white"
           onClick={async () => {
             await signOut();
             router.push("/login");
@@ -113,6 +115,22 @@ function ArrowLeftIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+    </svg>
+  );
+}
+
+function BugIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 12.75c1.148 0 2.278.08 3.383.237 1.037.146 1.866.966 1.866 2.013 0 3.728-2.35 6.75-5.25 6.75S6.75 18.728 6.75 15c0-1.046.83-1.867 1.866-2.013A24.204 24.204 0 0112 12.75zm0 0c2.883 0 5.647.508 8.207 1.44a23.91 23.91 0 01-3.832-11.44.016.016 0 00-.014-.012.016.016 0 00-.016.01L12.75 9.75l-3.595-6.993a.017.017 0 00-.016-.01.016.016 0 00-.014.012 23.91 23.91 0 01-3.832 11.44A24.056 24.056 0 0112 12.75z" />
+    </svg>
+  );
+}
+
+function CreditCardIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
     </svg>
   );
 }

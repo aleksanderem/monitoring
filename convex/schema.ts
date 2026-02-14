@@ -27,6 +27,7 @@ export default defineSchema({
       maxDailyRefreshes: v.optional(v.number()),      // Max manual refreshes per org per day
       maxDailyRefreshesPerUser: v.optional(v.number()), // Max manual refreshes per user per day
       maxKeywordsPerBulkRefresh: v.optional(v.number()), // Max keywords per single bulk refresh/SERP action
+      maxDailyApiCost: v.optional(v.number()),             // Max daily DataForSEO API cost in USD (default $5)
     })),
     branding: v.optional(v.object({
       logoStorageId: v.optional(v.string()),
@@ -1729,8 +1730,86 @@ export default defineSchema({
     .index("by_domain_status", ["domainId", "status"]),
 
   // =================================================================
+  // App Settings (global key-value store)
+  // =================================================================
+
+  appSettings: defineTable({
+    key: v.string(),
+    value: v.string(),
+  }).index("by_key", ["key"]),
+
+  // =================================================================
+  // Debug Logs (structured API call logging)
+  // =================================================================
+
+  debugLogs: defineTable({
+    domainId: v.optional(v.id("domains")),
+    action: v.string(),
+    step: v.string(),
+    request: v.string(),
+    response: v.string(),
+    durationMs: v.number(),
+    status: v.union(v.literal("success"), v.literal("error")),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_created", ["createdAt"])
+    .index("by_action", ["action", "createdAt"]),
+
+  // =================================================================
+  // AI Keyword Research Sessions
+  // =================================================================
+
+  aiResearchSessions: defineTable({
+    domainId: v.id("domains"),
+    businessDescription: v.string(),
+    targetCustomer: v.string(),
+    keywordCount: v.number(),
+    focusType: v.union(
+      v.literal("all"),
+      v.literal("informational"),
+      v.literal("commercial"),
+      v.literal("transactional")
+    ),
+    keywords: v.array(v.object({
+      keyword: v.string(),
+      searchIntent: v.string(),
+      relevanceScore: v.number(),
+      rationale: v.string(),
+      category: v.string(),
+      searchVolume: v.number(),
+      cpc: v.number(),
+      competition: v.number(),
+      difficulty: v.number(),
+    })),
+    createdAt: v.number(),
+  })
+    .index("by_domain", ["domainId", "createdAt"]),
+
+  // =================================================================
   // Notifications
   // =================================================================
+
+  // Per-call API usage log (granular cost tracking for DataForSEO auditing)
+  apiUsageLog: defineTable({
+    endpoint: v.string(),        // e.g. "/serp/google/organic/live/advanced"
+    taskCount: v.number(),       // number of tasks in the request
+    estimatedCost: v.number(),   // estimated cost in USD
+    caller: v.string(),          // function name that made the call
+    domainId: v.optional(v.id("domains")),
+    metadata: v.optional(v.string()), // JSON string with extra context
+    createdAt: v.number(),
+  })
+    .index("by_date", ["createdAt"])
+    .index("by_domain", ["domainId"])
+    .index("by_caller", ["caller"]),
+
+  // DataForSEO cached reference data (locations, languages)
+  dataforseoCache: defineTable({
+    key: v.string(),        // "locations" | "languages"
+    data: v.string(),       // JSON stringified array
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 
   notifications: defineTable({
     userId: v.id("users"),

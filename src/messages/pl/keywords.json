@@ -48,6 +48,9 @@
   "noRankTooltip": "Nie znaleziono pozycji w rankingu dla tego słowa kluczowego",
   "difficultyNotAvailableTooltip": "Dane o trudności nie są dostępne dla tego słowa kluczowego",
   "addToMonitor": "Dodaj do monitoringu",
+  "removeFromMonitor": "Usuń z monitoringu",
+  "removedFromMonitoring": "Usunięto \"{keyword}\" z monitoringu",
+  "failedToRemoveKeyword": "Nie udało się usunąć słowa kluczowego",
   "searchVolumeTrend": "Trend wolumenu wyszukiwań",
 
   "keywordMonitoring": "Monitoring słów kluczowych",
@@ -535,5 +538,6 @@
   "confirmRefresh": "Potwierdź",
   "cannotRefresh": "Odświeżanie niedostępne",
   "limitBulkCap": "Słów kluczowych na akcję",
-  "limitBulkCapExceeded": "Maks. {limit} słów kluczowych na akcję zbiorczą ({count} wybrano)"
+  "limitBulkCapExceeded": "Maks. {limit} słów kluczowych na akcję zbiorczą ({count} wybrano)",
+  "refreshCostEstimate": "Szacowany koszt API dla {count} słów kluczowych: ~${cost}"
 }

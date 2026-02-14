@@ -138,6 +138,9 @@
     "statusDismissed": "Dismissed",
     "statusQueued": "Queued",
     "statusCrawling": "Crawling",
+    "statusFalling": "Falling",
+    "statusRising": "Rising",
+    "statusStable": "Stable",
     "priorityHigh": "High",
     "priorityMedium": "Medium",
     "priorityLow": "Low",
@@ -152,5 +155,17 @@
     "scanIdLabel": "Scan ID:",
     "statusLabel": "Status:",
     "pagesInDb": "Pages in DB:",
-    "lastUpdate": "Last update:"
+    "lastUpdate": "Last update:",
+    "bulkDelete": "Delete selected",
+    "bulkRefresh": "Refresh selected",
+    "bulkAddToMonitoring": "Add to monitoring",
+    "bulkMarkAsMonitoring": "Start monitoring",
+    "bulkActionSuccess": "{count} items processed successfully",
+    "bulkActionFailed": "Failed to process items",
+    "nSelected": "{count} selected",
+    "bulkExport": "Export selected",
+    "bulkRemoveFromMonitoring": "Remove from monitoring",
+    "bulkDismiss": "Dismiss selected",
+    "keywordUsage": "Keyword usage",
+    "keywordsOf": "{current} / {limit} keywords"
 }

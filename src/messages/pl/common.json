@@ -138,6 +138,9 @@
     "statusDismissed": "Odrzucone",
     "statusQueued": "W kolejce",
     "statusCrawling": "Crawlowanie",
+    "statusFalling": "Spadek",
+    "statusRising": "Wzrost",
+    "statusStable": "Stabilna",
     "priorityHigh": "Wysoki",
     "priorityMedium": "Średni",
     "priorityLow": "Niski",
@@ -152,5 +155,17 @@
     "scanIdLabel": "ID skanu:",
     "statusLabel": "Status:",
     "pagesInDb": "Stron w bazie:",
-    "lastUpdate": "Ostatnia aktualizacja:"
+    "lastUpdate": "Ostatnia aktualizacja:",
+    "bulkDelete": "Usuń zaznaczone",
+    "bulkRefresh": "Odśwież zaznaczone",
+    "bulkAddToMonitoring": "Dodaj do monitoringu",
+    "bulkMarkAsMonitoring": "Rozpocznij monitoring",
+    "bulkActionSuccess": "{count} elementów przetworzono pomyślnie",
+    "bulkActionFailed": "Nie udało się przetworzyć elementów",
+    "nSelected": "{count} zaznaczono",
+    "bulkExport": "Eksportuj zaznaczone",
+    "bulkRemoveFromMonitoring": "Usuń z monitoringu",
+    "bulkDismiss": "Odrzuć zaznaczone",
+    "keywordUsage": "Użycie słów kluczowych",
+    "keywordsOf": "{current} / {limit} słów kluczowych"
 }

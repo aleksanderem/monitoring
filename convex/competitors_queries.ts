@@ -229,8 +229,10 @@ export const getKeywordGaps = query({
           const compPos = competitorPosition;
 
           if (compPos < yourPos) {
-            const volume = keyword.searchVolume ?? 100;
-            const difficulty = keyword.difficulty ?? 50;
+            const rawVol = keyword.searchVolume ?? 100;
+            const volume = (isNaN(rawVol) || !isFinite(rawVol)) ? 100 : rawVol;
+            const rawDiff = keyword.difficulty ?? 50;
+            const difficulty = (isNaN(rawDiff) || !isFinite(rawDiff)) ? 50 : rawDiff;
             const positionGap = yourPos / compPos;
             const volumeWeight = Math.log10(volume + 1);
             const difficultyWeight = 1 - difficulty / 100;
@@ -280,17 +282,27 @@ export const getCompetitorStats = query({
       .filter((q) => q.eq(q.field("status"), "active"))
       .collect();
 
-    // Get total gaps (keywords with opportunities) - call as query, not direct function
-    // For now, we'll return 0 for gaps since we can't call queries from within queries
-    // In production, this would need to be calculated separately or via aggregation
+    // Get content gap counts for this domain
+    const contentGaps = await ctx.db
+      .query("contentGaps")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    const activeGaps = contentGaps.filter((g) => g.status !== "dismissed");
+    const highPriorityGaps = activeGaps.filter((g) => {
+      const score = g.opportunityScore;
+      const priority = (score != null && !isNaN(score) && score >= 70) ? "high"
+        : (score != null && !isNaN(score) && score >= 40) ? "medium" : "low";
+      return priority === "high";
+    });
 
     return {
       totalCompetitors: competitors.length,
       activeCompetitors: activeCompetitors.length,
       pausedCompetitors: pausedCompetitors.length,
       totalKeywords: keywords.length,
-      totalGaps: 0, // TODO: Calculate gaps count efficiently
-      highPriorityGaps: 0, // TODO: Calculate high priority gaps count
+      totalGaps: activeGaps.length,
+      highPriorityGaps: highPriorityGaps.length,
     };
   },
 });

@@ -4,6 +4,10 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { auth } from "./auth";
 import { checkRefreshLimits } from "./limits";
+import { buildLocationParam } from "./dataforseoLocations";
+import { createDebugLogger } from "./lib/debugLogger";
+import { API_COSTS } from "./apiUsage";
+import { isValidKeywordPhrase } from "./lib/keywordValidation";
 
 // Create a new SERP fetch job
 export const createSerpFetchJob = mutation({
@@ -121,9 +125,16 @@ export const cancelJob = mutation({
 
 // Internal action to process job in background
 export const processSerpFetchJobInternal = internalAction({
-  args: { jobId: v.id("keywordSerpJobs") },
+  args: {
+    jobId: v.id("keywordSerpJobs"),
+    startIndex: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
-    console.log(`[processSerpFetchJob] Starting job ${args.jobId}`);
+    const CHUNK_SIZE = 10; // Process 10 keywords per action invocation (SERP jobs are heavier with 1s delay)
+    const startIndex = args.startIndex ?? 0;
+
+    console.log(`[processSerpFetchJob] Starting job ${args.jobId} from index ${startIndex}`);
+    const debug = await createDebugLogger(ctx, "serp_job");
 
     // Get job
     const job = await ctx.runQuery(internal.keywordSerpJobs.getJobInternal, {
@@ -140,12 +151,14 @@ export const processSerpFetchJobInternal = internalAction({
       return;
     }
 
-    // Mark as processing
-    await ctx.runMutation(internal.keywordSerpJobs.updateJobInternal, {
-      jobId: args.jobId,
-      status: "processing",
-      startedAt: Date.now(),
-    });
+    // Mark as processing (only on first chunk)
+    if (startIndex === 0) {
+      await ctx.runMutation(internal.keywordSerpJobs.updateJobInternal, {
+        jobId: args.jobId,
+        status: "processing",
+        startedAt: Date.now(),
+      });
+    }
 
     // Get domain info
     const domain = await ctx.runQuery(internal.domains.getDomainInternal, {
@@ -192,205 +205,245 @@ export const processSerpFetchJobInternal = internalAction({
       return;
     }
 
-    const auth = btoa(`${login}:${password}`);
+    const authToken = btoa(`${login}:${password}`);
 
-    // Process each keyword
-    let processedCount = 0;
-    let failedCount = 0;
+    // Resume counters from job state
+    let processedCount = job.processedKeywords || 0;
+    let failedCount = job.failedKeywords || 0;
 
-    for (let i = 0; i < job.keywordIds.length; i++) {
-      const keywordId = job.keywordIds[i];
+    const endIndex = Math.min(startIndex + CHUNK_SIZE, job.keywordIds.length);
 
-      // Check if job was cancelled (every 5 keywords to reduce query overhead)
-      if (i % 5 === 0) {
-        const currentJob = await ctx.runQuery(internal.keywordSerpJobs.getJobInternal, {
-          jobId: args.jobId,
-        });
+    // ── Fetch keywords for this chunk ──
+    const chunkKeywordIds = job.keywordIds.slice(startIndex, endIndex);
+    const chunkKeywords: Array<{ _id: Id<"keywords">; phrase: string }> = [];
+    const skippedCount = { invalid: 0 };
 
-        if (currentJob?.status === "cancelled") {
-          console.log(`[processSerpFetchJob] Job ${args.jobId} was cancelled during processing`);
-          return;
-        }
-      }
-
-      // Update current keyword
-      await ctx.runMutation(internal.keywordSerpJobs.updateJobInternal, {
-        jobId: args.jobId,
-        currentKeywordId: keywordId,
-      });
-
-      // Get keyword
+    for (const keywordId of chunkKeywordIds) {
       const keyword = await ctx.runQuery(internal.keywords.getKeywordInternal, {
         keywordId,
       });
-
       if (!keyword) {
         console.error(`[processSerpFetchJob] Keyword ${keywordId} not found`);
         failedCount++;
         continue;
       }
+      // Validate phrase before sending to API
+      const validation = isValidKeywordPhrase(keyword.phrase);
+      if (!validation.valid) {
+        console.warn(`[processSerpFetchJob] Skipping invalid phrase "${keyword.phrase}": ${validation.reason}`);
+        skippedCount.invalid++;
+        failedCount++;
+        continue;
+      }
+      chunkKeywords.push({ _id: keyword._id, phrase: keyword.phrase });
+    }
+
+    if (chunkKeywords.length === 0) {
+      // All keywords in chunk were invalid/missing — skip to next chunk
+      await ctx.runMutation(internal.keywordSerpJobs.updateJobInternal, {
+        jobId: args.jobId,
+        processedKeywords: processedCount,
+        failedKeywords: failedCount,
+      });
+    } else {
+      // ── Check daily cost cap before batch API call ──
+      const batchCost = chunkKeywords.length * API_COSTS.SERP_LIVE_ADVANCED;
+      const costCheck = await ctx.runQuery(internal.apiUsage.checkDailyCostCap, {
+        estimatedCost: batchCost,
+        domainId: job.domainId,
+      });
+
+      if (!costCheck.allowed) {
+        console.error(`[processSerpFetchJob] Daily API cost limit reached ($${costCheck.todayCost}/$${costCheck.cap}), pausing job`);
+        await ctx.runMutation(internal.keywordSerpJobs.updateJobInternal, {
+          jobId: args.jobId,
+          status: "failed",
+          completedAt: Date.now(),
+          error: `Daily API cost limit reached ($${costCheck.todayCost}/$${costCheck.cap})`,
+        });
+        return;
+      }
+
+      // ── Check if job was cancelled ──
+      const currentJob = await ctx.runQuery(internal.keywordSerpJobs.getJobInternal, {
+        jobId: args.jobId,
+      });
+      if (currentJob?.status === "cancelled") {
+        console.log(`[processSerpFetchJob] Job ${args.jobId} was cancelled during processing`);
+        return;
+      }
+
+      // ── Build batched SERP request ──
+      const locationParam = buildLocationParam(domain.settings.location);
+      const tasks = chunkKeywords.map((kw) => ({
+        keyword: kw.phrase,
+        ...locationParam,
+        language_code: domain.settings.language,
+        device: "desktop",
+        os: "windows",
+        depth: 100,
+      }));
 
       try {
-        // Fetch SERP data for this keyword
-        const task = {
-          keyword: keyword.phrase,
-          location_code: 2840,
-          language_code: "en",
-          device: "desktop",
-          os: "windows",
-          depth: 100,
-        };
+        const data = await debug.logStep("serp_live_batch", { count: tasks.length }, async () => {
+          const response = await fetch(
+            "https://api.dataforseo.com/v3/serp/google/organic/live/advanced",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Basic ${authToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(tasks),
+            }
+          );
 
-        const response = await fetch(
-          "https://api.dataforseo.com/v3/serp/google/organic/live/advanced",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Basic ${auth}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify([task]),
+          if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
           }
-        );
 
-        if (!response.ok) {
-          console.error(
-            `[processSerpFetchJob] API error for "${keyword.phrase}": ${response.status}`
-          );
-          failedCount++;
-          continue;
-        }
-
-        const data = await response.json();
-
-        if (data.status_code !== 20000) {
-          console.error(
-            `[processSerpFetchJob] API returned error for "${keyword.phrase}": ${data.status_code}`
-          );
-          failedCount++;
-          continue;
-        }
-
-        const taskResult = data.tasks?.[0];
-
-        if (!taskResult || taskResult.status_code !== 20000 || !taskResult.result?.[0]?.items) {
-          console.error(`[processSerpFetchJob] No valid results for "${keyword.phrase}"`);
-          failedCount++;
-          continue;
-        }
-
-        // Extract organic results (convert null to undefined for optional fields)
-        // Helper to convert null to undefined
-        const n = (val: any) => val != null ? val : undefined;
-
-        const items = taskResult.result[0].items;
-        const organicResults = items
-          .filter((item: any) => item.type === "organic")
-          .slice(0, 100)
-          .map((item: any) => ({
-            position: item.rank_absolute || item.rank_group || 0,
-            rankGroup: n(item.rank_group),
-            rankAbsolute: n(item.rank_absolute),
-            domain: item.domain || (item.url ? new URL(item.url).hostname : ""),
-            url: item.url || "",
-            title: n(item.title),
-            description: n(item.description),
-            breadcrumb: n(item.breadcrumb),
-            websiteName: n(item.website_name),
-            relativeUrl: n(item.relative_url),
-            mainDomain: n(item.main_domain),
-            highlighted: n(item.highlighted),
-            sitelinks: item.links
-              ?.filter((link: any) => link.type === "sitelink")
-              ?.map((link: any) => ({
-                title: n(link.title),
-                description: n(link.description),
-                url: n(link.url),
-              })),
-            etv: n(item.etv),
-            estimatedPaidTrafficCost: n(item.estimated_paid_traffic_cost),
-            isFeaturedSnippet: n(item.is_featured_snippet),
-            isMalicious: n(item.is_malicious),
-            isWebStory: n(item.is_web_story),
-            ampVersion: n(item.amp_version),
-            rating: item.rating
-              ? {
-                  ratingType: n(item.rating.rating_type),
-                  value: n(item.rating.value),
-                  votesCount: n(item.rating.votes_count),
-                  ratingMax: n(item.rating.rating_max),
-                }
-              : undefined,
-            price: item.price
-              ? {
-                  current: n(item.price.current),
-                  regular: n(item.price.regular),
-                  maxValue: n(item.price.max_value),
-                  currency: n(item.price.currency),
-                  isPriceRange: n(item.price.is_price_range),
-                  displayedPrice: n(item.price.displayed_price),
-                }
-              : undefined,
-            timestamp: n(item.timestamp),
-            aboutThisResult: item.about_this_result
-              ? {
-                  url: n(item.about_this_result.url),
-                  source: n(item.about_this_result.source),
-                  sourceInfo: n(item.about_this_result.source_info),
-                  sourceUrl: n(item.about_this_result.source_url),
-                }
-              : undefined,
-          }));
-
-        // Store results
-        await ctx.runMutation(internal.dataforseo.storeSerpResultsInternal, {
-          keywordId: keyword._id,
-          domainId: job.domainId,
-          yourDomain: domain.domain,
-          results: organicResults,
+          return await response.json();
         });
 
-        // Auto-extract and track top competitors (positions 1-10, excluding own domain)
-        // Single batch mutation instead of 2 × N individual mutations
-        const topCompetitors = organicResults
-          .filter((r: any) => r.position <= 10 && r.domain !== domain.domain)
-          .slice(0, 10);
+        // Log API usage once per batch
+        await ctx.runMutation(internal.apiUsage.logApiUsage, {
+          endpoint: "/serp/google/organic/live/advanced",
+          taskCount: chunkKeywords.length,
+          estimatedCost: batchCost,
+          caller: "processSerpFetchJob",
+          domainId: job.domainId,
+          metadata: JSON.stringify({ batchSize: chunkKeywords.length }),
+        });
 
-        if (topCompetitors.length > 0) {
-          const today = new Date().toISOString().split("T")[0];
-          try {
-            await ctx.runMutation(internal.keywordSerpJobs.trackCompetitorsBatch, {
-              domainId: job.domainId,
-              keywordId: keyword._id,
-              date: today,
-              competitors: topCompetitors.map((c: any) => ({
-                domain: c.domain,
-                position: c.position,
-                url: c.url,
-              })),
+        if (data.status_code !== 20000 || !data.tasks) {
+          console.error(`[processSerpFetchJob] Batch API error: ${data.status_code}`);
+          failedCount += chunkKeywords.length;
+        } else {
+          // ── Process each task result ──
+          // Helper to convert null to undefined
+          const n = (val: any) => val != null ? val : undefined;
+
+          for (let t = 0; t < data.tasks.length; t++) {
+            const taskResult = data.tasks[t];
+            const keyword = chunkKeywords[t];
+
+            if (!keyword) continue;
+
+            // Update current keyword indicator
+            await ctx.runMutation(internal.keywordSerpJobs.updateJobInternal, {
+              jobId: args.jobId,
+              currentKeywordId: keyword._id,
             });
-          } catch (error) {
-            console.error(`[processSerpFetchJob] Error tracking competitors batch:`, error);
+
+            if (!taskResult || taskResult.status_code !== 20000 || !taskResult.result?.[0]?.items) {
+              console.error(`[processSerpFetchJob] No valid results for "${keyword.phrase}"`);
+              failedCount++;
+              continue;
+            }
+
+            const items = taskResult.result[0].items;
+            const organicResults = items
+              .filter((item: any) => item.type === "organic")
+              .slice(0, 100)
+              .map((item: any) => ({
+                position: item.rank_absolute || item.rank_group || 0,
+                rankGroup: n(item.rank_group),
+                rankAbsolute: n(item.rank_absolute),
+                domain: item.domain || (item.url ? new URL(item.url).hostname : ""),
+                url: item.url || "",
+                title: n(item.title),
+                description: n(item.description),
+                breadcrumb: n(item.breadcrumb),
+                websiteName: n(item.website_name),
+                relativeUrl: n(item.relative_url),
+                mainDomain: n(item.main_domain),
+                highlighted: n(item.highlighted),
+                sitelinks: item.links
+                  ?.filter((link: any) => link.type === "sitelink")
+                  ?.map((link: any) => ({
+                    title: n(link.title),
+                    description: n(link.description),
+                    url: n(link.url),
+                  })),
+                etv: n(item.etv),
+                estimatedPaidTrafficCost: n(item.estimated_paid_traffic_cost),
+                isFeaturedSnippet: n(item.is_featured_snippet),
+                isMalicious: n(item.is_malicious),
+                isWebStory: n(item.is_web_story),
+                ampVersion: n(item.amp_version),
+                rating: item.rating
+                  ? {
+                      ratingType: n(item.rating.rating_type),
+                      value: n(item.rating.value),
+                      votesCount: n(item.rating.votes_count),
+                      ratingMax: n(item.rating.rating_max),
+                    }
+                  : undefined,
+                price: item.price
+                  ? {
+                      current: n(item.price.current),
+                      regular: n(item.price.regular),
+                      maxValue: n(item.price.max_value),
+                      currency: n(item.price.currency),
+                      isPriceRange: n(item.price.is_price_range),
+                      displayedPrice: n(item.price.displayed_price),
+                    }
+                  : undefined,
+                timestamp: n(item.timestamp),
+                aboutThisResult: item.about_this_result
+                  ? {
+                      url: n(item.about_this_result.url),
+                      source: n(item.about_this_result.source),
+                      sourceInfo: n(item.about_this_result.source_info),
+                      sourceUrl: n(item.about_this_result.source_url),
+                    }
+                  : undefined,
+              }));
+
+            // Store results
+            await ctx.runMutation(internal.dataforseo.storeSerpResultsInternal, {
+              keywordId: keyword._id,
+              domainId: job.domainId,
+              yourDomain: domain.domain,
+              results: organicResults,
+            });
+
+            // Auto-extract and track top competitors (positions 1-10, excluding own domain)
+            const topCompetitors = organicResults
+              .filter((r: any) => r.position <= 10 && r.domain !== domain.domain)
+              .slice(0, 10);
+
+            if (topCompetitors.length > 0) {
+              const today = new Date().toISOString().split("T")[0];
+              try {
+                await ctx.runMutation(internal.keywordSerpJobs.trackCompetitorsBatch, {
+                  domainId: job.domainId,
+                  keywordId: keyword._id,
+                  date: today,
+                  competitors: topCompetitors.map((c: any) => ({
+                    domain: c.domain,
+                    position: c.position,
+                    url: c.url,
+                  })),
+                });
+              } catch (error) {
+                console.error(`[processSerpFetchJob] Error tracking competitors batch:`, error);
+              }
+            }
+
+            processedCount++;
           }
         }
 
-        processedCount++;
-
-        // Update progress
+        // Update progress after batch
         await ctx.runMutation(internal.keywordSerpJobs.updateJobInternal, {
           jobId: args.jobId,
           processedKeywords: processedCount,
           failedKeywords: failedCount,
         });
-
-        // Add small delay to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 1000));
       } catch (error) {
-        console.error(
-          `[processSerpFetchJob] Error processing keyword "${keyword.phrase}":`,
-          error
-        );
-        failedCount++;
+        console.error(`[processSerpFetchJob] Batch API error:`, error);
+        failedCount += chunkKeywords.length;
 
         await ctx.runMutation(internal.keywordSerpJobs.updateJobInternal, {
           jobId: args.jobId,
@@ -400,7 +453,17 @@ export const processSerpFetchJobInternal = internalAction({
       }
     }
 
-    // Mark as completed
+    // If there are more keywords, schedule next chunk
+    if (endIndex < job.keywordIds.length) {
+      console.log(`[processSerpFetchJob] Chunk done (${startIndex}-${endIndex}), scheduling next chunk at index ${endIndex}`);
+      await ctx.scheduler.runAfter(0, internal.keywordSerpJobs.processSerpFetchJobInternal, {
+        jobId: args.jobId,
+        startIndex: endIndex,
+      });
+      return;
+    }
+
+    // All keywords processed — finalize job
     await ctx.runMutation(internal.keywordSerpJobs.updateJobInternal, {
       jobId: args.jobId,
       status: "completed",

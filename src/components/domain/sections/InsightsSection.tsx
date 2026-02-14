@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { EzIcon } from "@/components/foundations/ez-icon";
 import {
     AlertTriangle,
     TrendUp02,
@@ -88,9 +89,14 @@ export function InsightsSection({ domainId }: InsightsSectionProps) {
     if (isLoading) {
         return (
             <div className="space-y-6">
-                <div>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50">
+                    <EzIcon name="idea" size={22} color="#d97706" strokeColor="#d97706" />
+                  </div>
+                  <div>
                     <h2 className="text-xl font-semibold text-primary mb-1">{t('insightsAndRecommendations')}</h2>
                     <p className="text-sm text-tertiary">{t('insightsSubtitle')}</p>
+                  </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {[1, 2, 3, 4].map((i) => (
@@ -103,11 +109,16 @@ export function InsightsSection({ domainId }: InsightsSectionProps) {
 
     return (
         <div className="space-y-6">
-            <div>
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50">
+                <EzIcon name="idea" size={22} color="#d97706" strokeColor="#d97706" />
+              </div>
+              <div>
                 <h2 className="text-xl font-semibold text-primary mb-1">{t('insightsAndRecommendations')}</h2>
                 <p className="text-sm text-tertiary">
                     {t('insightsDescription')}
                 </p>
+              </div>
             </div>
 
             {/* Health Score + Breakdown */}
