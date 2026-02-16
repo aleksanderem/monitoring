@@ -24,6 +24,9 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 
+// Plans API is newly created — cast to bypass generated types until next `npx convex dev`
+const plansApi = (api as any).plans;
+
 interface OrgWithStats {
   _id: Id<"organizations">;
   name: string;
@@ -111,6 +114,9 @@ export default function AdminOrganizationsPage() {
   const activateOrg = useMutation(api.admin.adminActivateOrganization);
   const deleteOrg = useMutation(api.admin.adminDeleteOrganization);
   const repairDenorm = useMutation(api.admin.triggerRepairDenormalization);
+
+  const allPlans = useQuery(plansApi.getPlans) as any[] | undefined;
+  const assignPlan = useMutation(plansApi.assignPlanToOrganization);
 
   const handleRowClick = (orgId: Id<"organizations">) => {
     setSelectedOrgId(orgId);
@@ -327,6 +333,43 @@ export default function AdminOrganizationsPage() {
                       <div className="flex justify-between"><dt className="text-sm text-tertiary">{t("columnStatus")}</dt><dd>{orgDetails.suspended ? <Badge color="error" size="sm">{t("statusSuspended")}</Badge> : <Badge color="success" size="sm">{t("statusActive")}</Badge>}</dd></div>
                       <div className="flex justify-between"><dt className="text-sm text-tertiary">{t("columnCreated")}</dt><dd className="text-sm text-primary">{new Date(orgDetails.createdAt).toLocaleDateString()}</dd></div>
                     </dl>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-secondary mb-3">Plan</h3>
+                    <div className="flex items-center gap-3">
+                      <select
+                        value={(orgDetails as any).planId ?? ""}
+                        onChange={async (e) => {
+                          if (!selectedOrgId || !e.target.value) return;
+                          try {
+                            await assignPlan({
+                              organizationId: selectedOrgId,
+                              planId: e.target.value as Id<"plans">,
+                            });
+                            toast.success("Plan zostal przypisany");
+                          } catch (err: any) {
+                            toast.error(err?.message || "Nie udalo sie przypisac planu");
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-primary rounded-lg bg-primary text-primary focus:outline-none focus:ring-2 focus:ring-brand-solid dark:bg-utility-gray-800 dark:text-white"
+                      >
+                        <option value="">-- Brak planu --</option>
+                        {allPlans?.map((plan: any) => (
+                          <option key={plan._id} value={plan._id}>
+                            {plan.name} ({plan.key}){plan.isDefault ? " [domyslny]" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {(orgDetails as any).planId && allPlans && (() => {
+                      const currentPlan = allPlans.find((p: any) => p._id === (orgDetails as any).planId);
+                      if (!currentPlan) return null;
+                      return (
+                        <div className="mt-2 text-xs text-tertiary">
+                          Moduly: {currentPlan.modules?.join(", ") || "brak"}
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-secondary mb-3">{t("resources")}</h3>
