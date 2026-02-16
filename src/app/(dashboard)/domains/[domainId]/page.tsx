@@ -537,48 +537,60 @@ export default function DomainDetailPage() {
             </div>
 
             <div className="flex gap-2">
-              <ShareLinkDialog domainId={domainId}>
-                <ButtonUtility
-                  size="sm"
-                  color="tertiary"
-                  tooltip={t('shareMonitoring')}
-                  icon={Link03}
-                />
-              </ShareLinkDialog>
-              <ButtonUtility
-                size="sm"
-                color="tertiary"
-                tooltip={t('generateFullReport')}
-                icon={FileCheck02}
-                onClick={() => setIsReportModalOpen(true)}
-              />
-              <ButtonUtility
-                size="sm"
-                color="tertiary"
-                tooltip={t('refreshRankings')}
-                icon={RefreshCw01}
-                onClick={handleRefresh}
-              />
-              <ButtonUtility
-                size="sm"
-                color="tertiary"
-                tooltip={t('edit')}
-                icon={Edit01}
-                onClick={() => setIsEditModalOpen(true)}
-              />
-              <DeleteConfirmationDialog
-                title={`Delete "${domain.domain}"?`}
-                description="This will permanently delete the domain and all associated keywords and ranking data. This action cannot be undone."
-                confirmLabel="Delete domain"
-                onConfirm={handleDelete}
-              >
-                <ButtonUtility
-                  size="sm"
-                  color="tertiary"
-                  tooltip={t('delete')}
-                  icon={Trash01}
-                />
-              </DeleteConfirmationDialog>
+              {onboardingStatus?.isCompleted !== false ? (
+                <>
+                  <ShareLinkDialog domainId={domainId}>
+                    <ButtonUtility
+                      size="sm"
+                      color="tertiary"
+                      tooltip={t('shareMonitoring')}
+                      icon={Link03}
+                    />
+                  </ShareLinkDialog>
+                  <ButtonUtility
+                    size="sm"
+                    color="tertiary"
+                    tooltip={t('generateFullReport')}
+                    icon={FileCheck02}
+                    onClick={() => setIsReportModalOpen(true)}
+                  />
+                  <ButtonUtility
+                    size="sm"
+                    color="tertiary"
+                    tooltip={t('refreshRankings')}
+                    icon={RefreshCw01}
+                    onClick={handleRefresh}
+                  />
+                  <ButtonUtility
+                    size="sm"
+                    color="tertiary"
+                    tooltip={t('edit')}
+                    icon={Edit01}
+                    onClick={() => setIsEditModalOpen(true)}
+                  />
+                  <DeleteConfirmationDialog
+                    title={`Delete "${domain.domain}"?`}
+                    description="This will permanently delete the domain and all associated keywords and ranking data. This action cannot be undone."
+                    confirmLabel="Delete domain"
+                    onConfirm={handleDelete}
+                  >
+                    <ButtonUtility
+                      size="sm"
+                      color="tertiary"
+                      tooltip={t('delete')}
+                      icon={Trash01}
+                    />
+                  </DeleteConfirmationDialog>
+                </>
+              ) : (
+                <>
+                  <ButtonUtility size="sm" color="tertiary" icon={Link03} isDisabled />
+                  <ButtonUtility size="sm" color="tertiary" icon={FileCheck02} isDisabled />
+                  <ButtonUtility size="sm" color="tertiary" icon={RefreshCw01} isDisabled />
+                  <ButtonUtility size="sm" color="tertiary" icon={Edit01} isDisabled />
+                  <ButtonUtility size="sm" color="tertiary" icon={Trash01} isDisabled />
+                </>
+              )}
             </div>
           </div>
         </div>
