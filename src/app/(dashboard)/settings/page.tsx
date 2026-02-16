@@ -17,6 +17,7 @@ import {
   Upload01,
   Users01,
   Speedometer02,
+  Shield01,
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
@@ -25,6 +26,7 @@ import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Badge } from "@/components/base/badges/badges";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { RoleManagement } from "@/components/settings/RoleManagement";
 import { FileTrigger } from "@/components/base/file-upload-trigger/file-upload-trigger";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { useTheme } from "next-themes";
@@ -1123,6 +1125,7 @@ export default function SettingsPage() {
     { id: "api-keys", label: t("tabApiKeys"), icon: Key01 },
     { id: "branding", label: t("tabBranding"), icon: Image01 },
     { id: "members", label: t("tabMembers"), icon: Users01 },
+    { id: "roles", label: "Role i uprawnienia", icon: Shield01 },
     { id: "limits", label: t("tabLimits"), icon: Speedometer02 },
   ];
 
@@ -1183,6 +1186,10 @@ export default function SettingsPage() {
 
               <TabPanel id="members" className="w-full">
                 <MembersSection />
+              </TabPanel>
+
+              <TabPanel id="roles" className="w-full">
+                <RoleManagement />
               </TabPanel>
 
               <TabPanel id="limits" className="w-full">
