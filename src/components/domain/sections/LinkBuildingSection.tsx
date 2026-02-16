@@ -10,6 +10,7 @@ import { EzIcon } from "@/components/foundations/ez-icon";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { PermissionGate } from "@/components/auth/PermissionGate";
 
 interface LinkBuildingSectionProps {
     domainId: Id<"domains">;
@@ -45,14 +46,16 @@ export function LinkBuildingSection({ domainId }: LinkBuildingSectionProps) {
                         <p className="text-sm text-tertiary">{t('linkBuildingSubtitle')}</p>
                     </div>
                 </div>
-                <button
-                    onClick={handleGenerate}
-                    disabled={isGenerating}
-                    className="inline-flex items-center gap-2 rounded-lg border border-secondary bg-primary px-4 py-2 text-sm font-medium text-primary shadow-xs hover:bg-primary-hover disabled:opacity-50"
-                >
-                    <RefreshCw01 className={`h-4 w-4 ${isGenerating ? "animate-spin" : ""}`} />
-                    {isGenerating ? t('generating') : t('generateReport')}
-                </button>
+                <PermissionGate permission="links.manage">
+                    <button
+                        onClick={handleGenerate}
+                        disabled={isGenerating}
+                        className="inline-flex items-center gap-2 rounded-lg border border-secondary bg-primary px-4 py-2 text-sm font-medium text-primary shadow-xs hover:bg-primary-hover disabled:opacity-50"
+                    >
+                        <RefreshCw01 className={`h-4 w-4 ${isGenerating ? "animate-spin" : ""}`} />
+                        {isGenerating ? t('generating') : t('generateReport')}
+                    </button>
+                </PermissionGate>
             </div>
 
             {/* Stats Cards */}

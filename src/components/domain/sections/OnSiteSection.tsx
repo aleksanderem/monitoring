@@ -13,6 +13,7 @@ import { OnSitePagesTable } from "../tables/OnSitePagesTable";
 import { IssuesSummaryCards } from "../cards/IssuesSummaryCards";
 import { IssuesBreakdownSection } from "./IssuesBreakdownSection";
 import { UrlSelectionModal } from "../modals/UrlSelectionModal";
+import { PermissionGate } from "@/components/auth/PermissionGate";
 import { InstantPagesMetrics } from "./InstantPagesMetrics";
 import { SitemapOverviewCard } from "./SitemapOverviewCard";
 import { RobotsAnalysisCard } from "./RobotsAnalysisCard";
@@ -135,15 +136,17 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
         <p className="text-sm text-tertiary mb-6 text-center max-w-md">
           {t('noScanDataDescription')}
         </p>
-        <Button
-          size="md"
-          color="primary"
-          iconLeading={Play}
-          onClick={handleStartScan}
-          isDisabled={isScanning}
-        >
-          {isScanning ? t('startingScan') : t('runOnSiteScan')}
-        </Button>
+        <PermissionGate permission="audit.run">
+          <Button
+            size="md"
+            color="primary"
+            iconLeading={Play}
+            onClick={handleStartScan}
+            isDisabled={isScanning}
+          >
+            {isScanning ? t('startingScan') : t('runOnSiteScan')}
+          </Button>
+        </PermissionGate>
         <p className="text-xs text-quaternary mt-3">
           {t('scanTypicalTime')}
         </p>
@@ -364,26 +367,28 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
         <p className="text-xs text-quaternary mb-6">
           {t('failedAt', { time: new Date(latestScan.completedAt!).toLocaleString() })}
         </p>
-        <div className="flex gap-2">
-          <Button
-            size="md"
-            color="primary"
-            iconLeading={Zap}
-            onClick={handleStartInstantPagesScan}
-            isDisabled={isScanning}
-          >
-            {t('scanSelectedPages')}
-          </Button>
-          <Button
-            size="md"
-            color="secondary"
-            iconLeading={Play}
-            onClick={handleStartScan}
-            isDisabled={isScanning}
-          >
-            {t('fullSiteScan')}
-          </Button>
-        </div>
+        <PermissionGate permission="audit.run">
+          <div className="flex gap-2">
+            <Button
+              size="md"
+              color="primary"
+              iconLeading={Zap}
+              onClick={handleStartInstantPagesScan}
+              isDisabled={isScanning}
+            >
+              {t('scanSelectedPages')}
+            </Button>
+            <Button
+              size="md"
+              color="secondary"
+              iconLeading={Play}
+              onClick={handleStartScan}
+              isDisabled={isScanning}
+            >
+              {t('fullSiteScan')}
+            </Button>
+          </div>
+        </PermissionGate>
       </div>
     );
   }
@@ -434,26 +439,28 @@ export function OnSiteSection({ domainId }: OnSiteSectionProps) {
             )}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            color="primary"
-            iconLeading={Zap}
-            onClick={handleStartInstantPagesScan}
-            isDisabled={isScanning || isScanInProgress}
-          >
-            {isScanning ? t('initializing') : t('scanSelectedPages')}
-          </Button>
-          <Button
-            size="sm"
-            color="secondary"
-            iconLeading={Play}
-            onClick={handleStartScan}
-            isDisabled={isScanning || isScanInProgress}
-          >
-            {t('fullSiteScan')}
-          </Button>
-        </div>
+        <PermissionGate permission="audit.run">
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              color="primary"
+              iconLeading={Zap}
+              onClick={handleStartInstantPagesScan}
+              isDisabled={isScanning || isScanInProgress}
+            >
+              {isScanning ? t('initializing') : t('scanSelectedPages')}
+            </Button>
+            <Button
+              size="sm"
+              color="secondary"
+              iconLeading={Play}
+              onClick={handleStartScan}
+              isDisabled={isScanning || isScanInProgress}
+            >
+              {t('fullSiteScan')}
+            </Button>
+          </div>
+        </PermissionGate>
       </div>
 
       {/* URL Selection Modal */}

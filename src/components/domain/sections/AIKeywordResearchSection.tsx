@@ -13,6 +13,7 @@ import { Stars01, ChevronDown, ChevronUp, Trash01, Clock } from "@untitledui/ico
 import { EzIcon } from "@/components/foundations/ez-icon";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
 import { toast } from "sonner";
+import { PermissionGate } from "@/components/auth/PermissionGate";
 
 interface AIKeywordIdea {
   keyword: string;
@@ -469,16 +470,18 @@ export function AIKeywordResearchSection({ domainId }: { domainId: Id<"domains">
           </div>
 
           <div className="flex items-center gap-3 pt-2">
-            <Button
-              color="primary"
-              size="md"
-              iconLeading={Stars01}
-              onClick={handleGenerate}
-              isDisabled={!canGenerate || isGenerating}
-              isLoading={isGenerating}
-            >
-              {isGenerating ? t("generating") : t("generateButton")}
-            </Button>
+            <PermissionGate permission="ai.research">
+              <Button
+                color="primary"
+                size="md"
+                iconLeading={Stars01}
+                onClick={handleGenerate}
+                isDisabled={!canGenerate || isGenerating}
+                isLoading={isGenerating}
+              >
+                {isGenerating ? t("generating") : t("generateButton")}
+              </Button>
+            </PermissionGate>
             {isGenerating && (
               <p className="text-sm text-tertiary">{t("generatingHint")}</p>
             )}

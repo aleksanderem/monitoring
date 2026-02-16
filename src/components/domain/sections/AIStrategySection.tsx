@@ -12,6 +12,7 @@ import { Toggle } from "@/components/base/toggle/toggle";
 import { Badge } from "@/components/base/badges/badges";
 import { EzIcon } from "@/components/foundations/ez-icon";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
+import { PermissionGate } from "@/components/auth/PermissionGate";
 import {
   Stars01,
   ChevronDown,
@@ -440,16 +441,18 @@ export function AIStrategySection({ domainId }: AIStrategySectionProps) {
             </div>
 
             <div className="flex items-center gap-3 pt-2">
-              <Button
-                color="primary"
-                size="md"
-                iconLeading={Stars01}
-                onClick={handleGenerate}
-                isDisabled={!canGenerate || isCurrentlyGenerating}
-                isLoading={isCurrentlyGenerating}
-              >
-                {isCurrentlyGenerating ? t("generating") : currentStrategy ? t("refreshStrategy") : t("generateStrategy")}
-              </Button>
+              <PermissionGate permission="ai.strategy">
+                <Button
+                  color="primary"
+                  size="md"
+                  iconLeading={Stars01}
+                  onClick={handleGenerate}
+                  isDisabled={!canGenerate || isCurrentlyGenerating}
+                  isLoading={isCurrentlyGenerating}
+                >
+                  {isCurrentlyGenerating ? t("generating") : currentStrategy ? t("refreshStrategy") : t("generateStrategy")}
+                </Button>
+              </PermissionGate>
               {hasAnyStrategy && (
                 <Button
                   size="md"
