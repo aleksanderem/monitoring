@@ -595,7 +595,7 @@ export default function DomainDetailPage() {
       {/* Main content with vertical tabs */}
       <div className="relative mx-auto w-full max-w-container px-4 lg:px-8">
         {/* Block interactions until onboarding is completed */}
-        {onboardingStatus && !onboardingStatus.isCompleted && !onboardingStatus.isDismissed && (
+        {onboardingStatus && !onboardingStatus.isCompleted && (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-start pt-32">
             <div className="absolute inset-0 bg-primary/60 backdrop-blur-[2px]" />
             <div className="relative z-10 flex flex-col items-center gap-4 rounded-xl border border-secondary bg-primary p-8 shadow-lg">
