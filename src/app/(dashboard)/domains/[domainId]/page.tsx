@@ -96,6 +96,8 @@ import { OnboardingChecklist } from "@/components/domain/onboarding/OnboardingCh
 import { getCountryFlag, getLanguageFlag } from "@/lib/countryFlags";
 import { EzIcon } from "@/components/foundations/ez-icon";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PermissionGate } from "@/components/auth/PermissionGate";
 
 const TAB_EZICONS: Record<string, string> = {
   "overview": "analytics-02",
@@ -234,20 +236,24 @@ export default function DomainDetailPage() {
     return `${done}/${total}`;
   })();
 
+  const { hasModule, can } = usePermissions();
+
   const tabs = [
     { id: "overview", label: t('tabOverview'), icon: BarChart03 },
     { id: "monitoring", label: t('tabMonitoring'), icon: Activity },
     { id: "keyword-map", label: t('tabKeywordMap'), icon: Target04 },
     { id: "visibility", label: t('tabVisibility'), icon: TrendUp02 },
-    { id: "backlinks", label: t('tabBacklinks'), icon: Link03 },
-    { id: "link-building", label: t('tabLinkBuilding'), icon: LinkExternal02 },
-    { id: "competitors", label: t('tabCompetitors'), icon: Users01 },
+    ...(hasModule("backlinks") ? [{ id: "backlinks", label: t('tabBacklinks'), icon: Link03 }] : []),
+    ...(hasModule("link_building") ? [{ id: "link-building", label: t('tabLinkBuilding'), icon: LinkExternal02 }] : []),
+    ...(hasModule("competitors") ? [{ id: "competitors", label: t('tabCompetitors'), icon: Users01 }] : []),
     { id: "keyword-analysis", label: t('tabKeywordAnalysis'), icon: FileSearch02 },
-    { id: "on-site", label: t('tabOnSite'), icon: FileCheck02 },
-    { id: "content-gaps", label: t('tabContentGaps'), icon: Lightbulb02 },
+    ...(hasModule("seo_audit") ? [{ id: "on-site", label: t('tabOnSite'), icon: FileCheck02 }] : []),
+    ...(hasModule("competitors") ? [{ id: "content-gaps", label: t('tabContentGaps'), icon: Lightbulb02 }] : []),
     { id: "insights", label: t('tabInsights'), icon: Lightning01 },
-    { id: "ai-research", label: t('tabAIResearch'), icon: Stars01 },
-    { id: "strategy", label: t('tabStrategy'), icon: Stars01, badge: strategyBadge },
+    ...(hasModule("ai_strategy") ? [
+      { id: "ai-research", label: t('tabAIResearch'), icon: Stars01 },
+      { id: "strategy", label: t('tabStrategy'), icon: Stars01, badge: strategyBadge },
+    ] : []),
     { id: "generators", label: t('tabGenerators'), icon: CodeBrowser },
     { id: "settings", label: t('tabSettings'), icon: Settings01 },
     ...(isSuperAdmin ? [{ id: "diagnostics", label: t('tabDiagnostics'), icon: Settings01 }] : []),
@@ -539,48 +545,58 @@ export default function DomainDetailPage() {
             <div className="flex gap-2">
               {onboardingStatus?.isCompleted !== false ? (
                 <>
-                  <ShareLinkDialog domainId={domainId}>
+                  <PermissionGate permission="reports.share">
+                    <ShareLinkDialog domainId={domainId}>
+                      <ButtonUtility
+                        size="sm"
+                        color="tertiary"
+                        tooltip={t('shareMonitoring')}
+                        icon={Link03}
+                      />
+                    </ShareLinkDialog>
+                  </PermissionGate>
+                  <PermissionGate permission="reports.create">
                     <ButtonUtility
                       size="sm"
                       color="tertiary"
-                      tooltip={t('shareMonitoring')}
-                      icon={Link03}
+                      tooltip={t('generateFullReport')}
+                      icon={FileCheck02}
+                      onClick={() => setIsReportModalOpen(true)}
                     />
-                  </ShareLinkDialog>
-                  <ButtonUtility
-                    size="sm"
-                    color="tertiary"
-                    tooltip={t('generateFullReport')}
-                    icon={FileCheck02}
-                    onClick={() => setIsReportModalOpen(true)}
-                  />
-                  <ButtonUtility
-                    size="sm"
-                    color="tertiary"
-                    tooltip={t('refreshRankings')}
-                    icon={RefreshCw01}
-                    onClick={handleRefresh}
-                  />
-                  <ButtonUtility
-                    size="sm"
-                    color="tertiary"
-                    tooltip={t('edit')}
-                    icon={Edit01}
-                    onClick={() => setIsEditModalOpen(true)}
-                  />
-                  <DeleteConfirmationDialog
-                    title={`Delete "${domain.domain}"?`}
-                    description="This will permanently delete the domain and all associated keywords and ranking data. This action cannot be undone."
-                    confirmLabel="Delete domain"
-                    onConfirm={handleDelete}
-                  >
+                  </PermissionGate>
+                  <PermissionGate permission="keywords.refresh">
                     <ButtonUtility
                       size="sm"
                       color="tertiary"
-                      tooltip={t('delete')}
-                      icon={Trash01}
+                      tooltip={t('refreshRankings')}
+                      icon={RefreshCw01}
+                      onClick={handleRefresh}
                     />
-                  </DeleteConfirmationDialog>
+                  </PermissionGate>
+                  <PermissionGate permission="domains.edit">
+                    <ButtonUtility
+                      size="sm"
+                      color="tertiary"
+                      tooltip={t('edit')}
+                      icon={Edit01}
+                      onClick={() => setIsEditModalOpen(true)}
+                    />
+                  </PermissionGate>
+                  <PermissionGate permission="domains.delete">
+                    <DeleteConfirmationDialog
+                      title={`Delete "${domain.domain}"?`}
+                      description="This will permanently delete the domain and all associated keywords and ranking data. This action cannot be undone."
+                      confirmLabel="Delete domain"
+                      onConfirm={handleDelete}
+                    >
+                      <ButtonUtility
+                        size="sm"
+                        color="tertiary"
+                        tooltip={t('delete')}
+                        icon={Trash01}
+                      />
+                    </DeleteConfirmationDialog>
+                  </PermissionGate>
                 </>
               ) : (
                 <>
@@ -677,14 +693,16 @@ export default function DomainDetailPage() {
                     <h2 className="text-lg font-semibold text-primary">{t('keywordMonitoring')}</h2>
                     <LiveBadge size="md" />
                   </div>
-                  <Button
-                    size="md"
-                    color="primary"
-                    iconLeading={Plus}
-                    onClick={() => setIsAddKeywordsModalOpen(true)}
-                  >
-                    {t('addKeywords')}
-                  </Button>
+                  <PermissionGate permission="keywords.add">
+                    <Button
+                      size="md"
+                      color="primary"
+                      iconLeading={Plus}
+                      onClick={() => setIsAddKeywordsModalOpen(true)}
+                    >
+                      {t('addKeywords')}
+                    </Button>
+                  </PermissionGate>
                 </div>
 
                 {/* Charts Section */}
