@@ -6,6 +6,8 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { StepIndicator } from "./StepIndicator";
+import { BusinessContextStep } from "./steps/BusinessContextStep";
+import { AIKeywordStep } from "./steps/AIKeywordStep";
 import { KeywordDiscoveryStep } from "./steps/KeywordDiscoveryStep";
 import { CompetitorDiscoveryStep } from "./steps/CompetitorDiscoveryStep";
 import { AnalysisStep } from "./steps/AnalysisStep";
@@ -25,6 +27,10 @@ export function DomainSetupWizard({
 }: DomainSetupWizardProps) {
   const t = useTranslations('domains');
   const [currentStep, setCurrentStep] = useState(0);
+  const [businessContext, setBusinessContext] = useState<{
+    businessDescription: string;
+    targetCustomer: string;
+  }>({ businessDescription: "", targetCustomer: "" });
   const [serpJobId, setSerpJobId] = useState<Id<"keywordSerpJobs"> | null>(
     null
   );
@@ -42,18 +48,32 @@ export function DomainSetupWizard({
   const onboardingStatus = useQuery(api.onboarding.getOnboardingStatus, {
     domainId,
   });
+  const domain = useQuery(api.domains.getDomain, { domainId });
   const [initialStepComputed, setInitialStepComputed] = useState(false);
 
   useEffect(() => {
     if (onboardingStatus && !initialStepComputed) {
+      // Step mapping: 0=BusinessContext, 1=AIKeywords, 2=KeywordDiscovery, 3=Competitors, 4=Analysis
       if (onboardingStatus.steps.competitorsAdded) {
-        setCurrentStep(2);
+        setCurrentStep(4); // Jump to Analysis
       } else if (onboardingStatus.steps.keywordsMonitored) {
-        setCurrentStep(1);
+        setCurrentStep(3); // Jump to Competitors
+      } else if (onboardingStatus.steps.businessContextSet) {
+        setCurrentStep(1); // Jump to AI Keywords (business context done)
       }
       setInitialStepComputed(true);
     }
   }, [onboardingStatus, initialStepComputed]);
+
+  // Pre-populate business context from domain if it exists
+  useEffect(() => {
+    if (domain && domain.businessDescription) {
+      setBusinessContext({
+        businessDescription: domain.businessDescription || "",
+        targetCustomer: domain.targetCustomer || "",
+      });
+    }
+  }, [domain]);
 
   const createSerpJob = useMutation(api.keywordSerpJobs.createSerpFetchJob);
   const createGapJob = useMutation(
@@ -64,7 +84,25 @@ export function DomainSetupWizard({
   );
   const completeOnboarding = useMutation(api.onboarding.completeOnboarding);
 
-  // Step 1 complete -> auto-create SERP job -> move to step 2
+  // Step 0 complete -> save business context -> move to step 1
+  const handleBusinessContextComplete = useCallback(
+    (ctx: { businessDescription: string; targetCustomer: string }) => {
+      setBusinessContext(ctx);
+      setCurrentStep(1);
+    },
+    []
+  );
+
+  // Step 1 complete -> AI keywords added -> move to step 2
+  const handleAIKeywordsComplete = useCallback(
+    (keywordIds: Id<"keywords">[]) => {
+      // AI keywords added, move to keyword discovery
+      setCurrentStep(2);
+    },
+    []
+  );
+
+  // Step 2 complete -> auto-create SERP job -> move to step 3
   const handleKeywordsComplete = useCallback(
     async (keywordIds: Id<"keywords">[]) => {
       if (keywordIds.length > 0) {
@@ -76,12 +114,12 @@ export function DomainSetupWizard({
           console.error(error);
         }
       }
-      setCurrentStep(1);
+      setCurrentStep(3);
     },
-    [domainId, createSerpJob]
+    [domainId, createSerpJob, t]
   );
 
-  // Step 2 complete -> auto-create gap + backlink jobs -> move to step 3
+  // Step 3 complete -> auto-create gap + backlink jobs -> move to step 4
   const handleCompetitorsComplete = useCallback(
     async (competitorIds: Id<"competitors">[]) => {
       setAddedCompetitorIds(competitorIds);
@@ -106,23 +144,31 @@ export function DomainSetupWizard({
 
       setGapJobIds(newGapIds);
       setBacklinkJobIds(newBlIds);
-      setCurrentStep(2);
+      setCurrentStep(4);
     },
     [domainId, createGapJob, createBlJob]
   );
 
-  // Step 3 complete -> mark onboarding done -> close
+  // Step 4 complete -> mark onboarding done -> close
   const handleAnalysisComplete = useCallback(() => {
     onClose();
   }, [onClose]);
 
   // Skip handlers
-  const handleSkipKeywords = useCallback(() => {
+  const handleSkipBusinessContext = useCallback(() => {
     setCurrentStep(1);
   }, []);
 
-  const handleSkipCompetitors = useCallback(() => {
+  const handleSkipAIKeywords = useCallback(() => {
     setCurrentStep(2);
+  }, []);
+
+  const handleSkipKeywords = useCallback(() => {
+    setCurrentStep(3);
+  }, []);
+
+  const handleSkipCompetitors = useCallback(() => {
+    setCurrentStep(4);
   }, []);
 
   const handleSkipAnalysis = useCallback(async () => {
@@ -133,8 +179,10 @@ export function DomainSetupWizard({
   if (!isOpen) return null;
 
   const steps = [
-    { label: t('stepKeywords'), completed: currentStep > 0 },
-    { label: t('stepCompetitors'), completed: currentStep > 1 },
+    { label: t('stepBusinessContext'), completed: currentStep > 0 },
+    { label: t('stepAIKeywords'), completed: currentStep > 1 },
+    { label: t('stepKeywords'), completed: currentStep > 2 },
+    { label: t('stepCompetitors'), completed: currentStep > 3 },
     { label: t('stepAnalysis'), completed: false },
   ];
 
@@ -171,13 +219,29 @@ export function DomainSetupWizard({
           {/* Step content */}
           <div className="px-6 py-6">
             {currentStep === 0 && (
+              <BusinessContextStep
+                domainId={domainId}
+                onComplete={handleBusinessContextComplete}
+                onSkip={handleSkipBusinessContext}
+              />
+            )}
+            {currentStep === 1 && (
+              <AIKeywordStep
+                domainId={domainId}
+                businessDescription={businessContext.businessDescription}
+                targetCustomer={businessContext.targetCustomer}
+                onComplete={handleAIKeywordsComplete}
+                onSkip={handleSkipAIKeywords}
+              />
+            )}
+            {currentStep === 2 && (
               <KeywordDiscoveryStep
                 domainId={domainId}
                 onComplete={handleKeywordsComplete}
                 onSkip={handleSkipKeywords}
               />
             )}
-            {currentStep === 1 && (
+            {currentStep === 3 && (
               <CompetitorDiscoveryStep
                 domainId={domainId}
                 serpJobId={serpJobId}
@@ -185,7 +249,7 @@ export function DomainSetupWizard({
                 onSkip={handleSkipCompetitors}
               />
             )}
-            {currentStep === 2 && (
+            {currentStep === 4 && (
               <AnalysisStep
                 domainId={domainId}
                 gapJobIds={gapJobIds}

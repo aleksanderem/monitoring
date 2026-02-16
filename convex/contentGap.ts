@@ -88,7 +88,7 @@ export const analyzeContentGap = internalAction({
       order_by: ["keyword_data.keyword_info.search_volume,desc"],
     };
 
-    console.log(`[analyzeContentGap] Calling Domain Intersection API for ${domain.domain} vs ${competitor.competitorDomain}`);
+    console.log(`[analyzeContentGap] Request params: location=${domain.settings.location}, language=${domain.settings.language}, locationParam=${JSON.stringify(locationParam)}`);
 
     // Helper: call the Labs domain_intersection endpoint
     const callIntersection = async (requestBody: object[]) => {
@@ -139,10 +139,10 @@ export const analyzeContentGap = internalAction({
     let taskResult = data.tasks?.[0];
 
     // Labs API enforces strict location+language pairs. If language_code is
-    // invalid for this location (40501), retry without it — the API will use
-    // the default language for the location.
+    // invalid for this location (40501), retry without language parameter —
+    // the API will auto-detect language from location.
     if (taskResult?.status_code === 40501) {
-      console.warn(`[analyzeContentGap] language_code "${domain.settings.language}" not valid for location, retrying without it`);
+      console.warn(`[analyzeContentGap] 40501 with language_code="${domain.settings.language}": "${taskResult.status_message}". Retrying without language parameter.`);
       const { language_code: _, ...requestWithoutLang } = baseRequest;
       data = await callIntersection([requestWithoutLang]);
       if (data.status_code !== 20000) {

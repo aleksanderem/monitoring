@@ -353,6 +353,7 @@ export const getKeywordMonitoring = query({
         isNew: discovered?.isNew || null,
         isUp: discovered?.isUp || null,
         isDown: discovered?.isDown || null,
+        proposedBy: keyword.proposedBy || null,
       };
     });
   },
@@ -597,6 +598,7 @@ export const addKeywords = mutation({
   args: {
     domainId: v.id("domains"),
     phrases: v.array(v.string()),
+    source: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -655,6 +657,7 @@ export const addKeywords = mutation({
         phrase: normalized,
         status: "active",
         createdAt: Date.now(),
+        ...(args.source ? { proposedBy: args.source } : {}),
       });
       results.push(id);
     }
@@ -1250,9 +1253,9 @@ export const getSerpResultsForKeyword = query({
     // Get the most recent SERP results for this keyword
     const results = await ctx.db
       .query("keywordSerpResults")
-      .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
+      .withIndex("by_keyword_date", (q) => q.eq("keywordId", args.keywordId))
       .order("desc")
-      .take(100); // Get up to 100 results
+      .take(100);
 
     if (results.length === 0) {
       return null;

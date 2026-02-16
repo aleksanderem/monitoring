@@ -1886,4 +1886,26 @@ export default defineSchema({
   })
     .index("by_user", ["userId", "createdAt"])
     .index("by_user_unread", ["userId", "isRead", "createdAt"]),
+
+  generatorOutputs: defineTable({
+    domainId: v.id("domains"),
+    type: v.union(
+      v.literal("jsonSchema"),
+      v.literal("llmsTxt"),
+      v.literal("llmsFullTxt")
+    ),
+    version: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("generating"),
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+    content: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_domain_type", ["domainId", "type"])
+    .index("by_domain", ["domainId"]),
 });

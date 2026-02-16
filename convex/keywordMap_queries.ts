@@ -51,7 +51,7 @@ export const getKeywordMapData = query({
         const monitoredPhrases = new Set(monitoredKeywords.map((k) => k.phrase.toLowerCase()));
 
         return discoveredKeywords
-            .filter((dk) => dk.bestPosition > 0 && dk.bestPosition !== 999)
+            .filter((dk) => dk.bestPosition > 0)
             .map((dk) => {
                 const keywordType = detectKeywordType(dk.keyword, domainName);
                 const difficultyTier = getDifficultyTier(dk.difficulty);
@@ -546,7 +546,7 @@ export const getDifficultyDistribution = query({
         const discoveredKeywords = await ctx.db
             .query("discoveredKeywords")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-            .filter((q) => q.neq(q.field("bestPosition"), 999))
+            .filter((q) => q.gt(q.field("bestPosition"), 0))
             .collect();
 
         const distribution = { easy: 0, medium: 0, hard: 0, very_hard: 0, unknown: 0 };
@@ -575,7 +575,7 @@ export const getIntentDistribution = query({
         const discoveredKeywords = await ctx.db
             .query("discoveredKeywords")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-            .filter((q) => q.neq(q.field("bestPosition"), 999))
+            .filter((q) => q.gt(q.field("bestPosition"), 0))
             .collect();
 
         const intents: Record<string, { count: number; totalVolume: number; avgPosition: number; positionSum: number }> = {
@@ -613,7 +613,7 @@ export const getSerpFeatureOpportunities = query({
         const discoveredKeywords = await ctx.db
             .query("discoveredKeywords")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-            .filter((q) => q.neq(q.field("bestPosition"), 999))
+            .filter((q) => q.gt(q.field("bestPosition"), 0))
             .collect();
 
         const featureMap: Record<string, { count: number; keywords: string[]; avgPosition: number; positionSum: number }> = {};
@@ -788,7 +788,7 @@ export const getMonthlySearchTrends = query({
         const discoveredKeywords = await ctx.db
             .query("discoveredKeywords")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-            .filter((q) => q.neq(q.field("bestPosition"), 999))
+            .filter((q) => q.gt(q.field("bestPosition"), 0))
             .collect();
 
         // Aggregate monthly search volumes across all keywords
@@ -828,7 +828,6 @@ export const getKeywordMapBubbleData = query({
         const discoveredKeywords = await ctx.db
             .query("discoveredKeywords")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-            .filter((q) => q.neq(q.field("bestPosition"), 999))
             .collect();
 
         return discoveredKeywords

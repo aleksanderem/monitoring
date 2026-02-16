@@ -1060,6 +1060,33 @@ export const initializeDomainData = internalAction({
   },
 });
 
+// Save business context from onboarding wizard (public, auth-checked)
+export const saveBusinessContextPublic = mutation({
+  args: {
+    domainId: v.id("domains"),
+    businessDescription: v.string(),
+    targetCustomer: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const context = await getContextFromDomain(ctx, args.domainId);
+    if (!context) {
+      throw new Error("Domain not found");
+    }
+
+    await requirePermission(ctx, "domains.edit", context);
+
+    await ctx.db.patch(args.domainId, {
+      businessDescription: args.businessDescription,
+      targetCustomer: args.targetCustomer,
+    });
+  },
+});
+
 // Save business context to domain for auto-fill across AI features
 export const saveBusinessContext = internalMutation({
   args: {

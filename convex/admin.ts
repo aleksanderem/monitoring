@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query, QueryCtx, MutationCtx, action } from "./_generated/server";
+import { mutation, query, internalMutation, QueryCtx, MutationCtx, action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { auth } from "./auth";
 import { Id, Doc } from "./_generated/dataModel";

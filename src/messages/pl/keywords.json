@@ -285,6 +285,13 @@
 
   "noHistoricalDataYet": "Brak danych historycznych",
   "checkBackAfterRankingUpdate": "Sprawdź ponownie po pierwszej aktualizacji pozycji",
+  "fetchHistoryButton": "Pobierz historię",
+  "fetchingHistory": "Pobieranie...",
+  "noDiscoveredKeywords": "Brak odkrytych słów kluczowych",
+  "noDiscoveredKeywordsDesc": "Pobierz dane widoczności z DataForSEO, aby odkryć na jakie słowa kluczowe ta domena się pozycjonuje",
+  "fetchDiscoveredKeywords": "Pobierz słowa kluczowe",
+  "fetchingDiscoveredKeywords": "Pobieranie...",
+  "discoveredKeywordsRefreshed": "Odkryto {count} słów kluczowych",
   "noPositionHistoryAvailable": "Brak dostępnej historii pozycji",
   "noTrendDataAvailable": "Brak danych o trendach",
   "avgVolume": "Śr. wolumen",

@@ -26,6 +26,7 @@ export default getRequestConfig(async () => {
         "share",
         "aiResearch",
         "strategy",
+        "generators",
     ];
 
     const messages: Record<string, any> = {};

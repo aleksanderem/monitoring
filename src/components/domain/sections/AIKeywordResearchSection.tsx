@@ -180,7 +180,7 @@ function HistorySessionCard({
     if (selectedKeywords.size === 0) return;
     setIsAdding(true);
     try {
-      await addKeywords({ domainId, phrases: Array.from(selectedKeywords) });
+      await addKeywords({ domainId, phrases: Array.from(selectedKeywords), source: "ai" });
       toast.success(t("addedSuccess", { count: selectedKeywords.size }));
       setSelectedKeywords(new Set());
     } catch {
@@ -366,6 +366,7 @@ export function AIKeywordResearchSection({ domainId }: { domainId: Id<"domains">
       await addKeywords({
         domainId,
         phrases: Array.from(selectedKeywords),
+        source: "ai",
       });
       toast.success(t("addedSuccess", { count: selectedKeywords.size }));
       setResults((prev) => prev.filter((k) => !selectedKeywords.has(k.keyword)));

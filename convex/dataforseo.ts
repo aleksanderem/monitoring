@@ -2055,7 +2055,31 @@ export const fetchDomainVisibilityInternal = internalAction({
           caller: "fetchDomainVisibilityInternal",
         });
 
-        const rankedTask = rankedData?.tasks?.[0];
+        let rankedTask = rankedData?.tasks?.[0];
+
+        // Retry without language_code on 40501 error (invalid language/location combo)
+        if (rankedTask?.status_code === 40501) {
+          console.warn(`[RANKED API] 40501 error: "${rankedTask?.status_message}". Retrying without language_code.`);
+          const { language_code: _, ...rankedPayloadNoLang } = rankedPayload;
+          const retryResponse = await fetch(`${DATAFORSEO_API_URL}/dataforseo_labs/google/ranked_keywords/live`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Basic ${authHeader}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify([rankedPayloadNoLang]),
+          });
+          if (retryResponse.ok) {
+            const retryData = await retryResponse.json();
+            await ctx.runMutation(internal.apiUsage.logApiUsage, {
+              endpoint: "/dataforseo_labs/google/ranked_keywords/live",
+              taskCount: 1,
+              estimatedCost: 1 * API_COSTS.LABS_RANKED_KEYWORDS,
+              caller: "fetchDomainVisibilityInternal_retry",
+            });
+            rankedTask = retryData?.tasks?.[0];
+          }
+        }
 
         if (rankedTask?.status_code === 20000) {
           const rankedItems = rankedTask?.result?.[0]?.items;
@@ -2198,7 +2222,31 @@ export const fetchDomainVisibilityInternal = internalAction({
           caller: "fetchDomainVisibilityInternal",
         });
 
-        const googleAdsTask = googleAdsData?.tasks?.[0];
+        let googleAdsTask = googleAdsData?.tasks?.[0];
+
+        // Retry without language_code on 40501 error
+        if (googleAdsTask?.status_code === 40501) {
+          console.warn(`[GOOGLE ADS API] 40501 error: "${googleAdsTask?.status_message}". Retrying without language_code.`);
+          const { language_code: _, ...googleAdsPayloadNoLang } = googleAdsPayload;
+          const retryResponse = await fetch(`${DATAFORSEO_API_URL}/keywords_data/google_ads/keywords_for_site/live`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Basic ${authHeader}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify([googleAdsPayloadNoLang]),
+          });
+          if (retryResponse.ok) {
+            const retryData = await retryResponse.json();
+            await ctx.runMutation(internal.apiUsage.logApiUsage, {
+              endpoint: "/keywords_data/google_ads/keywords_for_site/live",
+              taskCount: 1,
+              estimatedCost: 1 * API_COSTS.KEYWORDS_DATA_GOOGLE_ADS,
+              caller: "fetchDomainVisibilityInternal_retry",
+            });
+            googleAdsTask = retryData?.tasks?.[0];
+          }
+        }
 
         if (googleAdsTask?.status_code === 20000) {
           const googleAdsItems = googleAdsTask?.result;
@@ -2469,7 +2517,7 @@ export const fetchAndStoreVisibilityHistory = action({
         return { success: false, error: `API error: ${response.status}` };
       }
 
-      const data = await response.json();
+      let data = await response.json();
 
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/dataforseo_labs/google/historical_rank_overview/live",
@@ -2478,6 +2526,31 @@ export const fetchAndStoreVisibilityHistory = action({
         caller: "fetchAndStoreVisibilityHistory",
         domainId: args.domainId,
       });
+
+      // Check for 40501 language error and retry without language
+      const taskStatusCode = data?.tasks?.[0]?.status_code;
+      if (taskStatusCode === 40501) {
+        console.warn(`[fetchAndStoreVisibilityHistory] 40501 error: "${data?.tasks?.[0]?.status_message}". Retrying without language_code.`);
+        const { language_code: _, ...payloadWithoutLang } = historyPayload;
+        const retryResponse = await fetch(`${DATAFORSEO_API_URL}/dataforseo_labs/google/historical_rank_overview/live`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Basic ${authHeader}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify([payloadWithoutLang]),
+        });
+        if (retryResponse.ok) {
+          data = await retryResponse.json();
+          await ctx.runMutation(internal.apiUsage.logApiUsage, {
+            endpoint: "/dataforseo_labs/google/historical_rank_overview/live",
+            taskCount: 1,
+            estimatedCost: 1 * API_COSTS.LABS_HISTORICAL_RANK_OVERVIEW,
+            caller: "fetchAndStoreVisibilityHistory_retry",
+            domainId: args.domainId,
+          });
+        }
+      }
 
       console.log("Historical Rank Overview FULL RESPONSE:", JSON.stringify(data, null, 2));
 

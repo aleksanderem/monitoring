@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useState } from "react";
+import { useQuery, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { KeywordMapBubbleChart } from "../charts/KeywordMapBubbleChart";
@@ -10,8 +11,10 @@ import { QuickWinsTable } from "../tables/QuickWinsTable";
 import { CompetitorOverlapTable } from "../tables/CompetitorOverlapTable";
 import { CannibalizationTable } from "../tables/CannibalizationTable";
 import { useTranslations } from "next-intl";
-import { Target04, Zap, TrendUp02, Hash01, HelpCircle, Star01, MessageChatCircle, Map01, Image01, VideoRecorder, ShoppingBag01, Link01, File07, SearchLg, CheckVerified01, BarChart01, Globe01, BookOpen01 } from "@untitledui/icons";
+import { Target04, Zap, TrendUp02, Hash01, HelpCircle, Star01, MessageChatCircle, Map01, Image01, VideoRecorder, ShoppingBag01, Link01, File07, SearchLg, CheckVerified01, BarChart01, Globe01, BookOpen01, RefreshCcw01 } from "@untitledui/icons";
 import { Tooltip, TooltipTrigger } from "react-aria-components";
+import { Button } from "@/components/base/buttons/button";
+import { toast } from "sonner";
 
 interface KeywordMapSectionProps {
     domainId: Id<"domains">;
@@ -57,6 +60,31 @@ export function KeywordMapSection({ domainId }: KeywordMapSectionProps) {
     const t = useTranslations('keywords');
     const mapData = useQuery(api.keywordMap_queries.getKeywordMapData, { domainId });
     const serpFeatures = useQuery(api.keywordMap_queries.getSerpFeatureOpportunities, { domainId });
+    const domain = useQuery(api.domains.getDomain, { domainId });
+    const fetchVisibility = useAction(api.dataforseo.fetchAndStoreVisibility);
+    const [isFetching, setIsFetching] = useState(false);
+
+    const handleRefreshDiscovered = async () => {
+        if (!domain || isFetching) return;
+        setIsFetching(true);
+        try {
+            const result = await fetchVisibility({
+                domainId,
+                domain: domain.domain,
+                location: domain.settings.location,
+                language: domain.settings.language,
+            });
+            if (result.success) {
+                toast.success(t('discoveredKeywordsRefreshed', { count: result.count || 0 }));
+            } else {
+                toast.error(result.error || "Failed to fetch keywords");
+            }
+        } catch (e: any) {
+            toast.error(e.message || "Failed to fetch keywords");
+        } finally {
+            setIsFetching(false);
+        }
+    };
 
     const stats = mapData
         ? {
@@ -73,8 +101,26 @@ export function KeywordMapSection({ domainId }: KeywordMapSectionProps) {
 
     return (
         <div className="flex flex-col gap-6">
+            {/* Refresh button when no discovered keywords */}
+            {stats && stats.total === 0 && (
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-secondary bg-primary py-10">
+                    <Globe01 className="h-10 w-10 text-quaternary" />
+                    <p className="text-sm font-medium text-primary">{t('noDiscoveredKeywords')}</p>
+                    <p className="text-xs text-tertiary max-w-sm text-center">{t('noDiscoveredKeywordsDesc')}</p>
+                    <Button
+                        color="secondary"
+                        size="sm"
+                        iconLeading={RefreshCcw01}
+                        onClick={handleRefreshDiscovered}
+                        isDisabled={isFetching || !domain}
+                    >
+                        {isFetching ? t('fetchingDiscoveredKeywords') : t('fetchDiscoveredKeywords')}
+                    </Button>
+                </div>
+            )}
+
             {/* Summary Cards */}
-            {stats && (
+            {stats && stats.total > 0 && (
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                     <div className="rounded-xl border border-secondary bg-primary p-4">
                         <div className="flex items-center gap-2 text-sm text-tertiary">

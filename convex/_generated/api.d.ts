@@ -8,11 +8,17 @@
  * @module
  */
 
+import type * as actions_aiBusinessContext from "../actions/aiBusinessContext.js";
+import type * as actions_aiCompetitorSearch from "../actions/aiCompetitorSearch.js";
 import type * as actions_aiKeywordResearch from "../actions/aiKeywordResearch.js";
 import type * as actions_aiProvider from "../actions/aiProvider.js";
 import type * as actions_aiStrategy from "../actions/aiStrategy.js";
 import type * as actions_competitorPositions from "../actions/competitorPositions.js";
 import type * as actions_dataforseoLocations from "../actions/dataforseoLocations.js";
+import type * as actions_generateLlmsTxt from "../actions/generateLlmsTxt.js";
+import type * as actions_generatePlatformInstructions from "../actions/generatePlatformInstructions.js";
+import type * as actions_generateSchema from "../actions/generateSchema.js";
+import type * as actions_scrapeHomepage from "../actions/scrapeHomepage.js";
 import type * as admin from "../admin.js";
 import type * as aiResearch from "../aiResearch.js";
 import type * as aiStrategy from "../aiStrategy.js";
@@ -50,6 +56,7 @@ import type * as forecasts_actions from "../forecasts_actions.js";
 import type * as forecasts_mutations from "../forecasts_mutations.js";
 import type * as forecasts_queries from "../forecasts_queries.js";
 import type * as generatedReports from "../generatedReports.js";
+import type * as generators from "../generators.js";
 import type * as http from "../http.js";
 import type * as insights_queries from "../insights_queries.js";
 import type * as jobs_queries from "../jobs_queries.js";
@@ -107,11 +114,17 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "actions/aiBusinessContext": typeof actions_aiBusinessContext;
+  "actions/aiCompetitorSearch": typeof actions_aiCompetitorSearch;
   "actions/aiKeywordResearch": typeof actions_aiKeywordResearch;
   "actions/aiProvider": typeof actions_aiProvider;
   "actions/aiStrategy": typeof actions_aiStrategy;
   "actions/competitorPositions": typeof actions_competitorPositions;
   "actions/dataforseoLocations": typeof actions_dataforseoLocations;
+  "actions/generateLlmsTxt": typeof actions_generateLlmsTxt;
+  "actions/generatePlatformInstructions": typeof actions_generatePlatformInstructions;
+  "actions/generateSchema": typeof actions_generateSchema;
+  "actions/scrapeHomepage": typeof actions_scrapeHomepage;
   admin: typeof admin;
   aiResearch: typeof aiResearch;
   aiStrategy: typeof aiStrategy;
@@ -149,6 +162,7 @@ declare const fullApi: ApiFromModules<{
   forecasts_mutations: typeof forecasts_mutations;
   forecasts_queries: typeof forecasts_queries;
   generatedReports: typeof generatedReports;
+  generators: typeof generators;
   http: typeof http;
   insights_queries: typeof insights_queries;
   jobs_queries: typeof jobs_queries;

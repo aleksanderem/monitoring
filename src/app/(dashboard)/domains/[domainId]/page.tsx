@@ -23,7 +23,8 @@ import {
   FileSearch02,
   Lightbulb02,
   Users01,
-  Lightning01
+  Lightning01,
+  CodeBrowser
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
@@ -90,6 +91,7 @@ import { DomainSetupWizard } from "@/components/domain/onboarding/DomainSetupWiz
 import { AIKeywordResearchSection } from "@/components/domain/sections/AIKeywordResearchSection";
 import { StrategySection } from "@/components/domain/sections/StrategySection";
 import { DiagnosticSection } from "@/components/domain/sections/DiagnosticSection";
+import { GeneratorsSection } from "@/components/domain/sections/GeneratorsSection";
 import { OnboardingChecklist } from "@/components/domain/onboarding/OnboardingChecklist";
 import { getCountryFlag, getLanguageFlag } from "@/lib/countryFlags";
 import { EzIcon } from "@/components/foundations/ez-icon";
@@ -109,6 +111,7 @@ const TAB_EZICONS: Record<string, string> = {
   "insights": "idea",
   "ai-research": "ai-magic",
   "strategy": "strategy",
+  "generators": "code",
   "diagnostics": "stethoscope",
   "settings": "settings-05",
 };
@@ -245,6 +248,7 @@ export default function DomainDetailPage() {
     { id: "insights", label: t('tabInsights'), icon: Lightning01 },
     { id: "ai-research", label: t('tabAIResearch'), icon: Stars01 },
     { id: "strategy", label: t('tabStrategy'), icon: Stars01, badge: strategyBadge },
+    { id: "generators", label: t('tabGenerators'), icon: CodeBrowser },
     { id: "settings", label: t('tabSettings'), icon: Settings01 },
     ...(isSuperAdmin ? [{ id: "diagnostics", label: t('tabDiagnostics'), icon: Settings01 }] : []),
   ];
@@ -927,6 +931,11 @@ export default function DomainDetailPage() {
             {/* Strategy Tab */}
             <TabPanel id="strategy">
               <StrategySection domainId={domainId} />
+            </TabPanel>
+
+            {/* Generators Tab */}
+            <TabPanel id="generators">
+              <GeneratorsSection domainId={domainId} />
             </TabPanel>
 
             {/* Settings Tab */}

@@ -19,6 +19,7 @@ import {
   Edit05,
   Plus,
   DotsVertical,
+  Stars01,
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -672,6 +673,12 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                               )}
                             </button>
                             <span className="text-sm font-medium text-primary">{keyword.phrase}</span>
+                            {keyword.proposedBy === "ai" && (
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-brand-subtle/20 px-1.5 py-0.5 text-[10px] font-medium text-brand-primary" title="AI-generated keyword">
+                                <Stars01 className="h-3 w-3" />
+                                AI
+                              </span>
+                            )}
                           </div>
                         </td>
                       )}

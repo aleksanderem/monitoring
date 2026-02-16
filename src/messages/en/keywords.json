@@ -285,6 +285,13 @@
 
   "noHistoricalDataYet": "No historical data yet",
   "checkBackAfterRankingUpdate": "Check back after the first ranking update",
+  "fetchHistoryButton": "Fetch history",
+  "fetchingHistory": "Fetching...",
+  "noDiscoveredKeywords": "No discovered keywords yet",
+  "noDiscoveredKeywordsDesc": "Fetch keyword visibility data from DataForSEO to discover what keywords this domain ranks for",
+  "fetchDiscoveredKeywords": "Fetch keywords",
+  "fetchingDiscoveredKeywords": "Fetching...",
+  "discoveredKeywordsRefreshed": "Discovered {count} keywords",
   "noPositionHistoryAvailable": "No position history available",
   "noTrendDataAvailable": "No trend data available",
   "avgVolume": "Avg Volume",

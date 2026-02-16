@@ -273,178 +273,189 @@ export const processSerpFetchJobInternal = internalAction({
         return;
       }
 
-      // ── Build batched SERP request ──
+      // ── Process keywords one at a time (DataForSEO allows only 1 task per request) ──
       const locationParam = buildLocationParam(domain.settings.location);
-      const tasks = chunkKeywords.map((kw) => ({
-        keyword: kw.phrase,
-        ...locationParam,
-        language_code: domain.settings.language,
-        device: "desktop",
-        os: "windows",
-        depth: 100,
-      }));
+      const n = (val: any) => val != null ? val : undefined;
 
-      try {
-        const data = await debug.logStep("serp_live_batch", { count: tasks.length }, async () => {
-          const response = await fetch(
-            "https://api.dataforseo.com/v3/serp/google/organic/live/advanced",
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Basic ${authToken}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(tasks),
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
+      const callSerpApi = async (task: object) => {
+        const response = await fetch(
+          "https://api.dataforseo.com/v3/serp/google/organic/live/advanced",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Basic ${authToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify([task]),
           }
-
-          return await response.json();
-        });
-
-        // Log API usage once per batch
-        await ctx.runMutation(internal.apiUsage.logApiUsage, {
-          endpoint: "/serp/google/organic/live/advanced",
-          taskCount: chunkKeywords.length,
-          estimatedCost: batchCost,
-          caller: "processSerpFetchJob",
-          domainId: job.domainId,
-          metadata: JSON.stringify({ batchSize: chunkKeywords.length }),
-        });
-
-        if (data.status_code !== 20000 || !data.tasks) {
-          console.error(`[processSerpFetchJob] Batch API error: ${data.status_code}`);
-          failedCount += chunkKeywords.length;
-        } else {
-          // ── Process each task result ──
-          // Helper to convert null to undefined
-          const n = (val: any) => val != null ? val : undefined;
-
-          for (let t = 0; t < data.tasks.length; t++) {
-            const taskResult = data.tasks[t];
-            const keyword = chunkKeywords[t];
-
-            if (!keyword) continue;
-
-            // Update current keyword indicator
-            await ctx.runMutation(internal.keywordSerpJobs.updateJobInternal, {
-              jobId: args.jobId,
-              currentKeywordId: keyword._id,
-            });
-
-            if (!taskResult || taskResult.status_code !== 20000 || !taskResult.result?.[0]?.items) {
-              console.error(`[processSerpFetchJob] No valid results for "${keyword.phrase}"`);
-              failedCount++;
-              continue;
-            }
-
-            const items = taskResult.result[0].items;
-            const organicResults = items
-              .filter((item: any) => item.type === "organic")
-              .slice(0, 100)
-              .map((item: any) => ({
-                position: item.rank_absolute || item.rank_group || 0,
-                rankGroup: n(item.rank_group),
-                rankAbsolute: n(item.rank_absolute),
-                domain: item.domain || (item.url ? new URL(item.url).hostname : ""),
-                url: item.url || "",
-                title: n(item.title),
-                description: n(item.description),
-                breadcrumb: n(item.breadcrumb),
-                websiteName: n(item.website_name),
-                relativeUrl: n(item.relative_url),
-                mainDomain: n(item.main_domain),
-                highlighted: n(item.highlighted),
-                sitelinks: item.links
-                  ?.filter((link: any) => link.type === "sitelink")
-                  ?.map((link: any) => ({
-                    title: n(link.title),
-                    description: n(link.description),
-                    url: n(link.url),
-                  })),
-                etv: n(item.etv),
-                estimatedPaidTrafficCost: n(item.estimated_paid_traffic_cost),
-                isFeaturedSnippet: n(item.is_featured_snippet),
-                isMalicious: n(item.is_malicious),
-                isWebStory: n(item.is_web_story),
-                ampVersion: n(item.amp_version),
-                rating: item.rating
-                  ? {
-                      ratingType: n(item.rating.rating_type),
-                      value: n(item.rating.value),
-                      votesCount: n(item.rating.votes_count),
-                      ratingMax: n(item.rating.rating_max),
-                    }
-                  : undefined,
-                price: item.price
-                  ? {
-                      current: n(item.price.current),
-                      regular: n(item.price.regular),
-                      maxValue: n(item.price.max_value),
-                      currency: n(item.price.currency),
-                      isPriceRange: n(item.price.is_price_range),
-                      displayedPrice: n(item.price.displayed_price),
-                    }
-                  : undefined,
-                timestamp: n(item.timestamp),
-                aboutThisResult: item.about_this_result
-                  ? {
-                      url: n(item.about_this_result.url),
-                      source: n(item.about_this_result.source),
-                      sourceInfo: n(item.about_this_result.source_info),
-                      sourceUrl: n(item.about_this_result.source_url),
-                    }
-                  : undefined,
-              }));
-
-            // Store results
-            await ctx.runMutation(internal.dataforseo.storeSerpResultsInternal, {
-              keywordId: keyword._id,
-              domainId: job.domainId,
-              yourDomain: domain.domain,
-              results: organicResults,
-            });
-
-            // Auto-extract and track top competitors (positions 1-10, excluding own domain)
-            const topCompetitors = organicResults
-              .filter((r: any) => r.position <= 10 && r.domain !== domain.domain)
-              .slice(0, 10);
-
-            if (topCompetitors.length > 0) {
-              const today = new Date().toISOString().split("T")[0];
-              try {
-                await ctx.runMutation(internal.keywordSerpJobs.trackCompetitorsBatch, {
-                  domainId: job.domainId,
-                  keywordId: keyword._id,
-                  date: today,
-                  competitors: topCompetitors.map((c: any) => ({
-                    domain: c.domain,
-                    position: c.position,
-                    url: c.url,
-                  })),
-                });
-              } catch (error) {
-                console.error(`[processSerpFetchJob] Error tracking competitors batch:`, error);
-              }
-            }
-
-            processedCount++;
-          }
+        );
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
         }
+        return await response.json();
+      };
 
-        // Update progress after batch
+      for (const keyword of chunkKeywords) {
+        // Update current keyword indicator
         await ctx.runMutation(internal.keywordSerpJobs.updateJobInternal, {
           jobId: args.jobId,
-          processedKeywords: processedCount,
-          failedKeywords: failedCount,
+          currentKeywordId: keyword._id,
         });
-      } catch (error) {
-        console.error(`[processSerpFetchJob] Batch API error:`, error);
-        failedCount += chunkKeywords.length;
 
+        try {
+          const task = {
+            keyword: keyword.phrase,
+            ...locationParam,
+            language_code: domain.settings.language,
+            device: "desktop",
+            os: "windows",
+            depth: 100,
+          };
+
+          let data = await callSerpApi(task);
+
+          // Log API usage
+          await ctx.runMutation(internal.apiUsage.logApiUsage, {
+            endpoint: "/serp/google/organic/live/advanced",
+            taskCount: 1,
+            estimatedCost: API_COSTS.SERP_LIVE_ADVANCED,
+            caller: "processSerpFetchJob",
+            domainId: job.domainId,
+          });
+
+          // If 40501 (language mismatch), retry without language
+          const taskResult0 = data.tasks?.[0];
+          if (taskResult0?.status_code === 40501) {
+            console.warn(`[processSerpFetchJob] 40501 for "${keyword.phrase}", retrying without language_code`);
+            const { language_code: _, ...taskNoLang } = task;
+            data = await callSerpApi(taskNoLang);
+          }
+
+          if (data.status_code !== 20000 || !data.tasks?.[0]) {
+            console.error(`[processSerpFetchJob] API error for "${keyword.phrase}": ${data.status_code}`);
+            failedCount++;
+            continue;
+          }
+
+          const taskResult = data.tasks[0];
+          if (taskResult.status_code !== 20000) {
+            console.error(`[processSerpFetchJob] Task error for "${keyword.phrase}": status=${taskResult.status_code}, message="${taskResult.status_message}"`);
+            failedCount++;
+            continue;
+          }
+
+          if (!taskResult.result?.[0]?.items || taskResult.result[0].items.length === 0) {
+            console.log(`[processSerpFetchJob] No SERP results for "${keyword.phrase}" (empty)`);
+            processedCount++;
+            continue;
+          }
+
+          const items = taskResult.result[0].items;
+          const organicResults = items
+            .filter((item: any) => item.type === "organic")
+            .slice(0, 100)
+            .map((item: any) => ({
+              position: item.rank_absolute || item.rank_group || 0,
+              rankGroup: n(item.rank_group),
+              rankAbsolute: n(item.rank_absolute),
+              domain: item.domain || (item.url ? new URL(item.url).hostname : ""),
+              url: item.url || "",
+              title: n(item.title),
+              description: n(item.description),
+              breadcrumb: n(item.breadcrumb),
+              websiteName: n(item.website_name),
+              relativeUrl: n(item.relative_url),
+              mainDomain: n(item.main_domain),
+              highlighted: n(item.highlighted),
+              sitelinks: item.links
+                ?.filter((link: any) => link.type === "sitelink")
+                ?.map((link: any) => ({
+                  title: n(link.title),
+                  description: n(link.description),
+                  url: n(link.url),
+                })),
+              etv: n(item.etv),
+              estimatedPaidTrafficCost: n(item.estimated_paid_traffic_cost),
+              isFeaturedSnippet: n(item.is_featured_snippet),
+              isMalicious: n(item.is_malicious),
+              isWebStory: n(item.is_web_story),
+              ampVersion: n(item.amp_version),
+              rating: item.rating
+                ? {
+                    ratingType: n(item.rating.rating_type),
+                    value: n(item.rating.value),
+                    votesCount: n(item.rating.votes_count),
+                    ratingMax: n(item.rating.rating_max),
+                  }
+                : undefined,
+              price: item.price
+                ? {
+                    current: n(item.price.current),
+                    regular: n(item.price.regular),
+                    maxValue: n(item.price.max_value),
+                    currency: n(item.price.currency),
+                    isPriceRange: n(item.price.is_price_range),
+                    displayedPrice: n(item.price.displayed_price),
+                  }
+                : undefined,
+              timestamp: n(item.timestamp),
+              aboutThisResult: item.about_this_result
+                ? {
+                    url: n(item.about_this_result.url),
+                    source: n(item.about_this_result.source),
+                    sourceInfo: n(item.about_this_result.source_info),
+                    sourceUrl: n(item.about_this_result.source_url),
+                  }
+                : undefined,
+            }));
+
+          // Store SERP results
+          await ctx.runMutation(internal.dataforseo.storeSerpResultsInternal, {
+            keywordId: keyword._id,
+            domainId: job.domainId,
+            yourDomain: domain.domain,
+            results: organicResults,
+          });
+
+          // Store keyword position (find our domain in SERP results)
+          const today = new Date().toISOString().split("T")[0];
+          const ourResult = organicResults.find((r: any) => r.domain === domain.domain);
+          await ctx.runMutation(internal.dataforseo.storePositionInternal, {
+            keywordId: keyword._id,
+            date: today,
+            position: ourResult ? ourResult.position : null,
+            url: ourResult ? ourResult.url : null,
+          });
+
+          // Auto-extract and track top competitors (positions 1-10, excluding own domain)
+          const topCompetitors = organicResults
+            .filter((r: any) => r.position <= 10 && r.domain !== domain.domain)
+            .slice(0, 10);
+
+          if (topCompetitors.length > 0) {
+            try {
+              await ctx.runMutation(internal.keywordSerpJobs.trackCompetitorsBatch, {
+                domainId: job.domainId,
+                keywordId: keyword._id,
+                date: today,
+                competitors: topCompetitors.map((c: any) => ({
+                  domain: c.domain,
+                  position: c.position,
+                  url: c.url,
+                })),
+              });
+            } catch (error) {
+              console.error(`[processSerpFetchJob] Error tracking competitors:`, error);
+            }
+          }
+
+          processedCount++;
+        } catch (error) {
+          console.error(`[processSerpFetchJob] Error for "${keyword.phrase}":`, error);
+          failedCount++;
+        }
+
+        // Update progress after each keyword
         await ctx.runMutation(internal.keywordSerpJobs.updateJobInternal, {
           jobId: args.jobId,
           processedKeywords: processedCount,
@@ -472,6 +483,11 @@ export const processSerpFetchJobInternal = internalAction({
       failedKeywords: failedCount,
     });
 
+    // Update visibility snapshot from keyword positions
+    await ctx.runMutation(internal.keywordSerpJobs.computeVisibilitySnapshot, {
+      domainId: job.domainId,
+    });
+
     // Notify team
     await ctx.runMutation(internal.notifications.createJobNotification, {
       domainId: job.domainId,
@@ -485,6 +501,79 @@ export const processSerpFetchJobInternal = internalAction({
     console.log(
       `[processSerpFetchJob] Job ${args.jobId} completed: ${processedCount} processed, ${failedCount} failed`
     );
+  },
+});
+
+// After SERP job completes, aggregate keyword positions into a visibility snapshot
+// for the overview chart (domainVisibilityHistory table)
+export const computeVisibilitySnapshot = internalMutation({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    // Count keywords in each position bucket
+    let pos_1 = 0, pos_2_3 = 0, pos_4_10 = 0, pos_11_20 = 0;
+    let pos_21_30 = 0, pos_31_40 = 0, pos_41_50 = 0;
+    let pos_51_60 = 0, pos_61_70 = 0, pos_71_80 = 0;
+    let pos_81_90 = 0, pos_91_100 = 0;
+    let totalRanking = 0;
+
+    for (const kw of keywords) {
+      const pos = kw.currentPosition;
+      if (pos == null || pos <= 0) continue;
+      totalRanking++;
+      if (pos === 1) pos_1++;
+      else if (pos <= 3) pos_2_3++;
+      else if (pos <= 10) pos_4_10++;
+      else if (pos <= 20) pos_11_20++;
+      else if (pos <= 30) pos_21_30++;
+      else if (pos <= 40) pos_31_40++;
+      else if (pos <= 50) pos_41_50++;
+      else if (pos <= 60) pos_51_60++;
+      else if (pos <= 70) pos_61_70++;
+      else if (pos <= 80) pos_71_80++;
+      else if (pos <= 90) pos_81_90++;
+      else pos_91_100++;
+    }
+
+    if (totalRanking === 0) {
+      console.log(`[computeVisibilitySnapshot] No ranking keywords for domain ${args.domainId}, skipping`);
+      return;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // Upsert today's entry
+    const existing = await ctx.db
+      .query("domainVisibilityHistory")
+      .withIndex("by_domain_date", (q) =>
+        q.eq("domainId", args.domainId).eq("date", today)
+      )
+      .unique();
+
+    const metrics = {
+      pos_1, pos_2_3, pos_4_10, pos_11_20,
+      pos_21_30, pos_31_40, pos_41_50,
+      pos_51_60, pos_61_70, pos_71_80,
+      pos_81_90, pos_91_100,
+      count: totalRanking,
+    };
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { metrics, fetchedAt: Date.now() });
+    } else {
+      await ctx.db.insert("domainVisibilityHistory", {
+        domainId: args.domainId,
+        date: today,
+        metrics,
+        fetchedAt: Date.now(),
+      });
+    }
+
+    console.log(`[computeVisibilitySnapshot] Stored snapshot for ${args.domainId}: ${totalRanking} ranking keywords`);
   },
 });
 
