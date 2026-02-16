@@ -5,6 +5,30 @@ import { authTables } from "@convex-dev/auth/server";
 export default defineSchema({
   ...authTables,
 
+  // Subscription plans (define module/permission/limit ceilings per organization)
+  plans: defineTable({
+    name: v.string(),              // "Free", "Pro", "Enterprise"
+    key: v.string(),               // "free", "pro", "enterprise"
+    description: v.optional(v.string()),
+    permissions: v.array(v.string()), // allowed permission keys
+    modules: v.array(v.string()),    // "positioning","backlinks","seo_audit","reports","competitors","ai_strategy","forecasts","link_building"
+    limits: v.object({
+      maxKeywords: v.optional(v.number()),
+      maxDomains: v.optional(v.number()),
+      maxProjects: v.optional(v.number()),
+      maxDomainsPerProject: v.optional(v.number()),
+      maxKeywordsPerDomain: v.optional(v.number()),
+      maxDailyRefreshes: v.optional(v.number()),
+      refreshCooldownMinutes: v.optional(v.number()),
+      maxKeywordsPerBulkRefresh: v.optional(v.number()),
+      maxDailyApiCost: v.optional(v.number()),
+    }),
+    isDefault: v.boolean(),        // assigned to new organizations
+    createdAt: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_default", ["isDefault"]),
+
   // Organizations (tenants)
   organizations: defineTable({
     name: v.string(),
@@ -29,6 +53,7 @@ export default defineSchema({
       maxKeywordsPerBulkRefresh: v.optional(v.number()), // Max keywords per single bulk refresh/SERP action
       maxDailyApiCost: v.optional(v.number()),             // Max daily DataForSEO API cost in USD (default $5)
     })),
+    planId: v.optional(v.id("plans")),
     branding: v.optional(v.object({
       logoStorageId: v.optional(v.string()),
       logoUrl: v.optional(v.string()),
@@ -570,6 +595,8 @@ export default defineSchema({
       v.literal("custom")
     ),
     roleId: v.optional(v.id("roles")), // for custom roles
+    grantedPermissions: v.optional(v.array(v.string())),
+    grantedBy: v.optional(v.id("users")),
     joinedAt: v.number(),
   })
     .index("by_organization", ["organizationId"])
