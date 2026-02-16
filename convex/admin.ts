@@ -198,6 +198,9 @@ export const listAllOrganizations = query({
           }
         }
 
+        // Get plan info
+        const plan = org.planId ? await ctx.db.get(org.planId) : null;
+
         return {
           ...org,
           memberCount: members.length,
@@ -206,6 +209,8 @@ export const listAllOrganizations = query({
           keywordCount,
           suspended: !!suspension,
           suspendedAt: suspension?.suspendedAt,
+          planName: plan?.name ?? "Brak planu",
+          planKey: plan?.key ?? null,
         };
       })
     );
@@ -318,6 +323,9 @@ export const getOrganizationDetails = query({
       .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
       .unique();
 
+    // Get plan info
+    const plan = org.planId ? await ctx.db.get(org.planId) : null;
+
     return {
       ...org,
       members: flatMembers,
@@ -328,6 +336,7 @@ export const getOrganizationDetails = query({
       suspended: !!suspension,
       suspendedAt: suspension?.suspendedAt,
       aiSettings: org.aiSettings ?? null,
+      plan: plan ? { _id: plan._id, name: plan.name, key: plan.key, modules: plan.modules } : null,
     };
   },
 });
