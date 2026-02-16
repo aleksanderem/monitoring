@@ -593,7 +593,23 @@ export default function DomainDetailPage() {
       </div>
 
       {/* Main content with vertical tabs */}
-      <div className="mx-auto w-full max-w-container px-4 lg:px-8">
+      <div className="relative mx-auto w-full max-w-container px-4 lg:px-8">
+        {/* Block interactions until onboarding is completed */}
+        {onboardingStatus && !onboardingStatus.isCompleted && !onboardingStatus.isDismissed && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-start pt-32">
+            <div className="absolute inset-0 bg-primary/60 backdrop-blur-[2px]" />
+            <div className="relative z-10 flex flex-col items-center gap-4 rounded-xl border border-secondary bg-primary p-8 shadow-lg">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50">
+                <Settings01 className="h-6 w-6 text-brand-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-primary">{t('onboardingRequiredTitle')}</h3>
+              <p className="max-w-sm text-center text-sm text-tertiary">{t('onboardingRequiredDescription')}</p>
+              <Button size="md" color="primary" onClick={() => setIsWizardOpen(true)}>
+                {t('onboardingStartSetup')}
+              </Button>
+            </div>
+          </div>
+        )}
         <Tabs orientation="vertical" selectedKey={selectedTab} onSelectionChange={(key) => setSelectedTab(key as string)}>
           <div className="flex w-full gap-8 lg:gap-16">
             {/* Desktop Sidebar Navigation — sticky below TopBar */}

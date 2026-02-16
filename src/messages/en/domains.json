@@ -367,5 +367,8 @@
   "aiKeywordColCategory": "Category",
   "noAIKeywordsGenerated": "No keywords were generated. Try adjusting the focus or business context.",
   "aiKeywordsError": "Failed to generate keywords",
-  "addingKeywords": "Adding keywords..."
+  "addingKeywords": "Adding keywords...",
+  "onboardingRequiredTitle": "Complete Setup First",
+  "onboardingRequiredDescription": "You need to complete the domain setup before you can access the dashboard. Configure your keywords, competitors, and analysis settings.",
+  "onboardingStartSetup": "Start Setup"
 }

@@ -367,5 +367,8 @@
   "aiKeywordColCategory": "Kategoria",
   "noAIKeywordsGenerated": "Nie wygenerowano słów kluczowych. Spróbuj zmienić fokus lub kontekst biznesowy.",
   "aiKeywordsError": "Nie udało się wygenerować słów kluczowych",
-  "addingKeywords": "Dodawanie słów kluczowych..."
+  "addingKeywords": "Dodawanie słów kluczowych...",
+  "onboardingRequiredTitle": "Dokończ konfigurację",
+  "onboardingRequiredDescription": "Musisz dokończyć konfigurację domeny, zanim uzyskasz dostęp do panelu. Skonfiguruj słowa kluczowe, konkurentów i ustawienia analizy.",
+  "onboardingStartSetup": "Rozpocznij konfigurację"
 }
