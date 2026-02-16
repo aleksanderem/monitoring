@@ -50,6 +50,8 @@ export function SERPFeaturesSection({
     );
   }
 
+  if (!summary) return null;
+
   if (summary.totalDataPoints === 0) {
     return (
       <Card className="p-6">

@@ -38,6 +38,8 @@ export function PositionDistributionChart({ domainId }: PositionDistributionChar
     );
   }
 
+  if (!distribution) return null;
+
   const chartData = [
     { range: "Top 3", keywords: distribution.top3 },
     { range: "4-10", keywords: distribution.pos4_10 },
