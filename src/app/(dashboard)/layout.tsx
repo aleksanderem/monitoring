@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import { SidebarNavigationSectionDividers } from "@/components/application/app-navigation/sidebar-navigation/sidebar-section-dividers";
 import { TopBar } from "@/components/application/app-navigation/TopBar";
 import {
@@ -15,6 +16,7 @@ import { usePathname } from "next/navigation";
 import { GlobalJobStatus } from "@/components/domain/job-status/GlobalJobStatus";
 import { JobCompletionNotifier } from "@/components/domain/job-status/JobCompletionNotifier";
 import { SidebarUsageIndicator } from "@/components/domain/SidebarUsageIndicator";
+import { PermissionsProvider } from "@/contexts/PermissionsContext";
 import { useTranslations } from "next-intl";
 
 export default function DashboardLayout({
@@ -27,6 +29,12 @@ export default function DashboardLayout({
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  const userOrgs = useQuery(
+    api.organizations.getUserOrganizations,
+    isAuthenticated ? {} : "skip"
+  );
+  const activeOrgId = userOrgs?.[0]?._id;
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -50,47 +58,49 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-primary">
-      {/* Sidebar */}
-      <SidebarNavigationSectionDividers
-        activeUrl={pathname}
-        footer={<SidebarUsageIndicator />}
-        items={[
-          {
-            label: t("projects"),
-            href: "/projects",
-            icon: Folder,
-          },
-          {
-            label: t("domains"),
-            href: "/domains",
-            icon: Globe01,
-          },
-          {
-            label: t("jobs"),
-            href: "/jobs",
-            icon: LayersThree01,
-          },
-          { divider: true },
-          {
-            label: t("settings"),
-            href: "/settings",
-            icon: Settings01,
-          },
-        ]}
-      />
+    <PermissionsProvider organizationId={activeOrgId}>
+      <div className="flex min-h-screen bg-primary">
+        {/* Sidebar */}
+        <SidebarNavigationSectionDividers
+          activeUrl={pathname}
+          footer={<SidebarUsageIndicator />}
+          items={[
+            {
+              label: t("projects"),
+              href: "/projects",
+              icon: Folder,
+            },
+            {
+              label: t("domains"),
+              href: "/domains",
+              icon: Globe01,
+            },
+            {
+              label: t("jobs"),
+              href: "/jobs",
+              icon: LayersThree01,
+            },
+            { divider: true },
+            {
+              label: t("settings"),
+              href: "/settings",
+              icon: Settings01,
+            },
+          ]}
+        />
 
-      {/* Main content area (right of sidebar) */}
-      <main className="min-w-0 flex-1 flex flex-col">
-        <TopBar activeUrl={pathname} />
-        {children}
-      </main>
+        {/* Main content area (right of sidebar) */}
+        <main className="min-w-0 flex-1 flex flex-col">
+          <TopBar activeUrl={pathname} />
+          {children}
+        </main>
 
-      {/* Global job status indicator */}
-      <GlobalJobStatus />
+        {/* Global job status indicator */}
+        <GlobalJobStatus />
 
-      {/* Job completion notifications */}
-      <JobCompletionNotifier />
-    </div>
+        {/* Job completion notifications */}
+        <JobCompletionNotifier />
+      </div>
+    </PermissionsProvider>
   );
 }
