@@ -913,3 +913,76 @@ Benefits:
 - Clear feedback with toast notifications
 
 Committed: 898673f
+
+---
+
+=== SESSION S0086 START === 2026-02-16T16:00:00Z
+Focus: Keyword map display fix, EzIcon dark mode, settings/insights container consistency
+Continuing from: S0085 (SERP bug fixes)
+Active tasks: #9, #10, #11, #12
+
+---
+
+S0086. Task #9 - Fix keyword map not displaying Google Ads keywords:
+- Root cause: getKeywordMapData filters `.filter((dk) => dk.bestPosition > 0 && dk.bestPosition !== 999)`
+- Google Ads API returns position: null, stored as bestPosition: 999
+- Toast showed "Discovered X keywords" but display filtered them all out
+- Fix: Removed !== 999 filter from getKeywordMapData and all keyword map queries
+- Changed DB filters from q.neq("bestPosition", 999) to q.gt("bestPosition", 0) across 4 occurrences
+- File: convex/keywordMap_queries.ts
+- Deployed with npx convex dev --once
+- Status: PASSING
+
+---
+
+S0086. Task #10 - Fix EzIcon dark mode (currentColor resolution):
+- Root cause: Web component shadow DOM can't inherit CSS currentColor
+- Fix: Resolve currentColor via getComputedStyle(el).color before setting attributes
+- Added MutationObserver on <html> class changes to re-resolve when dark mode toggles
+- File: src/components/foundations/ez-icon.tsx
+- Status: PASSING
+
+---
+
+S0086. Task #11 - Fix settings page container width:
+- Root cause: mx-auto in a flex-col parent overrides align-self:stretch, causing shrink-to-content
+- The dashboard layout has <main class="flex flex-col"> as parent
+- Settings page had narrow form content, so it shrunk; domains page had wide table so it appeared fine
+- Multiple iterations:
+  1. Changed max-w-4xl to max-w-container (not enough)
+  2. Restructured layout with sidebar inside card + CSS Grid (still narrow)
+  3. User identified real issue: mx-auto in flex context
+  4. Final fix: Added w-full to outer container div
+- Final classes: "mx-auto flex w-full max-w-container flex-col gap-8 px-4 py-8 lg:px-8"
+- Also restructured settings to CSS Grid layout: grid lg:grid-cols-[13rem_1fr]
+- Section wrapper simplified from "rounded-xl border border-secondary bg-primary p-6" to "p-6"
+- File: src/app/(dashboard)/settings/page.tsx
+- Key lesson: In flex-col parent, margin:auto on cross axis = shrink to content. Always pair with w-full.
+- Status: PASSING
+
+---
+
+S0086. Task #12 - Fix insights page container consistency:
+- Changed from "container mx-auto max-w-7xl space-y-6 p-6" to "mx-auto max-w-container space-y-6 px-4 py-8 lg:px-8"
+- Matches all other dashboard pages
+- File: src/app/(dashboard)/domains/[domainId]/insights/page.tsx
+- Status: PASSING
+
+---
+
+S0086. Earlier commit 264a5eb covered:
+- Keyword map filter fix (keywordMap_queries.ts)
+- EzIcon dark mode fix (ez-icon.tsx)
+- DataForSEO retry without language_code
+- computeVisibilitySnapshot mutation
+- Fetch history button for PositionHistoryChart
+- Empty state for KeywordMapSection
+
+---
+
+S0086. Uncommitted changes (settings + insights container fixes):
+- src/app/(dashboard)/settings/page.tsx (w-full + CSS Grid restructure)
+- src/app/(dashboard)/domains/[domainId]/insights/page.tsx (max-w-container)
+- Ready to commit
+
+---

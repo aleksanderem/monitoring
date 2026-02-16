@@ -74,7 +74,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-secondary bg-primary p-6">
+    <div className="p-6">
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-primary">{title}</h2>
         <p className="mt-1 text-sm text-tertiary">{description}</p>
@@ -1127,7 +1127,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-8 lg:px-8">
+    <div className="mx-auto flex w-full max-w-container flex-col gap-8 px-4 py-8 lg:px-8">
       {/* Page header */}
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold text-primary lg:text-display-xs">
@@ -1140,52 +1140,55 @@ export default function SettingsPage() {
 
       {/* Tabbed content */}
       <Tabs orientation="vertical" defaultSelectedKey="profile">
-        <div className="flex w-full gap-8 lg:gap-16">
-          {/* Desktop sidebar navigation */}
-          <TabList
-            size="sm"
-            type="line"
-            items={tabs}
-            className="w-auto items-start max-lg:hidden"
-          />
+        {/* Mobile horizontal navigation */}
+        <TabList
+          size="sm"
+          type="underline"
+          items={tabs}
+          className="lg:hidden"
+        />
 
-          <div className="flex min-w-0 flex-1 flex-col gap-6">
-            {/* Mobile horizontal navigation */}
-            <TabList
-              size="sm"
-              type="line"
-              items={tabs}
-              className="lg:hidden"
-            />
+        <div className="w-full rounded-xl border border-secondary bg-primary">
+          <div className="grid w-full lg:grid-cols-[13rem_1fr]">
+            {/* Desktop sidebar navigation */}
+            <div className="hidden border-r border-secondary p-4 lg:block">
+              <TabList
+                size="sm"
+                type="line"
+                items={tabs}
+                className="w-full items-start"
+              />
+            </div>
 
-            <TabPanel id="profile">
-              <ProfileSection />
-            </TabPanel>
+            <div className="min-w-0">
+              <TabPanel id="profile" className="w-full">
+                <ProfileSection />
+              </TabPanel>
 
-            <TabPanel id="preferences">
-              <PreferencesSection />
-            </TabPanel>
+              <TabPanel id="preferences" className="w-full">
+                <PreferencesSection />
+              </TabPanel>
 
-            <TabPanel id="notifications">
-              <NotificationsSection />
-            </TabPanel>
+              <TabPanel id="notifications" className="w-full">
+                <NotificationsSection />
+              </TabPanel>
 
-            <TabPanel id="api-keys">
-              <APIKeysSection />
-            </TabPanel>
+              <TabPanel id="api-keys" className="w-full">
+                <APIKeysSection />
+              </TabPanel>
 
-            <TabPanel id="branding">
-              <BrandingSection />
-            </TabPanel>
+              <TabPanel id="branding" className="w-full">
+                <BrandingSection />
+              </TabPanel>
 
-            <TabPanel id="members">
-              <MembersSection />
-            </TabPanel>
+              <TabPanel id="members" className="w-full">
+                <MembersSection />
+              </TabPanel>
 
-            <TabPanel id="limits">
-              <LimitsSection />
-            </TabPanel>
-
+              <TabPanel id="limits" className="w-full">
+                <LimitsSection />
+              </TabPanel>
+            </div>
           </div>
         </div>
       </Tabs>

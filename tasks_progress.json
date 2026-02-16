@@ -1,6 +1,6 @@
 {
-  "session_id": "S0071",
-  "date": "2026-02-13",
+  "session_id": "S0086",
+  "date": "2026-02-16",
   "tasks": [
     {
       "id": 1,
@@ -57,11 +57,39 @@
       "status": "passing",
       "created_session": "S0071",
       "last_updated_session": "S0071"
+    },
+    {
+      "id": 9,
+      "name": "fix_keyword_map_display_google_ads_keywords",
+      "status": "passing",
+      "created_session": "S0086",
+      "last_updated_session": "S0086"
+    },
+    {
+      "id": 10,
+      "name": "fix_ezicon_dark_mode_currentcolor",
+      "status": "passing",
+      "created_session": "S0086",
+      "last_updated_session": "S0086"
+    },
+    {
+      "id": 11,
+      "name": "fix_settings_container_width_consistency",
+      "status": "passing",
+      "created_session": "S0086",
+      "last_updated_session": "S0086"
+    },
+    {
+      "id": 12,
+      "name": "fix_insights_container_class_consistency",
+      "status": "passing",
+      "created_session": "S0086",
+      "last_updated_session": "S0086"
     }
   ],
-  "reason": "S0071: Fixed 7 NaN propagation + stale priority bugs in scoring/derivation queries",
-  "thinking_process": "Audited all scoring/derivation points where keyword×position×competitor data produces results. Found NaN propagation via ?? operator (NaN is not nullish) and stale stored priority fields. See tasks_progress_verbose.txt for details.",
-  "connected_tasks": [6, 7, 8],
+  "reason": "S0086: Fixed 4 issues - keyword map display (bestPosition=999 filter), EzIcon dark mode (currentColor resolution), settings page container width (mx-auto in flex-col shrink fix + CSS Grid restructure), insights page container consistency",
+  "thinking_process": "Keyword map showed 'found X phrases' but displayed nothing because Google Ads keywords store bestPosition=999 and the filter excluded them. EzIcon web component shadow DOM can't inherit CSS currentColor so we resolve it via getComputedStyle. Settings page was narrower than other pages because mx-auto in a flex-col parent overrides align-self:stretch - fixed with w-full. See tasks_progress_verbose.txt for details.",
+  "connected_tasks": [9, 10, 11, 12],
   "how_to_test": [
     {
       "id": 1,
@@ -69,47 +97,31 @@
       "status": "done",
       "is_ok": true,
       "data_for_next_step": [],
-      "session_id": "S0071"
+      "session_id": "S0086"
     },
     {
       "id": 2,
-      "name": "getDiagnosticSnapshotInternal shows denorm_missing=0 for all domains",
+      "name": "Keyword map displays Google Ads keywords (bestPosition > 0)",
       "status": "done",
       "is_ok": true,
       "data_for_next_step": [],
-      "session_id": "S0069"
+      "session_id": "S0086"
     },
     {
       "id": 3,
-      "name": "getDiagnosticSnapshotInternal shows nanScores=0 for all domains",
+      "name": "EzIcons visible in both light and dark mode",
       "status": "done",
       "is_ok": true,
       "data_for_next_step": [],
-      "session_id": "S0069"
+      "session_id": "S0086"
     },
     {
       "id": 4,
-      "name": "Convex push succeeds (npx convex dev --once)",
-      "status": "not_started",
-      "is_ok": null,
+      "name": "Settings page fills same container width as domains page",
+      "status": "done",
+      "is_ok": true,
       "data_for_next_step": [],
-      "session_id": "S0071"
-    },
-    {
-      "id": 5,
-      "name": "Sidebar usage indicator renders correctly",
-      "status": "not_started",
-      "is_ok": null,
-      "data_for_next_step": [],
-      "session_id": "S0068"
-    },
-    {
-      "id": 6,
-      "name": "Keyword limit enforced at 50 when no limits configured",
-      "status": "not_started",
-      "is_ok": null,
-      "data_for_next_step": [],
-      "session_id": "S0068"
+      "session_id": "S0086"
     }
   ]
 }
