@@ -16,10 +16,12 @@ import {
   AlertCircle,
   CheckCircle,
   Settings01,
+  LogIn01,
 } from "@untitledui/icons";
 import type { Selection } from "react-aria-components";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 
 interface OrgWithStats {
@@ -78,6 +80,7 @@ interface OrgDetails {
 export default function AdminOrganizationsPage() {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
+  const router = useRouter();
   usePageTitle("Admin", "Organizations");
   const [search, setSearch] = useState("");
   const [selectedOrgId, setSelectedOrgId] = useState<Id<"organizations"> | null>(null);
@@ -568,6 +571,19 @@ export default function AdminOrganizationsPage() {
               <div className="mt-auto pt-6 border-t border-primary">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
+                    <Button
+                      color="primary"
+                      size="sm"
+                      onClick={() => {
+                        if (!selectedOrgId || !orgDetails) return;
+                        localStorage.setItem("impersonatingOrgId", selectedOrgId);
+                        localStorage.setItem("impersonatingOrgName", orgDetails.name);
+                        router.push("/projects");
+                      }}
+                    >
+                      <LogIn01 className="w-4 h-4" />
+                      Wejdz jako tenant
+                    </Button>
                     <Button color={orgDetails.suspended ? "primary" : "secondary"} size="sm" onClick={() => selectedOrgId && handleToggleSuspend(selectedOrgId, orgDetails.suspended)}>
                       {orgDetails.suspended ? t("activate") : t("suspend")}
                     </Button>

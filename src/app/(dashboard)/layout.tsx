@@ -17,7 +17,9 @@ import { GlobalJobStatus } from "@/components/domain/job-status/GlobalJobStatus"
 import { JobCompletionNotifier } from "@/components/domain/job-status/JobCompletionNotifier";
 import { SidebarUsageIndicator } from "@/components/domain/SidebarUsageIndicator";
 import { PermissionsProvider } from "@/contexts/PermissionsContext";
+import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { useTranslations } from "next-intl";
+import type { Id } from "../../../convex/_generated/dataModel";
 
 export default function DashboardLayout({
   children,
@@ -34,7 +36,15 @@ export default function DashboardLayout({
     api.organizations.getUserOrganizations,
     isAuthenticated ? {} : "skip"
   );
-  const activeOrgId = userOrgs?.[0]?._id;
+
+  const impersonatingOrgId =
+    typeof window !== "undefined"
+      ? localStorage.getItem("impersonatingOrgId")
+      : null;
+
+  const activeOrgId = impersonatingOrgId
+    ? (impersonatingOrgId as Id<"organizations">)
+    : userOrgs?.[0]?._id;
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -91,6 +101,7 @@ export default function DashboardLayout({
 
         {/* Main content area (right of sidebar) */}
         <main className="min-w-0 flex-1 flex flex-col">
+          <ImpersonationBanner />
           <TopBar activeUrl={pathname} />
           {children}
         </main>
