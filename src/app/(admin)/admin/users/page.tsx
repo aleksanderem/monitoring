@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import type { Id } from "../../../../../convex/_generated/dataModel";
 import { Button } from "@/components/base/buttons/button";
 import { Badge } from "@/components/base/badges/badges";
@@ -69,6 +70,7 @@ interface UserDetails {
 export default function AdminUsersPage() {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
+  usePageTitle("Admin", "Users");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "super_admin" | "user">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "suspended">("all");

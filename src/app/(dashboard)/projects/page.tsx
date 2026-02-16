@@ -20,6 +20,7 @@ import { DeleteConfirmationDialog } from "@/components/application/modals/delete
 import { ProjectDetailsSlideout } from "@/components/application/slideout-menus/project-details-slideout";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 // Helper to format relative time
 function formatRelativeTime(timestamp: number): string {
@@ -39,6 +40,7 @@ export default function ProjectsPage() {
   const t = useTranslations("projects");
   const projects = useQuery(api.projects.list);
   const deleteProject = useMutation(api.projects.remove);
+  usePageTitle("Projects");
 
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({

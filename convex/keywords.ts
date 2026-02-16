@@ -852,6 +852,10 @@ export const repairDenormalization = internalMutation({
       .collect();
 
     let repaired = 0;
+    let noPositionRecords = 0;
+    let alreadyCorrect = 0;
+    let positionsWereNull = 0;
+    let positionsFixed = 0;
 
     for (const keyword of keywords) {
       // Get latest 7 positions sorted by date
@@ -861,7 +865,10 @@ export const repairDenormalization = internalMutation({
         .order("desc")
         .take(7);
 
-      if (positions.length === 0) continue;
+      if (positions.length === 0) {
+        noPositionRecords++;
+        continue;
+      }
 
       // Sort ascending by date for recentPositions
       const sorted = [...positions].sort((a, b) => a.date.localeCompare(b.date));
@@ -882,10 +889,13 @@ export const repairDenormalization = internalMutation({
 
       // Check if repair is needed
       const needsRepair =
-        keyword.currentPosition == null ||
-        (keyword.recentPositions ?? []).length === 0;
+        keyword.currentPosition !== currentPos ||
+        (keyword.recentPositions ?? []).length !== recentPositions.length;
 
-      if (!needsRepair) continue;
+      if (!needsRepair) {
+        alreadyCorrect++;
+        continue;
+      }
 
       await ctx.db.patch(keyword._id, {
         currentPosition: currentPos,
@@ -896,10 +906,16 @@ export const repairDenormalization = internalMutation({
         recentPositions,
       });
 
+      if (currentPos == null) {
+        positionsWereNull++;
+      } else {
+        positionsFixed++;
+      }
       repaired++;
     }
 
-    return { domainId: args.domainId, totalKeywords: keywords.length, repaired };
+    console.log(`[repairDenormalization] domain=${args.domainId}: total=${keywords.length}, repaired=${repaired} (fixed=${positionsFixed}, null=${positionsWereNull}), correct=${alreadyCorrect}, noRecords=${noPositionRecords}`);
+    return { domainId: args.domainId, totalKeywords: keywords.length, repaired, positionsFixed, positionsWereNull, alreadyCorrect, noPositionRecords };
   },
 });
 
@@ -1174,6 +1190,15 @@ export const createKeywordInternal = internalMutation({
     difficulty: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    // Only enforce limit for active keywords (paused/pending don't count toward limit)
+    if (args.status === "active") {
+      const limitCheck = await checkKeywordLimit(ctx, args.domainId);
+      if (!limitCheck.allowed) {
+        console.log(`[createKeywordInternal] Keyword limit reached for domain ${args.domainId}: ${limitCheck.currentCount}/${limitCheck.limit}`);
+        return null;
+      }
+    }
+
     const keywordId = await ctx.db.insert("keywords", {
       domainId: args.domainId,
       phrase: args.phrase,
@@ -1184,6 +1209,30 @@ export const createKeywordInternal = internalMutation({
     });
 
     return keywordId;
+  },
+});
+
+/**
+ * Get full position history for a keyword from keywordPositions table.
+ * Used in the keyword detail modal for a complete chart (not just 7-day sparkline).
+ */
+export const getPositionHistory = query({
+  args: {
+    keywordId: v.id("keywords"),
+  },
+  handler: async (ctx, args) => {
+    const positions = await ctx.db
+      .query("keywordPositions")
+      .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
+      .order("asc")
+      .collect();
+
+    return positions
+      .filter((p) => p.position != null)
+      .map((p) => ({
+        date: new Date(p.date).getTime(),
+        position: p.position as number,
+      }));
   },
 });
 

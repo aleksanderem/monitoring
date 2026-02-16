@@ -382,6 +382,7 @@ export function InsightsSection({ domainId }: InsightsSectionProps) {
                     </p>
                 </div>
             )}
+
         </div>
     );
 }

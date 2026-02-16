@@ -9,9 +9,11 @@ import { Button } from "@/components/base/buttons/button";
 import { Toggle } from "@/components/base/toggle/toggle";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function AdminDebugLogsPage() {
   const t = useTranslations("admin");
+  usePageTitle("Admin", "Debug Logs");
   const isEnabled = useQuery(api.debugLog.getStatus);
   const logs = useQuery(api.debugLog.getLogs, { limit: 100 });
   const toggleDebug = useMutation(api.debugLog.toggle);

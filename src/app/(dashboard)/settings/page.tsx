@@ -23,6 +23,7 @@ import { Input } from "@/components/base/input/input";
 import { Toggle } from "@/components/base/toggle/toggle";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Badge } from "@/components/base/badges/badges";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { FileTrigger } from "@/components/base/file-upload-trigger/file-upload-trigger";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
@@ -1113,6 +1114,7 @@ function LimitsSection() {
 
 export default function SettingsPage() {
   const t = useTranslations("settings");
+  usePageTitle("Settings");
 
   const tabs = [
     { id: "profile", label: t("tabProfile"), icon: User01 },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -291,6 +291,7 @@ export function AIKeywordResearchSection({ domainId }: { domainId: Id<"domains">
   const generateAction = useAction(api.actions.aiKeywordResearch.generateKeywordIdeas);
   const addKeywords = useMutation(api.keywords.addKeywords);
   const history = useQuery(api.aiResearch.getHistory, { domainId });
+  const domain = useQuery(api.domains.getDomain, { domainId });
 
   const [businessDescription, setBusinessDescription] = useState("");
   const [targetCustomer, setTargetCustomer] = useState("");
@@ -301,6 +302,32 @@ export function AIKeywordResearchSection({ domainId }: { domainId: Id<"domains">
   const [selectedKeywords, setSelectedKeywords] = useState<Set<string>>(new Set());
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-fill from domain record or latest research session
+  const [hasAutoFilled, setHasAutoFilled] = useState(false);
+  useEffect(() => {
+    if (hasAutoFilled) return;
+    if (domain === undefined || history === undefined) return;
+
+    // Priority 1: latest research session
+    const latestSession = history?.[0];
+    if (latestSession?.businessDescription) {
+      setBusinessDescription(latestSession.businessDescription);
+      setTargetCustomer(latestSession.targetCustomer ?? "");
+      setHasAutoFilled(true);
+      return;
+    }
+
+    // Priority 2: domain-level business context
+    if (domain?.businessDescription) {
+      setBusinessDescription(domain.businessDescription);
+      setTargetCustomer(domain.targetCustomer ?? "");
+      setHasAutoFilled(true);
+      return;
+    }
+
+    setHasAutoFilled(true);
+  }, [domain, history, hasAutoFilled]);
 
   const handleGenerate = useCallback(async () => {
     if (!businessDescription.trim() || !targetCustomer.trim()) return;

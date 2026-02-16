@@ -15,6 +15,7 @@ import { ProjectPositionMonitoring } from "@/components/project/sections/Project
 import { ProjectBacklinksOverview } from "@/components/project/sections/ProjectBacklinksOverview";
 import { ProjectDomainsTable } from "@/components/project/tables/ProjectDomainsTable";
 import { useTranslations } from "next-intl";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 function ProjectLimitsSection({ projectId, currentLimits }: { projectId: Id<"projects">; currentLimits?: { maxDomains?: number; maxKeywordsPerDomain?: number; maxDailyRefreshes?: number } }) {
   const t = useTranslations("projects");
@@ -101,6 +102,7 @@ export default function ProjectDetailPage() {
     const projectId = params.projectId as Id<"projects">;
 
     const project = useQuery(api.projects.getProject, { projectId });
+    usePageTitle(project?.name);
 
     if (project === undefined) {
         return <LoadingState />;

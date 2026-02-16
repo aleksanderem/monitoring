@@ -145,5 +145,22 @@
   "apiUsageTasks": "Zadania",
   "apiUsageCost": "Koszt",
   "apiUsageTime": "Czas",
-  "apiUsageNoData": "Brak danych o zużyciu API. Dane pojawią się tutaj po wykonaniu wywołań API DataForSEO."
+  "apiUsageNoData": "Brak danych o zużyciu API. Dane pojawią się tutaj po wykonaniu wywołań API DataForSEO.",
+  "tabAI": "Dostawca AI",
+  "aiProvider": "Dostawca AI",
+  "aiModel": "Model",
+  "aiModelPlaceholder": "Domyślny dla dostawcy",
+  "aiProviderClaude": "Claude (Anthropic)",
+  "aiProviderGoogle": "Google Gemini",
+  "aiProviderZAI": "Z.AI (GLM-5)",
+  "aiSettingsUpdated": "Ustawienia AI zaktualizowane",
+  "aiSettingsDescription": "Wybierz dostawcę AI do generowania strategii i badania słów kluczowych.",
+  "aiSettingsUpdateFailed": "Nie udało się zaktualizować ustawień AI",
+  "tabMaintenance": "Konserwacja",
+  "maintenanceDescription": "Akcje naprawcze i konserwacyjne na poziomie domeny.",
+  "repairDenormalization": "Napraw pozycje",
+  "repairDenormalizationHint": "Przelicza zdenormalizowane pola pozycji (currentPosition, recentPositions) z tabeli keywordPositions. Użyj, gdy dane pozycji wydają się brakujące lub nieaktualne.",
+  "repairScheduled": "Naprawa zaplanowana dla {domain}",
+  "repairFailed": "Nie udało się zaplanować naprawy",
+  "noDomains": "Brak domen w tej organizacji."
 }

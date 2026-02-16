@@ -1,6 +1,17 @@
 "use client";
 
-import { PolarAngleAxis, PolarGrid, Radar, RadarChart, PolarRadiusAxis } from "recharts";
+import {
+  PolarAngleAxis,
+  PolarGrid,
+  Radar,
+  RadarChart,
+  PolarRadiusAxis,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Settings01 } from "@untitledui/icons";
 import { useTranslations } from "next-intl";
 import {
@@ -34,7 +45,7 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
     );
   }
 
-  // Convert object to array for radar chart
+  // Convert object to array for chart
   const chartData = data
     ? Object.entries(data)
         .map(([name, value]) => ({
@@ -66,6 +77,9 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
     },
   } satisfies ChartConfig;
 
+  // Use bar chart when fewer than 3 attributes (radar chart needs >=3 axes)
+  const useBarChart = chartData.length < 3;
+
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <div>
@@ -74,25 +88,44 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
       </div>
 
       <ChartContainer config={chartConfig} className="h-[300px] w-full">
-        <RadarChart data={chartData}>
-          <PolarGrid strokeDasharray="3 3" opacity={0.3} />
-          <PolarAngleAxis dataKey="attribute" tick={{ fontSize: 12 }} />
-          <PolarRadiusAxis angle={90} domain={[0, "auto"]} tick={{ fontSize: 10 }} />
-          <ChartTooltip
-            content={<ChartTooltipContent />}
-            wrapperStyle={{ zIndex: 1000 }}
-          />
-          <Radar
-            name={t('links')}
-            dataKey="links"
-            stroke={radarColor}
-            fill={radarColor}
-            fillOpacity={0.3}
-            strokeWidth={2}
-          />
-          <ChartLegend content={<ChartLegendContent payload={[]} />} />
-        </RadarChart>
+        {useBarChart ? (
+          <BarChart data={chartData}>
+            <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+            <XAxis dataKey="attribute" tickLine={false} axisLine={false} tickMargin={8} />
+            <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+            <ChartTooltip
+              content={<ChartTooltipContent />}
+              wrapperStyle={{ zIndex: 1000 }}
+            />
+            <Bar
+              dataKey="links"
+              fill={radarColor}
+              radius={[6, 6, 0, 0]}
+              maxBarSize={60}
+            />
+          </BarChart>
+        ) : (
+          <RadarChart data={chartData}>
+            <PolarGrid strokeDasharray="3 3" opacity={0.3} />
+            <PolarAngleAxis dataKey="attribute" tick={{ fontSize: 12 }} />
+            <PolarRadiusAxis angle={90} domain={[0, "auto"]} tick={{ fontSize: 10 }} />
+            <ChartTooltip
+              content={<ChartTooltipContent />}
+              wrapperStyle={{ zIndex: 1000 }}
+            />
+            <Radar
+              name={t('links')}
+              dataKey="links"
+              stroke={radarColor}
+              fill={radarColor}
+              fillOpacity={0.3}
+              strokeWidth={2}
+            />
+          </RadarChart>
+        )}
       </ChartContainer>
+
+      <ChartLegend content={<ChartLegendContent payload={[]} />} />
     </div>
   );
 }

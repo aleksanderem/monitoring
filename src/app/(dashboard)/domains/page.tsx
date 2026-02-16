@@ -20,6 +20,7 @@ import { CreateDomainDialog } from "@/components/application/modals/create-domai
 import { toast } from "sonner";
 import { getCountryFlag, getLanguageFlag } from "@/lib/countryFlags";
 import { EzIcon } from "@/components/foundations/ez-icon";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 // Helper to format relative time
 function formatRelativeTime(timestamp: number, t: (key: any, params?: any) => string): string {
@@ -39,6 +40,7 @@ export default function DomainsPage() {
   const t = useTranslations('domains');
   const router = useRouter();
   const domains = useQuery(api.domains.list);
+  usePageTitle("Domains");
   const deleteDomain = useMutation(api.domains.remove);
 
   const [searchQuery, setSearchQuery] = useState<string>("");

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 interface PageProps {
   params: Promise<{
@@ -19,6 +20,7 @@ interface PageProps {
 
 export default function InsightsPage({ params }: PageProps) {
   const { domainId } = use(params);
+  usePageTitle("Insights");
 
   // Filters
   const [severityFilter, setSeverityFilter] = useState<"all" | "high" | "medium" | "low">("all");

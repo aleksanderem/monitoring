@@ -158,6 +158,7 @@
     "lastUpdate": "Last update:",
     "bulkDelete": "Delete selected",
     "bulkRefresh": "Refresh selected",
+    "bulkFetchSerp": "Fetch SERP for selected",
     "bulkAddToMonitoring": "Add to monitoring",
     "bulkMarkAsMonitoring": "Start monitoring",
     "bulkActionSuccess": "{count} items processed successfully",
@@ -167,5 +168,6 @@
     "bulkRemoveFromMonitoring": "Remove from monitoring",
     "bulkDismiss": "Dismiss selected",
     "keywordUsage": "Keyword usage",
-    "keywordsOf": "{current} / {limit} keywords"
+    "keywordsOf": "{current} / {limit} keywords",
+    "limits": "Limits"
 }

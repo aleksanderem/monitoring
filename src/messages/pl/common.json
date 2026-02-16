@@ -158,6 +158,7 @@
     "lastUpdate": "Ostatnia aktualizacja:",
     "bulkDelete": "Usuń zaznaczone",
     "bulkRefresh": "Odśwież zaznaczone",
+    "bulkFetchSerp": "Pobierz SERP dla zaznaczonych",
     "bulkAddToMonitoring": "Dodaj do monitoringu",
     "bulkMarkAsMonitoring": "Rozpocznij monitoring",
     "bulkActionSuccess": "{count} elementów przetworzono pomyślnie",
@@ -167,5 +168,6 @@
     "bulkRemoveFromMonitoring": "Usuń z monitoringu",
     "bulkDismiss": "Odrzuć zaznaczone",
     "keywordUsage": "Użycie słów kluczowych",
-    "keywordsOf": "{current} / {limit} słów kluczowych"
+    "keywordsOf": "{current} / {limit} słów kluczowych",
+    "limits": "Limity"
 }

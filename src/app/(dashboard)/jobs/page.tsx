@@ -3,6 +3,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
@@ -306,6 +307,7 @@ function HistoryTab() {
 // --- Main Page ---
 export default function JobsPage() {
   const t = useTranslations("jobs");
+  usePageTitle("Jobs");
   const stats = useQuery(api.jobs_queries.getJobStats);
 
   const tabs = [

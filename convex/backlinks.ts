@@ -229,6 +229,11 @@ export const saveBacklinkData = internalMutation({
       });
     }
 
+    // Rebuild velocity history from actual firstSeen/lastSeen dates
+    await ctx.scheduler.runAfter(0, internal.backlinkVelocity.recalculateVelocityHistory, {
+      domainId: args.domainId,
+    });
+
     return {
       success: true,
       backlinksInserted: backlinksToInsert.length,
@@ -351,12 +356,34 @@ export const getBacklinkDistributions = query({
       };
     }
 
+    // DataForSEO's referring_links_attributes only includes "negative" attributes
+    // (nofollow, sponsored, ugc) — dofollow is the absence of these.
+    // Enrich linkAttributes with dofollow/nofollow counts from the summary.
+    let linkAttributes: Record<string, number> = { ...(distributions.linkAttributes as Record<string, number> || {}) };
+    const summary = await ctx.db
+      .query("domainBacklinksSummary")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .unique();
+    if (summary) {
+      linkAttributes = {
+        dofollow: summary.dofollow ?? 0,
+        nofollow: summary.nofollow ?? 0,
+      };
+      // Preserve other attributes (sponsored, ugc) if present
+      const raw = distributions.linkAttributes as Record<string, number> || {};
+      for (const [key, val] of Object.entries(raw)) {
+        if (key !== "nofollow" && val > 0) {
+          linkAttributes[key] = val;
+        }
+      }
+    }
+
     return {
       tldDistribution: distributions.tldDistribution || {},
       platformTypes: distributions.platformTypes || {},
       countries: distributions.countries || {},
       linkTypes: distributions.linkTypes || {},
-      linkAttributes: distributions.linkAttributes || {},
+      linkAttributes,
       semanticLocations: distributions.semanticLocations || {},
     };
   },

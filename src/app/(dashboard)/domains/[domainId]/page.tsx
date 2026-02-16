@@ -88,9 +88,12 @@ import { Target04, LinkExternal02, Stars01 } from "@untitledui/icons";
 import { GenerateReportModal } from "@/components/domain/modals/GenerateReportModal";
 import { DomainSetupWizard } from "@/components/domain/onboarding/DomainSetupWizard";
 import { AIKeywordResearchSection } from "@/components/domain/sections/AIKeywordResearchSection";
+import { StrategySection } from "@/components/domain/sections/StrategySection";
+import { DiagnosticSection } from "@/components/domain/sections/DiagnosticSection";
 import { OnboardingChecklist } from "@/components/domain/onboarding/OnboardingChecklist";
 import { getCountryFlag, getLanguageFlag } from "@/lib/countryFlags";
 import { EzIcon } from "@/components/foundations/ez-icon";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const TAB_EZICONS: Record<string, string> = {
   "overview": "analytics-02",
@@ -105,6 +108,8 @@ const TAB_EZICONS: Record<string, string> = {
   "content-gaps": "puzzle",
   "insights": "idea",
   "ai-research": "ai-magic",
+  "strategy": "strategy",
+  "diagnostics": "stethoscope",
   "settings": "settings-05",
 };
 
@@ -207,6 +212,25 @@ function DomainLimitsSection({ domainId, currentLimits }: { domainId: Id<"domain
 export default function DomainDetailPage() {
   const t = useTranslations('domains');
 
+  const isSuperAdmin = useQuery(api.admin.checkIsSuperAdmin);
+  const params = useParams();
+  const router = useRouter();
+  const domainId = params.domainId as Id<"domains">;
+
+  // Strategy tab — active strategy for sidebar badge
+  const activeStrategySession = useQuery(api.aiStrategy.getActiveStrategy, { domainId });
+  const strategyBadge = (() => {
+    if (!activeStrategySession || activeStrategySession.status !== "completed") return undefined;
+    const s = activeStrategySession as any;
+    const ap = s.strategy?.actionPlan ?? [];
+    const as_ = s.strategy?.actionableSteps ?? [];
+    const total = ap.length + as_.length;
+    if (total === 0) return undefined;
+    const done = (s.taskStatuses ?? []).filter((x: any) => x.completed).length
+      + (s.stepStatuses ?? []).filter((x: any) => x.completed).length;
+    return `${done}/${total}`;
+  })();
+
   const tabs = [
     { id: "overview", label: t('tabOverview'), icon: BarChart03 },
     { id: "monitoring", label: t('tabMonitoring'), icon: Activity },
@@ -220,11 +244,12 @@ export default function DomainDetailPage() {
     { id: "content-gaps", label: t('tabContentGaps'), icon: Lightbulb02 },
     { id: "insights", label: t('tabInsights'), icon: Lightning01 },
     { id: "ai-research", label: t('tabAIResearch'), icon: Stars01 },
+    { id: "strategy", label: t('tabStrategy'), icon: Stars01, badge: strategyBadge },
     { id: "settings", label: t('tabSettings'), icon: Settings01 },
+    ...(isSuperAdmin ? [{ id: "diagnostics", label: t('tabDiagnostics'), icon: Settings01 }] : []),
   ];
-  const params = useParams();
-  const router = useRouter();
-  const domainId = params.domainId as Id<"domains">;
+
+  const [selectedTab, setSelectedTab] = useState<string>("overview");
 
   const domain = useQuery(api.domains.getDomain, { domainId });
   const keywords = useQuery(api.keywords.getKeywords, { domainId });
@@ -232,6 +257,9 @@ export default function DomainDetailPage() {
   const deleteDomain = useMutation(api.domains.remove);
   const refreshKeywords = useMutation(api.keywords.refreshKeywordPositions);
   const updateDomain = useMutation(api.domains.updateDomain);
+
+  const tabLabel = tabs.find((t) => t.id === selectedTab)?.label ?? selectedTab;
+  usePageTitle(domain?.domain, tabLabel);
 
   // Visibility tab queries
   const visibilityStats = useQuery(api.domains.getVisibilityStats, { domainId });
@@ -562,23 +590,25 @@ export default function DomainDetailPage() {
 
       {/* Main content with vertical tabs */}
       <div className="mx-auto w-full max-w-container px-4 lg:px-8">
-        <Tabs orientation="vertical" defaultSelectedKey="overview">
+        <Tabs orientation="vertical" selectedKey={selectedTab} onSelectionChange={(key) => setSelectedTab(key as string)}>
           <div className="flex w-full gap-8 lg:gap-16">
-            {/* Desktop Sidebar Navigation */}
-            <TabList size="sm" type="line" items={tabs} className="w-auto items-start max-lg:hidden">
-              {(item: any) => (
-                <Tab id={item.id}>
-                  <EzIcon name={TAB_EZICONS[item.id] || "settings-05"} size={18} color="#94a3b8" strokeColor="#94a3b8" />
-                  {item.label}
-                </Tab>
-              )}
-            </TabList>
+            {/* Desktop Sidebar Navigation — sticky below TopBar */}
+            <div className="sticky top-20 self-start max-lg:hidden">
+              <TabList size="sm" type="line" items={tabs} className="w-auto items-start">
+                {(item: any) => (
+                  <Tab id={item.id} badge={item.badge}>
+                    <EzIcon name={TAB_EZICONS[item.id] || "settings-05"} size={18} color="#94a3b8" strokeColor="#94a3b8" />
+                    {item.label}
+                  </Tab>
+                )}
+              </TabList>
+            </div>
 
             <div className="flex min-w-0 flex-1 flex-col gap-6">
               {/* Mobile Horizontal Navigation */}
               <TabList size="sm" type="line" items={tabs} className="lg:hidden">
                 {(item: any) => (
-                  <Tab id={item.id}>
+                  <Tab id={item.id} badge={item.badge}>
                     <EzIcon name={TAB_EZICONS[item.id] || "settings-05"} size={18} color="#94a3b8" strokeColor="#94a3b8" />
                     {item.label}
                   </Tab>
@@ -894,6 +924,11 @@ export default function DomainDetailPage() {
               <AIKeywordResearchSection domainId={domainId} />
             </TabPanel>
 
+            {/* Strategy Tab */}
+            <TabPanel id="strategy">
+              <StrategySection domainId={domainId} />
+            </TabPanel>
+
             {/* Settings Tab */}
             <TabPanel id="settings">
               <div className="flex flex-col gap-6">
@@ -928,6 +963,13 @@ export default function DomainDetailPage() {
                 <DomainLimitsSection domainId={domainId} currentLimits={domain.limits} />
               </div>
             </TabPanel>
+
+            {/* Diagnostics Tab (superAdmin only) */}
+            {isSuperAdmin && (
+              <TabPanel id="diagnostics">
+                <DiagnosticSection domainId={domainId} />
+              </TabPanel>
+            )}
             </div>
           </div>
         </Tabs>

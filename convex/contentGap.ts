@@ -301,6 +301,9 @@ export const storeContentGapOpportunity = internalMutation({
 
 /**
  * Get content gap opportunities for a domain
+ *
+ * Optimized: uses targeted ctx.db.get() for keyword enrichment
+ * instead of loading ALL keywords for the domain.
  */
 export const getContentGapOpportunities = query({
   args: {
@@ -322,12 +325,14 @@ export const getContentGapOpportunities = query({
       opportunities = opportunities.filter(opp => opp.priority === args.priority);
     }
 
-    // Batch fetch all keywords for this domain (single query instead of N queries)
-    const allKeywords = await ctx.db
-      .query("keywords")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .collect();
-    const keywordMap = new Map(allKeywords.map((kw) => [kw._id, kw]));
+    // Targeted keyword loading: only fetch the keywords we need
+    const uniqueKeywordIds = [...new Set(opportunities.map((o) => o.keywordId))];
+    const keywordDocs = await Promise.all(
+      uniqueKeywordIds.map((id) => ctx.db.get(id))
+    );
+    const keywordMap = new Map(
+      uniqueKeywordIds.map((id, i) => [id, keywordDocs[i]])
+    );
 
     // Resolve keywords and sanitize NaN values
     const resolved = opportunities.map((opp) => {
@@ -450,6 +455,9 @@ export const getAllKeywordsForDomain = internalQuery({
 
 /**
  * Batch create keywords that don't exist yet
+ *
+ * Optimized: loads all keywords for domain ONCE into a Map, then does
+ * in-memory dedup instead of per-keyword DB scans (was causing 32k limit).
  */
 export const createKeywordsBatch = internalMutation({
   args: {
@@ -461,16 +469,18 @@ export const createKeywordsBatch = internalMutation({
     })),
   },
   handler: async (ctx, args) => {
+    // Single scan: load all existing keywords for domain into a Map
+    const existingKeywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+    const phraseMap = new Map(existingKeywords.map((kw) => [kw.phrase, kw._id]));
+
     const results: (Id<"keywords"> | null)[] = [];
     for (const kw of args.keywords) {
-      // Double-check it doesn't exist (race condition safety)
-      const existing = await ctx.db
-        .query("keywords")
-        .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-        .filter((q) => q.eq(q.field("phrase"), kw.phrase))
-        .first();
+      const existing = phraseMap.get(kw.phrase);
       if (existing) {
-        results.push(existing._id);
+        results.push(existing);
       } else {
         const id = await ctx.db.insert("keywords", {
           domainId: args.domainId,
@@ -480,6 +490,8 @@ export const createKeywordsBatch = internalMutation({
           searchVolume: kw.searchVolume,
           difficulty: kw.difficulty,
         });
+        // Add to map so subsequent items in this batch dedup correctly
+        phraseMap.set(kw.phrase, id);
         results.push(id);
       }
     }

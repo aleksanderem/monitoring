@@ -9,10 +9,12 @@ import { Input } from "@/components/base/input/input";
 import { AppLogo } from "@/components/foundations/logo/app-logo";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function LoginPage() {
   const t = useTranslations("auth");
   const { signIn } = useAuthActions();
+  usePageTitle("Login");
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 

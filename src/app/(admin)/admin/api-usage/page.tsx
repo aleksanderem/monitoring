@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Breadcrumbs } from "@/components/application/breadcrumbs/breadcrumbs";
 import { useTranslations } from "next-intl";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 type Period = "today" | "week" | "month";
 
@@ -35,6 +36,7 @@ function getPeriodRange(period: Period): { startDate: number; endDate: number } 
 
 export default function AdminApiUsagePage() {
   const t = useTranslations("admin");
+  usePageTitle("Admin", "API Usage");
   const [period, setPeriod] = useState<Period>("today");
 
   const { startDate, endDate } = useMemo(() => getPeriodRange(period), [period]);

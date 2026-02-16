@@ -44,7 +44,11 @@ export const getLatestDomainReport = query({
 // ─── Public Action (Entry Point) ────────────────────────────────
 
 export const generateDomainReport = action({
-  args: { domainId: v.id("domains") },
+  args: {
+    domainId: v.id("domains"),
+    profile: v.optional(v.union(v.literal("quick"), v.literal("standard"), v.literal("full"), v.literal("custom"))),
+    reportConfig: v.optional(v.any()),
+  },
   handler: async (ctx, args): Promise<{ reportId: Id<"domainReports"> }> => {
     const domain = await ctx.runQuery(internal.domainReports.getDomainInternal, {
       domainId: args.domainId,
@@ -57,6 +61,8 @@ export const generateDomainReport = action({
     const reportId = await ctx.runMutation(internal.domainReports.createDomainReportInternal, {
       domainId: args.domainId,
       name: `SEO Report — ${domain.domain}`,
+      profile: args.profile ?? "full",
+      reportConfig: args.profile === "custom" ? args.reportConfig : undefined,
     });
 
     await ctx.scheduler.runAfter(0, internal.domainReports.processReport, {
@@ -74,6 +80,8 @@ export const createDomainReportInternal = internalMutation({
   args: {
     domainId: v.id("domains"),
     name: v.string(),
+    profile: v.optional(v.union(v.literal("quick"), v.literal("standard"), v.literal("full"), v.literal("custom"))),
+    reportConfig: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
     const steps = REPORT_STEPS.map((s) => ({
@@ -88,6 +96,8 @@ export const createDomainReportInternal = internalMutation({
       progress: 0,
       currentStep: "Initializing...",
       steps,
+      profile: args.profile ?? "full",
+      ...(args.reportConfig ? { reportConfig: args.reportConfig } : {}),
       createdAt: Date.now(),
     });
   },

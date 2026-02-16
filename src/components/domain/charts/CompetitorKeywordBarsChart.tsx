@@ -92,7 +92,7 @@ export function CompetitorKeywordBarsChart({
                   style={{ color: entity.color }}
                   title={entity.name}
                 >
-                  <span className="inline-block max-w-[80px] truncate">
+                  <span className="inline-block max-w-[140px] truncate">
                     {entity.name}
                   </span>
                 </th>

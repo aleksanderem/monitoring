@@ -4,9 +4,11 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Breadcrumbs } from "@/components/application/breadcrumbs/breadcrumbs";
 import { useTranslations } from "next-intl";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function AdminDashboardPage() {
   const t = useTranslations("admin");
+  usePageTitle("Admin", "Dashboard");
   const stats = useQuery(api.admin.getSystemStats);
   const auditLogs = useQuery(api.admin.getAdminAuditLogs, { limit: 5 });
 

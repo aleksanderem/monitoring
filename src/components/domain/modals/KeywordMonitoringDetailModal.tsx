@@ -33,6 +33,12 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
   const [isAddingCompetitors, setIsAddingCompetitors] = useState(false);
   const [isCompetitorReportModalOpen, setIsCompetitorReportModalOpen] = useState(false);
 
+  // Fetch full position history from keywordPositions table (not just 7-entry sparkline)
+  const fullPositionHistory = useQuery(
+    api.keywords.getPositionHistory,
+    keyword?.keywordId ? { keywordId: keyword.keywordId } : "skip"
+  );
+
   // Fetch SERP results for this keyword (show top 20 instead of 10)
   const serpResults = useQuery(
     api.keywords.getSerpResultsForKeyword,
@@ -137,11 +143,11 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
 
           {/* Content */}
           <div className="p-6 space-y-6">
-            {/* Position History Chart */}
-            {keyword.positionHistory && keyword.positionHistory.length > 0 && (
+            {/* Position History Chart — uses full history from keywordPositions table */}
+            {fullPositionHistory && fullPositionHistory.length > 0 && (
               <div>
                 <h3 className="text-base font-semibold text-primary mb-4">{t('positionHistory')}</h3>
-                <KeywordPositionChart positionHistory={keyword.positionHistory} />
+                <KeywordPositionChart positionHistory={fullPositionHistory} />
               </div>
             )}
 

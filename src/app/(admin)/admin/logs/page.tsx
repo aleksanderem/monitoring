@@ -5,9 +5,11 @@ import { api } from "../../../../../convex/_generated/api";
 import { Breadcrumbs } from "@/components/application/breadcrumbs/breadcrumbs";
 import { Badge } from "@/components/base/badges/badges";
 import { useTranslations } from "next-intl";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function AdminLogsPage() {
   const t = useTranslations("admin");
+  usePageTitle("Admin", "Audit Logs");
   const auditLogs = useQuery(api.admin.getAdminAuditLogs, { limit: 100 });
 
   return (

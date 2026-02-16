@@ -3,7 +3,7 @@
 import { v } from "convex/values";
 import { action } from "../_generated/server";
 import { internal, api } from "../_generated/api";
-import Anthropic from "@anthropic-ai/sdk";
+import { callAI, getAIConfigFromAction } from "./aiProvider";
 
 const DATAFORSEO_API_URL = "https://api.dataforseo.com/v3";
 
@@ -190,14 +190,8 @@ export const generateKeywordIdeas = action({
       return { success: false, error: "Domain not found" };
     }
 
-    // 2. Validate Anthropic API key
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return {
-        success: false,
-        error: "ANTHROPIC_API_KEY is not configured. Add it to your Convex environment variables.",
-      };
-    }
+    // 2. Resolve AI provider config from organization
+    const aiConfig = await getAIConfigFromAction(ctx, args.domainId);
 
     // 3. Gather data in parallel: page content, DataForSEO suggestions, existing keywords
     console.log(`[AI Research] Starting data gathering for ${domain.domain}...`);
@@ -341,8 +335,9 @@ Return ONLY a JSON array, no markdown, no code fences:
     }>;
 
     try {
-      const claudeRequestParams = {
-        model: "claude-sonnet-4-5-20250929",
+      const aiRequestParams = {
+        provider: aiConfig.provider,
+        model: aiConfig.model,
         max_tokens: 8192,
         promptLength: prompt.length,
         domain: domain.domain,
@@ -352,29 +347,26 @@ Return ONLY a JSON array, no markdown, no code fences:
         focusType: args.focusType,
       };
 
-      const client = new Anthropic({ apiKey });
       const start = Date.now();
 
-      const message = await client.messages.create({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 8192,
+      const aiResult = await callAI({
+        provider: aiConfig.provider,
+        model: aiConfig.model,
         messages: [{ role: "user", content: prompt }],
+        maxTokens: 8192,
+        temperature: 0.7,
       });
 
-      const responseText = message.content
-        .filter((block): block is Anthropic.TextBlock => block.type === "text")
-        .map((block) => block.text)
-        .join("");
+      const responseText = aiResult.text;
 
       if (debugEnabled) {
         await ctx.runMutation(internal.debugLog.saveLog, {
           domainId: args.domainId,
           action: "ai_research",
-          step: "claude_api",
-          request: JSON.stringify(claudeRequestParams),
+          step: "ai_api",
+          request: JSON.stringify(aiRequestParams),
           response: JSON.stringify({
-            usage: message.usage,
-            stopReason: message.stop_reason,
+            provider: aiConfig.provider,
             responseLength: responseText.length,
             responsePreview: responseText.slice(0, 500),
           }),
@@ -395,13 +387,13 @@ Return ONLY a JSON array, no markdown, no code fences:
         return { success: false, error: "AI returned empty or invalid keyword list" };
       }
     } catch (error) {
-      const msg = error instanceof Error ? error.message : "Unknown error calling Claude API";
+      const msg = error instanceof Error ? error.message : "Unknown error calling AI API";
       if (debugEnabled) {
         await ctx.runMutation(internal.debugLog.saveLog, {
           domainId: args.domainId,
           action: "ai_research",
-          step: "claude_api",
-          request: JSON.stringify({ domain: domain.domain, location, language: targetLanguage }),
+          step: "ai_api",
+          request: JSON.stringify({ provider: aiConfig.provider, domain: domain.domain, location, language: targetLanguage }),
           response: "",
           durationMs: 0,
           status: "error" as const,
@@ -469,7 +461,7 @@ Return ONLY a JSON array, no markdown, no code fences:
       return b.relevanceScore - a.relevanceScore;
     });
 
-    // 10. Persist session to history
+    // 10. Persist session to history + save business context to domain
     try {
       await ctx.runMutation(internal.aiResearch.saveSession, {
         domainId: args.domainId,
@@ -478,6 +470,11 @@ Return ONLY a JSON array, no markdown, no code fences:
         keywordCount: args.keywordCount,
         focusType: args.focusType,
         keywords: enrichedKeywords,
+      });
+      await ctx.runMutation(internal.domains.saveBusinessContext, {
+        domainId: args.domainId,
+        businessDescription: args.businessDescription,
+        targetCustomer: args.targetCustomer,
       });
     } catch (err) {
       console.warn("Failed to save AI research session:", err);

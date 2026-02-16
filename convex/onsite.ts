@@ -8,6 +8,7 @@ export const getOnsiteAnalysis = query({
     return await ctx.db
       .query("domainOnsiteAnalysis")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .order("desc")
       .first();
   },
 });
@@ -30,6 +31,7 @@ export const isOnsiteDataStale = query({
     const analysis = await ctx.db
       .query("domainOnsiteAnalysis")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .order("desc")
       .first();
 
     if (!analysis) {

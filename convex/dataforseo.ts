@@ -5,6 +5,7 @@ import type { Id } from "./_generated/dataModel";
 import { buildLocationParam } from "./dataforseoLocations";
 import { createDebugLogger } from "./lib/debugLogger";
 import { API_COSTS } from "./apiUsage";
+import { checkKeywordLimit } from "./limits";
 
 // DataForSEO API configuration
 const DATAFORSEO_API_URL = "https://api.dataforseo.com/v3";
@@ -995,7 +996,18 @@ export const addKeywordsInternal = internalMutation({
   handler: async (ctx, args) => {
     const results: Id<"keywords">[] = [];
 
+    // Check keyword limit before inserting (these are active keywords)
+    const limitCheck = await checkKeywordLimit(ctx, args.domainId, args.phrases.length);
+    const maxToAdd = limitCheck.remaining;
+    if (maxToAdd <= 0) {
+      console.log(`[addKeywordsInternal] Keyword limit reached for domain ${args.domainId}: ${limitCheck.currentCount}/${limitCheck.limit}`);
+      return results;
+    }
+
+    let added = 0;
     for (const phrase of args.phrases) {
+      if (added >= maxToAdd) break;
+
       const normalized = phrase.toLowerCase().trim();
       if (!normalized) continue;
 
@@ -1014,7 +1026,12 @@ export const addKeywordsInternal = internalMutation({
           createdAt: Date.now(),
         });
         results.push(id);
+        added++;
       }
+    }
+
+    if (added < args.phrases.length) {
+      console.log(`[addKeywordsInternal] Added ${added}/${args.phrases.length} keywords (limit: ${limitCheck.limit})`);
     }
 
     return results;

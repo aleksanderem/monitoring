@@ -9,11 +9,13 @@ import { Input } from "@/components/base/input/input";
 import { AppLogo } from "@/components/foundations/logo/app-logo";
 import { cx } from "@/utils/cx";
 import { useTranslations } from "next-intl";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function RegisterPage() {
   const t = useTranslations("auth");
   const { signIn } = useAuthActions();
   const router = useRouter();
+  usePageTitle("Register");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

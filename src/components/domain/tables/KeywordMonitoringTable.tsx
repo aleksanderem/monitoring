@@ -513,6 +513,19 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
               },
             },
             {
+              label: tc('bulkFetchSerp'),
+              icon: SearchLg,
+              onClick: async (ids) => {
+                try {
+                  await createSerpFetchJob({ domainId, keywordIds: Array.from(ids) as Id<"keywords">[] });
+                  toast.success(t('serpFetchJobQueued', { count: ids.size }));
+                  selection.clear();
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : tc('bulkActionFailed'));
+                }
+              },
+            },
+            {
               label: tc('bulkDelete'),
               icon: Trash01,
               variant: "destructive",

@@ -1059,3 +1059,18 @@ export const initializeDomainData = internalAction({
     }
   },
 });
+
+// Save business context to domain for auto-fill across AI features
+export const saveBusinessContext = internalMutation({
+  args: {
+    domainId: v.id("domains"),
+    businessDescription: v.string(),
+    targetCustomer: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.domainId, {
+      businessDescription: args.businessDescription,
+      targetCustomer: args.targetCustomer,
+    });
+  },
+});
