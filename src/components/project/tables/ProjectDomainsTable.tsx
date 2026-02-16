@@ -25,8 +25,8 @@ export function ProjectDomainsTable({ projectId }: ProjectDomainsTableProps) {
     if (domains === undefined) {
         return (
             <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-                <div className="h-5 w-40 animate-pulse rounded bg-gray-100" />
-                <div className="h-48 animate-pulse rounded bg-gray-50" />
+                <div className="h-5 w-40 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+                <div className="h-48 animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
             </div>
         );
     }

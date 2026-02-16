@@ -25,8 +25,8 @@ export function ProjectOverviewSection({ projectId }: ProjectOverviewSectionProp
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
                 {[...Array(6)].map((_, i) => (
                     <div key={i} className="rounded-xl border border-secondary bg-primary p-4">
-                        <div className="h-4 w-20 animate-pulse rounded bg-gray-100" />
-                        <div className="mt-2 h-8 w-12 animate-pulse rounded bg-gray-100" />
+                        <div className="h-4 w-20 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+                        <div className="mt-2 h-8 w-12 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
                     </div>
                 ))}
             </div>

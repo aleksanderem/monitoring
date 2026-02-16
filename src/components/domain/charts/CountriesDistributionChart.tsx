@@ -26,11 +26,11 @@ export function CountriesDistributionChart({
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
         <div className="flex items-center justify-between">
           <div>
-            <div className="h-5 w-48 animate-pulse rounded bg-gray-100" />
-            <div className="mt-1 h-4 w-64 animate-pulse rounded bg-gray-100" />
+            <div className="h-5 w-48 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+            <div className="mt-1 h-4 w-64 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
           </div>
         </div>
-        <div className="h-[300px] animate-pulse rounded bg-gray-50" />
+        <div className="h-[300px] animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
       </div>
     );
   }

@@ -27,9 +27,9 @@ export function GapSummaryCards({ summary, isLoading }: GapSummaryCardsProps) {
             key={i}
             className="flex flex-col gap-2 rounded-xl border border-secondary bg-primary p-4"
           >
-            <div className="h-4 w-24 animate-pulse rounded bg-gray-100" />
-            <div className="h-8 w-16 animate-pulse rounded bg-gray-100" />
-            <div className="h-3 w-20 animate-pulse rounded bg-gray-100" />
+            <div className="h-4 w-24 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+            <div className="h-8 w-16 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+            <div className="h-3 w-20 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
           </div>
         ))}
       </div>

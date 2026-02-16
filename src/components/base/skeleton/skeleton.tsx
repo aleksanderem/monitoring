@@ -8,7 +8,7 @@ export function Skeleton({ className, ...props }: SkeletonProps) {
   return (
     <div
       className={cx(
-        "animate-pulse rounded-md bg-gray-200",
+        "animate-pulse rounded-md bg-gray-200 dark:bg-gray-800",
         className
       )}
       {...props}

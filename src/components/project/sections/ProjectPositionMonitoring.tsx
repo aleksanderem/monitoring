@@ -42,7 +42,7 @@ export function ProjectPositionMonitoring({ projectId }: ProjectPositionMonitori
                     <h3 className="text-md font-semibold text-primary">{t("positionDistribution")}</h3>
                     <p className="mb-4 text-sm text-tertiary">{t("positionDistributionDescription")}</p>
                     {distribution === undefined ? (
-                        <div className="h-48 animate-pulse rounded bg-gray-50" />
+                        <div className="h-48 animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
                     ) : distribution && distribution.some((d) => d.count > 0) ? (
                         <div className="h-48">
                             <ResponsiveContainer width="100%" height="100%">
@@ -71,7 +71,7 @@ export function ProjectPositionMonitoring({ projectId }: ProjectPositionMonitori
                     <h3 className="text-md font-semibold text-primary">{t("visibilityTrend")}</h3>
                     <p className="mb-4 text-sm text-tertiary">{t("visibilityTrendDescription")}</p>
                     {trend === undefined ? (
-                        <div className="h-48 animate-pulse rounded bg-gray-50" />
+                        <div className="h-48 animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
                     ) : trend && trend.length > 0 ? (
                         <div className="h-48">
                             <ResponsiveContainer width="100%" height="100%">

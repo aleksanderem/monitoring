@@ -330,7 +330,7 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
       <div className="rounded-xl border border-secondary bg-primary p-6">
         <div className="space-y-3">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-12 animate-pulse rounded bg-gray-50" />
+            <div key={i} className="h-12 animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
           ))}
         </div>
       </div>

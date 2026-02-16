@@ -85,8 +85,8 @@ export function VisibilityStats({ stats, isLoading }: VisibilityStatsProps) {
             key={i}
             className="flex flex-col gap-2 rounded-lg border border-secondary bg-primary p-4"
           >
-            <div className="h-4 w-24 animate-pulse rounded bg-gray-100" />
-            <div className="h-8 w-16 animate-pulse rounded bg-gray-100" />
+            <div className="h-4 w-24 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+            <div className="h-8 w-16 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
           </div>
         ))}
       </div>

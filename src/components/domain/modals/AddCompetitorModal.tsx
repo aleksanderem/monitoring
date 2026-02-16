@@ -170,7 +170,7 @@ export function AddCompetitorModal({
                     {serpSuggestions === undefined ? (
                       <div className="space-y-2">
                         {[1, 2, 3].map((i) => (
-                          <div key={i} className="h-10 animate-pulse rounded-lg bg-gray-50" />
+                          <div key={i} className="h-10 animate-pulse rounded-lg bg-gray-50 dark:bg-gray-800" />
                         ))}
                       </div>
                     ) : serpSuggestions.length === 0 ? (
@@ -239,7 +239,7 @@ export function AddCompetitorModal({
                     {dfsLoading && !dfsSuggestions && (
                       <div className="space-y-2">
                         {[1, 2, 3, 4].map((i) => (
-                          <div key={i} className="h-10 animate-pulse rounded-lg bg-gray-50" />
+                          <div key={i} className="h-10 animate-pulse rounded-lg bg-gray-50 dark:bg-gray-800" />
                         ))}
                         <p className="mt-2 text-center text-xs text-tertiary">{t('addCompetitorSuggestAnalyzing')}</p>
                       </div>

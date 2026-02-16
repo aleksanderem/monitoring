@@ -267,10 +267,10 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
     if (clusters === undefined) {
         return (
             <div className="rounded-xl border border-secondary bg-primary p-6">
-                <div className="h-5 w-40 animate-pulse rounded bg-gray-100 mb-4" />
+                <div className="h-5 w-40 animate-pulse rounded bg-gray-100 dark:bg-gray-700 mb-4" />
                 <div className="space-y-3">
                     {[1, 2, 3, 4].map((i) => (
-                        <div key={i} className="h-12 animate-pulse rounded bg-gray-50" />
+                        <div key={i} className="h-12 animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
                     ))}
                 </div>
             </div>

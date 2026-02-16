@@ -288,8 +288,8 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-        <div className="h-8 w-48 animate-pulse rounded bg-gray-100" />
-        <div className="h-64 animate-pulse rounded bg-gray-100" />
+        <div className="h-8 w-48 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+        <div className="h-64 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
       </div>
     );
   }

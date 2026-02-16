@@ -34,10 +34,10 @@ export function Top10KeywordsSection({ keywords, isLoading }: Top10KeywordsSecti
   if (isLoading) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-6">
-        <div className="h-8 w-48 animate-pulse rounded bg-gray-100" />
+        <div className="h-8 w-48 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
           {[...Array(10)].map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-lg bg-gray-100" />
+            <div key={i} className="h-24 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700" />
           ))}
         </div>
       </div>
