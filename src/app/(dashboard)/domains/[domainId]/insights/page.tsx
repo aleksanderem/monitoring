@@ -40,7 +40,7 @@ export default function InsightsPage({ params }: PageProps) {
 
   if (summary === undefined || anomalies === undefined) {
     return (
-      <div className="mx-auto max-w-container space-y-6 px-4 py-8 lg:px-8">
+      <div className="mx-auto w-full max-w-container space-y-6 px-4 py-8 lg:px-8">
         <div>
           <h1 className="text-2xl font-semibold text-primary">Insights & Anomalies</h1>
           <p className="mt-1 text-sm text-tertiary">
@@ -53,7 +53,7 @@ export default function InsightsPage({ params }: PageProps) {
   }
 
   return (
-    <div className="mx-auto max-w-container space-y-6 px-4 py-8 lg:px-8">
+    <div className="mx-auto w-full max-w-container space-y-6 px-4 py-8 lg:px-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold text-primary">Insights & Anomalies</h1>

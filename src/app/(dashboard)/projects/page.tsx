@@ -101,7 +101,7 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-container flex-col gap-8 px-4 py-8 lg:px-8">
+    <div className="mx-auto flex w-full max-w-container flex-col gap-8 px-4 py-8 lg:px-8">
       {projects.length === 0 ? (
         <EmptyState size="md">
           <EmptyState.Header>

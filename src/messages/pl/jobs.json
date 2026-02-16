@@ -32,5 +32,17 @@
   "unknownError": "Wystąpił nieznany błąd",
   "refreshCancelled": "Odświeżanie pozycji anulowane dla {domain}",
   "refreshCancelledDescription": "{processed}/{total} słów kluczowych zostało przetworzonych",
-  "domainFallback": "domena"
+  "domainFallback": "domena",
+  "detailJobId": "ID zadania",
+  "detailTable": "Tabela źródłowa",
+  "detailType": "Typ",
+  "detailDomain": "Domena",
+  "detailStatus": "Status",
+  "detailDuration": "Czas trwania",
+  "detailCreated": "Utworzono",
+  "detailStarted": "Rozpoczęto",
+  "detailCompleted": "Zakończono",
+  "detailProgress": "Postęp",
+  "detailStep": "Ostatni krok",
+  "detailError": "Błąd"
 }

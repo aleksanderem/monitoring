@@ -120,7 +120,7 @@ export default function ProjectDetailPage() {
     }
 
     return (
-        <div className="mx-auto flex max-w-container flex-col gap-6 px-4 py-8 lg:px-8">
+        <div className="mx-auto flex w-full max-w-container flex-col gap-6 px-4 py-8 lg:px-8">
             {/* Header */}
             <div className="flex items-center gap-4">
                 <button onClick={() => router.push("/projects")} className="rounded-lg border border-secondary p-2 hover:bg-primary-hover">

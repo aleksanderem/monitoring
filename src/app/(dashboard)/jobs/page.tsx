@@ -212,6 +212,7 @@ function ScheduledJobsTab() {
 function HistoryTab() {
   const t = useTranslations("jobs");
   const [historyFilter, setHistoryFilter] = useState<"completed" | "failed" | "all">("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const completedJobs = useQuery(api.jobs_queries.getAllJobs, { filter: historyFilter === "all" ? "all" : historyFilter, limit: 100 });
 
   if (completedJobs === undefined) return <LoadingState rows={8} />;
@@ -267,39 +268,135 @@ function HistoryTab() {
                     : job.completedAt && job.createdAt
                       ? formatDuration(job.completedAt - job.createdAt)
                       : "—";
+                const isExpanded = expandedId === job.id;
 
                 return (
-                  <tr key={job.id} className="border-b border-secondary last:border-b-0">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <JobTypeIcon type={job.type} />
-                        <span className="text-sm text-primary">{job.type}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-secondary">{job.domainName}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={job.status} />
-                    </td>
-                    <td className="px-4 py-3 text-sm text-tertiary">{duration}</td>
-                    <td className="px-4 py-3 text-sm text-tertiary">
-                      {new Date(job.createdAt).toLocaleString()}
-                    </td>
-                    <td className="max-w-[200px] px-4 py-3">
-                      {job.error ? (
-                        <span className="truncate text-xs text-error-600" title={job.error}>
-                          {job.error}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-quaternary">—</span>
-                      )}
-                    </td>
-                  </tr>
+                  <JobHistoryRow
+                    key={job.id}
+                    job={job}
+                    duration={duration}
+                    isExpanded={isExpanded}
+                    onToggle={() => setExpandedId(isExpanded ? null : job.id)}
+                  />
                 );
               })}
             </tbody>
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+// --- Job History Row with Expandable Details ---
+function JobHistoryRow({
+  job,
+  duration,
+  isExpanded,
+  onToggle,
+}: {
+  job: { id: string; table: string; type: string; domainName: string; status: string; progress?: number; currentStep?: string; createdAt: number; startedAt?: number; completedAt?: number; error?: string };
+  duration: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const t = useTranslations("jobs");
+
+  return (
+    <>
+      <tr
+        onClick={onToggle}
+        className={cx(
+          "cursor-pointer transition-colors",
+          isExpanded
+            ? "bg-secondary-subtle"
+            : "hover:bg-primary_hover",
+          !isExpanded && "border-b border-secondary last:border-b-0"
+        )}
+      >
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2">
+            <JobTypeIcon type={job.type} />
+            <span className="text-sm text-primary">{job.type}</span>
+          </div>
+        </td>
+        <td className="px-4 py-3 text-sm text-secondary">{job.domainName}</td>
+        <td className="px-4 py-3">
+          <StatusBadge status={job.status} />
+        </td>
+        <td className="px-4 py-3 text-sm text-tertiary">{duration}</td>
+        <td className="px-4 py-3 text-sm text-tertiary">
+          {new Date(job.createdAt).toLocaleString()}
+        </td>
+        <td className="max-w-[200px] px-4 py-3">
+          {job.error ? (
+            <span className="truncate text-xs text-error-600" title={job.error}>
+              {job.error}
+            </span>
+          ) : (
+            <span className="text-xs text-quaternary">—</span>
+          )}
+        </td>
+      </tr>
+      {isExpanded && (
+        <tr className="border-b border-secondary last:border-b-0">
+          <td colSpan={6} className="bg-secondary-subtle px-4 pb-4">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-secondary bg-primary p-4 sm:grid-cols-3 lg:grid-cols-4">
+              <DetailItem label={t("detailJobId")} value={job.id} mono />
+              <DetailItem label={t("detailTable")} value={job.table} />
+              <DetailItem label={t("detailType")} value={job.type} />
+              <DetailItem label={t("detailDomain")} value={job.domainName} />
+              <DetailItem label={t("detailStatus")} value={job.status} />
+              <DetailItem label={t("detailDuration")} value={duration} />
+              <DetailItem
+                label={t("detailCreated")}
+                value={new Date(job.createdAt).toLocaleString()}
+              />
+              {job.startedAt && (
+                <DetailItem
+                  label={t("detailStarted")}
+                  value={new Date(job.startedAt).toLocaleString()}
+                />
+              )}
+              {job.completedAt && (
+                <DetailItem
+                  label={t("detailCompleted")}
+                  value={new Date(job.completedAt).toLocaleString()}
+                />
+              )}
+              {job.progress != null && (
+                <DetailItem label={t("detailProgress")} value={`${job.progress}%`} />
+              )}
+              {job.currentStep && (
+                <DetailItem label={t("detailStep")} value={job.currentStep} />
+              )}
+              {job.error && (
+                <div className="col-span-full">
+                  <DetailItem label={t("detailError")} value={job.error} error />
+                </div>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function DetailItem({ label, value, mono, error }: { label: string; value: string; mono?: boolean; error?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-xs text-tertiary">{label}</div>
+      <div
+        className={cx(
+          "mt-0.5 truncate text-sm",
+          error ? "whitespace-normal break-all text-error-600" : "text-primary",
+          mono && "font-mono text-xs"
+        )}
+        title={value}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -317,7 +414,7 @@ export default function JobsPage() {
   ];
 
   return (
-    <div className="mx-auto flex max-w-container flex-col gap-6 px-4 py-8 lg:px-8">
+    <div className="mx-auto flex w-full max-w-container flex-col gap-6 px-4 py-8 lg:px-8">
       {/* Header */}
       <div>
         <h1 className="text-lg font-semibold text-primary">{t("title")}</h1>

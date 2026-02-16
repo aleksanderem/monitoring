@@ -491,7 +491,7 @@ export default function DomainDetailPage() {
 
   if (domain === null) {
     return (
-      <div className="mx-auto flex max-w-container flex-col gap-8 px-4 py-8 lg:px-8">
+      <div className="mx-auto flex w-full max-w-container flex-col gap-8 px-4 py-8 lg:px-8">
         <div className="text-center">
           <p className="text-lg font-semibold text-primary">{t('domainNotFound')}</p>
           <Button size="md" color="secondary" onClick={() => router.push("/domains")} className="mt-4">
