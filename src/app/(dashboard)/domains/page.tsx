@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { getCountryFlag, getLanguageFlag } from "@/lib/countryFlags";
 import { EzIcon } from "@/components/foundations/ez-icon";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { PermissionGate } from "@/components/auth/PermissionGate";
 
 // Helper to format relative time
 function formatRelativeTime(timestamp: number, t: (key: any, params?: any) => string): string {
@@ -160,11 +161,13 @@ export default function DomainsPage() {
           </EmptyState.Content>
 
           <EmptyState.Footer>
-            <CreateDomainDialog>
-              <Button size="md">
-                {t('addDomain')}
-              </Button>
-            </CreateDomainDialog>
+            <PermissionGate permission="domains.create">
+              <CreateDomainDialog>
+                <Button size="md">
+                  {t('addDomain')}
+                </Button>
+              </CreateDomainDialog>
+            </PermissionGate>
           </EmptyState.Footer>
         </EmptyState>
       ) : (
@@ -186,11 +189,13 @@ export default function DomainsPage() {
             </div>
             <div className="flex flex-col gap-4 lg:flex-row">
               <div className="flex items-start gap-3">
-                <CreateDomainDialog>
-                  <Button size="md">
-                    {t('addDomain')}
-                  </Button>
-                </CreateDomainDialog>
+                <PermissionGate permission="domains.create">
+                  <CreateDomainDialog>
+                    <Button size="md">
+                      {t('addDomain')}
+                    </Button>
+                  </CreateDomainDialog>
+                </PermissionGate>
               </div>
             </div>
           </div>
@@ -371,34 +376,38 @@ export default function DomainsPage() {
                   </Table.Cell>
                   <Table.Cell className="px-4">
                     <div className="flex justify-end gap-0.5">
-                      <ButtonUtility
-                        size="xs"
-                        color="tertiary"
-                        tooltip={t('edit')}
-                        icon={Edit05}
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          toast.info(t('editDialogComingSoon'));
-                        }}
-                      />
-                      <DeleteConfirmationDialog
-                        title={t('deleteDomainTitle', { domain: item.domain })}
-                        description={t('deleteDomainDescription')}
-                        confirmLabel={t('deleteDomainConfirm')}
-                        onConfirm={async () => {
-                          await handleDelete(item._id);
-                        }}
-                      >
+                      <PermissionGate permission="domains.edit">
                         <ButtonUtility
                           size="xs"
                           color="tertiary"
-                          tooltip={t('delete')}
-                          icon={Trash01}
+                          tooltip={t('edit')}
+                          icon={Edit05}
                           onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
+                            toast.info(t('editDialogComingSoon'));
                           }}
                         />
-                      </DeleteConfirmationDialog>
+                      </PermissionGate>
+                      <PermissionGate permission="domains.delete">
+                        <DeleteConfirmationDialog
+                          title={t('deleteDomainTitle', { domain: item.domain })}
+                          description={t('deleteDomainDescription')}
+                          confirmLabel={t('deleteDomainConfirm')}
+                          onConfirm={async () => {
+                            await handleDelete(item._id);
+                          }}
+                        >
+                          <ButtonUtility
+                            size="xs"
+                            color="tertiary"
+                            tooltip={t('delete')}
+                            icon={Trash01}
+                            onClick={(e: React.MouseEvent) => {
+                              e.stopPropagation();
+                            }}
+                          />
+                        </DeleteConfirmationDialog>
+                      </PermissionGate>
                     </div>
                   </Table.Cell>
                 </Table.Row>
