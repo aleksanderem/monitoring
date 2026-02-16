@@ -13,6 +13,7 @@ export function AdminSidebar() {
   const adminNavItems = [
     { href: "/admin", label: t("navDashboard"), icon: ChartIcon },
     { href: "/admin/organizations", label: t("navOrganizations"), icon: BuildingIcon },
+    { href: "/admin/plans", label: "Plany", icon: FileCheckIcon },
     { href: "/admin/users", label: t("navUsers"), icon: UsersIcon },
     { href: "/admin/logs", label: t("navAuditLogs"), icon: ListIcon },
     { href: "/admin/debug-logs", label: t("navDebugLogs"), icon: BugIcon },
@@ -131,6 +132,16 @@ function CreditCardIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+    </svg>
+  );
+}
+
+function FileCheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.125 2.25A3.375 3.375 0 0113.5 5.625v1.5c0 .621.504 1.125 1.125 1.125h1.5a3.375 3.375 0 013.375 3.375" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 15l2 2 4-4" />
     </svg>
   );
 }
