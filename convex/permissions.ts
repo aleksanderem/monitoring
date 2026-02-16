@@ -8,41 +8,66 @@ import { Id, Doc } from "./_generated/dataModel";
 // =================================================================
 
 export const PERMISSIONS = {
-  // Organization
+  // --- Organization ---
   "org.settings.view": "Podgląd ustawień organizacji",
   "org.settings.edit": "Edycja ustawień organizacji",
   "org.limits.view": "Podgląd limitów",
   "org.limits.edit": "Edycja limitów",
 
-  // Members
+  // --- Members ---
   "members.view": "Podgląd listy członków",
   "members.invite": "Zapraszanie członków",
   "members.remove": "Usuwanie członków",
   "members.roles.edit": "Zmiana ról członków",
 
-  // Projects
+  // --- Projects ---
   "projects.view": "Podgląd projektów",
   "projects.create": "Tworzenie projektów",
   "projects.edit": "Edycja projektów",
   "projects.delete": "Usuwanie projektów",
 
-  // Domains
+  // --- Domains ---
   "domains.view": "Podgląd domen",
   "domains.create": "Dodawanie domen",
   "domains.edit": "Edycja domen",
   "domains.delete": "Usuwanie domen",
 
-  // Keywords
+  // --- Keywords (positioning module) ---
   "keywords.view": "Podgląd słów kluczowych",
   "keywords.add": "Dodawanie słów kluczowych",
   "keywords.remove": "Usuwanie słów kluczowych",
   "keywords.refresh": "Odświeżanie pozycji",
 
-  // Reports
+  // --- Reports ---
   "reports.view": "Podgląd raportów",
   "reports.create": "Tworzenie raportów",
   "reports.edit": "Edycja raportów",
   "reports.share": "Udostępnianie raportów",
+
+  // --- Backlinks module ---
+  "backlinks.view": "Podgląd profilu backlinków",
+  "backlinks.analyze": "Analiza backlinków",
+
+  // --- SEO Audit module ---
+  "audit.view": "Podgląd audytu SEO",
+  "audit.run": "Uruchamianie skanów SEO",
+
+  // --- Competitors module ---
+  "competitors.view": "Podgląd konkurentów",
+  "competitors.add": "Dodawanie konkurentów",
+  "competitors.analyze": "Analiza konkurentów",
+
+  // --- AI Strategy module ---
+  "ai.research": "Badanie słów kluczowych AI",
+  "ai.strategy": "Generowanie strategii AI",
+
+  // --- Forecasts module ---
+  "forecasts.view": "Podgląd prognoz",
+  "forecasts.generate": "Generowanie prognoz",
+
+  // --- Link Building module ---
+  "links.view": "Podgląd prospektów linków",
+  "links.manage": "Zarządzanie prospektami linków",
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -73,18 +98,35 @@ export const PERMISSION_CATEGORIES = {
     label: "Raporty",
     permissions: ["reports.view", "reports.create", "reports.edit", "reports.share"],
   },
+  backlinks: {
+    label: "Backlinki",
+    permissions: ["backlinks.view", "backlinks.analyze"],
+  },
+  audit: {
+    label: "Audyt SEO",
+    permissions: ["audit.view", "audit.run"],
+  },
+  competitors: {
+    label: "Konkurenci",
+    permissions: ["competitors.view", "competitors.add", "competitors.analyze"],
+  },
+  ai: {
+    label: "AI",
+    permissions: ["ai.research", "ai.strategy"],
+  },
+  forecasts: {
+    label: "Prognozy",
+    permissions: ["forecasts.view", "forecasts.generate"],
+  },
+  links: {
+    label: "Link Building",
+    permissions: ["links.view", "links.manage"],
+  },
 } as const;
 
 // Default system role permissions
 export const SYSTEM_ROLE_PERMISSIONS = {
-  admin: [
-    "org.settings.view", "org.settings.edit", "org.limits.view", "org.limits.edit",
-    "members.view", "members.invite", "members.remove", "members.roles.edit",
-    "projects.view", "projects.create", "projects.edit", "projects.delete",
-    "domains.view", "domains.create", "domains.edit", "domains.delete",
-    "keywords.view", "keywords.add", "keywords.remove", "keywords.refresh",
-    "reports.view", "reports.create", "reports.edit", "reports.share",
-  ],
+  admin: Object.keys(PERMISSIONS) as Permission[],
   member: [
     "org.settings.view", "org.limits.view",
     "members.view",
@@ -92,7 +134,13 @@ export const SYSTEM_ROLE_PERMISSIONS = {
     "domains.view", "domains.create", "domains.edit",
     "keywords.view", "keywords.add", "keywords.remove", "keywords.refresh",
     "reports.view", "reports.create", "reports.edit",
-  ],
+    "backlinks.view", "backlinks.analyze",
+    "audit.view", "audit.run",
+    "competitors.view", "competitors.add", "competitors.analyze",
+    "ai.research", "ai.strategy",
+    "forecasts.view", "forecasts.generate",
+    "links.view", "links.manage",
+  ] as Permission[],
   viewer: [
     "org.settings.view", "org.limits.view",
     "members.view",
@@ -100,8 +148,28 @@ export const SYSTEM_ROLE_PERMISSIONS = {
     "domains.view",
     "keywords.view",
     "reports.view",
-  ],
+    "backlinks.view",
+    "audit.view",
+    "competitors.view",
+    "forecasts.view",
+    "links.view",
+  ] as Permission[],
 } as const;
+
+// Maps module keys to the permissions they unlock
+export const MODULE_PERMISSIONS: Record<string, Permission[]> = {
+  positioning: ["keywords.view", "keywords.add", "keywords.remove", "keywords.refresh", "domains.view", "domains.create", "domains.edit", "domains.delete"],
+  backlinks: ["backlinks.view", "backlinks.analyze"],
+  seo_audit: ["audit.view", "audit.run"],
+  reports: ["reports.view", "reports.create", "reports.edit", "reports.share"],
+  competitors: ["competitors.view", "competitors.add", "competitors.analyze"],
+  ai_strategy: ["ai.research", "ai.strategy"],
+  forecasts: ["forecasts.view", "forecasts.generate"],
+  link_building: ["links.view", "links.manage"],
+};
+
+// All modules
+export const ALL_MODULES = Object.keys(MODULE_PERMISSIONS);
 
 // =================================================================
 // Permission Context Helpers
