@@ -3,7 +3,7 @@ import { mutation, query, internalQuery, internalMutation, internalAction } from
 import { internal } from "./_generated/api";
 import { auth } from "./auth";
 import { checkKeywordLimit, checkRefreshLimits } from "./limits";
-import { requirePermission, getContextFromDomain, getContextFromKeyword } from "./permissions";
+import { requirePermission, requireTenantAccess, getContextFromDomain, getContextFromKeyword } from "./permissions";
 import { isValidKeywordPhrase } from "./lib/keywordValidation";
 
 // CTR curve based on organic search position (industry standard)
@@ -24,6 +24,10 @@ function getCTRForPosition(position: number): number {
 export const getKeywords = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -50,10 +54,13 @@ export const getKeywordWithHistory = query({
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
     const keyword = await ctx.db.get(args.keywordId);
     if (!keyword) {
       return null;
     }
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
 
     const daysToFetch = args.days || 30;
     const startDate = new Date();
@@ -98,6 +105,10 @@ export const getKeywordWithHistory = query({
 export const getPositionDistribution = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -136,6 +147,10 @@ export const getMovementTrend = query({
     days: v.optional(v.number())
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -183,6 +198,10 @@ export const getMovementTrend = query({
 export const getMonitoringStats = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -257,6 +276,10 @@ export const getMonitoringStats = query({
 export const getKeywordMonitoring = query({
   args: { domainId: v.id("domains"), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -368,6 +391,10 @@ export const getRecentChanges = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const daysAgo = args.days || 7;
     const limit = args.limit || 10;
     const cutoffStr = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
@@ -440,6 +467,10 @@ export const getTopPerformers = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const daysAgo = args.days || 30;
     const limit = args.limit || 10;
     const cutoffStr = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
@@ -513,6 +544,10 @@ export const getTopKeywordsByVolume = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const limit = args.limit || 10;
 
     const keywords = await ctx.db
@@ -552,6 +587,9 @@ export const addKeyword = mutation({
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
     // Check permission
     const context = await getContextFromDomain(ctx, args.domainId);
@@ -605,6 +643,9 @@ export const addKeywords = mutation({
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
     // Check permission
     const context = await getContextFromDomain(ctx, args.domainId);
@@ -682,6 +723,11 @@ export const updateKeywordStatus = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Tenant isolation
+    const keyword = await ctx.db.get(args.keywordId);
+    if (!keyword) throw new Error("Keyword not found");
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
+
     // Check permission
     const context = await getContextFromKeyword(ctx, args.keywordId);
     if (!context) {
@@ -705,6 +751,11 @@ export const deleteKeyword = mutation({
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Tenant isolation
+    const keyword = await ctx.db.get(args.keywordId);
+    if (!keyword) throw new Error("Keyword not found");
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
 
     // Check permission
     const context = await getContextFromKeyword(ctx, args.keywordId);
@@ -734,6 +785,14 @@ export const deleteKeywords = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
+    }
+
+    // Tenant isolation: check first keyword's domain
+    if (args.keywordIds.length > 0) {
+      const firstKw = await ctx.db.get(args.keywordIds[0]);
+      if (firstKw) {
+        await requireTenantAccess(ctx, "domain", firstKw.domainId);
+      }
     }
 
     for (const keywordId of args.keywordIds) {
@@ -772,6 +831,12 @@ export const storePosition = mutation({
     cpc: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const kw = await ctx.db.get(args.keywordId);
+    if (!kw) throw new Error("Keyword not found");
+    await requireTenantAccess(ctx, "domain", kw.domainId);
+
     // Check if position for this date already exists
     const existing = await ctx.db
       .query("keywordPositions")
@@ -966,6 +1031,9 @@ export const refreshKeywordPositions = mutation({
       throw new Error("Keyword not found");
     }
 
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", firstKeyword.domainId);
+
     // Verify all keywords belong to the same domain
     const domainId = firstKeyword.domainId;
     for (const keywordId of args.keywordIds) {
@@ -1021,6 +1089,10 @@ export const refreshKeywordPositions = mutation({
 export const clearAllCheckingStatuses = mutation({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -1056,6 +1128,9 @@ export const importKeywords = mutation({
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
     // Check permission
     const context = await getContextFromDomain(ctx, args.domainId);
@@ -1224,6 +1299,12 @@ export const getPositionHistory = query({
     keywordId: v.id("keywords"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const keyword = await ctx.db.get(args.keywordId);
+    if (!keyword) return [];
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
+
     const positions = await ctx.db
       .query("keywordPositions")
       .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
@@ -1248,6 +1329,12 @@ export const getSerpResultsForKeyword = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    const keyword = await ctx.db.get(args.keywordId);
+    if (!keyword) return null;
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
+
     const limit = args.limit || 10;
 
     // Get the most recent SERP results for this keyword
@@ -1332,6 +1419,10 @@ export const getPositionAggregation = query({
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const days = args.days ?? 30;
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 

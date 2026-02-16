@@ -4,12 +4,16 @@ import { api, internal } from "./_generated/api";
 import { auth } from "./auth";
 import { checkKeywordLimit } from "./limits";
 import type { Id } from "./_generated/dataModel";
-import { requirePermission, getOrgFromProject, getContextFromDomain } from "./permissions";
+import { requirePermission, requireTenantAccess, getOrgFromProject, getContextFromDomain } from "./permissions";
 
 // Get domains for a project
 export const getDomains = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "project", args.projectId);
+
     const domains = await ctx.db
       .query("domains")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -62,6 +66,10 @@ export const getDomains = query({
 export const getDomain = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     return await ctx.db.get(args.domainId);
   },
 });
@@ -87,6 +95,9 @@ export const createDomain = mutation({
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Tenant isolation
+    await requireTenantAccess(ctx, "project", args.projectId);
 
     // Get organization from project
     const organizationId = await getOrgFromProject(ctx, args.projectId);
@@ -164,6 +175,9 @@ export const updateDomain = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Get permission context
     const context = await getContextFromDomain(ctx, args.domainId);
     if (!context) {
@@ -191,6 +205,7 @@ export const getUserRoleForDomain = query({
     const userId = await auth.getUserId(ctx);
     console.log("[getUserRoleForDomain] userId:", userId);
     if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
     const domain = await ctx.db.get(args.domainId);
     console.log("[getUserRoleForDomain] domain:", domain?._id);
@@ -224,6 +239,9 @@ export const deleteDomain = mutation({
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
     // Get permission context
     const context = await getContextFromDomain(ctx, args.domainId);
@@ -277,6 +295,10 @@ export const deleteDomain = mutation({
 export const markRefreshed = mutation({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     await ctx.db.patch(args.domainId, {
       lastRefreshedAt: Date.now(),
     });
@@ -308,6 +330,10 @@ export const getDiscoveredKeywords = query({
     )),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     let keywords;
 
     if (args.status) {
@@ -341,6 +367,9 @@ export const promoteDiscoveredKeywords = mutation({
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
     // First pass: count how many keywords will actually be added
     const keywordsToAdd: Array<{
@@ -449,6 +478,14 @@ export const ignoreDiscoveredKeywords = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Tenant isolation: resolve domain from first discovered keyword
+    if (args.keywordIds.length > 0) {
+      const firstDk = await ctx.db.get(args.keywordIds[0]);
+      if (firstDk) {
+        await requireTenantAccess(ctx, "domain", firstDk.domainId);
+      }
+    }
+
     for (const id of args.keywordIds) {
       await ctx.db.patch(id, { status: "ignored" });
     }
@@ -459,6 +496,10 @@ export const ignoreDiscoveredKeywords = mutation({
 export const getDiscoveredKeywordsCount = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const all = await ctx.db
       .query("discoveredKeywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -484,6 +525,10 @@ export const getVisibilityHistory = query({
     days: v.optional(v.number()), // Default 365
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const history = await ctx.db
       .query("domainVisibilityHistory")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -512,6 +557,10 @@ export const getVisibilityHistory = query({
 export const getBacklinksSummary = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     return await ctx.db
       .query("domainBacklinksSummary")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -526,6 +575,10 @@ export const getBacklinks = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const limit = args.limit || 100;
     const backlinks = await ctx.db
       .query("domainBacklinks")
@@ -541,6 +594,10 @@ export const getBacklinks = query({
 export const getPositionDistribution = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -590,6 +647,10 @@ export const getPositionDistribution = query({
 export const getLatestVisibilityMetrics = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const history = await ctx.db
       .query("domainVisibilityHistory")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -772,6 +833,9 @@ export const create = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Tenant isolation
+    await requireTenantAccess(ctx, "project", args.projectId);
+
     // Strip protocol — store bare hostname (e.g. "example.com" not "https://example.com")
     const cleanDomain = args.domain.replace(/^https?:\/\//, "").replace(/\/+$/, "");
 
@@ -826,6 +890,9 @@ export const remove = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.id);
+
     // Get domain for cascade delete
     const domain = await ctx.db.get(args.id);
     if (!domain) {
@@ -869,6 +936,10 @@ export const remove = mutation({
 export const getVisibilityStats = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Get all discovered keywords for this domain with actual rankings (bestPosition !== 999)
     const discoveredKeywords = await ctx.db
       .query("discoveredKeywords")
@@ -943,6 +1014,10 @@ export const getTopKeywords = query({
     })),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const limit = args.limit || 10;
 
     // Get all discovered keywords with actual rankings (bestPosition !== 999)
@@ -1072,6 +1147,9 @@ export const saveBusinessContextPublic = mutation({
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
     const context = await getContextFromDomain(ctx, args.domainId);
     if (!context) {

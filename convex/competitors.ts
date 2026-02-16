@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 /**
  * Internal query to get competitor by ID
@@ -80,6 +82,10 @@ export const addCompetitor = mutation({
     name: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Check if competitor already exists
     const existing = await ctx.db
       .query("competitors")
@@ -124,6 +130,10 @@ export const getCompetitors = query({
     domainId: v.id("domains"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const competitors = await ctx.db
       .query("competitors")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -141,6 +151,12 @@ export const removeCompetitor = mutation({
     competitorId: v.id("competitors"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) throw new Error("Competitor not found");
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     await ctx.db.patch(args.competitorId, {
       status: "paused",
     });
@@ -200,6 +216,12 @@ export const getCompetitorPositions = query({
     keywordId: v.id("keywords"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) return [];
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     const positions = await ctx.db
       .query("competitorKeywordPositions")
       .withIndex("by_competitor_keyword", (q) =>
@@ -236,6 +258,12 @@ export const updateCompetitor = mutation({
     status: v.optional(v.union(v.literal("active"), v.literal("paused"))),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) throw new Error("Competitor not found");
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     const updates: any = {};
     if (args.name !== undefined) updates.name = args.name;
     if (args.status !== undefined) updates.status = args.status;
@@ -253,6 +281,10 @@ export const getCompetitorsForKeyword = query({
     keywordId: v.id("keywords"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Get all active competitors for this domain
     const competitors = await ctx.db
       .query("competitors")
@@ -333,6 +365,10 @@ export const getCompetitorSuggestionsFromSerp = query({
     domainId: v.id("domains"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Get monitored keywords for this domain
     const allKeywords = await ctx.db
       .query("keywords")
