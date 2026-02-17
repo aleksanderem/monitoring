@@ -6,6 +6,7 @@ import { jsx, jsxs } from "react/jsx-runtime";
 import type { SpecialLanguage, StringLiteralUnion } from "shiki/bundle/web";
 import { codeToHast } from "shiki/bundle/web";
 import "@/components/application/code-snippet/code-snippet.style.css";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { cx } from "@/utils/cx";
 
 type SupportedLanguages = "tsx" | "js" | "jsx" | "ts" | "typescript" | "javascript" | "json" | "html";
@@ -87,12 +88,13 @@ export const CodeSnippet = ({ children, code, language, showLineNumbers = true, 
         <div
             {...otherProps}
             className={cx(
-                "max-w-full overflow-hidden rounded-xl border border-secondary bg-primary [&>.shiki]:overflow-x-auto [&>code]:w-full",
+                "relative max-w-full overflow-hidden rounded-xl border border-secondary bg-primary [&>.shiki]:overflow-x-auto [&>code]:w-full",
                 "font-mono text-sm leading-[22px] whitespace-pre",
                 showLineNumbers ? "line-numbers" : "p-4",
                 className,
             )}
         >
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             {nodes ?? code ?? <p>Loading...</p>}
         </div>
     );

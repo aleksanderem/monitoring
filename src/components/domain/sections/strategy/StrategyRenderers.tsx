@@ -27,6 +27,7 @@ import {
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { EzIcon } from "@/components/foundations/ez-icon";
 import { toast } from "sonner";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 // ─── Markdown Block Parser & Renderer ────────────────────────────
 // Parses AI-generated markdown into structured blocks, then renders
@@ -1852,7 +1853,8 @@ export function StrategySectionCard({
   };
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary">
+    <div className="relative rounded-xl border border-secondary bg-primary">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-secondary_subtle transition-colors"
@@ -1875,7 +1877,8 @@ export function StrategySectionCard({
           {sectionDrillDowns.length > 0 && (
             <div className="border-t border-secondary px-6 py-5 space-y-5">
               {sectionDrillDowns.map((dd, i) => (
-                <div key={i} className="rounded-xl border border-secondary bg-primary">
+                <div key={i} className="relative rounded-xl border border-secondary bg-primary">
+                  <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                   {/* Header */}
                   <div className="flex items-center gap-2 px-5 py-3 border-b border-secondary bg-secondary_subtle rounded-t-xl">
                     <Stars01 className="h-4 w-4 text-brand-500 shrink-0" />

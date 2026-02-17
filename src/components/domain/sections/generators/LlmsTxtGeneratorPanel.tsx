@@ -10,6 +10,7 @@ import { CodePreview } from "./CodePreview";
 import { GeneratorHistoryList } from "./GeneratorHistoryList";
 import { PlatformInstructions } from "./PlatformInstructions";
 import { Button } from "@/components/base/buttons/button";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface LlmsTxtGeneratorPanelProps {
   domainId: Id<"domains">;
@@ -59,7 +60,8 @@ export function LlmsTxtGeneratorPanel({ domainId }: LlmsTxtGeneratorPanelProps) 
   const pagesAnalyzed = (displayOutput?.metadata as any)?.pagesAnalyzed ?? 0;
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary">
+    <div className="relative rounded-xl border border-secondary bg-primary">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       {/* Header */}
       <div className="flex items-center justify-between border-b border-secondary px-6 py-4">
         <div>

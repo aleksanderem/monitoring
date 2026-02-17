@@ -8,6 +8,7 @@ import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Toggle } from "@/components/base/toggle/toggle";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { toast } from "sonner";
 import { usePageTitle } from "@/hooks/usePageTitle";
 
@@ -113,7 +114,8 @@ export default function AdminDebugLogsPage() {
       </div>
 
       {/* Log entries */}
-      <div className="bg-primary rounded-xl border border-secondary shadow-xs overflow-hidden">
+      <div className="relative bg-primary rounded-xl border border-secondary shadow-xs overflow-hidden">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         {filteredLogs && filteredLogs.length > 0 ? (
           <div className="divide-y divide-secondary">
             {filteredLogs.map((log) => {

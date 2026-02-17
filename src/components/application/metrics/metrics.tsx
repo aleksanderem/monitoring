@@ -8,6 +8,7 @@ import type { CurveType } from "recharts/types/shape/Curve";
 import type { Props as DotProps } from "recharts/types/shape/Dot";
 import { Dropdown } from "@/components/base/dropdown/dropdown";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { cx } from "@/utils/cx";
 
 const ActionsDropdown = () => (
@@ -610,7 +611,8 @@ export const MetricsChart04 = ({
     chartColor = chartColor ?? (changeTrend === "positive" ? "text-fg-success-secondary" : "text-fg-error-secondary");
 
     return (
-        <div className={cx("flex flex-col overflow-hidden rounded-xl bg-secondary_subtle border border-secondary shadow-xs", className)}>
+        <div className={cx("relative flex flex-col overflow-hidden rounded-xl bg-secondary_subtle border border-secondary shadow-xs", className)}>
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             <div className="mb-0.5 px-4 pt-3 pb-2 md:px-5">
                 <h3 className="text-sm font-semibold text-primary">{subtitle}</h3>
             </div>

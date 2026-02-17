@@ -3,6 +3,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Breadcrumbs } from "@/components/application/breadcrumbs/breadcrumbs";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { useTranslations } from "next-intl";
 import { usePageTitle } from "@/hooks/usePageTitle";
 
@@ -35,36 +36,43 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        <div className="rounded-xl border border-secondary bg-primary p-5">
+        <div className="relative rounded-xl border border-secondary bg-primary p-5">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <p className="text-sm font-medium text-tertiary">{t("statsUsers")}</p>
           <p className="mt-2 text-3xl font-semibold text-primary">{stats.users.total}</p>
         </div>
-        <div className="rounded-xl border border-secondary bg-primary p-5">
+        <div className="relative rounded-xl border border-secondary bg-primary p-5">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <p className="text-sm font-medium text-tertiary">{t("statsOrganizations")}</p>
           <p className="mt-2 text-3xl font-semibold text-primary">{stats.organizations.total}</p>
           <p className="mt-1 text-xs text-tertiary">{t("statsRecentOrgs", { count: stats.organizations.recent })}</p>
         </div>
-        <div className="rounded-xl border border-secondary bg-primary p-5">
+        <div className="relative rounded-xl border border-secondary bg-primary p-5">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <p className="text-sm font-medium text-tertiary">{t("statsProjects")}</p>
           <p className="mt-2 text-3xl font-semibold text-primary">{stats.projects.total}</p>
         </div>
-        <div className="rounded-xl border border-secondary bg-primary p-5">
+        <div className="relative rounded-xl border border-secondary bg-primary p-5">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <p className="text-sm font-medium text-tertiary">{t("statsDomains")}</p>
           <p className="mt-2 text-3xl font-semibold text-primary">{stats.domains.total}</p>
         </div>
-        <div className="rounded-xl border border-secondary bg-primary p-5">
+        <div className="relative rounded-xl border border-secondary bg-primary p-5">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <p className="text-sm font-medium text-tertiary">{t("statsActiveKeywords")}</p>
           <p className="mt-2 text-3xl font-semibold text-primary">{stats.keywords.active}</p>
           <p className="mt-1 text-xs text-tertiary">{t("statsOfTotal", { count: stats.keywords.total })}</p>
         </div>
-        <div className="rounded-xl border border-secondary bg-primary p-5">
+        <div className="relative rounded-xl border border-secondary bg-primary p-5">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <p className="text-sm font-medium text-tertiary">{t("statsPendingKeywords")}</p>
           <p className="mt-2 text-3xl font-semibold text-primary">{stats.keywords.pending}</p>
           <p className="mt-1 text-xs text-tertiary">{t("statsPaused", { count: stats.keywords.paused })}</p>
         </div>
       </div>
 
-      <div className="bg-primary rounded-xl border border-secondary shadow-xs overflow-hidden">
+      <div className="relative bg-primary rounded-xl border border-secondary shadow-xs overflow-hidden">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="px-6 py-4 border-b border-secondary">
           <h2 className="text-lg font-semibold text-primary">{t("recentAdminActions")}</h2>
         </div>

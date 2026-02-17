@@ -18,6 +18,7 @@ import {
   MinusCircle,
 } from "@untitledui/icons";
 import { cx } from "@/utils/cx";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -105,7 +106,8 @@ function ActiveJobsTab() {
 
   if (activeJobs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
+      <div className="relative flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <CheckCircle className="size-10 text-success-400" />
         <p className="mt-3 text-sm font-medium text-primary">{t("noActiveJobs")}</p>
         <p className="mt-1 text-xs text-tertiary">{t("allTasksCompleted")}</p>
@@ -118,8 +120,9 @@ function ActiveJobsTab() {
       {activeJobs.map((job) => (
         <div
           key={job.id}
-          className="rounded-xl border border-secondary bg-primary p-4 shadow-xs"
+          className="relative rounded-xl border border-secondary bg-primary p-4 shadow-xs"
         >
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 flex size-8 items-center justify-center rounded-lg bg-secondary-subtle">
@@ -185,8 +188,9 @@ function ScheduledJobsTab() {
       {scheduledJobs.map((job) => (
         <div
           key={job.name}
-          className="flex items-center justify-between rounded-xl border border-secondary bg-primary p-4 shadow-xs"
+          className="relative flex items-center justify-between rounded-xl border border-secondary bg-primary p-4 shadow-xs"
         >
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="flex items-center gap-3">
             <div className="flex size-8 items-center justify-center rounded-lg bg-secondary-subtle">
               <Clock className="size-4 text-quaternary" />
@@ -243,7 +247,8 @@ function HistoryTab() {
       </div>
 
       {historyJobs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
+        <div className="relative flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <MinusCircle className="size-10 text-quaternary" />
           <p className="mt-3 text-sm font-medium text-primary">{t("noJobsFound")}</p>
         </div>
@@ -425,7 +430,8 @@ export default function JobsPage() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-secondary bg-primary p-4 shadow-xs">
+        <div className="relative rounded-xl border border-secondary bg-primary p-4 shadow-xs">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-lg bg-brand-50">
               <Activity className="size-5 text-brand-600" />
@@ -438,7 +444,8 @@ export default function JobsPage() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-secondary bg-primary p-4 shadow-xs">
+        <div className="relative rounded-xl border border-secondary bg-primary p-4 shadow-xs">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-lg bg-success-50">
               <CheckCircle className="size-5 text-success-600" />
@@ -451,7 +458,8 @@ export default function JobsPage() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-secondary bg-primary p-4 shadow-xs">
+        <div className="relative rounded-xl border border-secondary bg-primary p-4 shadow-xs">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-lg bg-error-50">
               <AlertCircle className="size-5 text-error-600" />

@@ -22,6 +22,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { LinkBuildingProspectDetailModal } from "../modals/LinkBuildingProspectDetailModal";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface LinkBuildingProspectsTableProps {
     domainId: Id<"domains">;
@@ -233,7 +234,8 @@ export function LinkBuildingProspectsTable({ domainId }: LinkBuildingProspectsTa
 
     if (prospects === undefined) {
         return (
-            <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 <div className="h-5 w-44 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
                 <div className="h-64 animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
             </div>
@@ -242,7 +244,8 @@ export function LinkBuildingProspectsTable({ domainId }: LinkBuildingProspectsTa
 
     if (!prospects || prospects.length === 0) {
         return (
-            <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 <h3 className="text-md font-semibold text-primary">{t('prospectTableTitle')}</h3>
                 <div className="flex flex-col items-center justify-center py-8">
                     <p className="text-sm text-tertiary">{t('prospectEmpty')}</p>
@@ -254,7 +257,8 @@ export function LinkBuildingProspectsTable({ domainId }: LinkBuildingProspectsTa
 
     return (
         <>
-            <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 {/* Header */}
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2">

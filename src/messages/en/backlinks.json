@@ -19,6 +19,13 @@
     "priorityVeryLow": "Very Low",
     "generating": "Generating...",
     "generateReport": "Generate Report",
+    "refreshProspects": "Refresh Prospects",
+    "refreshingProspects": "Refreshing...",
+    "downloadReport": "Download Report",
+    "downloadingReport": "Downloading...",
+    "downloadReportSuccess": "Report downloaded successfully",
+    "downloadReportFailed": "Failed to generate PDF report",
+    "downloadReportNoData": "No prospect data available. Generate prospects first.",
 
     "columnReferringDomain": "Referring Domain",
     "columnAnchorText": "Anchor Text",

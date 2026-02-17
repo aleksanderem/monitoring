@@ -1,7 +1,7 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { query, mutation, QueryCtx } from "./_generated/server";
 import { auth } from "./auth";
-import { requireTenantAccess } from "./permissions";
+import { Id } from "./_generated/dataModel";
 
 // Unified shape for all job types
 type UnifiedJob = {
@@ -48,6 +48,49 @@ function normalizeStatus(
   }
 }
 
+// ─── Tenant Isolation ────────────────────────────────────────────
+// Resolve user -> org -> teams -> projects -> domain IDs + project IDs
+// This ensures users only see jobs belonging to their organization.
+
+async function getUserAccessibleIds(ctx: QueryCtx, userId: Id<"users">) {
+  // Get user's organization memberships
+  const memberships = await ctx.db
+    .query("organizationMembers")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .collect();
+
+  if (memberships.length === 0) return { domainIds: new Set<string>(), projectIds: new Set<string>() };
+
+  // Get all teams for user's organizations
+  const orgIds = memberships.map((m) => m.organizationId);
+  const teamsArrays = await Promise.all(
+    orgIds.map((orgId) =>
+      ctx.db.query("teams").withIndex("by_organization", (q) => q.eq("organizationId", orgId)).collect()
+    )
+  );
+  const allTeams = teamsArrays.flat();
+
+  // Get all projects for those teams
+  const projectsArrays = await Promise.all(
+    allTeams.map((team) =>
+      ctx.db.query("projects").withIndex("by_team", (q) => q.eq("teamId", team._id)).collect()
+    )
+  );
+  const allProjects = projectsArrays.flat();
+  const projectIds = new Set(allProjects.map((p) => p._id as string));
+
+  // Get all domains for those projects
+  const domainsArrays = await Promise.all(
+    allProjects.map((project) =>
+      ctx.db.query("domains").withIndex("by_project", (q) => q.eq("projectId", project._id)).collect()
+    )
+  );
+  const allDomains = domainsArrays.flat();
+  const domainIds = new Set(allDomains.map((d) => d._id as string));
+
+  return { domainIds, projectIds };
+}
+
 export const getAllJobs = query({
   args: {
     filter: v.union(
@@ -64,6 +107,10 @@ export const getAllJobs = query({
     if (!userId) return [];
 
     const limit = args.limit ?? 100;
+
+    // Resolve accessible domain and project IDs for tenant isolation
+    const { domainIds: accessibleDomainIds, projectIds: accessibleProjectIds } =
+      await getUserAccessibleIds(ctx, userId);
 
     // Fetch all 7 job tables in parallel
     const [
@@ -84,19 +131,28 @@ export const getAllJobs = query({
       ctx.db.query("domainReports").order("desc").take(limit),
     ]);
 
+    // Filter jobs by accessible domains/projects
+    const filteredKwCheck = keywordCheckJobs.filter((j) => accessibleDomainIds.has(j.domainId));
+    const filteredKwSerp = keywordSerpJobs.filter((j) => accessibleDomainIds.has(j.domainId));
+    const filteredOnSite = onSiteScans.filter((j) => accessibleDomainIds.has(j.domainId));
+    const filteredCompBack = competitorBacklinksJobs.filter((j) => accessibleDomainIds.has(j.domainId));
+    const filteredCompGap = competitorContentGapJobs.filter((j) => accessibleDomainIds.has(j.domainId));
+    const filteredGenReports = generatedReports.filter((r) => accessibleProjectIds.has(r.projectId));
+    const filteredDomReports = domainReports.filter((r) => accessibleDomainIds.has(r.domainId));
+
     // Collect all domain IDs for batch lookup
-    const domainIds = new Set<string>();
-    for (const j of keywordCheckJobs) domainIds.add(j.domainId);
-    for (const j of keywordSerpJobs) domainIds.add(j.domainId);
-    for (const j of onSiteScans) domainIds.add(j.domainId);
-    for (const j of competitorBacklinksJobs) domainIds.add(j.domainId);
-    for (const j of competitorContentGapJobs) domainIds.add(j.domainId);
-    for (const j of domainReports) domainIds.add(j.domainId);
+    const domainIdsForLookup = new Set<string>();
+    for (const j of filteredKwCheck) domainIdsForLookup.add(j.domainId);
+    for (const j of filteredKwSerp) domainIdsForLookup.add(j.domainId);
+    for (const j of filteredOnSite) domainIdsForLookup.add(j.domainId);
+    for (const j of filteredCompBack) domainIdsForLookup.add(j.domainId);
+    for (const j of filteredCompGap) domainIdsForLookup.add(j.domainId);
+    for (const j of filteredDomReports) domainIdsForLookup.add(j.domainId);
 
     // Batch fetch domains
     const domainMap = new Map<string, string>();
     await Promise.all(
-      [...domainIds].map(async (id) => {
+      [...domainIdsForLookup].map(async (id) => {
         const domain = await ctx.db.get(id as any);
         if (domain && "domain" in domain) {
           domainMap.set(id, (domain as any).domain);
@@ -106,8 +162,8 @@ export const getAllJobs = query({
 
     // Batch fetch competitors for content gap & backlinks jobs
     const competitorIds = new Set<string>();
-    for (const j of competitorBacklinksJobs) competitorIds.add(j.competitorId);
-    for (const j of competitorContentGapJobs) competitorIds.add(j.competitorId);
+    for (const j of filteredCompBack) competitorIds.add(j.competitorId);
+    for (const j of filteredCompGap) competitorIds.add(j.competitorId);
 
     const competitorMap = new Map<string, string>();
     await Promise.all(
@@ -119,12 +175,12 @@ export const getAllJobs = query({
       })
     );
 
-    // For generatedReports, resolve project → domains
-    const projectIds = new Set<string>();
-    for (const r of generatedReports) projectIds.add(r.projectId);
+    // For generatedReports, resolve project → names
+    const projectIdsForLookup = new Set<string>();
+    for (const r of filteredGenReports) projectIdsForLookup.add(r.projectId);
     const projectDomainNames = new Map<string, string>();
     await Promise.all(
-      [...projectIds].map(async (id) => {
+      [...projectIdsForLookup].map(async (id) => {
         const project = await ctx.db.get(id as any);
         if (project && "name" in project) {
           projectDomainNames.set(id, (project as any).name);
@@ -135,7 +191,7 @@ export const getAllJobs = query({
     // Build unified jobs array
     const jobs: UnifiedJob[] = [];
 
-    for (const j of keywordCheckJobs) {
+    for (const j of filteredKwCheck) {
       const progress =
         j.totalKeywords > 0
           ? Math.round((j.processedKeywords / j.totalKeywords) * 100)
@@ -155,7 +211,7 @@ export const getAllJobs = query({
       });
     }
 
-    for (const j of keywordSerpJobs) {
+    for (const j of filteredKwSerp) {
       const progress =
         j.totalKeywords > 0
           ? Math.round((j.processedKeywords / j.totalKeywords) * 100)
@@ -175,7 +231,7 @@ export const getAllJobs = query({
       });
     }
 
-    for (const j of onSiteScans) {
+    for (const j of filteredOnSite) {
       const progress =
         j.totalPagesToScan && j.totalPagesToScan > 0 && j.pagesScanned
           ? Math.round((j.pagesScanned / j.totalPagesToScan) * 100)
@@ -197,7 +253,7 @@ export const getAllJobs = query({
       });
     }
 
-    for (const j of competitorBacklinksJobs) {
+    for (const j of filteredCompBack) {
       const competitorDomain = competitorMap.get(j.competitorId) ?? "Unknown competitor";
       jobs.push({
         id: j._id,
@@ -215,7 +271,7 @@ export const getAllJobs = query({
       });
     }
 
-    for (const j of competitorContentGapJobs) {
+    for (const j of filteredCompGap) {
       const competitorDomain = competitorMap.get(j.competitorId) ?? "Unknown competitor";
       jobs.push({
         id: j._id,
@@ -233,7 +289,7 @@ export const getAllJobs = query({
       });
     }
 
-    for (const r of generatedReports) {
+    for (const r of filteredGenReports) {
       jobs.push({
         id: r._id,
         table: "generatedReports",
@@ -248,7 +304,7 @@ export const getAllJobs = query({
       });
     }
 
-    for (const r of domainReports) {
+    for (const r of filteredDomReports) {
       jobs.push({
         id: r._id,
         table: "domainReports",
@@ -298,6 +354,10 @@ export const getJobStats = query({
   handler: async (ctx) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) return { activeCount: 0, completedToday: 0, failedToday: 0 };
+
+    // Resolve accessible domain and project IDs for tenant isolation
+    const { domainIds: accessibleDomainIds, projectIds: accessibleProjectIds } =
+      await getUserAccessibleIds(ctx, userId);
 
     const now = Date.now();
     const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
@@ -377,26 +437,31 @@ export const getJobStats = query({
         .collect(),
     ]);
 
+    // Filter all active/processing by tenant
+    const filterByDomain = (jobs: any[]) => jobs.filter((j: any) => accessibleDomainIds.has(j.domainId));
+    const filterByProject = (jobs: any[]) => jobs.filter((j: any) => accessibleProjectIds.has(j.projectId));
+
     const domReportActiveFiltered = domReportActive.filter(
       (r) =>
-        r.status === "initializing" ||
-        r.status === "analyzing" ||
-        r.status === "collecting"
+        accessibleDomainIds.has(r.domainId) &&
+        (r.status === "initializing" ||
+          r.status === "analyzing" ||
+          r.status === "collecting")
     );
 
     const activeCount =
-      kwCheckActive.length +
-      kwCheckProcessing.length +
-      kwSerpActive.length +
-      kwSerpProcessing.length +
-      onSiteActive.length +
-      onSiteCrawling.length +
-      onSiteProcessing.length +
-      compBackActive.length +
-      compBackProcessing.length +
-      compGapActive.length +
-      compGapProcessing.length +
-      genReportActive.length +
+      filterByDomain(kwCheckActive).length +
+      filterByDomain(kwCheckProcessing).length +
+      filterByDomain(kwSerpActive).length +
+      filterByDomain(kwSerpProcessing).length +
+      filterByDomain(onSiteActive).length +
+      filterByDomain(onSiteCrawling).length +
+      filterByDomain(onSiteProcessing).length +
+      filterByDomain(compBackActive).length +
+      filterByDomain(compBackProcessing).length +
+      filterByDomain(compGapActive).length +
+      filterByDomain(compGapProcessing).length +
+      filterByProject(genReportActive).length +
       domReportActiveFiltered.length;
 
     // Count completed and failed in last 24h — use recent jobs approach
@@ -413,8 +478,17 @@ export const getJobStats = query({
     let completedToday = 0;
     let failedToday = 0;
 
-    for (const table of recentJobs) {
-      for (const job of table) {
+    for (let tableIdx = 0; tableIdx < recentJobs.length; tableIdx++) {
+      for (const job of recentJobs[tableIdx]) {
+        // Tenant filter: check if job belongs to user's org
+        if (tableIdx === 5) {
+          // generatedReports — filter by projectId
+          if (!accessibleProjectIds.has((job as any).projectId)) continue;
+        } else {
+          // All others — filter by domainId
+          if (!accessibleDomainIds.has((job as any).domainId)) continue;
+        }
+
         const completedAt = "completedAt" in job ? (job as any).completedAt : undefined;
         if (!completedAt || completedAt < twentyFourHoursAgo) continue;
         const status = "status" in job ? (job as any).status : "";
@@ -478,17 +552,28 @@ export const cancelAnyJob = mutation({
     const userId = await auth.getUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    // Verify user has access to this job's domain/project
+    const { domainIds: accessibleDomainIds, projectIds: accessibleProjectIds } =
+      await getUserAccessibleIds(ctx, userId);
+
     const { table, jobId } = args;
 
-    const cancelFields = {
-      status: "failed" as const,
-      error: "Cancelled by user",
-      completedAt: Date.now(),
+    // Helper to verify domain access
+    const verifyDomainAccess = async (id: string) => {
+      const job = await ctx.db.get(id as any);
+      if (!job) return null;
+      if ("domainId" in job && !accessibleDomainIds.has((job as any).domainId)) {
+        throw new Error("Access denied");
+      }
+      if ("projectId" in job && !accessibleProjectIds.has((job as any).projectId)) {
+        throw new Error("Access denied");
+      }
+      return job;
     };
 
     switch (table) {
       case "keywordCheckJobs": {
-        const job = await ctx.db.get(jobId as any);
+        const job = await verifyDomainAccess(jobId);
         if (!job) return;
         if ((job as any).status === "completed" || (job as any).status === "failed") return;
         await ctx.db.patch(jobId as any, {
@@ -499,7 +584,7 @@ export const cancelAnyJob = mutation({
         break;
       }
       case "keywordSerpJobs": {
-        const job = await ctx.db.get(jobId as any);
+        const job = await verifyDomainAccess(jobId);
         if (!job) return;
         if ((job as any).status === "completed" || (job as any).status === "failed") return;
         await ctx.db.patch(jobId as any, {
@@ -510,17 +595,18 @@ export const cancelAnyJob = mutation({
         break;
       }
       case "onSiteScans": {
-        const job = await ctx.db.get(jobId as any);
+        const job = await verifyDomainAccess(jobId);
         if (!job) return;
         if ((job as any).status === "complete" || (job as any).status === "failed") return;
         await ctx.db.patch(jobId as any, {
-          ...cancelFields,
-          status: "failed", // onSiteScans doesn't have "cancelled" status
+          status: "failed",
+          error: "Cancelled by user",
+          completedAt: Date.now(),
         });
         break;
       }
       case "competitorBacklinksJobs": {
-        const job = await ctx.db.get(jobId as any);
+        const job = await verifyDomainAccess(jobId);
         if (!job) return;
         if ((job as any).status === "completed" || (job as any).status === "failed") return;
         await ctx.db.patch(jobId as any, {
@@ -531,7 +617,7 @@ export const cancelAnyJob = mutation({
         break;
       }
       case "competitorContentGapJobs": {
-        const job = await ctx.db.get(jobId as any);
+        const job = await verifyDomainAccess(jobId);
         if (!job) return;
         if ((job as any).status === "completed" || (job as any).status === "failed") return;
         await ctx.db.patch(jobId as any, {
@@ -542,20 +628,24 @@ export const cancelAnyJob = mutation({
         break;
       }
       case "domainReports": {
-        const job = await ctx.db.get(jobId as any);
+        const job = await verifyDomainAccess(jobId);
         if (!job) return;
         if ((job as any).status === "ready" || (job as any).status === "failed") return;
         await ctx.db.patch(jobId as any, {
-          ...cancelFields,
+          status: "failed",
+          error: "Cancelled by user",
+          completedAt: Date.now(),
         });
         break;
       }
       case "generatedReports": {
-        const job = await ctx.db.get(jobId as any);
+        const job = await verifyDomainAccess(jobId);
         if (!job) return;
         if ((job as any).status === "ready" || (job as any).status === "failed") return;
         await ctx.db.patch(jobId as any, {
-          ...cancelFields,
+          status: "failed",
+          error: "Cancelled by user",
+          completedAt: Date.now(),
         });
         break;
       }

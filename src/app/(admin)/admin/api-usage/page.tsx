@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Breadcrumbs } from "@/components/application/breadcrumbs/breadcrumbs";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { useTranslations } from "next-intl";
 import { usePageTitle } from "@/hooks/usePageTitle";
 
@@ -86,19 +87,22 @@ export default function AdminApiUsagePage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="rounded-xl border border-secondary bg-primary p-6">
+        <div className="relative rounded-xl border border-secondary bg-primary p-6">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <p className="text-sm text-tertiary">{t("apiUsageTotalCost")}</p>
           <p className="text-3xl font-semibold text-primary mt-1">
             ${summary ? summary.totalCost.toFixed(4) : "—"}
           </p>
         </div>
-        <div className="rounded-xl border border-secondary bg-primary p-6">
+        <div className="relative rounded-xl border border-secondary bg-primary p-6">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <p className="text-sm text-tertiary">{t("apiUsageTotalTasks")}</p>
           <p className="text-3xl font-semibold text-primary mt-1">
             {summary ? summary.totalTasks.toLocaleString() : "—"}
           </p>
         </div>
-        <div className="rounded-xl border border-secondary bg-primary p-6">
+        <div className="relative rounded-xl border border-secondary bg-primary p-6">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <p className="text-sm text-tertiary">{t("apiUsageTotalCalls")}</p>
           <p className="text-3xl font-semibold text-primary mt-1">
             {summary ? summary.totalCalls.toLocaleString() : "—"}
@@ -109,7 +113,8 @@ export default function AdminApiUsagePage() {
       {/* Breakdown tables */}
       <div className="grid grid-cols-2 gap-6 mb-8">
         {/* By Endpoint */}
-        <div className="rounded-xl border border-secondary bg-primary">
+        <div className="relative rounded-xl border border-secondary bg-primary">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="px-6 py-4 border-b border-secondary">
             <h3 className="text-sm font-semibold text-primary">{t("apiUsageByEndpoint")}</h3>
           </div>
@@ -135,7 +140,8 @@ export default function AdminApiUsagePage() {
         </div>
 
         {/* By Caller */}
-        <div className="rounded-xl border border-secondary bg-primary">
+        <div className="relative rounded-xl border border-secondary bg-primary">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="px-6 py-4 border-b border-secondary">
             <h3 className="text-sm font-semibold text-primary">{t("apiUsageByCaller")}</h3>
           </div>
@@ -160,7 +166,8 @@ export default function AdminApiUsagePage() {
       </div>
 
       {/* Recent logs */}
-      <div className="rounded-xl border border-secondary bg-primary overflow-hidden">
+      <div className="relative rounded-xl border border-secondary bg-primary overflow-hidden">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="px-6 py-4 border-b border-secondary">
           <h3 className="text-sm font-semibold text-primary">{t("apiUsageRecentLogs")}</h3>
         </div>

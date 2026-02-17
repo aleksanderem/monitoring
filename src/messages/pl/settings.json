@@ -171,5 +171,17 @@
   "roleOwnerDescription": "Pełny dostęp do wszystkich ustawień i danych. Może przenosić własność.",
   "roleAdminDescription": "Pełny dostęp oprócz zmiany właściciela. Może zarządzać członkami, rolami i wszystkimi danymi.",
   "roleMemberDescription": "Może zarządzać projektami, domenami, słowami kluczowymi i uruchamiać analizy. Nie może zarządzać członkami ani ustawieniami organizacji.",
-  "roleViewerDescription": "Dostęp tylko do odczytu. Może przeglądać wszystkie dane, ale nie może wprowadzać zmian."
+  "roleViewerDescription": "Dostęp tylko do odczytu. Może przeglądać wszystkie dane, ale nie może wprowadzać zmian.",
+  "tabPlan": "Plan i użycie",
+  "planTitle": "Plan i użycie",
+  "planDescription": "Zobacz aktualny plan, wykorzystanie zasobów i dostępne funkcje.",
+  "planFree": "Darmowy",
+  "planFreeHint": "Ulepsz plan, aby uzyskać więcej słów kluczowych, domen i zaawansowanych funkcji.",
+  "planKeywordsUsage": "Słowa kluczowe",
+  "planDomainsUsage": "Domeny",
+  "planProjectsUsage": "Projekty",
+  "planUnlimited": "Bez limitu",
+  "planModules": "Dostępne moduły",
+  "planDomainsPerProject": "Domeny na projekt",
+  "planKeywordsPerDomain": "Słowa kluczowe na domenę"
 }

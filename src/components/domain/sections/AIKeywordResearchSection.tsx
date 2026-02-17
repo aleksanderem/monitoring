@@ -14,6 +14,7 @@ import { EzIcon } from "@/components/foundations/ez-icon";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
 import { toast } from "sonner";
 import { PermissionGate } from "@/components/auth/PermissionGate";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface AIKeywordIdea {
   keyword: string;
@@ -195,7 +196,8 @@ function HistorySessionCard({
   const focusLabel = FOCUS_LABELS[session.focusType] || session.focusType;
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary">
+    <div className="relative rounded-xl border border-secondary bg-primary">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       {/* Session header */}
       <div className="flex items-start justify-between gap-4 px-6 py-4">
         <div className="flex-1 min-w-0">
@@ -422,7 +424,8 @@ export function AIKeywordResearchSection({ domainId }: { domainId: Id<"domains">
       </div>
 
       {/* Form */}
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="flex flex-col gap-4">
           <TextArea
             label={t("businessDescriptionLabel")}
@@ -499,7 +502,8 @@ export function AIKeywordResearchSection({ domainId }: { domainId: Id<"domains">
 
       {/* Current generation results */}
       {results.length > 0 && (
-        <div className="rounded-xl border border-secondary bg-primary">
+        <div className="relative rounded-xl border border-secondary bg-primary">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="flex items-center justify-between border-b border-secondary px-6 py-4">
             <p className="text-sm font-medium text-secondary">
               {t("resultsCount", { count: results.length })}
@@ -540,7 +544,8 @@ export function AIKeywordResearchSection({ domainId }: { domainId: Id<"domains">
         <h3 className="text-lg font-semibold text-primary">{t("historyTitle")}</h3>
 
         {history === undefined ? (
-          <div className="rounded-xl border border-secondary bg-primary p-6 text-center">
+          <div className="relative rounded-xl border border-secondary bg-primary p-6 text-center">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             <p className="text-sm text-tertiary">...</p>
           </div>
         ) : history.length === 0 && results.length === 0 ? (

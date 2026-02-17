@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface BacklinkQualityComparisonChartProps {
   domainId: Id<"domains">;
@@ -26,7 +27,8 @@ export function BacklinkQualityComparisonChart({
 
   if (data === undefined) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="h-5 w-48 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
         <div className="mt-4 h-[300px] animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
       </div>
@@ -63,7 +65,8 @@ export function BacklinkQualityComparisonChart({
   const maxTotal = Math.max(...rows.map((r) => r.total), 1);
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="mb-5">
         <h3 className="text-lg font-semibold text-primary">
           {t("backlinkQualityTitle")}

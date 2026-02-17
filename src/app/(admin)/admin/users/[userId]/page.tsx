@@ -29,6 +29,7 @@ import {
   Clock,
 } from "@untitledui/icons";
 import { toast } from "sonner";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { useTranslations } from "next-intl";
 
 export default function AdminUserDetailPage() {
@@ -177,7 +178,8 @@ export default function AdminUserDetailPage() {
       </button>
 
       {/* Header Card */}
-      <div className="rounded-xl border border-secondary bg-primary p-6 sm:p-8">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6 sm:p-8">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="flex items-center gap-5">
           <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full bg-utility-brand-50 ring-4 ring-utility-brand-100">
             <span className="text-2xl font-bold text-utility-brand-700">{initials}</span>
@@ -320,7 +322,8 @@ export default function AdminUserDetailPage() {
       <div className="mt-6">
         {activeTab === "overview" && (
           <div className="grid gap-6 sm:grid-cols-2">
-            <div className="rounded-xl border border-secondary bg-primary p-6">
+            <div className="relative rounded-xl border border-secondary bg-primary p-6">
+              <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
               <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-tertiary">
                 {t("accountInfo")}
               </h3>
@@ -390,7 +393,8 @@ export default function AdminUserDetailPage() {
               </dl>
             </div>
 
-            <div className="rounded-xl border border-secondary bg-primary p-6">
+            <div className="relative rounded-xl border border-secondary bg-primary p-6">
+              <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
               <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-tertiary">
                 {t("membershipSummary")}
               </h3>
@@ -438,7 +442,8 @@ export default function AdminUserDetailPage() {
         {activeTab === "organizations" && (
           <div className="space-y-3">
             {userDetails.organizations.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
+              <div className="relative flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 <Building01 className="h-10 w-10 text-quaternary" />
                 <p className="mt-3 text-sm text-tertiary">{t("notMemberOfOrgs")}</p>
               </div>
@@ -447,8 +452,9 @@ export default function AdminUserDetailPage() {
                 org ? (
                   <div
                     key={`${org.organizationId}-${idx}`}
-                    className="flex items-center justify-between rounded-xl border border-secondary bg-primary p-4 transition-colors hover:bg-secondary"
+                    className="relative flex items-center justify-between rounded-xl border border-secondary bg-primary p-4 transition-colors hover:bg-secondary"
                   >
+                    <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                     <div className="flex items-center gap-4">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-utility-brand-50">
                         <Building01 className="h-5 w-5 text-utility-brand-600" />
@@ -477,7 +483,8 @@ export default function AdminUserDetailPage() {
         {activeTab === "teams" && (
           <div className="space-y-3">
             {userDetails.teams.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
+              <div className="relative flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 <Users02 className="h-10 w-10 text-quaternary" />
                 <p className="mt-3 text-sm text-tertiary">{t("notMemberOfTeams")}</p>
               </div>
@@ -486,8 +493,9 @@ export default function AdminUserDetailPage() {
                 team ? (
                   <div
                     key={`${team.teamId}-${idx}`}
-                    className="flex items-center justify-between rounded-xl border border-secondary bg-primary p-4 transition-colors hover:bg-secondary"
+                    className="relative flex items-center justify-between rounded-xl border border-secondary bg-primary p-4 transition-colors hover:bg-secondary"
                   >
+                    <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                     <div className="flex items-center gap-4">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-utility-brand-50">
                         <Users02 className="h-5 w-5 text-utility-brand-600" />
@@ -518,13 +526,15 @@ export default function AdminUserDetailPage() {
         {activeTab === "activity" && (
           <div className="space-y-3">
             {!userActivityLogs || userActivityLogs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
+              <div className="relative flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 <Activity className="h-10 w-10 text-quaternary" />
                 <p className="mt-3 text-sm text-tertiary">{t("noActivityLogs")}</p>
               </div>
             ) : (
               userActivityLogs.map((log) => (
-                <div key={log._id} className="rounded-xl border border-secondary bg-primary p-4">
+                <div key={log._id} className="relative rounded-xl border border-secondary bg-primary p-4">
+                  <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-utility-gray-50 dark:bg-gray-800">

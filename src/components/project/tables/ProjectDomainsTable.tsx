@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Globe01 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { useTranslations } from "next-intl";
 
 interface ProjectDomainsTableProps {
@@ -42,7 +43,8 @@ export function ProjectDomainsTable({ projectId }: ProjectDomainsTableProps) {
     }
 
     return (
-        <div className="rounded-xl border border-secondary bg-primary p-6">
+        <div className="relative rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             <h3 className="text-md font-semibold text-primary">{t("columnDomains")}</h3>
             <p className="mb-4 text-sm text-tertiary">{t("domainsInProject", { count: domains.length })}</p>
 

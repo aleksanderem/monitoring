@@ -17,6 +17,7 @@ import {
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { BacklinkGapDetailModal } from "../modals/BacklinkGapDetailModal";
 
 interface BacklinkGapTableProps {
@@ -285,7 +286,8 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
 
     if (data === undefined) {
         return (
-            <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 <div className="h-5 w-40 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
                 <div className="h-64 animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
             </div>
@@ -294,7 +296,8 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
 
     if (!data || data.gaps.length === 0) {
         return (
-            <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 <div className="flex items-center gap-2">
                     <Target04 className="h-5 w-5 text-fg-brand-primary" />
                     <h3 className="text-md font-semibold text-primary">{t('backlinkGapTitle')}</h3>
@@ -309,7 +312,8 @@ export function BacklinkGapTable({ domainId }: BacklinkGapTableProps) {
 
     return (
         <>
-            <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 {/* Header */}
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2">

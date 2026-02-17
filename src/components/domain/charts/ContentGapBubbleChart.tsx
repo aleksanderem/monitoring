@@ -15,6 +15,7 @@ import {
 import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface ContentGapBubbleChartProps {
   domainId: Id<"domains">;
@@ -71,7 +72,8 @@ export function ContentGapBubbleChart({
 
   if (gaps === undefined) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="h-5 w-48 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
         <div className="mt-4 h-[350px] animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
       </div>
@@ -124,7 +126,8 @@ export function ContentGapBubbleChart({
   }
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-primary">
           {t("contentGapBubbleTitle")}

@@ -13,6 +13,7 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { DateRangePicker } from "@/components/common/DateRangePicker";
 import { useDateRange } from "@/hooks/useDateRange";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { Button } from "@/components/base/buttons/button";
 import { RefreshCcw01 } from "@untitledui/icons";
 import { toast } from "sonner";
@@ -61,7 +62,8 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
 
   if (history === undefined) {
     return (
-      <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-primary">{t("positionHistory")}</h2>
         </div>
@@ -72,7 +74,8 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
 
   if (!history || history.length === 0) {
     return (
-      <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-primary">{t("positionHistory")}</h2>
         </div>
@@ -103,7 +106,8 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
 
   if (filteredHistory.length === 0) {
     return (
-      <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <h2 className="text-lg font-semibold text-primary">{t("positionHistory")}</h2>
           <DateRangePicker value={dateRange} onChange={setDateRange} excludePresets={["7d", "30d"]} />
@@ -137,7 +141,8 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
   };
 
   return (
-    <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold text-primary">{t('positionHistory')}</h2>

@@ -9,6 +9,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface TLDDistributionChartProps {
   data: Record<string, number>;
@@ -20,7 +21,8 @@ export function TLDDistributionChart({ data, isLoading }: TLDDistributionChartPr
   const barColor = "#3b82f6"; // Modern blue
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="flex items-center justify-between">
           <div>
             <div className="h-5 w-48 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
@@ -43,7 +45,8 @@ export function TLDDistributionChart({ data, isLoading }: TLDDistributionChartPr
 
   if (chartData.length === 0) {
     return (
-      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div>
           <h3 className="text-md font-semibold text-primary">{t('tldTitle')}</h3>
           <p className="text-sm text-tertiary">{t('tldSubtitle')}</p>
@@ -64,7 +67,8 @@ export function TLDDistributionChart({ data, isLoading }: TLDDistributionChartPr
   } satisfies ChartConfig;
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div>
         <h3 className="text-md font-semibold text-primary">{t('tldTitle')}</h3>
         <p className="text-sm text-tertiary">{t('tldDescription')}</p>

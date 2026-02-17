@@ -27,6 +27,7 @@ import { ContentGapDetailModal } from "../modals/ContentGapDetailModal";
 import { useTranslations } from "next-intl";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { BulkActionBar } from "@/components/patterns/BulkActionBar";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface ContentGapOpportunitiesTableProps {
   domainId: Id<"domains">;
@@ -327,7 +328,8 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
   // Loading state
   if (opportunities === undefined) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="space-y-3">
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="h-12 animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
@@ -340,7 +342,8 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
   // Empty state
   if (!competitors || competitors.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="text-center py-12">
           <SearchLg className="h-12 w-12 text-quaternary mx-auto mb-4" />
           <p className="text-tertiary mb-2">{t('contentGapNoCompetitors')}</p>
@@ -353,7 +356,8 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
   }
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary">
+    <div className="relative rounded-xl border border-secondary bg-primary">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       {/* Toolbar */}
       <div className="border-b border-secondary p-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">

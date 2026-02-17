@@ -37,7 +37,7 @@ export default function AuthLayout({
   return (
     <div className="dark-mode relative flex min-h-screen items-center justify-center overflow-hidden bg-gray-950 px-4">
       <StripedPattern className="text-white/[0.04]" />
-      <div className="relative z-20 w-full max-w-md">
+      <div className="relative z-20 w-full">
         {children}
       </div>
     </div>

@@ -8,6 +8,7 @@ import { ChartLegendContent, ChartTooltipContent } from "@/components/applicatio
 import { LoadingState } from "@/components/shared/LoadingState";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface MovementTrendChartProps {
   domainId: Id<"domains">;
@@ -20,7 +21,8 @@ export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
 
   if (trend === undefined) {
     return (
-      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <h3 className="text-sm font-semibold text-primary">{t("positionMovementTrend")}</h3>
         <LoadingState type="card" />
       </div>
@@ -30,7 +32,8 @@ export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
   // Check if there's no historical data yet
   if (trend.length === 0) {
     return (
-      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <h3 className="text-sm font-semibold text-primary">{t("positionMovementTrend")}</h3>
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <svg className="h-12 w-12 text-tertiary mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,7 +53,8 @@ export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
   }));
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <h3 className="text-sm font-semibold text-primary">{t('positionMovementTrend')}</h3>
 
       <div className="h-80">

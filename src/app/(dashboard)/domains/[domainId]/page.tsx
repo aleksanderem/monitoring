@@ -95,6 +95,7 @@ import { GeneratorsSection } from "@/components/domain/sections/GeneratorsSectio
 import { OnboardingChecklist } from "@/components/domain/onboarding/OnboardingChecklist";
 import { getCountryFlag, getLanguageFlag } from "@/lib/countryFlags";
 import { EzIcon } from "@/components/foundations/ez-icon";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PermissionGate } from "@/components/auth/PermissionGate";
@@ -168,7 +169,8 @@ function DomainLimitsSection({ domainId, currentLimits }: { domainId: Id<"domain
   };
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-primary">{t("refreshLimitsTitle")}</h2>
         <p className="mt-1 text-sm text-tertiary">{t("refreshLimitsDescription")}</p>
@@ -627,6 +629,7 @@ export default function DomainDetailPage() {
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-start pt-32">
             <div className="absolute inset-0 bg-primary/60 backdrop-blur-[2px]" />
             <div className="relative z-10 flex flex-col items-center gap-4 rounded-xl border border-secondary bg-primary p-8 shadow-lg">
+              <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50">
                 <Settings01 className="h-6 w-6 text-brand-600" />
               </div>
@@ -676,7 +679,8 @@ export default function DomainDetailPage() {
                 <ForecastSummaryCard domainId={domainId} />
 
                 {/* Placeholder for future sections */}
-                <div className="rounded-xl border border-secondary bg-primary p-6">
+                <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                  <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                   <p className="text-sm text-tertiary">
                     {t('additionalAnalytics')}
                   </p>
@@ -897,7 +901,7 @@ export default function DomainDetailPage() {
 
             {/* Link Building Tab */}
             <TabPanel id="link-building">
-              <LinkBuildingSection domainId={domainId} />
+              <LinkBuildingSection domainId={domainId} domainName={domain.domain} />
             </TabPanel>
 
             {/* Competitors Tab */}
@@ -987,7 +991,8 @@ export default function DomainDetailPage() {
             {/* Settings Tab */}
             <TabPanel id="settings">
               <div className="flex flex-col gap-6">
-                <div className="rounded-xl border border-secondary bg-primary p-6">
+                <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                  <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                   <h2 className="text-lg font-semibold text-primary">{t('settings')}</h2>
 
                   <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">

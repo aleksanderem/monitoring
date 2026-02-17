@@ -28,6 +28,7 @@ import {
   MinusCircle,
 } from "@untitledui/icons";
 import { toast } from "sonner";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import {
   type Strategy,
   type StrategySession,
@@ -267,7 +268,8 @@ export function AIStrategySection({ domainId }: AIStrategySectionProps) {
     <div className="flex flex-col gap-6">
       {/* Strategy Header — shown when a strategy exists */}
       {currentStrategy && displaySession && (
-        <div className="rounded-xl border border-secondary bg-primary p-6 shadow-sm">
+        <div className="relative rounded-xl border border-secondary bg-primary p-6 shadow-sm">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
@@ -366,7 +368,8 @@ export function AIStrategySection({ domainId }: AIStrategySectionProps) {
           </Button>
         </div>
       ) : (
-        <div className="rounded-xl border border-secondary bg-primary p-6">
+        <div className="relative rounded-xl border border-secondary bg-primary p-6">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="flex flex-col gap-4">
             <TextArea
               label={t("businessDescription")}
@@ -481,7 +484,8 @@ export function AIStrategySection({ domainId }: AIStrategySectionProps) {
 
       {/* Progress state */}
       {isCurrentlyGenerating && !currentStrategy && displaySession && (
-        <div className="rounded-xl border border-secondary bg-primary p-6 space-y-4">
+        <div className="relative rounded-xl border border-secondary bg-primary p-6 space-y-4">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           {/* Progress bar */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-sm">
@@ -600,7 +604,8 @@ export function AIStrategySection({ domainId }: AIStrategySectionProps) {
                 const sessionIdx = (history as any[]).findIndex((s: any) => s._id === session._id);
                 const sessionNum = sessionIdx === -1 ? "?" : (history as any[]).length - sessionIdx;
                 return (
-                  <div key={session._id} className="rounded-xl border border-secondary bg-primary">
+                  <div key={session._id} className="relative rounded-xl border border-secondary bg-primary">
+                    <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                     <div className="flex items-start justify-between gap-4 px-6 py-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">

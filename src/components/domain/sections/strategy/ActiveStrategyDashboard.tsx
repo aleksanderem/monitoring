@@ -14,6 +14,7 @@ import {
   ChevronUp,
 } from "@untitledui/icons";
 import { EzIcon } from "@/components/foundations/ez-icon";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { toast } from "sonner";
 import { useState } from "react";
 import {
@@ -182,7 +183,8 @@ export function ActiveStrategyDashboard({ session, domainId }: ActiveStrategyDas
 
       {/* Combined Progress bar */}
       {totalCount > 0 && (
-        <div className="rounded-xl border border-secondary bg-primary p-6">
+        <div className="relative rounded-xl border border-secondary bg-primary p-6">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-primary">{t("taskProgress")}</h3>
             <span className="text-sm font-medium text-primary tabular-nums">

@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from "recharts";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { useTranslations } from "next-intl";
 
 interface ProjectPositionMonitoringProps {
@@ -38,7 +39,8 @@ export function ProjectPositionMonitoring({ projectId }: ProjectPositionMonitori
         <div className="flex flex-col gap-6">
             {/* Position Distribution */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <div className="rounded-xl border border-secondary bg-primary p-6">
+                <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                    <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                     <h3 className="text-md font-semibold text-primary">{t("positionDistribution")}</h3>
                     <p className="mb-4 text-sm text-tertiary">{t("positionDistributionDescription")}</p>
                     {distribution === undefined ? (
@@ -67,7 +69,8 @@ export function ProjectPositionMonitoring({ projectId }: ProjectPositionMonitori
                 </div>
 
                 {/* Movement Trend */}
-                <div className="rounded-xl border border-secondary bg-primary p-6">
+                <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                    <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                     <h3 className="text-md font-semibold text-primary">{t("visibilityTrend")}</h3>
                     <p className="mb-4 text-sm text-tertiary">{t("visibilityTrendDescription")}</p>
                     {trend === undefined ? (
@@ -98,7 +101,8 @@ export function ProjectPositionMonitoring({ projectId }: ProjectPositionMonitori
             {performers && (performers.gainers.length > 0 || performers.losers.length > 0) && (
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                     {/* Gainers */}
-                    <div className="rounded-xl border border-secondary bg-primary p-6">
+                    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                         <h3 className="text-md font-semibold text-utility-success-600">{t("topGainers")}</h3>
                         <p className="mb-3 text-sm text-tertiary">{t("topGainersDescription")}</p>
                         <div className="space-y-2">
@@ -120,7 +124,8 @@ export function ProjectPositionMonitoring({ projectId }: ProjectPositionMonitori
                     </div>
 
                     {/* Losers */}
-                    <div className="rounded-xl border border-secondary bg-primary p-6">
+                    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                         <h3 className="text-md font-semibold text-utility-error-600">{t("topLosers")}</h3>
                         <p className="mb-3 text-sm text-tertiary">{t("topLosersDescription")}</p>
                         <div className="space-y-2">

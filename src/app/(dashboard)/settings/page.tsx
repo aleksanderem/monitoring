@@ -18,6 +18,7 @@ import {
   Users01,
   Speedometer02,
   Shield01,
+  CreditCard02,
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
@@ -30,6 +31,7 @@ import { RoleManagement } from "@/components/settings/RoleManagement";
 import { FileTrigger } from "@/components/base/file-upload-trigger/file-upload-trigger";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { useTheme } from "next-themes";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
@@ -1004,6 +1006,150 @@ function MembersSection() {
   );
 }
 
+// ─── Plan & Usage section ────────────────────────────────────────────
+
+function UsageBar({ current, limit, label }: { current: number; limit: number | null; label: string }) {
+  const t = useTranslations("settings");
+  const isUnlimited = limit === null || limit === 0;
+  const percentage = isUnlimited ? 0 : Math.min((current / limit) * 100, 100);
+  const isHigh = !isUnlimited && percentage >= 80;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-secondary">{label}</span>
+        <span className="text-sm tabular-nums text-tertiary">
+          {current} / {isUnlimited ? t("planUnlimited") : limit}
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+        <div
+          className={`h-full rounded-full transition-all ${isHigh ? "bg-fg-warning-primary" : "bg-brand-solid"}`}
+          style={{ width: isUnlimited ? "0%" : `${percentage}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+const MODULE_LABELS: Record<string, string> = {
+  positioning: "Keyword Tracking",
+  backlinks: "Backlinks",
+  seo_audit: "SEO Audit",
+  reports: "Reports",
+  competitors: "Competitors",
+  ai_strategy: "AI Strategy",
+  forecasts: "Forecasts",
+  link_building: "Link Building",
+};
+
+function PlanUsageSection() {
+  const t = useTranslations("settings");
+  const orgs = useQuery(api.organizations.getUserOrganizations);
+  const orgId = orgs?.[0]?._id;
+  const plan = useQuery(
+    api.plans.getPlan,
+    orgs?.[0]?.planId ? { planId: orgs[0].planId } : "skip",
+  );
+  const usage = useQuery(
+    api.limits.getUsageStats,
+    orgId ? { organizationId: orgId } : "skip",
+  );
+
+  if (orgs === undefined || plan === undefined || usage === undefined) {
+    return <LoadingState type="card" rows={3} />;
+  }
+
+  const planName = plan?.name ?? t("planFree");
+  const planKey = plan?.key ?? "free";
+  const planModules = (plan?.modules as string[]) ?? [];
+
+  const badgeColor = planKey === "enterprise" ? "purple" : planKey === "pro" ? "blue" : "gray";
+
+  return (
+    <Section
+      title={t("planTitle")}
+      description={t("planDescription")}
+    >
+      {/* Plan badge */}
+      <div className="mb-6 flex items-center gap-3">
+        <Badge size="md" type="pill-color" color={badgeColor}>
+          {planName}
+        </Badge>
+        {planKey === "free" && (
+          <span className="text-sm text-tertiary">{t("planFreeHint")}</span>
+        )}
+      </div>
+
+      {/* Usage stats */}
+      {usage && (
+        <div className="mb-6 flex flex-col gap-4">
+          <UsageBar
+            label={t("planKeywordsUsage")}
+            current={usage.keywords.current}
+            limit={usage.keywords.limit}
+          />
+          <UsageBar
+            label={t("planDomainsUsage")}
+            current={usage.domains.current}
+            limit={usage.domains.limit}
+          />
+          <UsageBar
+            label={t("planProjectsUsage")}
+            current={usage.projects.current}
+            limit={usage.projects.limit}
+          />
+        </div>
+      )}
+
+      {/* Modules */}
+      <div className="rounded-lg border border-secondary p-4">
+        <h3 className="mb-3 text-sm font-medium text-primary">{t("planModules")}</h3>
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(MODULE_LABELS).map(([key, label]) => {
+            const active = planModules.includes(key);
+            return (
+              <span
+                key={key}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+                  active
+                    ? "bg-success-50 text-fg-success-primary dark:bg-success-50/10"
+                    : "bg-secondary text-quaternary line-through"
+                }`}
+              >
+                {active && (
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                    <path d="M1.25 4L3.75 6.5L8.75 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+                {label}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Plan limits summary */}
+      {usage?.defaults && (
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="rounded-lg border border-secondary p-3">
+            <p className="text-xs text-tertiary">{t("planDomainsPerProject")}</p>
+            <p className="text-lg font-semibold text-primary tabular-nums">
+              {usage.defaults.maxDomainsPerProject ?? t("planUnlimited")}
+            </p>
+          </div>
+          <div className="rounded-lg border border-secondary p-3">
+            <p className="text-xs text-tertiary">{t("planKeywordsPerDomain")}</p>
+            <p className="text-lg font-semibold text-primary tabular-nums">
+              {usage.defaults.maxKeywordsPerDomain ?? t("planUnlimited")}
+            </p>
+          </div>
+        </div>
+      )}
+    </Section>
+  );
+}
+
 // ─── Limits section ─────────────────────────────────────────────────
 
 function LimitsSection() {
@@ -1120,6 +1266,7 @@ export default function SettingsPage() {
 
   const tabs = [
     { id: "profile", label: t("tabProfile"), icon: User01 },
+    { id: "plan", label: t("tabPlan"), icon: CreditCard02 },
     { id: "preferences", label: t("tabPreferences"), icon: Settings01 },
     { id: "notifications", label: t("tabNotifications"), icon: Bell01 },
     { id: "api-keys", label: t("tabApiKeys"), icon: Key01 },
@@ -1151,7 +1298,8 @@ export default function SettingsPage() {
           className="lg:hidden"
         />
 
-        <div className="w-full rounded-xl border border-secondary bg-primary">
+        <div className="relative w-full rounded-xl border border-secondary bg-primary">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="grid w-full lg:grid-cols-[13rem_1fr]">
             {/* Desktop sidebar navigation */}
             <div className="hidden border-r border-secondary p-4 lg:block">
@@ -1166,6 +1314,10 @@ export default function SettingsPage() {
             <div className="min-w-0">
               <TabPanel id="profile" className="w-full">
                 <ProfileSection />
+              </TabPanel>
+
+              <TabPanel id="plan" className="w-full">
+                <PlanUsageSection />
               </TabPanel>
 
               <TabPanel id="preferences" className="w-full">

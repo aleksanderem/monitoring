@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { KeywordAnalysisReportDetailModal } from "../modals/KeywordAnalysisReportDetailModal";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface CompetitorAnalysisReportsSectionProps {
   domainId: Id<"domains">;
@@ -194,7 +195,8 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
 
   if (reports === undefined) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="text-center py-8 text-tertiary">{t('reportsLoading')}</div>
       </div>
     );
@@ -202,7 +204,8 @@ export function CompetitorAnalysisReportsSection({ domainId }: CompetitorAnalysi
 
   if (reports.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="text-center py-12">
           <FileSearch02 className="h-12 w-12 text-quaternary mx-auto mb-4" />
           <h3 className="text-md font-semibold text-primary mb-2">{t('reportsEmpty')}</h3>

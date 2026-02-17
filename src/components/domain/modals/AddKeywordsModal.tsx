@@ -9,6 +9,7 @@ import { Button } from "@/components/base/buttons/button";
 import { toast } from "sonner";
 import { X, Plus, Stars01 } from "@untitledui/icons";
 import { useEscapeClose } from "@/hooks/useEscapeClose";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface AddKeywordsModalProps {
   domainId: Id<"domains">;
@@ -96,6 +97,7 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="relative bg-primary rounded-xl border border-secondary shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-secondary">
             <div>

@@ -33,6 +33,7 @@ import { KeywordMonitoringDetailModal } from "../modals/KeywordMonitoringDetailM
 import { RefreshConfirmModal } from "../modals/RefreshConfirmModal";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { BulkActionBar } from "@/components/patterns/BulkActionBar";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface KeywordMonitoringTableProps {
   domainId: Id<"domains">;
@@ -253,7 +254,8 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
 
   if (keywords.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
+      <div className="relative rounded-xl border border-secondary bg-primary p-8 text-center">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <SearchLg className="mx-auto h-12 w-12 text-fg-quaternary" />
         <p className="mt-4 text-sm text-primary font-medium">{t('noKeywordsMonitored')}</p>
         <p className="mt-2 text-xs text-tertiary">{t('addKeywordsToStartTracking')}</p>
@@ -290,7 +292,8 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
 
   return (
     <>
-      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         {/* SERP Fetch Job Progress */}
         {activeSerpJob && activeSerpJob.status !== "completed" && (
           <div className="rounded-lg border border-utility-blue-200 bg-utility-blue-50 p-4">

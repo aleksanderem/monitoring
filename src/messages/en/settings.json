@@ -171,5 +171,17 @@
   "roleOwnerDescription": "Full access to all settings and data. Can transfer ownership.",
   "roleAdminDescription": "Full access except changing the owner. Can manage members, roles, and all data.",
   "roleMemberDescription": "Can manage projects, domains, keywords, and run analyses. Cannot manage members or organization settings.",
-  "roleViewerDescription": "View-only access. Can browse all data but cannot make changes."
+  "roleViewerDescription": "View-only access. Can browse all data but cannot make changes.",
+  "tabPlan": "Plan & Usage",
+  "planTitle": "Plan & Usage",
+  "planDescription": "View your current plan, resource usage, and available features.",
+  "planFree": "Free",
+  "planFreeHint": "Upgrade for more keywords, domains, and advanced features.",
+  "planKeywordsUsage": "Keywords",
+  "planDomainsUsage": "Domains",
+  "planProjectsUsage": "Projects",
+  "planUnlimited": "Unlimited",
+  "planModules": "Available modules",
+  "planDomainsPerProject": "Domains per project",
+  "planKeywordsPerDomain": "Keywords per domain"
 }

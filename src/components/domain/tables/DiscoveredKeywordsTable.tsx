@@ -30,6 +30,7 @@ import { KeywordTooltip } from "../tooltips/KeywordTooltip";
 import { KeywordDetailModal } from "../modals/KeywordDetailModal";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { BulkActionBar } from "@/components/patterns/BulkActionBar";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface DiscoveredKeywordsTableProps {
   domainId: Id<"domains">;
@@ -244,7 +245,8 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
 
   if (keywords.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
+      <div className="relative rounded-xl border border-secondary bg-primary p-8 text-center">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <SearchLg className="mx-auto h-12 w-12 text-fg-quaternary" />
         <p className="mt-4 text-sm text-tertiary">{t('noKeywordsDiscovered')}</p>
         <p className="mt-2 text-xs text-tertiary">{t('keywordsAppearAfterFetch')}</p>
@@ -272,7 +274,8 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
 
   return (
     <>
-      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-primary">{t('discoveredKeywords')}</h3>

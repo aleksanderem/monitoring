@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/base/badges/badges";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { TrendUp02, TrendDown02 } from "@untitledui/icons";
 
 interface TopKeyword {
@@ -34,7 +35,8 @@ export function TopKeywordsTable({ keywords, title, description, isLoading }: To
   const t = useTranslations('keywords');
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div>
           <div className="h-5 w-48 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
           <div className="mt-1 h-4 w-64 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
@@ -50,7 +52,8 @@ export function TopKeywordsTable({ keywords, title, description, isLoading }: To
 
   if (keywords.length === 0) {
     return (
-      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div>
           <h3 className="text-md font-semibold text-primary">{title}</h3>
           <p className="text-sm text-tertiary">{description}</p>
@@ -63,7 +66,8 @@ export function TopKeywordsTable({ keywords, title, description, isLoading }: To
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div>
         <h3 className="text-md font-semibold text-primary">{title}</h3>
         <p className="text-sm text-tertiary">{description}</p>

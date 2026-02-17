@@ -19,6 +19,13 @@
     "priorityVeryLow": "Bardzo niski",
     "generating": "Generowanie...",
     "generateReport": "Generuj raport",
+    "refreshProspects": "Odśwież prospekty",
+    "refreshingProspects": "Odświeżanie...",
+    "downloadReport": "Pobierz raport",
+    "downloadingReport": "Pobieranie...",
+    "downloadReportSuccess": "Raport pobrany pomyślnie",
+    "downloadReportFailed": "Nie udało się wygenerować raportu PDF",
+    "downloadReportNoData": "Brak danych o prospektach. Najpierw wygeneruj prospekty.",
 
     "columnReferringDomain": "Domena odsyłająca",
     "columnAnchorText": "Anchor text",

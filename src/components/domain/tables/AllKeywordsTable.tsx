@@ -18,6 +18,7 @@ import { useTranslations } from "next-intl";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { Input } from "@/components/base/input/input";
 import { Button } from "@/components/base/buttons/button";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface AllKeywordsTableProps {
   domainId: Id<"domains">;
@@ -189,7 +190,8 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
 
   if (keywords.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
+      <div className="relative rounded-xl border border-secondary bg-primary p-8 text-center">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <SearchLg className="mx-auto h-12 w-12 text-fg-quaternary" />
         <p className="mt-4 text-sm text-tertiary">{t('noKeywordsFound')}</p>
       </div>
@@ -215,7 +217,8 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-primary">{t('allKeywords')}</h3>

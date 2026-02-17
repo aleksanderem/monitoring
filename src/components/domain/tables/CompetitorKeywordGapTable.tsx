@@ -14,6 +14,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { BulkActionBar } from "@/components/patterns/BulkActionBar";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface CompetitorKeywordGapTableProps {
   domainId: Id<"domains">;
@@ -98,7 +99,8 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
 
   if (isLoadingCompetitors) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="text-center py-8 text-tertiary">{t('keywordGapLoading')}</div>
       </div>
     );
@@ -106,7 +108,8 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
 
   if (activeCompetitors.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="text-center py-12">
           <p className="text-tertiary mb-4">{t('keywordGapNoCompetitors')}</p>
           <p className="text-sm text-quaternary">
@@ -118,7 +121,8 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
   }
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary p-6 space-y-4">
+    <div className="relative rounded-xl border border-secondary bg-primary p-6 space-y-4">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div>
         <h3 className="text-lg font-semibold text-primary">{t('keywordGapTitle')}</h3>
         <p className="text-sm text-tertiary">

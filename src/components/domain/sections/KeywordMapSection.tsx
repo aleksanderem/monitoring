@@ -15,6 +15,7 @@ import { Target04, Zap, TrendUp02, Hash01, HelpCircle, Star01, MessageChatCircle
 import { Tooltip, TooltipTrigger } from "react-aria-components";
 import { Button } from "@/components/base/buttons/button";
 import { toast } from "sonner";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface KeywordMapSectionProps {
     domainId: Id<"domains">;
@@ -103,7 +104,8 @@ export function KeywordMapSection({ domainId }: KeywordMapSectionProps) {
         <div className="flex flex-col gap-6">
             {/* Refresh button when no discovered keywords */}
             {stats && stats.total === 0 && (
-                <div className="flex flex-col items-center gap-3 rounded-xl border border-secondary bg-primary py-10">
+                <div className="relative flex flex-col items-center gap-3 rounded-xl border border-secondary bg-primary py-10">
+                    <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                     <Globe01 className="h-10 w-10 text-quaternary" />
                     <p className="text-sm font-medium text-primary">{t('noDiscoveredKeywords')}</p>
                     <p className="text-xs text-tertiary max-w-sm text-center">{t('noDiscoveredKeywordsDesc')}</p>
@@ -122,7 +124,8 @@ export function KeywordMapSection({ domainId }: KeywordMapSectionProps) {
             {/* Summary Cards */}
             {stats && stats.total > 0 && (
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                    <div className="rounded-xl border border-secondary bg-primary p-4">
+                    <div className="relative rounded-xl border border-secondary bg-primary p-4">
+                        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                         <div className="flex items-center gap-2 text-sm text-tertiary">
                             <Hash01 className="h-4 w-4" />
                             {t('totalKeywords')}
@@ -130,7 +133,8 @@ export function KeywordMapSection({ domainId }: KeywordMapSectionProps) {
                         <p className="mt-1 text-2xl font-semibold text-primary">{formatNumber(stats.total)}</p>
                         <p className="mt-0.5 text-xs text-tertiary">{t('countMonitored', { count: stats.monitored })}</p>
                     </div>
-                    <div className="rounded-xl border border-secondary bg-primary p-4">
+                    <div className="relative rounded-xl border border-secondary bg-primary p-4">
+                        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                         <div className="flex items-center gap-2 text-sm text-tertiary mb-2">
                             <Target04 className="h-4 w-4" />
                             {t('keywordTypes')}
@@ -165,7 +169,8 @@ export function KeywordMapSection({ domainId }: KeywordMapSectionProps) {
                             </div>
                         </div>
                     </div>
-                    <div className="rounded-xl border border-secondary bg-primary p-4">
+                    <div className="relative rounded-xl border border-secondary bg-primary p-4">
+                        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                         <div className="flex items-center gap-2 text-sm text-tertiary">
                             <Zap className="h-4 w-4 text-fg-warning-primary" />
                             {t('quickWins')}
@@ -173,7 +178,8 @@ export function KeywordMapSection({ domainId }: KeywordMapSectionProps) {
                         <p className="mt-1 text-2xl font-semibold text-utility-success-600">{stats.quickWins}</p>
                         <p className="mt-0.5 text-xs text-tertiary">{t('keywordsInStrikingDistance')}</p>
                     </div>
-                    <div className="rounded-xl border border-secondary bg-primary p-4">
+                    <div className="relative rounded-xl border border-secondary bg-primary p-4">
+                        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                         <div className="flex items-center gap-2 text-sm text-tertiary">
                             <TrendUp02 className="h-4 w-4" />
                             {t('totalVolume')}
@@ -195,7 +201,8 @@ export function KeywordMapSection({ domainId }: KeywordMapSectionProps) {
 
             {/* SERP Features Opportunities */}
             {serpFeatures && serpFeatures.length > 0 && (
-                <div className="rounded-xl border border-secondary bg-primary p-6">
+                <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                    <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                     <div className="mb-1 flex items-center gap-2">
                         <h3 className="text-md font-semibold text-primary">{t('serpFeatureOpportunities')}</h3>
                         <TooltipTrigger delay={200}>

@@ -8,6 +8,7 @@ import type { Id } from "../../../../../convex/_generated/dataModel";
 import { ArrowLeft, BarChart03, Hash01, Link03, Activity, Settings01 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { toast } from "sonner";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { ProjectOverviewSection } from "@/components/project/sections/ProjectOverviewSection";
@@ -56,7 +57,8 @@ function ProjectLimitsSection({ projectId, currentLimits }: { projectId: Id<"pro
   ];
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-primary">{t("projectLimitsTitle")}</h2>
         <p className="mt-1 text-sm text-tertiary">{t("projectLimitsDescription")}</p>

@@ -23,6 +23,7 @@ import {
   Trash01,
 } from "@untitledui/icons";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { BulkActionBar } from "@/components/patterns/BulkActionBar";
 
@@ -287,7 +288,8 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="h-8 w-48 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
         <div className="h-64 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
       </div>
@@ -296,7 +298,8 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
 
   if (!backlinks || backlinks.items.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
+      <div className="relative rounded-xl border border-secondary bg-primary p-8 text-center">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <Link01 className="mx-auto h-12 w-12 text-fg-quaternary" />
         <p className="mt-4 text-sm text-tertiary">{t('noBacklinksFound')}</p>
       </div>
@@ -304,7 +307,8 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       {/* Header with controls */}
       <div className="flex items-center justify-between">
         <div>

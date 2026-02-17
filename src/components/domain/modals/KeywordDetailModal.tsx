@@ -6,6 +6,7 @@ import { Button } from "@/components/base/buttons/button";
 import { KeywordDetailCard } from "../cards/KeywordDetailCard";
 import { MonthlySearchTrendChart } from "../charts/MonthlySearchTrendChart";
 import { useEscapeClose } from "@/hooks/useEscapeClose";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface KeywordDetailModalProps {
   keyword: any;
@@ -29,7 +30,8 @@ export function KeywordDetailModal({ keyword, isOpen, onClose }: KeywordDetailMo
 
       {/* Modal */}
       <div className="relative z-10 w-full max-w-6xl max-h-[90vh] overflow-y-auto mx-4">
-        <div className="rounded-xl border border-secondary bg-primary shadow-xl">
+        <div className="relative rounded-xl border border-secondary bg-primary shadow-xl">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           {/* Header */}
           <div className="flex items-center justify-between border-b border-secondary p-6">
             <div>

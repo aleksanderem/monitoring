@@ -17,6 +17,7 @@ import {
     CheckCircle,
     AlertCircle,
 } from "@untitledui/icons";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface InsightsSectionProps {
     domainId: Id<"domains">;
@@ -124,7 +125,8 @@ export function InsightsSection({ domainId }: InsightsSectionProps) {
             {/* Health Score + Breakdown */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 {/* Score Ring */}
-                <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary p-6">
+                <div className="relative flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary p-6">
+                    <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                     <h3 className="text-md font-semibold text-primary mb-3">{t('domainHealth')}</h3>
                     {healthScore ? (
                         <>
@@ -141,7 +143,8 @@ export function InsightsSection({ domainId }: InsightsSectionProps) {
                 </div>
 
                 {/* Score Breakdown */}
-                <div className="rounded-xl border border-secondary bg-primary p-6">
+                <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                    <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                     <h3 className="text-md font-semibold text-primary mb-4">{t('scoreBreakdown')}</h3>
                     {healthScore ? (
                         <div className="space-y-3">
@@ -173,7 +176,8 @@ export function InsightsSection({ domainId }: InsightsSectionProps) {
                 </div>
 
                 {/* Quick Stats */}
-                <div className="rounded-xl border border-secondary bg-primary p-6">
+                <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                    <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                     <h3 className="text-md font-semibold text-primary mb-4">{t('keyMetrics')}</h3>
                     {healthScore?.stats ? (
                         <div className="space-y-3">
@@ -222,7 +226,8 @@ export function InsightsSection({ domainId }: InsightsSectionProps) {
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                     {/* At Risk */}
                     {keywordInsights.atRisk.length > 0 && (
-                        <div className="rounded-xl border border-secondary bg-primary p-6">
+                        <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                             <div className="flex items-center gap-2 mb-3">
                                 <TrendDown02 className="h-4 w-4 text-utility-error-500" />
                                 <h3 className="text-md font-semibold text-utility-error-600">{t('atRisk')} ({keywordInsights.atRisk.length})</h3>
@@ -248,7 +253,8 @@ export function InsightsSection({ domainId }: InsightsSectionProps) {
 
                     {/* Opportunities */}
                     {keywordInsights.opportunities.length > 0 && (
-                        <div className="rounded-xl border border-secondary bg-primary p-6">
+                        <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                             <div className="flex items-center gap-2 mb-3">
                                 <TrendUp02 className="h-4 w-4 text-utility-success-500" />
                                 <h3 className="text-md font-semibold text-utility-success-600">{t('rising')} ({keywordInsights.opportunities.length})</h3>
@@ -274,7 +280,8 @@ export function InsightsSection({ domainId }: InsightsSectionProps) {
 
                     {/* Near Page 1 */}
                     {keywordInsights.nearPage1.length > 0 && (
-                        <div className="rounded-xl border border-secondary bg-primary p-6">
+                        <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                             <div className="flex items-center gap-2 mb-3">
                                 <Target04 className="h-4 w-4 text-brand-primary" />
                                 <h3 className="text-md font-semibold text-primary">{t('nearPage1')} ({keywordInsights.nearPage1.length})</h3>
@@ -300,7 +307,8 @@ export function InsightsSection({ domainId }: InsightsSectionProps) {
 
             {/* Backlink Summary */}
             {backlinkInsights && (
-                <div className="rounded-xl border border-secondary bg-primary p-6">
+                <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                    <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                     <h3 className="text-md font-semibold text-primary mb-4">{t('backlinkHealth')}</h3>
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
                         <div className="flex flex-col">
@@ -341,7 +349,8 @@ export function InsightsSection({ domainId }: InsightsSectionProps) {
 
             {/* Actionable Recommendations */}
             {recommendations && recommendations.length > 0 && (
-                <div className="rounded-xl border border-secondary bg-primary p-6">
+                <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                    <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                     <h3 className="text-md font-semibold text-primary mb-4">{t('actionableRecommendations')}</h3>
                     <div className="space-y-3">
                         {recommendations.map((rec, i) => {
@@ -374,7 +383,8 @@ export function InsightsSection({ domainId }: InsightsSectionProps) {
 
             {/* Empty state */}
             {(!recommendations || recommendations.length === 0) && !keywordInsights?.atRisk.length && !keywordInsights?.opportunities.length && (
-                <div className="rounded-xl border border-secondary bg-primary p-12 text-center">
+                <div className="relative rounded-xl border border-secondary bg-primary p-12 text-center">
+                    <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                     <CheckCircle className="h-12 w-12 text-utility-success-500 mx-auto mb-3" />
                     <p className="text-sm font-medium text-primary mb-1">{t('lookingGood')}</p>
                     <p className="text-sm text-tertiary">

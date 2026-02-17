@@ -3,6 +3,7 @@
 import type { FC, ReactNode } from "react";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { MetricChangeIndicator } from "@/components/application/metrics/metrics";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { cx } from "@/utils/cx";
 
 interface MetricCardProps {
@@ -31,7 +32,8 @@ export function MetricCard({
   className,
 }: MetricCardProps) {
   return (
-    <div className={cx("rounded-xl border border-secondary bg-primary shadow-xs", className)}>
+    <div className={cx("relative rounded-xl border border-secondary bg-primary shadow-xs", className)}>
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="relative flex flex-col gap-4 px-4 py-5 md:gap-5 md:px-5">
         {icon && (
           <FeaturedIcon

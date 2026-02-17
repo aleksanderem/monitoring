@@ -2,6 +2,7 @@
 
 import { Lightbulb02, Target03, TrendUp01, Users01, HelpCircle } from "@untitledui/icons";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 
 interface GapSummary {
@@ -25,8 +26,9 @@ export function GapSummaryCards({ summary, isLoading }: GapSummaryCardsProps) {
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className="flex flex-col gap-2 rounded-xl border border-secondary bg-primary p-4"
+            className="relative flex flex-col gap-2 rounded-xl border border-secondary bg-primary p-4"
           >
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             <div className="h-4 w-24 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
             <div className="h-8 w-16 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
             <div className="h-3 w-20 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
@@ -103,8 +105,9 @@ export function GapSummaryCards({ summary, isLoading }: GapSummaryCardsProps) {
         return (
           <div
             key={metric.title}
-            className="flex flex-col gap-2 rounded-xl border border-secondary bg-primary p-4"
+            className="relative flex flex-col gap-2 rounded-xl border border-secondary bg-primary p-4"
           >
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             <div className="flex items-center gap-2">
               <div className={`rounded-lg ${metric.bgColor} p-2`}>
                 <Icon className={`h-5 w-5 ${metric.color}`} />
