@@ -21,7 +21,7 @@ export function ExecutiveSummary({ domainId }: ExecutiveSummaryProps) {
     return (
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="rounded-xl bg-primary p-6">
+          <div key={i} className="rounded-xl border border-secondary bg-primary p-6">
             <LoadingState type="card" />
           </div>
         ))}

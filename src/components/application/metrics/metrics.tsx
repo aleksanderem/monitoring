@@ -99,7 +99,7 @@ export const MetricsSimple = ({
     className?: string;
 }) => {
     return (
-        <div className={cx("rounded-xl bg-primary shadow-xs ring-1 ring-secondary ring-inset", className)}>
+        <div className={cx("rounded-xl bg-primary border border-secondary shadow-xs", className)}>
             <div className="relative flex flex-col gap-2 px-4 py-5 md:px-5">
                 <h3 className="text-sm font-medium text-tertiary">{subtitle}</h3>
 
@@ -130,7 +130,7 @@ export const MetricsIcon01 = ({
     className?: string;
 }) => {
     return (
-        <div className={cx("rounded-xl bg-primary shadow-xs ring-1 ring-secondary ring-inset", className)}>
+        <div className={cx("rounded-xl bg-primary border border-secondary shadow-xs", className)}>
             <div className="relative flex flex-col gap-4 px-4 py-5 md:gap-5 md:px-5">
                 <FeaturedIcon color="success" theme="light" icon={TrendUp01} size="lg" />
 
@@ -165,7 +165,7 @@ export const MetricsIcon02 = ({
     className?: string;
 }) => {
     return (
-        <div className={cx("rounded-xl bg-primary shadow-xs ring-1 ring-secondary ring-inset", className)}>
+        <div className={cx("rounded-xl bg-primary border border-secondary shadow-xs", className)}>
             <div className="relative flex flex-col gap-4 px-4 py-5 md:gap-5 md:px-5">
                 <div className="flex items-center gap-3">
                     <FeaturedIcon color="brand" theme="light" size="lg" icon={Zap} />
@@ -210,7 +210,7 @@ export const MetricsIcon03 = ({
     className?: string;
 }) => {
     return (
-        <div className={cx("rounded-xl bg-primary shadow-xs ring-1 ring-secondary ring-inset", className)}>
+        <div className={cx("rounded-xl bg-primary border border-secondary shadow-xs", className)}>
             <div className="relative flex flex-col gap-4 px-4 py-5 md:gap-5 md:px-5">
                 <FeaturedIcon color="gray" theme="modern" icon={icon || TrendUp01} size="lg" />
 
@@ -258,7 +258,7 @@ export const MetricsIcon04 = ({
     className?: string;
 }) => {
     return (
-        <div className={cx("min-w-70 rounded-xl bg-primary shadow-xs ring-1 ring-secondary ring-inset", className)}>
+        <div className={cx("min-w-70 rounded-xl bg-primary border border-secondary shadow-xs", className)}>
             <div className="relative flex flex-col gap-4 px-4 py-5 md:flex-row md:px-5">
                 <FeaturedIcon color="gray" theme="modern" icon={icon} size="md" />
 
@@ -351,7 +351,7 @@ export const MetricsChart01 = ({
     const chartColor = trend === "positive" ? "text-fg-success-secondary" : "text-fg-error-secondary";
 
     return (
-        <div className={cx("rounded-xl bg-primary shadow-xs ring-1 ring-secondary ring-inset", className)}>
+        <div className={cx("rounded-xl bg-primary border border-secondary shadow-xs", className)}>
             <div className="relative flex flex-col gap-5 px-4 py-5 md:px-5">
                 <h3 className="text-md font-semibold text-primary">{subtitle}</h3>
 
@@ -436,7 +436,7 @@ export const MetricsChart02 = ({
     const chartColor = changeTrend === "positive" ? "text-fg-success-secondary" : "text-fg-error-secondary";
 
     return (
-        <div className={cx("rounded-xl bg-primary shadow-xs ring-1 ring-secondary ring-inset", className)}>
+        <div className={cx("rounded-xl bg-primary border border-secondary shadow-xs", className)}>
             <div className="relative flex flex-col gap-4 px-4 py-5 md:gap-5 md:px-5">
                 <div className="flex items-center gap-3">
                     <FeaturedIcon color="gray" theme="modern" size="lg" icon={icon} />
@@ -524,7 +524,7 @@ export const MetricsChart03 = ({
     chartColor = chartColor ?? (changeTrend === "positive" ? "text-fg-success-secondary" : "text-fg-error-secondary");
 
     return (
-        <div className={cx("rounded-xl bg-primary shadow-xs ring-1 ring-secondary ring-inset", className)}>
+        <div className={cx("rounded-xl bg-primary border border-secondary shadow-xs", className)}>
             <div className="relative flex flex-col gap-4 px-4 py-5 md:gap-5 md:px-5">
                 <div className="flex flex-col gap-2">
                     <h3 className="text-sm font-medium text-tertiary">{subtitle}</h3>
@@ -610,11 +610,11 @@ export const MetricsChart04 = ({
     chartColor = chartColor ?? (changeTrend === "positive" ? "text-fg-success-secondary" : "text-fg-error-secondary");
 
     return (
-        <div className={cx("flex flex-col overflow-hidden rounded-xl bg-secondary_subtle shadow-xs ring-1 ring-secondary ring-inset", className)}>
+        <div className={cx("flex flex-col overflow-hidden rounded-xl bg-secondary_subtle border border-secondary shadow-xs", className)}>
             <div className="mb-0.5 px-4 pt-3 pb-2 md:px-5">
                 <h3 className="text-sm font-semibold text-primary">{subtitle}</h3>
             </div>
-            <div className="relative flex flex-col gap-4 rounded-xl bg-primary px-4 py-5 shadow-xs ring-1 ring-secondary ring-inset md:gap-5 md:px-5">
+            <div className="relative flex flex-col gap-4 rounded-xl bg-primary px-4 py-5 border border-secondary shadow-xs md:gap-5 md:px-5">
                 <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-3">
                         <p className="text-display-sm font-semibold text-primary">{title}</p>

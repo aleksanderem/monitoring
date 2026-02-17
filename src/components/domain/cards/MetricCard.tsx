@@ -31,7 +31,7 @@ export function MetricCard({
   className,
 }: MetricCardProps) {
   return (
-    <div className={cx("rounded-xl bg-primary shadow-xs ring-1 ring-secondary ring-inset", className)}>
+    <div className={cx("rounded-xl border border-secondary bg-primary shadow-xs", className)}>
       <div className="relative flex flex-col gap-4 px-4 py-5 md:gap-5 md:px-5">
         {icon && (
           <FeaturedIcon
