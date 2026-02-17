@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -19,6 +20,7 @@ export const getProjectOverview = query({
     handler: async (ctx, args) => {
         const userId = await auth.getUserId(ctx);
         if (!userId) return null;
+        await requireTenantAccess(ctx, "project", args.projectId);
 
         const project = await ctx.db.get(args.projectId);
         if (!project) return null;
@@ -89,6 +91,7 @@ export const getProjectPositionDistribution = query({
     handler: async (ctx, args) => {
         const userId = await auth.getUserId(ctx);
         if (!userId) return null;
+        await requireTenantAccess(ctx, "project", args.projectId);
 
         const domains = await getProjectDomains(ctx, args.projectId);
 
@@ -132,6 +135,7 @@ export const getProjectMovementTrend = query({
     handler: async (ctx, args) => {
         const userId = await auth.getUserId(ctx);
         if (!userId) return null;
+        await requireTenantAccess(ctx, "project", args.projectId);
 
         const days = args.days ?? 30;
         const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
@@ -173,6 +177,7 @@ export const getProjectBacklinksSummary = query({
     handler: async (ctx, args) => {
         const userId = await auth.getUserId(ctx);
         if (!userId) return null;
+        await requireTenantAccess(ctx, "project", args.projectId);
 
         const domains = await getProjectDomains(ctx, args.projectId);
 
@@ -227,6 +232,7 @@ export const getProjectTopPerformers = query({
     handler: async (ctx, args) => {
         const userId = await auth.getUserId(ctx);
         if (!userId) return null;
+        await requireTenantAccess(ctx, "project", args.projectId);
 
         const days = args.days ?? 7;
         const limit = args.limit ?? 20;
@@ -281,6 +287,7 @@ export const getProjectDomainsWithMetrics = query({
     handler: async (ctx, args) => {
         const userId = await auth.getUserId(ctx);
         if (!userId) return null;
+        await requireTenantAccess(ctx, "project", args.projectId);
 
         const domains = await getProjectDomains(ctx, args.projectId);
 

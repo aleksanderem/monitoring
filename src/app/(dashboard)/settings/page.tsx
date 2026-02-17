@@ -1125,7 +1125,7 @@ export default function SettingsPage() {
     { id: "api-keys", label: t("tabApiKeys"), icon: Key01 },
     { id: "branding", label: t("tabBranding"), icon: Image01 },
     { id: "members", label: t("tabMembers"), icon: Users01 },
-    { id: "roles", label: "Role i uprawnienia", icon: Shield01 },
+    { id: "roles", label: t("tabRoles"), icon: Shield01 },
     { id: "limits", label: t("tabLimits"), icon: Speedometer02 },
   ];
 

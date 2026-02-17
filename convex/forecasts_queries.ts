@@ -1,5 +1,7 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 /**
  * Get the latest forecast for an entity (keyword or domain) and metric
@@ -11,6 +13,17 @@ export const getForecast = query({
     metric: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    // Resolve entity to domain for tenant check
+    if (args.entityType === "domain") {
+      await requireTenantAccess(ctx, "domain", args.entityId);
+    } else if (args.entityType === "keyword") {
+      const keyword = await ctx.db.get(args.entityId as any);
+      if (!keyword) return null;
+      await requireTenantAccess(ctx, "domain", (keyword as any).domainId);
+    }
+
     const { entityType, entityId, metric } = args;
 
     // Get the most recent forecast for this entity + metric
@@ -37,6 +50,10 @@ export const getAnomalies = query({
     entityType: v.optional(v.union(v.literal("keyword"), v.literal("domain"))),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const { domainId, severity, resolved, entityType } = args;
 
     // Get all anomalies for this domain
@@ -82,6 +99,10 @@ export const getAnomalySummary = query({
     domainId: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { total: 0, high: 0, medium: 0, low: 0 };
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const { domainId } = args;
 
     // Get all unresolved anomalies for this domain
@@ -117,6 +138,12 @@ export const getKeywordAnomalies = query({
     keywordId: v.id("keywords"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const keyword = await ctx.db.get(args.keywordId);
+    if (!keyword) return [];
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
+
     const { keywordId } = args;
 
     const anomalies = await ctx.db

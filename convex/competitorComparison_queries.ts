@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 /**
  * Get position scatter data: your position vs competitor position per keyword.
@@ -9,6 +11,10 @@ import type { Id } from "./_generated/dataModel";
 export const getPositionScatterData = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Get active keywords with denormalized positions
     const keywords = await ctx.db
       .query("keywords")
@@ -92,6 +98,10 @@ export const getPositionScatterData = query({
 export const getBacklinkRadarData = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Get domain's backlink summary
     const domainSummary = await ctx.db
       .query("domainBacklinksSummary")
@@ -205,6 +215,10 @@ export const getBacklinkRadarData = query({
 export const getBacklinkQualityComparison = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { tiers: [], series: [] };
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const tiers = ["High DR (60+)", "Medium DR (30-59)", "Low DR (0-29)"];
 
     function tierIndex(rank: number | undefined | null): number {
@@ -271,6 +285,10 @@ export const getKeywordPositionBars = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { keywords: [], series: [] };
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const limit = args.limit ?? 15;
 
     // Get all active keywords, sorted by search volume desc

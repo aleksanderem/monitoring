@@ -88,6 +88,7 @@ import type * as onsite from "../onsite.js";
 import type * as organizations from "../organizations.js";
 import type * as pageScoring from "../pageScoring.js";
 import type * as permissions from "../permissions.js";
+import type * as plans from "../plans.js";
 import type * as projectDashboard_queries from "../projectDashboard_queries.js";
 import type * as projects from "../projects.js";
 import type * as proposals from "../proposals.js";
@@ -194,6 +195,7 @@ declare const fullApi: ApiFromModules<{
   organizations: typeof organizations;
   pageScoring: typeof pageScoring;
   permissions: typeof permissions;
+  plans: typeof plans;
   projectDashboard_queries: typeof projectDashboard_queries;
   projects: typeof projects;
   proposals: typeof proposals;

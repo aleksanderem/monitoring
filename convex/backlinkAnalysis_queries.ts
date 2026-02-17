@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -62,6 +64,10 @@ function computeLinkQualityScore(backlink: {
 export const getAnchorTextDistribution = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return null;
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const domain = await ctx.db.get(args.domainId);
         if (!domain) return null;
 
@@ -141,6 +147,10 @@ export const getAnchorTextDistribution = query({
 export const getLinkQualityScores = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return null;
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const backlinks = await ctx.db
             .query("domainBacklinks")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -199,6 +209,10 @@ export const getLinkQualityScores = query({
 export const getReferringDomainIntelligence = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return null;
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const backlinks = await ctx.db
             .query("domainBacklinks")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -306,6 +320,10 @@ export const getToxicLinks = query({
         threshold: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return null;
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const threshold = args.threshold ?? 70;
 
         const backlinks = await ctx.db
@@ -350,6 +368,10 @@ export const getToxicLinks = query({
 export const getBacklinkGap = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return { gaps: [], competitorCount: 0, totalGapDomains: 0 };
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         // Get our backlinks
         const ourBacklinks = await ctx.db
             .query("domainBacklinks")

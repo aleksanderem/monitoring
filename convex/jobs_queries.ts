@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 // Unified shape for all job types
 type UnifiedJob = {
@@ -58,6 +60,9 @@ export const getAllJobs = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+
     const limit = args.limit ?? 100;
 
     // Fetch all 7 job tables in parallel
@@ -291,6 +296,9 @@ export const getAllJobs = query({
 export const getJobStats = query({
   args: {},
   handler: async (ctx) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { activeCount: 0, completedToday: 0, failedToday: 0 };
+
     const now = Date.now();
     const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
 
@@ -422,7 +430,9 @@ export const getJobStats = query({
 
 export const getScheduledJobs = query({
   args: {},
-  handler: async () => {
+  handler: async (ctx) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
     // Hardcoded based on convex/crons.ts
     return [
       {
@@ -465,6 +475,9 @@ export const cancelAnyJob = mutation({
     jobId: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
     const { table, jobId } = args;
 
     const cancelFields = {

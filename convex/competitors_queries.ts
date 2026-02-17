@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 /**
  * Get all competitors for a domain
@@ -8,6 +10,10 @@ import type { Id } from "./_generated/dataModel";
 export const getCompetitorsByDomain = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const competitors = await ctx.db
       .query("competitors")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -27,6 +33,12 @@ export const getCompetitorPositions = query({
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) return [];
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     const days = args.days || 30;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -55,6 +67,10 @@ export const getCompetitorOverview = query({
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { yourDomain: null, competitors: [] };
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const days = args.days || 30;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -159,6 +175,10 @@ export const getKeywordGaps = query({
     minGapScore: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Get all keywords for this domain
     const keywords = await ctx.db
       .query("keywords")
@@ -267,6 +287,10 @@ export const getKeywordGaps = query({
 export const getCompetitorStats = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { totalCompetitors: 0, activeCompetitors: 0, pausedCompetitors: 0, totalKeywords: 0, totalGaps: 0, highPriorityGaps: 0 };
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const competitors = await ctx.db
       .query("competitors")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))

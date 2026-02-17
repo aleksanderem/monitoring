@@ -1,11 +1,17 @@
 import { v } from "convex/values";
 import { query, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 // Get all groups for a domain
 export const getGroupsByDomain = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const groups = await ctx.db
       .query("keywordGroups")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -34,10 +40,13 @@ export const getGroupsByDomain = query({
 export const getGroupStats = query({
   args: { groupId: v.id("keywordGroups") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
     const group = await ctx.db.get(args.groupId);
     if (!group) {
       return null;
     }
+    await requireTenantAccess(ctx, "domain", group.domainId);
 
     const memberships = await ctx.db
       .query("keywordGroupMemberships")
@@ -87,6 +96,12 @@ export const getKeywordsByGroup = query({
     groupId: v.id("keywordGroups"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const group = await ctx.db.get(args.groupId);
+    if (!group) return [];
+    await requireTenantAccess(ctx, "domain", group.domainId);
+
     const memberships = await ctx.db
       .query("keywordGroupMemberships")
       .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
@@ -123,6 +138,12 @@ export const getKeywordsByGroup = query({
 export const getGroupsForKeyword = query({
   args: { keywordId: v.id("keywords") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const keyword = await ctx.db.get(args.keywordId);
+    if (!keyword) return [];
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
+
     const memberships = await ctx.db
       .query("keywordGroupMemberships")
       .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
@@ -194,6 +215,12 @@ export const getGroupPerformanceHistory = query({
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const group = await ctx.db.get(args.groupId);
+    if (!group) return [];
+    await requireTenantAccess(ctx, "domain", group.domainId);
+
     const daysToFetch = args.days || 30;
     return fetchGroupPerformanceHistory(ctx, args.groupId, daysToFetch);
   },
@@ -206,6 +233,10 @@ export const getAllGroupsPerformance = query({
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const groups = await ctx.db
       .query("keywordGroups")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))

@@ -1,5 +1,7 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 /**
  * Get SERP features for a specific keyword over time
@@ -10,6 +12,12 @@ export const getSerpFeaturesByKeyword = query({
     days: v.optional(v.number()), // Default 30 days
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const keyword = await ctx.db.get(args.keywordId);
+    if (!keyword) return [];
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
+
     const days = args.days ?? 30;
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
@@ -33,6 +41,12 @@ export const getCurrentSerpFeatures = query({
     keywordId: v.id("keywords"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    const keyword = await ctx.db.get(args.keywordId);
+    if (!keyword) return null;
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
+
     const features = await ctx.db
       .query("serpFeatureTracking")
       .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
@@ -53,6 +67,10 @@ export const getSerpFeaturesSummary = query({
     days: v.optional(v.number()), // Default 30 days
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const days = args.days ?? 30;
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
@@ -154,6 +172,12 @@ export const getSerpFeaturesTimeline = query({
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const keyword = await ctx.db.get(args.keywordId);
+    if (!keyword) return [];
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
+
     const days = args.days ?? 90; // Longer period for timeline
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);

@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 /** NaN-safe number read: returns fallback if value is null, undefined, NaN, or Infinity */
 function safeNum(val: number | null | undefined, fallback: number): number {
@@ -50,6 +52,10 @@ export const getContentGaps = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const limit = args.limit ?? 200;
 
     // Use index-based filtering when possible to reduce docs scanned
@@ -183,6 +189,10 @@ export const getContentGaps = query({
 export const getGapSummary = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { totalGaps: 0, highPriority: 0, mediumPriority: 0, lowPriority: 0, statusCounts: { identified: 0, monitoring: 0, ranking: 0, dismissed: 0 }, totalEstimatedValue: 0, topOpportunities: [], competitorsAnalyzed: 0, lastAnalyzedAt: null };
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Single pass: compute all stats + collect top 10 in one traversal
     let totalGaps = 0;
     let highPriority = 0;
@@ -301,6 +311,10 @@ export const getGapTrends = query({
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const days = args.days || 90;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -362,6 +376,10 @@ export const getGapTrends = query({
 export const getTopicClusters = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Limit to top 2000 gaps by score to avoid exceeding read limits
     const gaps = await ctx.db
       .query("contentGaps")
@@ -505,6 +523,10 @@ export const getTopicClusters = query({
 export const getCompetitorGapComparison = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Stream-aggregate by competitor to avoid holding all gaps in memory
     const competitorAgg = new Map<
       Id<"competitors">,

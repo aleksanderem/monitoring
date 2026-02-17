@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 /**
  * Domain Health Score — aggregates health across keywords, backlinks, on-site
@@ -7,6 +9,10 @@ import { query } from "./_generated/server";
 export const getDomainHealthScore = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return null;
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const domain = await ctx.db.get(args.domainId);
         if (!domain) return null;
 
@@ -131,6 +137,10 @@ export const getDomainHealthScore = query({
 export const getKeywordInsights = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return { atRisk: [], opportunities: [], nearPage1: [], summary: { atRiskCount: 0, opportunityCount: 0, nearPage1Count: 0 } };
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const keywords = await ctx.db
             .query("keywords")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -207,6 +217,10 @@ export const getKeywordInsights = query({
 export const getBacklinkInsights = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return { totalBacklinks: 0, referringDomains: 0, toxicCount: 0, toxicPercentage: 0, newBacklinks: 0, lostBacklinks: 0, dofollowRatio: 0, activeProspects: 0 };
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         // Get backlink summary
         const summaries = await ctx.db
             .query("domainBacklinksSummary")
@@ -272,6 +286,10 @@ export const getBacklinkInsights = query({
 export const getRecommendations = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return [];
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const recommendations: Array<{
             priority: "high" | "medium" | "low";
             category: "keywords" | "backlinks" | "onsite" | "content";

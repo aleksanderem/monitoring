@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { auth } from "./auth";
-import { requirePermission, getOrgFromProject } from "./permissions";
+import { requirePermission, getOrgFromProject, requireTenantAccess } from "./permissions";
 
 // Generate random token
 function generateToken(): string {
@@ -17,6 +17,10 @@ function generateToken(): string {
 export const getReports = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "project", args.projectId);
+
     return await ctx.db
       .query("reports")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -306,6 +310,10 @@ export const deleteReport = mutation({
 export const getShareLinkForDomain = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const domain = await ctx.db.get(args.domainId);
     if (!domain) return null;
 

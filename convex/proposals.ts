@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { checkKeywordLimit } from "./limits";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 // Submit keyword proposal from public report (no auth required)
 export const submitProposal = mutation({
@@ -77,10 +79,11 @@ export const submitProposal = mutation({
 export const getProposals = query({
   args: { reportId: v.id("reports") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const report = await ctx.db.get(args.reportId);
+    if (!report) return [];
+    await requireTenantAccess(ctx, "project", report.projectId);
 
     const proposals = await ctx.db
       .query("keywordProposals")
@@ -107,10 +110,9 @@ export const getProposals = query({
 export const getProjectProposals = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "project", args.projectId);
 
     // Get all reports for this project
     const reports = await ctx.db
@@ -148,10 +150,9 @@ export const getProjectProposals = query({
 export const getPendingProposalsCount = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return 0;
+    await requireTenantAccess(ctx, "project", args.projectId);
 
     const reports = await ctx.db
       .query("reports")
@@ -179,10 +180,9 @@ export const approveProposal = mutation({
     domainId: v.id("domains"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
     const proposal = await ctx.db.get(args.proposalId);
     if (!proposal) {
@@ -211,7 +211,6 @@ export const approveProposal = mutation({
       });
     }
 
-    const userId = identity.subject as Id<"users">;
     await ctx.db.patch(args.proposalId, {
       status: "approved",
       reviewedBy: userId,
@@ -226,12 +225,14 @@ export const approveProposal = mutation({
 export const rejectProposal = mutation({
   args: { proposalId: v.id("keywordProposals") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const proposal = await ctx.db.get(args.proposalId);
+    if (!proposal) throw new Error("Proposal not found");
+    const report = await ctx.db.get(proposal.reportId);
+    if (!report) throw new Error("Report not found");
+    await requireTenantAccess(ctx, "project", report.projectId);
 
-    const userId = identity.subject as Id<"users">;
     await ctx.db.patch(args.proposalId, {
       status: "rejected",
       reviewedBy: userId,
@@ -249,12 +250,10 @@ export const bulkApproveProposals = mutation({
     domainId: v.id("domains"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
-    const userId = identity.subject as Id<"users">;
     const results: Id<"keywordProposals">[] = [];
 
     for (const proposalId of args.proposalIds) {
@@ -302,12 +301,19 @@ export const bulkRejectProposals = mutation({
     proposalIds: v.array(v.id("keywordProposals")),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    // Resolve first proposal to check tenant access
+    if (args.proposalIds.length > 0) {
+      const firstProposal = await ctx.db.get(args.proposalIds[0]);
+      if (firstProposal) {
+        const report = await ctx.db.get(firstProposal.reportId);
+        if (report) {
+          await requireTenantAccess(ctx, "project", report.projectId);
+        }
+      }
     }
 
-    const userId = identity.subject as Id<"users">;
     const results: Id<"keywordProposals">[] = [];
 
     for (const proposalId of args.proposalIds) {
