@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { auth } from "./auth";
 
 // Get teams for an organization
@@ -601,13 +602,27 @@ export const inviteMember = mutation({
       expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
-    // TODO: Send email notification with magic link (implement with email service)
-    // For now, log the invitation
+    // Get inviter name and team name for email
+    const inviter = await ctx.db.get(currentUserId);
+    const team = await ctx.db.get(args.teamId);
+    const inviterName = (inviter as any)?.name || (inviter as any)?.email || "Ktoś";
+    const teamName = team?.name || "Zespół";
+
+    // Send invitation email
+    await ctx.scheduler.runAfter(0, internal.actions.sendEmail.sendTeamInvitation, {
+      to: args.email,
+      teamName,
+      invitedByName: inviterName,
+      token,
+      customMessage: args.customMessage,
+    });
+
+    // Log the invitation
     await ctx.db.insert("notificationLogs", {
       type: "email",
       recipient: args.email,
       subject: "Team Invitation",
-      status: "pending",
+      status: "sent",
       metadata: { invitationId, token },
       createdAt: Date.now(),
     });

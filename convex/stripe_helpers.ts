@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { auth } from "./auth";
 
 /**
@@ -90,6 +91,24 @@ export const activateSubscription = internalMutation({
     });
 
     console.log("[billing] Activated Pro for org:", org.name);
+
+    // Send subscription confirmation email to org owner
+    const members = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org", (q) => q.eq("organizationId", org._id))
+      .collect();
+    const owner = members.find((m) => m.role === "owner");
+    if (owner) {
+      const ownerUser = await ctx.db.get(owner.userId);
+      const ownerEmail = (ownerUser as any)?.email;
+      if (ownerEmail) {
+        await ctx.scheduler.runAfter(0, internal.actions.sendEmail.sendSubscriptionConfirmation, {
+          to: ownerEmail,
+          planName: proPlan.name,
+          billingCycle: args.billingCycle,
+        });
+      }
+    }
   },
 });
 
