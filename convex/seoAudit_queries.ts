@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { query, internalQuery } from "./_generated/server";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 /**
  * Get the latest on-site scan for a domain
@@ -7,6 +9,10 @@ import { query, internalQuery } from "./_generated/server";
 export const getLatestScan = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const scans = await ctx.db
       .query("onSiteScans")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -75,6 +81,10 @@ export const getScanHistory = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const scans = await ctx.db
       .query("onSiteScans")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -91,6 +101,10 @@ export const getScanHistory = query({
 export const getLatestAnalysis = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const analysis = await ctx.db
       .query("domainOnsiteAnalysis")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -107,6 +121,12 @@ export const getLatestAnalysis = query({
 export const getScanPagesCount = query({
   args: { scanId: v.id("onSiteScans") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return 0;
+    const scan = await ctx.db.get(args.scanId);
+    if (!scan) return 0;
+    await requireTenantAccess(ctx, "domain", scan.domainId);
+
     const pages = await ctx.db
       .query("domainOnsitePages")
       .withIndex("by_scan", (q) => q.eq("scanId", args.scanId))
@@ -128,6 +148,10 @@ export const getPagesList = query({
     offset: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { pages: [], total: 0, hasMore: false };
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const pages = args.scanId
       ? await ctx.db
           .query("domainOnsitePages")
@@ -186,6 +210,10 @@ export const getPagesList = query({
 export const isOnsiteDataStale = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return true;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const analysis = await ctx.db
       .query("domainOnsiteAnalysis")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -205,6 +233,10 @@ export const isOnsiteDataStale = query({
 export const getSitemapData = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const data = await ctx.db
       .query("domainSitemapData")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -221,6 +253,10 @@ export const getSitemapData = query({
 export const getRobotsData = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const data = await ctx.db
       .query("domainRobotsData")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -240,6 +276,10 @@ export const getIssuesByCategory = query({
     scanId: v.optional(v.id("onSiteScans")),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const issues = await ctx.db
       .query("onSiteIssues")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -296,6 +336,10 @@ export const getCriticalIssues = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const issues = await ctx.db
       .query("onSiteIssues")
       .withIndex("by_severity", (q) => q.eq("severity", "critical"))
@@ -324,6 +368,12 @@ export const getPagesWithFailedCheck = query({
     checkCategory: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const scan = await ctx.db.get(args.scanId);
+    if (!scan) return [];
+    await requireTenantAccess(ctx, "domain", scan.domainId);
+
     const pages = await ctx.db
       .query("domainOnsitePages")
       .withIndex("by_scan", (q) => q.eq("scanId", args.scanId))
@@ -496,6 +546,10 @@ export const getImageStatsFromPages = internalQuery({
 export const getLinkAnalysis = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     return await ctx.db
       .query("crawlLinkAnalysis")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -510,6 +564,10 @@ export const getLinkAnalysis = query({
 export const getRedirectAnalysis = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     return await ctx.db
       .query("crawlRedirectAnalysis")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -524,6 +582,10 @@ export const getRedirectAnalysis = query({
 export const getImageAnalysis = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     return await ctx.db
       .query("crawlImageAnalysis")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -541,6 +603,10 @@ export const getWordFrequency = query({
     phraseLength: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const results = await ctx.db
       .query("crawlWordFrequency")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -560,6 +626,10 @@ export const getWordFrequency = query({
 export const getRobotsTestResults = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     return await ctx.db
       .query("crawlRobotsTestResults")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -574,6 +644,10 @@ export const getRobotsTestResults = query({
 export const getCrawlAnalyticsAvailability = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { hasLinks: false, hasRedirects: false, hasImages: false, hasWordFreq: false, hasRobotsTest: false, hasPageSpeed: false };
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const [links, redirects, images, wordFreq, robotsTest] = await Promise.all([
       ctx.db.query("crawlLinkAnalysis").withIndex("by_domain", (q) => q.eq("domainId", args.domainId)).first(),
       ctx.db.query("crawlRedirectAnalysis").withIndex("by_domain", (q) => q.eq("domainId", args.domainId)).first(),
@@ -605,6 +679,10 @@ export const getCrawlAnalyticsAvailability = query({
 export const getPsiJobStatus = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const scan = await ctx.db
       .query("onSiteScans")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -628,6 +706,10 @@ export const getPsiJobStatus = query({
 export const getPageSpeedData = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const pages = await ctx.db
       .query("domainOnsitePages")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -695,6 +777,10 @@ export const getPageSpeedData = query({
 export const getFullAuditSections = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const analysis = await ctx.db
       .query("domainOnsiteAnalysis")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))

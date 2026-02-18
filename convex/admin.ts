@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query, QueryCtx, MutationCtx, action } from "./_generated/server";
+import { mutation, query, internalMutation, QueryCtx, MutationCtx, action } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { auth } from "./auth";
 import { Id, Doc } from "./_generated/dataModel";
 
@@ -197,6 +198,9 @@ export const listAllOrganizations = query({
           }
         }
 
+        // Get plan info
+        const plan = org.planId ? await ctx.db.get(org.planId) : null;
+
         return {
           ...org,
           memberCount: members.length,
@@ -205,6 +209,8 @@ export const listAllOrganizations = query({
           keywordCount,
           suspended: !!suspension,
           suspendedAt: suspension?.suspendedAt,
+          planName: plan?.name ?? "Brak planu",
+          planKey: plan?.key ?? null,
         };
       })
     );
@@ -317,6 +323,9 @@ export const getOrganizationDetails = query({
       .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
       .unique();
 
+    // Get plan info
+    const plan = org.planId ? await ctx.db.get(org.planId) : null;
+
     return {
       ...org,
       members: flatMembers,
@@ -326,6 +335,8 @@ export const getOrganizationDetails = query({
       teams: teamsWithProjects,
       suspended: !!suspension,
       suspendedAt: suspension?.suspendedAt,
+      aiSettings: org.aiSettings ?? null,
+      plan: plan ? { _id: plan._id, name: plan.name, key: plan.key, modules: plan.modules } : null,
     };
   },
 });
@@ -733,6 +744,33 @@ export const adminUpdateOrganizationLimits = mutation({
 
     await logAdminAction(ctx, adminUserId, "update_org_limits", "organization", args.organizationId, {
       limits: args.limits,
+    });
+
+    return args.organizationId;
+  },
+});
+
+/**
+ * Update organization AI settings (provider + model)
+ */
+export const adminUpdateOrganizationAISettings = mutation({
+  args: {
+    organizationId: v.id("organizations"),
+    aiSettings: v.object({
+      provider: v.union(v.literal("anthropic"), v.literal("google"), v.literal("zai")),
+      model: v.optional(v.string()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const adminUserId = await requireSuperAdmin(ctx);
+
+    const org = await ctx.db.get(args.organizationId);
+    if (!org) throw new Error("Organization not found");
+
+    await ctx.db.patch(args.organizationId, { aiSettings: args.aiSettings });
+
+    await logAdminAction(ctx, adminUserId, "update_ai_settings", "organization", args.organizationId, {
+      aiSettings: args.aiSettings,
     });
 
     return args.organizationId;
@@ -1434,5 +1472,26 @@ export const testSERankingConnection = action({
       success: false,
       message: "SE Ranking API test not implemented",
     };
+  },
+});
+
+/**
+ * Trigger repair of denormalized position data for a domain.
+ * Schedules the internal repairDenormalization mutation.
+ */
+export const triggerRepairDenormalization = mutation({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const adminUserId = await requireSuperAdmin(ctx);
+
+    await ctx.scheduler.runAfter(0, internal.keywords.repairDenormalization, {
+      domainId: args.domainId,
+    });
+
+    await logAdminAction(ctx, adminUserId, "trigger_repair_denormalization", "domain", args.domainId, {
+      domainId: args.domainId,
+    });
+
+    return { scheduled: true };
   },
 });

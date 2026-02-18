@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useTranslations } from "next-intl";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import {
   Area,
   AreaChart,
@@ -51,6 +52,7 @@ function formatNumber(num: number | null | undefined): string {
 
 export default function PublicSharePage() {
   const t = useTranslations("share");
+  usePageTitle("Share");
   const params = useParams();
   const token = params.token as string;
 

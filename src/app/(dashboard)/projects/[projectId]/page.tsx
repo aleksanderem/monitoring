@@ -8,6 +8,7 @@ import type { Id } from "../../../../../convex/_generated/dataModel";
 import { ArrowLeft, BarChart03, Hash01, Link03, Activity, Settings01 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { toast } from "sonner";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { ProjectOverviewSection } from "@/components/project/sections/ProjectOverviewSection";
@@ -15,6 +16,7 @@ import { ProjectPositionMonitoring } from "@/components/project/sections/Project
 import { ProjectBacklinksOverview } from "@/components/project/sections/ProjectBacklinksOverview";
 import { ProjectDomainsTable } from "@/components/project/tables/ProjectDomainsTable";
 import { useTranslations } from "next-intl";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 function ProjectLimitsSection({ projectId, currentLimits }: { projectId: Id<"projects">; currentLimits?: { maxDomains?: number; maxKeywordsPerDomain?: number; maxDailyRefreshes?: number } }) {
   const t = useTranslations("projects");
@@ -55,7 +57,8 @@ function ProjectLimitsSection({ projectId, currentLimits }: { projectId: Id<"pro
   ];
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-primary">{t("projectLimitsTitle")}</h2>
         <p className="mt-1 text-sm text-tertiary">{t("projectLimitsDescription")}</p>
@@ -101,6 +104,7 @@ export default function ProjectDetailPage() {
     const projectId = params.projectId as Id<"projects">;
 
     const project = useQuery(api.projects.getProject, { projectId });
+    usePageTitle(project?.name);
 
     if (project === undefined) {
         return <LoadingState />;
@@ -118,7 +122,7 @@ export default function ProjectDetailPage() {
     }
 
     return (
-        <div className="mx-auto flex max-w-container flex-col gap-6 px-4 py-8 lg:px-8">
+        <div className="mx-auto flex w-full max-w-container flex-col gap-6 px-4 py-8 lg:px-8">
             {/* Header */}
             <div className="flex items-center gap-4">
                 <button onClick={() => router.push("/projects")} className="rounded-lg border border-secondary p-2 hover:bg-primary-hover">

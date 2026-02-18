@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { query, mutation, action, internalMutation, internalQuery } from "./_generated/server";
 import { api } from "./_generated/api";
 import { internal } from "./_generated/api";
+import { createDebugLogger } from "./lib/debugLogger";
+import { buildLocationParam } from "./dataforseoLocations";
 
 // Get backlink summary for a domain
 export const getBacklinkSummary = query({
@@ -107,6 +109,15 @@ export const deleteAllBacklinks = internalMutation({
       await ctx.db.delete(backlink._id);
     }
     return { deleted: allBacklinks.length };
+  },
+});
+
+export const deleteBacklinks = mutation({
+  args: { backlinkIds: v.array(v.id("domainBacklinks")) },
+  handler: async (ctx, args) => {
+    for (const id of args.backlinkIds) {
+      await ctx.db.delete(id);
+    }
   },
 });
 
@@ -218,6 +229,11 @@ export const saveBacklinkData = internalMutation({
       });
     }
 
+    // Rebuild velocity history from actual firstSeen/lastSeen dates
+    await ctx.scheduler.runAfter(0, internal.backlinkVelocity.recalculateVelocityHistory, {
+      domainId: args.domainId,
+    });
+
     return {
       success: true,
       backlinksInserted: backlinksToInsert.length,
@@ -239,68 +255,78 @@ export const fetchBacklinksFromAPI = action({
     }
 
     try {
-      // Create form data
-      const formData = new FormData();
-      formData.append("domain", `https://${domain.domain}`);
+      const debug = await createDebugLogger(ctx, "backlinks", args.domainId);
+      // Ensure domain has protocol prefix (avoid double https://)
+      const target = domain.domain.startsWith("http") ? domain.domain : `https://${domain.domain}`;
+
+      // Build request body with location/language codes
+      const locationParam = buildLocationParam(domain.settings.location);
+      const locationCode = "location_code" in locationParam ? locationParam.location_code : 0;
+      const languageCode = domain.settings.language || "en";
+      const requestBody = `domain=${encodeURIComponent(target)}&location_code=${locationCode}&language_code=${encodeURIComponent(languageCode)}`;
 
       // Call external API
-      const response = await fetch("https://n8n.kolabogroup.pl/webhook/dfs", {
-        method: "POST",
-        body: formData,
+      const data: any = await debug.logStep("n8n_backlinks", { url: "https://n8n.kolabogroup.pl/webhook/dfs", method: "POST", body: requestBody }, async () => {
+        const response = await fetch("https://n8n.kolabogroup.pl/webhook/dfs", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: requestBody,
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const text = await response.text();
+        if (!text) {
+          throw new Error("API returned empty response");
+        }
+        try {
+          return JSON.parse(text);
+        } catch {
+          throw new Error(`API returned invalid JSON (${text.length} chars): ${text.slice(0, 200)}`);
+        }
       });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const text = await response.text();
-      if (!text) {
-        throw new Error("API returned empty response");
-      }
-      let data: any;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new Error(`API returned invalid JSON (${text.length} chars): ${text.slice(0, 200)}`);
-      }
 
       // Extract summary data from response
       const backlink_summary = data[0]?.backlink_summary?.[0];
       const result = backlink_summary?.result?.[0];
 
-      if (!result) {
-        throw new Error("No data in API response");
-      }
-
       // Extract individual backlinks from response
       const backlinks_data = data[1]?.backlinks?.[0];
       const backlinks = backlinks_data?.result?.[0]?.items || [];
 
-      // Save to database
+      // Save whatever data we have (zeros if API returned no results for this domain)
       await ctx.runMutation(internal.backlinks.saveBacklinkData, {
         domainId: args.domainId,
         summary: {
-          totalBacklinks: result.backlinks || 0,
-          totalDomains: result.referring_domains || 0,
-          totalIps: result.referring_ips || 0,
-          totalSubnets: result.referring_subnets || 0,
-          dofollow: (result.backlinks || 0) - (result.backlinks_nofollow || 0),
-          nofollow: result.backlinks_nofollow || 0,
+          totalBacklinks: result?.backlinks || 0,
+          totalDomains: result?.referring_domains || 0,
+          totalIps: result?.referring_ips || 0,
+          totalSubnets: result?.referring_subnets || 0,
+          dofollow: (result?.backlinks || 0) - (result?.backlinks_nofollow || 0),
+          nofollow: result?.backlinks_nofollow || 0,
         },
         distributions: {
-          tldDistribution: result.referring_links_tld || {},
-          platformTypes: result.referring_links_platform_types || {},
-          countries: result.referring_links_countries || {},
-          linkTypes: result.referring_links_types || {},
-          linkAttributes: result.referring_links_attributes || {},
-          semanticLocations: result.referring_links_semantic_locations || {},
+          tldDistribution: result?.referring_links_tld || {},
+          platformTypes: result?.referring_links_platform_types || {},
+          countries: result?.referring_links_countries || {},
+          linkTypes: result?.referring_links_types || {},
+          linkAttributes: result?.referring_links_attributes || {},
+          semanticLocations: result?.referring_links_semantic_locations || {},
         },
         backlinks,
       });
 
+      if (!result) {
+        console.warn(`No backlink data returned for domain ${domain.domain} — saved empty summary`);
+      }
+
       return {
         success: true,
-        message: "Backlinks data fetched successfully",
+        message: result
+          ? "Backlinks data fetched successfully"
+          : "No backlink data found for this domain",
         backlinksCount: backlinks.length,
       };
     } catch (error) {
@@ -330,12 +356,34 @@ export const getBacklinkDistributions = query({
       };
     }
 
+    // DataForSEO's referring_links_attributes only includes "negative" attributes
+    // (nofollow, sponsored, ugc) — dofollow is the absence of these.
+    // Enrich linkAttributes with dofollow/nofollow counts from the summary.
+    let linkAttributes: Record<string, number> = { ...(distributions.linkAttributes as Record<string, number> || {}) };
+    const summary = await ctx.db
+      .query("domainBacklinksSummary")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .unique();
+    if (summary) {
+      linkAttributes = {
+        dofollow: summary.dofollow ?? 0,
+        nofollow: summary.nofollow ?? 0,
+      };
+      // Preserve other attributes (sponsored, ugc) if present
+      const raw = distributions.linkAttributes as Record<string, number> || {};
+      for (const [key, val] of Object.entries(raw)) {
+        if (key !== "nofollow" && val > 0) {
+          linkAttributes[key] = val;
+        }
+      }
+    }
+
     return {
       tldDistribution: distributions.tldDistribution || {},
       platformTypes: distributions.platformTypes || {},
       countries: distributions.countries || {},
       linkTypes: distributions.linkTypes || {},
-      linkAttributes: distributions.linkAttributes || {},
+      linkAttributes,
       semanticLocations: distributions.semanticLocations || {},
     };
   },
@@ -649,61 +697,70 @@ export const fetchCompetitorBacklinksFromAPI = action({
     }
 
     try {
-      // Create form data
-      const formData = new FormData();
-      formData.append("domain", `https://${competitor.competitorDomain}`);
+      const debug = await createDebugLogger(ctx, "competitor_backlinks");
+      // Ensure domain has protocol prefix (avoid double https://)
+      const target = competitor.competitorDomain.startsWith("http")
+        ? competitor.competitorDomain
+        : `https://${competitor.competitorDomain}`;
+
+      // Get parent domain for location/language settings
+      const domain = await ctx.runQuery(internal.domains.getDomainInternal, {
+        domainId: competitor.domainId,
+      });
+      const locationParam = domain ? buildLocationParam(domain.settings.location) : {};
+      const locationCode = locationParam && "location_code" in locationParam ? locationParam.location_code : 0;
+      const languageCode = domain?.settings?.language || "en";
+      const requestBody = `domain=${encodeURIComponent(target)}&location_code=${locationCode}&language_code=${encodeURIComponent(languageCode)}`;
 
       // Call external API (same n8n webhook as for own domain)
-      const response = await fetch("https://n8n.kolabogroup.pl/webhook/dfs", {
-        method: "POST",
-        body: formData,
+      const data: any = await debug.logStep("n8n_competitor_backlinks", { url: "https://n8n.kolabogroup.pl/webhook/dfs", method: "POST", body: requestBody }, async () => {
+        const response = await fetch("https://n8n.kolabogroup.pl/webhook/dfs", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: requestBody,
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const text = await response.text();
+        if (!text) {
+          throw new Error("API returned empty response");
+        }
+        try {
+          return JSON.parse(text);
+        } catch {
+          throw new Error(`API returned invalid JSON (${text.length} chars): ${text.slice(0, 200)}`);
+        }
       });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const text = await response.text();
-      if (!text) {
-        throw new Error("API returned empty response");
-      }
-      let data: any;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new Error(`API returned invalid JSON (${text.length} chars): ${text.slice(0, 200)}`);
-      }
 
       // Extract summary data from response
       const backlink_summary = data[0]?.backlink_summary?.[0];
       const result = backlink_summary?.result?.[0];
 
-      if (!result) {
-        throw new Error("No data in API response");
-      }
-
       // Extract individual backlinks from response
       const backlinks_data = data[1]?.backlinks?.[0];
       const backlinks = backlinks_data?.result?.[0]?.items || [];
 
-      // Save to database
+      // Save whatever data we have (zeros if API returned no results)
       await ctx.runMutation(internal.backlinks.saveCompetitorBacklinkData, {
         competitorId: args.competitorId,
         summary: {
-          totalBacklinks: result.backlinks || 0,
-          totalDomains: result.referring_domains || 0,
-          totalIps: result.referring_ips || 0,
-          totalSubnets: result.referring_subnets || 0,
-          dofollow: (result.backlinks || 0) - (result.backlinks_nofollow || 0),
-          nofollow: result.backlinks_nofollow || 0,
+          totalBacklinks: result?.backlinks || 0,
+          totalDomains: result?.referring_domains || 0,
+          totalIps: result?.referring_ips || 0,
+          totalSubnets: result?.referring_subnets || 0,
+          dofollow: (result?.backlinks || 0) - (result?.backlinks_nofollow || 0),
+          nofollow: result?.backlinks_nofollow || 0,
         },
         distributions: {
-          tldDistribution: result.referring_links_tld || {},
-          platformTypes: result.referring_links_platform_types || {},
-          countries: result.referring_links_countries || {},
-          linkTypes: result.referring_links_types || {},
-          linkAttributes: result.referring_links_attributes || {},
-          semanticLocations: result.referring_links_semantic_locations || {},
+          tldDistribution: result?.referring_links_tld || {},
+          platformTypes: result?.referring_links_platform_types || {},
+          countries: result?.referring_links_countries || {},
+          linkTypes: result?.referring_links_types || {},
+          linkAttributes: result?.referring_links_attributes || {},
+          semanticLocations: result?.referring_links_semantic_locations || {},
         },
         backlinks,
       });
@@ -713,9 +770,15 @@ export const fetchCompetitorBacklinksFromAPI = action({
         competitorId: args.competitorId,
       });
 
+      if (!result) {
+        console.warn(`No backlink data returned for competitor ${competitor.competitorDomain} — saved empty summary`);
+      }
+
       return {
         success: true,
-        message: "Competitor backlinks data fetched successfully",
+        message: result
+          ? "Competitor backlinks data fetched successfully"
+          : "No backlink data found for this competitor",
         backlinksCount: backlinks.length,
       };
     } catch (error) {

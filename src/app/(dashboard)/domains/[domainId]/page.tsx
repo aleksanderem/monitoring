@@ -23,7 +23,8 @@ import {
   FileSearch02,
   Lightbulb02,
   Users01,
-  Lightning01
+  Lightning01,
+  CodeBrowser
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
@@ -41,7 +42,7 @@ import { BackgroundPattern } from "@/components/shared-assets/background-pattern
 import { Heading as AriaHeading, type Key } from "react-aria-components";
 import { Tag, TagGroup, type TagItem, TagList } from "@/components/base/tags/tags";
 import { Plus } from "@untitledui/icons";
-import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
+import { Tabs, TabList, Tab, TabPanel } from "@/components/application/tabs/tabs";
 import { MetricsChart04 } from "@/components/application/metrics/metrics";
 import { toast } from "sonner";
 import { PositionHistoryChart } from "@/components/domain/charts/PositionHistoryChart";
@@ -84,10 +85,39 @@ import { BacklinkProfileSection } from "@/components/domain/sections/BacklinkPro
 import { LinkBuildingSection } from "@/components/domain/sections/LinkBuildingSection";
 import { ContentGapSection } from "@/components/domain/sections/ContentGapSection";
 import { InsightsSection } from "@/components/domain/sections/InsightsSection";
-import { Target04, LinkExternal02 } from "@untitledui/icons";
+import { Target04, LinkExternal02, Stars01 } from "@untitledui/icons";
 import { GenerateReportModal } from "@/components/domain/modals/GenerateReportModal";
 import { DomainSetupWizard } from "@/components/domain/onboarding/DomainSetupWizard";
+import { AIKeywordResearchSection } from "@/components/domain/sections/AIKeywordResearchSection";
+import { StrategySection } from "@/components/domain/sections/StrategySection";
+import { DiagnosticSection } from "@/components/domain/sections/DiagnosticSection";
+import { GeneratorsSection } from "@/components/domain/sections/GeneratorsSection";
 import { OnboardingChecklist } from "@/components/domain/onboarding/OnboardingChecklist";
+import { getCountryFlag, getLanguageFlag } from "@/lib/countryFlags";
+import { EzIcon } from "@/components/foundations/ez-icon";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PermissionGate } from "@/components/auth/PermissionGate";
+
+const TAB_EZICONS: Record<string, string> = {
+  "overview": "analytics-02",
+  "monitoring": "activity-04",
+  "keyword-map": "map-pin",
+  "visibility": "eye",
+  "backlinks": "link-06",
+  "link-building": "share-08",
+  "competitors": "user-group",
+  "keyword-analysis": "search-02",
+  "on-site": "audit-01",
+  "content-gaps": "puzzle",
+  "insights": "idea",
+  "ai-research": "ai-magic",
+  "strategy": "strategy",
+  "generators": "code",
+  "diagnostics": "stethoscope",
+  "settings": "settings-05",
+};
 
 // Helper to format date
 function formatDate(timestamp: number) {
@@ -139,7 +169,8 @@ function DomainLimitsSection({ domainId, currentLimits }: { domainId: Id<"domain
   };
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-primary">{t("refreshLimitsTitle")}</h2>
         <p className="mt-1 text-sm text-tertiary">{t("refreshLimitsDescription")}</p>
@@ -188,23 +219,49 @@ function DomainLimitsSection({ domainId, currentLimits }: { domainId: Id<"domain
 export default function DomainDetailPage() {
   const t = useTranslations('domains');
 
+  const isSuperAdmin = useQuery(api.admin.checkIsSuperAdmin);
+  const params = useParams();
+  const router = useRouter();
+  const domainId = params.domainId as Id<"domains">;
+
+  // Strategy tab — active strategy for sidebar badge
+  const activeStrategySession = useQuery(api.aiStrategy.getActiveStrategy, { domainId });
+  const strategyBadge = (() => {
+    if (!activeStrategySession || activeStrategySession.status !== "completed") return undefined;
+    const s = activeStrategySession as any;
+    const ap = s.strategy?.actionPlan ?? [];
+    const as_ = s.strategy?.actionableSteps ?? [];
+    const total = ap.length + as_.length;
+    if (total === 0) return undefined;
+    const done = (s.taskStatuses ?? []).filter((x: any) => x.completed).length
+      + (s.stepStatuses ?? []).filter((x: any) => x.completed).length;
+    return `${done}/${total}`;
+  })();
+
+  const { hasModule, can } = usePermissions();
+
   const tabs = [
     { id: "overview", label: t('tabOverview'), icon: BarChart03 },
     { id: "monitoring", label: t('tabMonitoring'), icon: Activity },
     { id: "keyword-map", label: t('tabKeywordMap'), icon: Target04 },
     { id: "visibility", label: t('tabVisibility'), icon: TrendUp02 },
-    { id: "backlinks", label: t('tabBacklinks'), icon: Link03 },
-    { id: "link-building", label: t('tabLinkBuilding'), icon: LinkExternal02 },
-    { id: "competitors", label: t('tabCompetitors'), icon: Users01 },
+    ...(hasModule("backlinks") ? [{ id: "backlinks", label: t('tabBacklinks'), icon: Link03 }] : []),
+    ...(hasModule("link_building") ? [{ id: "link-building", label: t('tabLinkBuilding'), icon: LinkExternal02 }] : []),
+    ...(hasModule("competitors") ? [{ id: "competitors", label: t('tabCompetitors'), icon: Users01 }] : []),
     { id: "keyword-analysis", label: t('tabKeywordAnalysis'), icon: FileSearch02 },
-    { id: "on-site", label: t('tabOnSite'), icon: FileCheck02 },
-    { id: "content-gaps", label: t('tabContentGaps'), icon: Lightbulb02 },
+    ...(hasModule("seo_audit") ? [{ id: "on-site", label: t('tabOnSite'), icon: FileCheck02 }] : []),
+    ...(hasModule("competitors") ? [{ id: "content-gaps", label: t('tabContentGaps'), icon: Lightbulb02 }] : []),
     { id: "insights", label: t('tabInsights'), icon: Lightning01 },
+    ...(hasModule("ai_strategy") ? [
+      { id: "ai-research", label: t('tabAIResearch'), icon: Stars01 },
+      { id: "strategy", label: t('tabStrategy'), icon: Stars01, badge: strategyBadge },
+    ] : []),
+    { id: "generators", label: t('tabGenerators'), icon: CodeBrowser },
     { id: "settings", label: t('tabSettings'), icon: Settings01 },
+    ...(isSuperAdmin ? [{ id: "diagnostics", label: t('tabDiagnostics'), icon: Settings01 }] : []),
   ];
-  const params = useParams();
-  const router = useRouter();
-  const domainId = params.domainId as Id<"domains">;
+
+  const [selectedTab, setSelectedTab] = useState<string>("overview");
 
   const domain = useQuery(api.domains.getDomain, { domainId });
   const keywords = useQuery(api.keywords.getKeywords, { domainId });
@@ -212,6 +269,9 @@ export default function DomainDetailPage() {
   const deleteDomain = useMutation(api.domains.remove);
   const refreshKeywords = useMutation(api.keywords.refreshKeywordPositions);
   const updateDomain = useMutation(api.domains.updateDomain);
+
+  const tabLabel = tabs.find((t) => t.id === selectedTab)?.label ?? selectedTab;
+  usePageTitle(domain?.domain, tabLabel);
 
   // Visibility tab queries
   const visibilityStats = useQuery(api.domains.getVisibilityStats, { domainId });
@@ -439,7 +499,7 @@ export default function DomainDetailPage() {
 
   if (domain === null) {
     return (
-      <div className="mx-auto flex max-w-container flex-col gap-8 px-4 py-8 lg:px-8">
+      <div className="mx-auto flex w-full max-w-container flex-col gap-8 px-4 py-8 lg:px-8">
         <div className="text-center">
           <p className="text-lg font-semibold text-primary">{t('domainNotFound')}</p>
           <Button size="md" color="secondary" onClick={() => router.push("/domains")} className="mt-4">
@@ -479,54 +539,76 @@ export default function DomainDetailPage() {
                   {domain.domain}
                 </h1>
                 <p className="text-md text-tertiary">
-                  {domain.settings.searchEngine} · {domain.settings.refreshFrequency}
+                  {getCountryFlag(domain.settings.location)} {domain.settings.location} · {getLanguageFlag(domain.settings.language)} {domain.settings.language} · {domain.settings.searchEngine} · {domain.settings.refreshFrequency}
                 </p>
               </div>
             </div>
 
             <div className="flex gap-2">
-              <ShareLinkDialog domainId={domainId}>
-                <ButtonUtility
-                  size="sm"
-                  color="tertiary"
-                  tooltip={t('shareMonitoring')}
-                  icon={Link03}
-                />
-              </ShareLinkDialog>
-              <ButtonUtility
-                size="sm"
-                color="tertiary"
-                tooltip={t('generateFullReport')}
-                icon={FileCheck02}
-                onClick={() => setIsReportModalOpen(true)}
-              />
-              <ButtonUtility
-                size="sm"
-                color="tertiary"
-                tooltip={t('refreshRankings')}
-                icon={RefreshCw01}
-                onClick={handleRefresh}
-              />
-              <ButtonUtility
-                size="sm"
-                color="tertiary"
-                tooltip={t('edit')}
-                icon={Edit01}
-                onClick={() => setIsEditModalOpen(true)}
-              />
-              <DeleteConfirmationDialog
-                title={`Delete "${domain.domain}"?`}
-                description="This will permanently delete the domain and all associated keywords and ranking data. This action cannot be undone."
-                confirmLabel="Delete domain"
-                onConfirm={handleDelete}
-              >
-                <ButtonUtility
-                  size="sm"
-                  color="tertiary"
-                  tooltip={t('delete')}
-                  icon={Trash01}
-                />
-              </DeleteConfirmationDialog>
+              {onboardingStatus?.isCompleted !== false ? (
+                <>
+                  <PermissionGate permission="reports.share">
+                    <ShareLinkDialog domainId={domainId}>
+                      <ButtonUtility
+                        size="sm"
+                        color="tertiary"
+                        tooltip={t('shareMonitoring')}
+                        icon={Link03}
+                      />
+                    </ShareLinkDialog>
+                  </PermissionGate>
+                  <PermissionGate permission="reports.create">
+                    <ButtonUtility
+                      size="sm"
+                      color="tertiary"
+                      tooltip={t('generateFullReport')}
+                      icon={FileCheck02}
+                      onClick={() => setIsReportModalOpen(true)}
+                    />
+                  </PermissionGate>
+                  <PermissionGate permission="keywords.refresh">
+                    <ButtonUtility
+                      size="sm"
+                      color="tertiary"
+                      tooltip={t('refreshRankings')}
+                      icon={RefreshCw01}
+                      onClick={handleRefresh}
+                    />
+                  </PermissionGate>
+                  <PermissionGate permission="domains.edit">
+                    <ButtonUtility
+                      size="sm"
+                      color="tertiary"
+                      tooltip={t('edit')}
+                      icon={Edit01}
+                      onClick={() => setIsEditModalOpen(true)}
+                    />
+                  </PermissionGate>
+                  <PermissionGate permission="domains.delete">
+                    <DeleteConfirmationDialog
+                      title={`Delete "${domain.domain}"?`}
+                      description="This will permanently delete the domain and all associated keywords and ranking data. This action cannot be undone."
+                      confirmLabel="Delete domain"
+                      onConfirm={handleDelete}
+                    >
+                      <ButtonUtility
+                        size="sm"
+                        color="tertiary"
+                        tooltip={t('delete')}
+                        icon={Trash01}
+                      />
+                    </DeleteConfirmationDialog>
+                  </PermissionGate>
+                </>
+              ) : (
+                <>
+                  <ButtonUtility size="sm" color="tertiary" icon={Link03} isDisabled />
+                  <ButtonUtility size="sm" color="tertiary" icon={FileCheck02} isDisabled />
+                  <ButtonUtility size="sm" color="tertiary" icon={RefreshCw01} isDisabled />
+                  <ButtonUtility size="sm" color="tertiary" icon={Edit01} isDisabled />
+                  <ButtonUtility size="sm" color="tertiary" icon={Trash01} isDisabled />
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -541,15 +623,48 @@ export default function DomainDetailPage() {
       </div>
 
       {/* Main content with vertical tabs */}
-      <div className="mx-auto w-full max-w-container px-4 lg:px-8">
-        <Tabs orientation="vertical" defaultSelectedKey="overview">
+      <div className="relative mx-auto w-full max-w-container px-4 lg:px-8">
+        {/* Block interactions until onboarding is completed */}
+        {onboardingStatus && !onboardingStatus.isCompleted && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-start pt-32">
+            <div className="absolute inset-0 bg-primary/60 backdrop-blur-[2px]" />
+            <div className="relative z-10 flex flex-col items-center gap-4 rounded-xl border border-secondary bg-primary p-8 shadow-lg">
+              <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50">
+                <Settings01 className="h-6 w-6 text-brand-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-primary">{t('onboardingRequiredTitle')}</h3>
+              <p className="max-w-sm text-center text-sm text-tertiary">{t('onboardingRequiredDescription')}</p>
+              <Button size="md" color="primary" onClick={() => setIsWizardOpen(true)}>
+                {t('onboardingStartSetup')}
+              </Button>
+            </div>
+          </div>
+        )}
+        <Tabs orientation="vertical" selectedKey={selectedTab} onSelectionChange={(key) => setSelectedTab(key as string)}>
           <div className="flex w-full gap-8 lg:gap-16">
-            {/* Desktop Sidebar Navigation */}
-            <TabList size="sm" type="line" items={tabs} className="w-auto items-start max-lg:hidden" />
+            {/* Desktop Sidebar Navigation — sticky below TopBar */}
+            <div className="sticky top-20 self-start max-lg:hidden">
+              <TabList size="sm" type="line" items={tabs} className="w-auto items-start">
+                {(item: any) => (
+                  <Tab id={item.id} badge={item.badge}>
+                    <EzIcon name={TAB_EZICONS[item.id] || "settings-05"} size={18} color="#94a3b8" strokeColor="#94a3b8" />
+                    {item.label}
+                  </Tab>
+                )}
+              </TabList>
+            </div>
 
             <div className="flex min-w-0 flex-1 flex-col gap-6">
               {/* Mobile Horizontal Navigation */}
-              <TabList size="sm" type="line" items={tabs} className="lg:hidden" />
+              <TabList size="sm" type="line" items={tabs} className="lg:hidden">
+                {(item: any) => (
+                  <Tab id={item.id} badge={item.badge}>
+                    <EzIcon name={TAB_EZICONS[item.id] || "settings-05"} size={18} color="#94a3b8" strokeColor="#94a3b8" />
+                    {item.label}
+                  </Tab>
+                )}
+              </TabList>
 
             {/* Overview Tab */}
             <TabPanel id="overview">
@@ -564,7 +679,8 @@ export default function DomainDetailPage() {
                 <ForecastSummaryCard domainId={domainId} />
 
                 {/* Placeholder for future sections */}
-                <div className="rounded-xl border border-secondary bg-primary p-6">
+                <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                  <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                   <p className="text-sm text-tertiary">
                     {t('additionalAnalytics')}
                   </p>
@@ -581,14 +697,16 @@ export default function DomainDetailPage() {
                     <h2 className="text-lg font-semibold text-primary">{t('keywordMonitoring')}</h2>
                     <LiveBadge size="md" />
                   </div>
-                  <Button
-                    size="md"
-                    color="primary"
-                    iconLeading={Plus}
-                    onClick={() => setIsAddKeywordsModalOpen(true)}
-                  >
-                    {t('addKeywords')}
-                  </Button>
+                  <PermissionGate permission="keywords.add">
+                    <Button
+                      size="md"
+                      color="primary"
+                      iconLeading={Plus}
+                      onClick={() => setIsAddKeywordsModalOpen(true)}
+                    >
+                      {t('addKeywords')}
+                    </Button>
+                  </PermissionGate>
                 </div>
 
                 {/* Charts Section */}
@@ -701,11 +819,16 @@ export default function DomainDetailPage() {
 
                 {/* Backlink Velocity Section */}
                 <div className="flex flex-col gap-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-primary">{t('backlinkVelocity')}</h3>
-                    <p className="text-sm text-tertiary">
-                      {t('trackBacklinkAcquisition')}
-                    </p>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
+                      <EzIcon name="rocket-01" size={20} color="#059669" strokeColor="#059669" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-primary">{t('backlinkVelocity')}</h3>
+                      <p className="text-sm text-tertiary">
+                        {t('trackBacklinkAcquisition')}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Velocity Metrics Cards */}
@@ -778,17 +901,22 @@ export default function DomainDetailPage() {
 
             {/* Link Building Tab */}
             <TabPanel id="link-building">
-              <LinkBuildingSection domainId={domainId} />
+              <LinkBuildingSection domainId={domainId} domainName={domain.domain} />
             </TabPanel>
 
             {/* Competitors Tab */}
             <TabPanel id="competitors">
               <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-primary mb-1">{t('competitorTracking')}</h2>
-                  <p className="text-sm text-tertiary">
-                    {t('monitorCompetitorOpportunities')}
-                  </p>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50">
+                    <EzIcon name="user-group" size={22} color="#ea580c" strokeColor="#ea580c" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-primary mb-1">{t('competitorTracking')}</h2>
+                    <p className="text-sm text-tertiary">
+                      {t('monitorCompetitorOpportunities')}
+                    </p>
+                  </div>
                 </div>
 
                 <CompetitorManagementSection domainId={domainId} />
@@ -814,11 +942,16 @@ export default function DomainDetailPage() {
             {/* Keyword Analysis Tab */}
             <TabPanel id="keyword-analysis">
               <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-primary mb-1">{t('keywordAnalysis')}</h2>
-                  <p className="text-sm text-tertiary">
-                    {t('deepDiveAnalysisDescription')}
-                  </p>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50">
+                    <EzIcon name="analytics-up" size={22} color="#2563eb" strokeColor="#2563eb" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-primary mb-1">{t('keywordAnalysis')}</h2>
+                    <p className="text-sm text-tertiary">
+                      {t('deepDiveAnalysisDescription')}
+                    </p>
+                  </div>
                 </div>
 
                 <CompetitorAnalysisReportsSection domainId={domainId} />
@@ -840,10 +973,26 @@ export default function DomainDetailPage() {
               <InsightsSection domainId={domainId} />
             </TabPanel>
 
+            {/* AI Research Tab */}
+            <TabPanel id="ai-research">
+              <AIKeywordResearchSection domainId={domainId} />
+            </TabPanel>
+
+            {/* Strategy Tab */}
+            <TabPanel id="strategy">
+              <StrategySection domainId={domainId} />
+            </TabPanel>
+
+            {/* Generators Tab */}
+            <TabPanel id="generators">
+              <GeneratorsSection domainId={domainId} />
+            </TabPanel>
+
             {/* Settings Tab */}
             <TabPanel id="settings">
               <div className="flex flex-col gap-6">
-                <div className="rounded-xl border border-secondary bg-primary p-6">
+                <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                  <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                   <h2 className="text-lg font-semibold text-primary">{t('settings')}</h2>
 
                   <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -861,12 +1010,12 @@ export default function DomainDetailPage() {
 
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-secondary">{t('location')}</p>
-                      <p className="text-sm text-primary">{domain.settings.location}</p>
+                      <p className="text-sm text-primary">{getCountryFlag(domain.settings.location)} {domain.settings.location}</p>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-secondary">{t('language')}</p>
-                      <p className="text-sm text-primary">{domain.settings.language}</p>
+                      <p className="text-sm text-primary">{getLanguageFlag(domain.settings.language)} {domain.settings.language}</p>
                     </div>
                   </div>
                 </div>
@@ -874,6 +1023,13 @@ export default function DomainDetailPage() {
                 <DomainLimitsSection domainId={domainId} currentLimits={domain.limits} />
               </div>
             </TabPanel>
+
+            {/* Diagnostics Tab (superAdmin only) */}
+            {isSuperAdmin && (
+              <TabPanel id="diagnostics">
+                <DiagnosticSection domainId={domainId} />
+              </TabPanel>
+            )}
             </div>
           </div>
         </Tabs>

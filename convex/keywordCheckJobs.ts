@@ -3,41 +3,6 @@ import { mutation, query, action, internalAction, internalMutation, internalQuer
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
-// Create a new keyword check job
-export const createKeywordCheckJob = mutation({
-  args: {
-    domainId: v.id("domains"),
-    keywordIds: v.array(v.id("keywords")),
-  },
-  handler: async (ctx, args) => {
-    // Create job record
-    const jobId = await ctx.db.insert("keywordCheckJobs", {
-      domainId: args.domainId,
-      status: "pending",
-      totalKeywords: args.keywordIds.length,
-      processedKeywords: 0,
-      failedKeywords: 0,
-      keywordIds: args.keywordIds,
-      createdAt: Date.now(),
-    });
-
-    // Mark all keywords as queued
-    for (const keywordId of args.keywordIds) {
-      await ctx.db.patch(keywordId, {
-        checkingStatus: "queued",
-        checkJobId: jobId,
-      });
-    }
-
-    // Schedule background processing
-    await ctx.scheduler.runAfter(0, internal.keywordCheckJobs.processKeywordCheckJobInternal, {
-      jobId,
-    });
-
-    return jobId;
-  },
-});
-
 // Get active job for domain
 export const getActiveJobForDomain = query({
   args: { domainId: v.id("domains") },
@@ -188,9 +153,15 @@ export const cancelJob = mutation({
 
 // Internal action to process job in background
 export const processKeywordCheckJobInternal = internalAction({
-  args: { jobId: v.id("keywordCheckJobs") },
+  args: {
+    jobId: v.id("keywordCheckJobs"),
+    startIndex: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
-    console.log(`[processKeywordCheckJob] Starting job ${args.jobId}`);
+    const CHUNK_SIZE = 15; // Process 15 keywords per action invocation to stay within timeout
+    const startIndex = args.startIndex ?? 0;
+
+    console.log(`[processKeywordCheckJob] Starting job ${args.jobId} from index ${startIndex}`);
 
     // Get job
     const job = await ctx.runQuery(internal.keywordCheckJobs.getJobInternal, {
@@ -207,12 +178,14 @@ export const processKeywordCheckJobInternal = internalAction({
       return;
     }
 
-    // Mark job as processing
-    await ctx.runMutation(internal.keywordCheckJobs.updateJobStatusInternal, {
-      jobId: args.jobId,
-      status: "processing",
-      startedAt: Date.now(),
-    });
+    // Mark job as processing (only on first chunk)
+    if (startIndex === 0) {
+      await ctx.runMutation(internal.keywordCheckJobs.updateJobStatusInternal, {
+        jobId: args.jobId,
+        status: "processing",
+        startedAt: Date.now(),
+      });
+    }
 
     // Get domain info
     const domain = await ctx.runQuery(internal.keywordCheckJobs.getDomainInternal, {
@@ -237,15 +210,18 @@ export const processKeywordCheckJobInternal = internalAction({
       return;
     }
 
-    let processedCount = 0;
-    let failedCount = 0;
+    // Resume counters from job state (previous chunks already counted)
+    let processedCount = job.processedKeywords || 0;
+    let failedCount = job.failedKeywords || 0;
 
-    // Process each keyword
-    for (let i = 0; i < job.keywordIds.length; i++) {
+    const endIndex = Math.min(startIndex + CHUNK_SIZE, job.keywordIds.length);
+
+    // Process this chunk of keywords
+    for (let i = startIndex; i < endIndex; i++) {
       const keywordId = job.keywordIds[i];
 
       // Check if job was cancelled (every 5 keywords to reduce query overhead)
-      if (i % 5 === 0) {
+      if ((i - startIndex) % 5 === 0 && i !== startIndex) {
         const currentJob = await ctx.runQuery(internal.keywordCheckJobs.getJobInternal, {
           jobId: args.jobId,
         });
@@ -264,6 +240,7 @@ export const processKeywordCheckJobInternal = internalAction({
       if (!keyword) {
         console.error(`[processKeywordCheckJob] Keyword ${keywordId} not found`);
         failedCount++;
+        processedCount++;
         continue;
       }
 
@@ -286,7 +263,6 @@ export const processKeywordCheckJobInternal = internalAction({
         const needsHistory = !keyword.positionUpdatedAt && !(keyword.recentPositions?.length);
 
         if (needsHistory) {
-          // Use fetchSinglePosition with history
           console.log(`[processKeywordCheckJob] First-time check for ${keyword.phrase}, fetching with history`);
           const result = await ctx.runAction(internal.dataforseo.fetchSinglePositionInternal, {
             keywordId,
@@ -301,7 +277,6 @@ export const processKeywordCheckJobInternal = internalAction({
             throw new Error(result.error || "Failed to fetch position");
           }
         } else {
-          // Use fetchPositions for already-checked keywords
           console.log(`[processKeywordCheckJob] Regular check for ${keyword.phrase}`);
           const result = await ctx.runAction(internal.dataforseo.fetchPositionsInternal, {
             domainId: job.domainId,
@@ -347,14 +322,23 @@ export const processKeywordCheckJobInternal = internalAction({
       console.log(`[processKeywordCheckJob] Progress: ${processedCount}/${job.totalKeywords}, failed: ${failedCount}`);
     }
 
-    // Mark job as completed
+    // If there are more keywords, schedule next chunk
+    if (endIndex < job.keywordIds.length) {
+      console.log(`[processKeywordCheckJob] Chunk done (${startIndex}-${endIndex}), scheduling next chunk at index ${endIndex}`);
+      await ctx.scheduler.runAfter(0, internal.keywordCheckJobs.processKeywordCheckJobInternal, {
+        jobId: args.jobId,
+        startIndex: endIndex,
+      });
+      return;
+    }
+
+    // All keywords processed — finalize job
     await ctx.runMutation(internal.keywordCheckJobs.updateJobStatusInternal, {
       jobId: args.jobId,
       status: "completed",
       completedAt: Date.now(),
     });
 
-    // Notify team
     await ctx.runMutation(internal.notifications.createJobNotification, {
       domainId: job.domainId,
       type: failedCount > 0 ? "job_failed" : "job_completed",
@@ -364,7 +348,7 @@ export const processKeywordCheckJobInternal = internalAction({
       jobId: args.jobId,
     });
 
-    // Clear checking status from all keywords in one mutation (not N individual calls)
+    // Clear checking status from all keywords in one mutation
     await ctx.runMutation(internal.keywordCheckJobs.clearKeywordCheckingStatusBatch, {
       keywordIds: job.keywordIds,
     });
@@ -503,7 +487,7 @@ export const cleanupStuckJobs = internalMutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const PENDING_TIMEOUT = 5 * 60 * 1000; // 5 minutes
-    const PROCESSING_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+    const PROCESSING_TIMEOUT = 30 * 60 * 1000; // 30 minutes (chunked processing spans multiple action invocations)
 
     // Find stuck pending jobs (pending for more than 5 minutes)
     const stuckPendingJobs = await ctx.db

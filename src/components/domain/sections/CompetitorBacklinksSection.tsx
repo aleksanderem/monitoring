@@ -9,6 +9,7 @@ import { Select } from "@/components/base/select/select";
 import type { SelectItemType } from "@/components/base/select/select";
 import { Link03, TrendUp02, TrendDown02, Globe01, CheckCircle, XCircle } from "@untitledui/icons";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface CompetitorBacklinksSectionProps {
   domainId: Id<"domains">;
@@ -45,7 +46,8 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
 
   if (competitors === undefined) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="text-center py-8 text-tertiary">{t('compBacklinksLoading')}</div>
       </div>
     );
@@ -53,7 +55,8 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
 
   if (activeCompetitors.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="text-center py-12">
           <Link03 className="h-12 w-12 text-quaternary mx-auto mb-4" />
           <p className="text-tertiary mb-2">{t('compBacklinksNoCompetitors')}</p>
@@ -66,7 +69,8 @@ export function CompetitorBacklinksSection({ domainId }: CompetitorBacklinksSect
   }
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary">
+    <div className="relative rounded-xl border border-secondary bg-primary">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       {/* Header */}
       <div className="border-b border-secondary p-6">
         <div className="flex items-center justify-between mb-4">

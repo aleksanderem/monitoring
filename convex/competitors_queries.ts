@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 /**
  * Get all competitors for a domain
@@ -8,6 +10,10 @@ import type { Id } from "./_generated/dataModel";
 export const getCompetitorsByDomain = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const competitors = await ctx.db
       .query("competitors")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -27,6 +33,12 @@ export const getCompetitorPositions = query({
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) return [];
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     const days = args.days || 30;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -55,6 +67,10 @@ export const getCompetitorOverview = query({
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { yourDomain: null, competitors: [] };
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const days = args.days || 30;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -159,6 +175,10 @@ export const getKeywordGaps = query({
     minGapScore: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Get all keywords for this domain
     const keywords = await ctx.db
       .query("keywords")
@@ -229,8 +249,10 @@ export const getKeywordGaps = query({
           const compPos = competitorPosition;
 
           if (compPos < yourPos) {
-            const volume = keyword.searchVolume ?? 100;
-            const difficulty = keyword.difficulty ?? 50;
+            const rawVol = keyword.searchVolume ?? 100;
+            const volume = (isNaN(rawVol) || !isFinite(rawVol)) ? 100 : rawVol;
+            const rawDiff = keyword.difficulty ?? 50;
+            const difficulty = (isNaN(rawDiff) || !isFinite(rawDiff)) ? 50 : rawDiff;
             const positionGap = yourPos / compPos;
             const volumeWeight = Math.log10(volume + 1);
             const difficultyWeight = 1 - difficulty / 100;
@@ -265,6 +287,10 @@ export const getKeywordGaps = query({
 export const getCompetitorStats = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { totalCompetitors: 0, activeCompetitors: 0, pausedCompetitors: 0, totalKeywords: 0, totalGaps: 0, highPriorityGaps: 0 };
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const competitors = await ctx.db
       .query("competitors")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -280,17 +306,27 @@ export const getCompetitorStats = query({
       .filter((q) => q.eq(q.field("status"), "active"))
       .collect();
 
-    // Get total gaps (keywords with opportunities) - call as query, not direct function
-    // For now, we'll return 0 for gaps since we can't call queries from within queries
-    // In production, this would need to be calculated separately or via aggregation
+    // Get content gap counts for this domain
+    const contentGaps = await ctx.db
+      .query("contentGaps")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    const activeGaps = contentGaps.filter((g) => g.status !== "dismissed");
+    const highPriorityGaps = activeGaps.filter((g) => {
+      const score = g.opportunityScore;
+      const priority = (score != null && !isNaN(score) && score >= 70) ? "high"
+        : (score != null && !isNaN(score) && score >= 40) ? "medium" : "low";
+      return priority === "high";
+    });
 
     return {
       totalCompetitors: competitors.length,
       activeCompetitors: activeCompetitors.length,
       pausedCompetitors: pausedCompetitors.length,
       totalKeywords: keywords.length,
-      totalGaps: 0, // TODO: Calculate gaps count efficiently
-      highPriorityGaps: 0, // TODO: Calculate high priority gaps count
+      totalGaps: activeGaps.length,
+      highPriorityGaps: highPriorityGaps.length,
     };
   },
 });

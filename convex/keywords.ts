@@ -1,9 +1,10 @@
 import { v } from "convex/values";
-import { mutation, query, internalQuery, internalMutation } from "./_generated/server";
+import { mutation, query, internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { auth } from "./auth";
 import { checkKeywordLimit, checkRefreshLimits } from "./limits";
-import { requirePermission, getContextFromDomain, getContextFromKeyword } from "./permissions";
+import { requirePermission, requireTenantAccess, getContextFromDomain, getContextFromKeyword } from "./permissions";
+import { isValidKeywordPhrase } from "./lib/keywordValidation";
 
 // CTR curve based on organic search position (industry standard)
 function getCTRForPosition(position: number): number {
@@ -23,6 +24,10 @@ function getCTRForPosition(position: number): number {
 export const getKeywords = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -49,10 +54,13 @@ export const getKeywordWithHistory = query({
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
     const keyword = await ctx.db.get(args.keywordId);
     if (!keyword) {
       return null;
     }
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
 
     const daysToFetch = args.days || 30;
     const startDate = new Date();
@@ -93,15 +101,17 @@ export const getKeywordWithHistory = query({
   },
 });
 
-// Get position distribution across ranking ranges
+// Get position distribution across ranking ranges (uses denormalized currentPosition on keywords table)
 export const getPositionDistribution = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
-    // Get all discovered keywords with actual rankings (bestPosition !== 999)
-    const discoveredKeywords = await ctx.db
-      .query("discoveredKeywords")
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
+    const keywords = await ctx.db
+      .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .filter((q) => q.neq(q.field("bestPosition"), 999))
       .collect();
 
     const distribution = {
@@ -113,10 +123,10 @@ export const getPositionDistribution = query({
       pos100plus: 0,
     };
 
-    for (const keyword of discoveredKeywords) {
-      const pos = keyword.bestPosition;
+    for (const keyword of keywords) {
+      const pos = keyword.currentPosition;
+      if (pos == null) continue;
 
-      // Only process valid positions
       if (pos > 0 && pos <= 3) distribution.top3++;
       else if (pos > 3 && pos <= 10) distribution.pos4_10++;
       else if (pos > 10 && pos <= 20) distribution.pos11_20++;
@@ -130,34 +140,57 @@ export const getPositionDistribution = query({
 });
 
 // Get movement trend over time (gainers vs losers per day)
+// Uses monitoring data (keywords.recentPositions) — NOT domainVisibilityHistory
 export const getMovementTrend = query({
   args: {
     domainId: v.id("domains"),
     days: v.optional(v.number())
   },
   handler: async (ctx, args) => {
-    // Note: domainVisibilityHistory stores MONTHLY data (first day of each month)
-    // So we need to fetch more months to have enough data points for the trend
-    const monthsToFetch = 6; // Get last 6 months of data
-    const cutoffDate = new Date();
-    cutoffDate.setMonth(cutoffDate.getMonth() - monthsToFetch);
-    const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
-    // Get visibility history from domainVisibilityHistory table
-    const history = await ctx.db
-      .query("domainVisibilityHistory")
+    const keywords = await ctx.db
+      .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .filter((q) => q.gte(q.field("date"), cutoffDateStr))
       .collect();
 
-    // Map to chart format
-    return history
-      .map((entry) => ({
-        date: new Date(entry.date).getTime(),
-        gainers: entry.metrics.is_up || 0,
-        losers: entry.metrics.is_down || 0,
-      }))
-      .sort((a, b) => a.date - b.date);
+    const active = keywords.filter((k) => k.status === "active");
+
+    // Collect all dates present across all keywords' recentPositions
+    // For each keyword, build a date→position map from recentPositions
+    const dateGainers = new Map<string, number>();
+    const dateLosers = new Map<string, number>();
+
+    for (const kw of active) {
+      const recent = kw.recentPositions ?? [];
+      if (recent.length < 2) continue;
+
+      // Compare each consecutive pair to determine gainer/loser on that date
+      for (let i = 1; i < recent.length; i++) {
+        const prev = recent[i - 1];
+        const curr = recent[i];
+        if (prev.position == null || curr.position == null) continue;
+
+        const date = curr.date;
+        if (curr.position < prev.position) {
+          dateGainers.set(date, (dateGainers.get(date) ?? 0) + 1);
+        } else if (curr.position > prev.position) {
+          dateLosers.set(date, (dateLosers.get(date) ?? 0) + 1);
+        }
+      }
+    }
+
+    // Merge all dates and return sorted
+    const allDates = new Set([...dateGainers.keys(), ...dateLosers.keys()]);
+    return Array.from(allDates)
+      .sort()
+      .map((date) => ({
+        date: new Date(date).getTime(),
+        gainers: dateGainers.get(date) ?? 0,
+        losers: dateLosers.get(date) ?? 0,
+      }));
   },
 });
 
@@ -165,6 +198,10 @@ export const getMovementTrend = query({
 export const getMonitoringStats = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -239,6 +276,10 @@ export const getMonitoringStats = query({
 export const getKeywordMonitoring = query({
   args: { domainId: v.id("domains"), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -335,6 +376,7 @@ export const getKeywordMonitoring = query({
         isNew: discovered?.isNew || null,
         isUp: discovered?.isUp || null,
         isDown: discovered?.isDown || null,
+        proposedBy: keyword.proposedBy || null,
       };
     });
   },
@@ -349,6 +391,10 @@ export const getRecentChanges = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const daysAgo = args.days || 7;
     const limit = args.limit || 10;
     const cutoffStr = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
@@ -421,6 +467,10 @@ export const getTopPerformers = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const daysAgo = args.days || 30;
     const limit = args.limit || 10;
     const cutoffStr = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
@@ -494,6 +544,10 @@ export const getTopKeywordsByVolume = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const limit = args.limit || 10;
 
     const keywords = await ctx.db
@@ -534,6 +588,9 @@ export const addKeyword = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Check permission
     const context = await getContextFromDomain(ctx, args.domainId);
     if (!context) {
@@ -547,11 +604,18 @@ export const addKeyword = mutation({
       throw new Error(limitCheck.message || "Keyword limit exceeded");
     }
 
+    // Validate phrase
+    const normalized = args.phrase.toLowerCase().trim();
+    const validation = isValidKeywordPhrase(normalized);
+    if (!validation.valid) {
+      throw new Error(validation.reason || "Invalid keyword phrase");
+    }
+
     // Check if keyword already exists
     const existing = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .filter((q) => q.eq(q.field("phrase"), args.phrase.toLowerCase().trim()))
+      .filter((q) => q.eq(q.field("phrase"), normalized))
       .unique();
 
     if (existing) {
@@ -560,7 +624,7 @@ export const addKeyword = mutation({
 
     return await ctx.db.insert("keywords", {
       domainId: args.domainId,
-      phrase: args.phrase.toLowerCase().trim(),
+      phrase: normalized,
       status: "active",
       createdAt: Date.now(),
     });
@@ -572,12 +636,16 @@ export const addKeywords = mutation({
   args: {
     domainId: v.id("domains"),
     phrases: v.array(v.string()),
+    source: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
     // Check permission
     const context = await getContextFromDomain(ctx, args.domainId);
@@ -586,11 +654,19 @@ export const addKeywords = mutation({
     }
     await requirePermission(ctx, "keywords.add", context);
 
-    // Filter out existing keywords first to get accurate count
+    // Filter out existing and invalid keywords to get accurate count
     const uniquePhrases: string[] = [];
+    const invalidPhrases: string[] = [];
     for (const phrase of args.phrases) {
       const normalized = phrase.toLowerCase().trim();
       if (!normalized) continue;
+
+      // Validate phrase
+      const validation = isValidKeywordPhrase(normalized);
+      if (!validation.valid) {
+        invalidPhrases.push(normalized);
+        continue;
+      }
 
       const existing = await ctx.db
         .query("keywords")
@@ -622,6 +698,7 @@ export const addKeywords = mutation({
         phrase: normalized,
         status: "active",
         createdAt: Date.now(),
+        ...(args.source ? { proposedBy: args.source } : {}),
       });
       results.push(id);
     }
@@ -646,6 +723,11 @@ export const updateKeywordStatus = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Tenant isolation
+    const keyword = await ctx.db.get(args.keywordId);
+    if (!keyword) throw new Error("Keyword not found");
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
+
     // Check permission
     const context = await getContextFromKeyword(ctx, args.keywordId);
     if (!context) {
@@ -669,6 +751,11 @@ export const deleteKeyword = mutation({
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Tenant isolation
+    const keyword = await ctx.db.get(args.keywordId);
+    if (!keyword) throw new Error("Keyword not found");
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
 
     // Check permission
     const context = await getContextFromKeyword(ctx, args.keywordId);
@@ -698,6 +785,14 @@ export const deleteKeywords = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
+    }
+
+    // Tenant isolation: check first keyword's domain
+    if (args.keywordIds.length > 0) {
+      const firstKw = await ctx.db.get(args.keywordIds[0]);
+      if (firstKw) {
+        await requireTenantAccess(ctx, "domain", firstKw.domainId);
+      }
     }
 
     for (const keywordId of args.keywordIds) {
@@ -736,6 +831,12 @@ export const storePosition = mutation({
     cpc: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const kw = await ctx.db.get(args.keywordId);
+    if (!kw) throw new Error("Keyword not found");
+    await requireTenantAccess(ctx, "domain", kw.domainId);
+
     // Check if position for this date already exists
     const existing = await ctx.db
       .query("keywordPositions")
@@ -807,6 +908,110 @@ export const storePosition = mutation({
   },
 });
 
+// Repair denormalization drift for a single domain.
+// Reads keywordPositions for each keyword with missing/stale denormalized data,
+// then patches the keyword record with correct currentPosition, recentPositions, etc.
+export const repairDenormalization = internalMutation({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    let repaired = 0;
+    let noPositionRecords = 0;
+    let alreadyCorrect = 0;
+    let positionsWereNull = 0;
+    let positionsFixed = 0;
+
+    for (const keyword of keywords) {
+      // Get latest 7 positions sorted by date
+      const positions = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword_date", (q) => q.eq("keywordId", keyword._id))
+        .order("desc")
+        .take(7);
+
+      if (positions.length === 0) {
+        noPositionRecords++;
+        continue;
+      }
+
+      // Sort ascending by date for recentPositions
+      const sorted = [...positions].sort((a, b) => a.date.localeCompare(b.date));
+      const recentPositions = sorted.map((p) => ({
+        date: p.date,
+        position: p.position,
+      }));
+
+      const latest = sorted[sorted.length - 1];
+      const prev = sorted.length >= 2 ? sorted[sorted.length - 2] : null;
+
+      const currentPos = latest.position;
+      const previousPos = prev?.position ?? null;
+      const change =
+        currentPos != null && previousPos != null
+          ? previousPos - currentPos
+          : null;
+
+      // Check if repair is needed
+      const needsRepair =
+        keyword.currentPosition !== currentPos ||
+        (keyword.recentPositions ?? []).length !== recentPositions.length;
+
+      if (!needsRepair) {
+        alreadyCorrect++;
+        continue;
+      }
+
+      await ctx.db.patch(keyword._id, {
+        currentPosition: currentPos,
+        previousPosition: previousPos,
+        positionChange: change,
+        currentUrl: latest.url,
+        positionUpdatedAt: latest.fetchedAt ?? Date.now(),
+        recentPositions,
+      });
+
+      if (currentPos == null) {
+        positionsWereNull++;
+      } else {
+        positionsFixed++;
+      }
+      repaired++;
+    }
+
+    console.log(`[repairDenormalization] domain=${args.domainId}: total=${keywords.length}, repaired=${repaired} (fixed=${positionsFixed}, null=${positionsWereNull}), correct=${alreadyCorrect}, noRecords=${noPositionRecords}`);
+    return { domainId: args.domainId, totalKeywords: keywords.length, repaired, positionsFixed, positionsWereNull, alreadyCorrect, noPositionRecords };
+  },
+});
+
+// Repair denormalization across all domains in the system
+export const repairAllDenormalization = internalAction({
+  handler: async (ctx): Promise<Array<{ domain: string; totalKeywords: number; repaired: number }>> => {
+    const domains = await ctx.runQuery(internal.keywords.listAllDomainIds);
+
+    const results: Array<{ domain: string; totalKeywords: number; repaired: number }> = [];
+    for (const domain of domains) {
+      const result = await ctx.runMutation(internal.keywords.repairDenormalization, {
+        domainId: domain._id,
+      });
+      results.push({ domain: domain.domain, ...result });
+    }
+
+    return results;
+  },
+});
+
+// Helper: list all domain IDs (for repair action)
+export const listAllDomainIds = internalQuery({
+  handler: async (ctx) => {
+    const domains = await ctx.db.query("domains").collect();
+    return domains.map((d) => ({ _id: d._id, domain: d.domain }));
+  },
+});
+
 // Queue keywords for position refresh (bulk operation)
 export const refreshKeywordPositions = mutation({
   args: { keywordIds: v.array(v.id("keywords")) },
@@ -825,6 +1030,9 @@ export const refreshKeywordPositions = mutation({
     if (!firstKeyword) {
       throw new Error("Keyword not found");
     }
+
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", firstKeyword.domainId);
 
     // Verify all keywords belong to the same domain
     const domainId = firstKeyword.domainId;
@@ -881,6 +1089,10 @@ export const refreshKeywordPositions = mutation({
 export const clearAllCheckingStatuses = mutation({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -916,6 +1128,9 @@ export const importKeywords = mutation({
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
     // Check permission
     const context = await getContextFromDomain(ctx, args.domainId);
@@ -1053,6 +1268,15 @@ export const createKeywordInternal = internalMutation({
     difficulty: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    // Only enforce limit for active keywords (paused/pending don't count toward limit)
+    if (args.status === "active") {
+      const limitCheck = await checkKeywordLimit(ctx, args.domainId);
+      if (!limitCheck.allowed) {
+        console.log(`[createKeywordInternal] Keyword limit reached for domain ${args.domainId}: ${limitCheck.currentCount}/${limitCheck.limit}`);
+        return null;
+      }
+    }
+
     const keywordId = await ctx.db.insert("keywords", {
       domainId: args.domainId,
       phrase: args.phrase,
@@ -1067,6 +1291,36 @@ export const createKeywordInternal = internalMutation({
 });
 
 /**
+ * Get full position history for a keyword from keywordPositions table.
+ * Used in the keyword detail modal for a complete chart (not just 7-day sparkline).
+ */
+export const getPositionHistory = query({
+  args: {
+    keywordId: v.id("keywords"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const keyword = await ctx.db.get(args.keywordId);
+    if (!keyword) return [];
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
+
+    const positions = await ctx.db
+      .query("keywordPositions")
+      .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
+      .order("asc")
+      .collect();
+
+    return positions
+      .filter((p) => p.position != null)
+      .map((p) => ({
+        date: new Date(p.date).getTime(),
+        position: p.position as number,
+      }));
+  },
+});
+
+/**
  * Query to get SERP results for a keyword
  */
 export const getSerpResultsForKeyword = query({
@@ -1075,14 +1329,20 @@ export const getSerpResultsForKeyword = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    const keyword = await ctx.db.get(args.keywordId);
+    if (!keyword) return null;
+    await requireTenantAccess(ctx, "domain", keyword.domainId);
+
     const limit = args.limit || 10;
 
     // Get the most recent SERP results for this keyword
     const results = await ctx.db
       .query("keywordSerpResults")
-      .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
+      .withIndex("by_keyword_date", (q) => q.eq("keywordId", args.keywordId))
       .order("desc")
-      .take(100); // Get up to 100 results
+      .take(100);
 
     if (results.length === 0) {
       return null;
@@ -1159,6 +1419,10 @@ export const getPositionAggregation = query({
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const days = args.days ?? 30;
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 

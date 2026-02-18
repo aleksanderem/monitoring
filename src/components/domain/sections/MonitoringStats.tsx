@@ -21,6 +21,8 @@ export function MonitoringStats({ domainId }: MonitoringStatsProps) {
     return <LoadingState type="card" />;
   }
 
+  if (!stats) return null;
+
   const { totalKeywords, avgPosition, avgPositionChange7d, estimatedMonthlyTraffic, movementBreakdown, netMovement7d } = stats;
 
   // Format traffic with K/M abbreviations

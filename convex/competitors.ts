@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 /**
  * Internal query to get competitor by ID
@@ -11,6 +13,21 @@ export const getCompetitorInternal = internalQuery({
   },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.competitorId);
+  },
+});
+
+/**
+ * Internal query: get list of competitor domain strings for a given domain.
+ * Used by AI competitor search to exclude already-tracked competitors.
+ */
+export const getCompetitorDomainsForDomain = internalQuery({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const competitors = await ctx.db
+      .query("competitors")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+    return competitors.map((c) => c.competitorDomain);
   },
 });
 
@@ -65,6 +82,10 @@ export const addCompetitor = mutation({
     name: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Check if competitor already exists
     const existing = await ctx.db
       .query("competitors")
@@ -109,6 +130,10 @@ export const getCompetitors = query({
     domainId: v.id("domains"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const competitors = await ctx.db
       .query("competitors")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -126,6 +151,12 @@ export const removeCompetitor = mutation({
     competitorId: v.id("competitors"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) throw new Error("Competitor not found");
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     await ctx.db.patch(args.competitorId, {
       status: "paused",
     });
@@ -185,6 +216,12 @@ export const getCompetitorPositions = query({
     keywordId: v.id("keywords"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) return [];
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     const positions = await ctx.db
       .query("competitorKeywordPositions")
       .withIndex("by_competitor_keyword", (q) =>
@@ -221,6 +258,12 @@ export const updateCompetitor = mutation({
     status: v.optional(v.union(v.literal("active"), v.literal("paused"))),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) throw new Error("Competitor not found");
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     const updates: any = {};
     if (args.name !== undefined) updates.name = args.name;
     if (args.status !== undefined) updates.status = args.status;
@@ -238,6 +281,10 @@ export const getCompetitorsForKeyword = query({
     keywordId: v.id("keywords"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Get all active competitors for this domain
     const competitors = await ctx.db
       .query("competitors")
@@ -273,13 +320,55 @@ export const getCompetitorsForKeyword = query({
 /**
  * Discover competitor domains from SERP results.
  * Aggregates domains that appear across monitored keyword SERPs,
- * excluding the user's own domain and already-tracked competitors.
+ * excluding the user's own domain, already-tracked competitors,
+ * and generic platforms (social media, marketplaces, etc.).
  */
+
+const BLOCKED_COMPETITOR_DOMAINS = new Set([
+  // Social media
+  "facebook.com", "instagram.com", "twitter.com", "x.com", "tiktok.com",
+  "linkedin.com", "pinterest.com", "reddit.com", "tumblr.com", "snapchat.com",
+  "threads.net", "mastodon.social",
+  // Video platforms
+  "youtube.com", "vimeo.com", "dailymotion.com", "twitch.tv",
+  // Marketplaces
+  "amazon.com", "amazon.de", "amazon.co.uk", "amazon.fr", "amazon.es",
+  "amazon.it", "amazon.pl", "amazon.nl", "amazon.se", "amazon.com.au",
+  "ebay.com", "ebay.de", "ebay.co.uk", "ebay.fr", "ebay.pl",
+  "aliexpress.com", "alibaba.com", "etsy.com", "allegro.pl",
+  "walmart.com", "target.com", "temu.com", "shein.com",
+  // Search engines & aggregators
+  "google.com", "bing.com", "yahoo.com", "duckduckgo.com",
+  "yandex.com", "yandex.ru", "baidu.com",
+  // Generic platforms & wikis
+  "wikipedia.org", "en.wikipedia.org", "pl.wikipedia.org", "de.wikipedia.org",
+  "quora.com", "medium.com", "blogspot.com", "wordpress.com", "wix.com",
+  "github.com", "stackoverflow.com", "stackexchange.com",
+  // Maps & directories
+  "yelp.com", "tripadvisor.com", "booking.com", "maps.google.com",
+  // News aggregators
+  "news.google.com", "apple.news",
+]);
+
+function isBlockedCompetitorDomain(domain: string): boolean {
+  const d = domain.toLowerCase();
+  if (BLOCKED_COMPETITOR_DOMAINS.has(d)) return true;
+  // Also check if it's a subdomain of a blocked domain
+  for (const blocked of BLOCKED_COMPETITOR_DOMAINS) {
+    if (d.endsWith("." + blocked)) return true;
+  }
+  return false;
+}
+
 export const getCompetitorSuggestionsFromSerp = query({
   args: {
     domainId: v.id("domains"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Get monitored keywords for this domain
     const allKeywords = await ctx.db
       .query("keywords")
@@ -302,9 +391,9 @@ export const getCompetitorSuggestionsFromSerp = query({
     for (const kw of activeKeywords.slice(0, 50)) {
       const results = await ctx.db
         .query("keywordSerpResults")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
+        .withIndex("by_keyword_date", (q) => q.eq("keywordId", kw._id))
         .order("desc")
-        .take(20);
+        .take(100);
 
       if (results.length === 0) continue;
 
@@ -313,7 +402,7 @@ export const getCompetitorSuggestionsFromSerp = query({
 
       for (const r of latest) {
         const d = r.domain;
-        if (!d || trackedDomains.has(d)) continue;
+        if (!d || trackedDomains.has(d) || isBlockedCompetitorDomain(d)) continue;
 
         if (!domainStats[d]) {
           domainStats[d] = { count: 0, totalPosition: 0, keywords: [] };

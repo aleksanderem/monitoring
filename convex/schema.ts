@@ -5,6 +5,30 @@ import { authTables } from "@convex-dev/auth/server";
 export default defineSchema({
   ...authTables,
 
+  // Subscription plans (define module/permission/limit ceilings per organization)
+  plans: defineTable({
+    name: v.string(),              // "Free", "Pro", "Enterprise"
+    key: v.string(),               // "free", "pro", "enterprise"
+    description: v.optional(v.string()),
+    permissions: v.array(v.string()), // allowed permission keys
+    modules: v.array(v.string()),    // "positioning","backlinks","seo_audit","reports","competitors","ai_strategy","forecasts","link_building"
+    limits: v.object({
+      maxKeywords: v.optional(v.number()),
+      maxDomains: v.optional(v.number()),
+      maxProjects: v.optional(v.number()),
+      maxDomainsPerProject: v.optional(v.number()),
+      maxKeywordsPerDomain: v.optional(v.number()),
+      maxDailyRefreshes: v.optional(v.number()),
+      refreshCooldownMinutes: v.optional(v.number()),
+      maxKeywordsPerBulkRefresh: v.optional(v.number()),
+      maxDailyApiCost: v.optional(v.number()),
+    }),
+    isDefault: v.boolean(),        // assigned to new organizations
+    createdAt: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_default", ["isDefault"]),
+
   // Organizations (tenants)
   organizations: defineTable({
     name: v.string(),
@@ -27,11 +51,22 @@ export default defineSchema({
       maxDailyRefreshes: v.optional(v.number()),      // Max manual refreshes per org per day
       maxDailyRefreshesPerUser: v.optional(v.number()), // Max manual refreshes per user per day
       maxKeywordsPerBulkRefresh: v.optional(v.number()), // Max keywords per single bulk refresh/SERP action
+      maxDailyApiCost: v.optional(v.number()),             // Max daily DataForSEO API cost in USD (default $5)
     })),
+    planId: v.optional(v.id("plans")),
     branding: v.optional(v.object({
       logoStorageId: v.optional(v.string()),
       logoUrl: v.optional(v.string()),
     })),
+    aiSettings: v.optional(v.object({
+      provider: v.union(v.literal("anthropic"), v.literal("google"), v.literal("zai")),
+      model: v.optional(v.string()),
+    })),
+    stripeCustomerId: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
+    subscriptionStatus: v.optional(v.string()),
+    subscriptionPeriodEnd: v.optional(v.number()),
+    billingCycle: v.optional(v.string()),
   }).index("by_slug", ["slug"]),
 
   // Teams within organizations
@@ -76,6 +111,9 @@ export default defineSchema({
     })),
     onboardingCompleted: v.optional(v.boolean()),
     onboardingDismissed: v.optional(v.boolean()),
+    businessDescription: v.optional(v.string()),
+    targetCustomer: v.optional(v.string()),
+    activeStrategyId: v.optional(v.id("aiStrategySessions")),
   }).index("by_project", ["projectId"]),
 
   // Keywords within domains
@@ -562,6 +600,8 @@ export default defineSchema({
       v.literal("custom")
     ),
     roleId: v.optional(v.id("roles")), // for custom roles
+    grantedPermissions: v.optional(v.array(v.string())),
+    grantedBy: v.optional(v.id("users")),
     joinedAt: v.number(),
   })
     .index("by_organization", ["organizationId"])
@@ -1718,6 +1758,8 @@ export default defineSchema({
       completedAt: v.optional(v.number()),
     }))),
     reportData: v.optional(v.any()),
+    profile: v.optional(v.union(v.literal("quick"), v.literal("standard"), v.literal("full"), v.literal("custom"))),
+    reportConfig: v.optional(v.any()),
     error: v.optional(v.string()),
     createdAt: v.number(),
     completedAt: v.optional(v.number()),
@@ -1729,8 +1771,132 @@ export default defineSchema({
     .index("by_domain_status", ["domainId", "status"]),
 
   // =================================================================
+  // App Settings (global key-value store)
+  // =================================================================
+
+  appSettings: defineTable({
+    key: v.string(),
+    value: v.string(),
+  }).index("by_key", ["key"]),
+
+  // =================================================================
+  // Debug Logs (structured API call logging)
+  // =================================================================
+
+  debugLogs: defineTable({
+    domainId: v.optional(v.id("domains")),
+    action: v.string(),
+    step: v.string(),
+    request: v.string(),
+    response: v.string(),
+    durationMs: v.number(),
+    status: v.union(v.literal("success"), v.literal("error")),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_created", ["createdAt"])
+    .index("by_action", ["action", "createdAt"]),
+
+  // =================================================================
+  // AI Keyword Research Sessions
+  // =================================================================
+
+  aiResearchSessions: defineTable({
+    domainId: v.id("domains"),
+    businessDescription: v.string(),
+    targetCustomer: v.string(),
+    keywordCount: v.number(),
+    focusType: v.union(
+      v.literal("all"),
+      v.literal("informational"),
+      v.literal("commercial"),
+      v.literal("transactional")
+    ),
+    keywords: v.array(v.object({
+      keyword: v.string(),
+      searchIntent: v.string(),
+      relevanceScore: v.number(),
+      rationale: v.string(),
+      category: v.string(),
+      searchVolume: v.number(),
+      cpc: v.number(),
+      competition: v.number(),
+      difficulty: v.number(),
+    })),
+    createdAt: v.number(),
+  })
+    .index("by_domain", ["domainId", "createdAt"]),
+
+  // AI Strategy sessions — full domain SEO strategy generated by AI
+  aiStrategySessions: defineTable({
+    domainId: v.id("domains"),
+    businessDescription: v.string(),
+    targetCustomer: v.string(),
+    focusKeywords: v.optional(v.array(v.string())),
+    generateBacklinkContent: v.optional(v.boolean()),
+    generateContentMockups: v.optional(v.boolean()),
+    dataSnapshot: v.any(), // summary stats at generation time
+    strategy: v.any(),     // 10-section JSON, validated at runtime
+    drillDowns: v.array(v.object({
+      sectionKey: v.string(),
+      question: v.optional(v.string()),
+      response: v.string(),
+      createdAt: v.number(),
+    })),
+    status: v.union(
+      v.literal("initializing"),
+      v.literal("collecting"),
+      v.literal("analyzing"),
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+    progress: v.optional(v.number()),           // 0-100
+    currentStep: v.optional(v.string()),        // Human-readable step label
+    steps: v.optional(v.array(v.object({
+      name: v.string(),
+      status: v.union(v.literal("pending"), v.literal("running"), v.literal("completed"), v.literal("skipped"), v.literal("failed")),
+      startedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+    }))),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+    taskStatuses: v.optional(v.array(v.object({
+      index: v.number(),
+      completed: v.boolean(),
+      completedAt: v.optional(v.number()),
+    }))),
+    stepStatuses: v.optional(v.array(v.object({
+      index: v.number(),
+      completed: v.boolean(),
+      completedAt: v.optional(v.number()),
+    }))),
+  }).index("by_domain", ["domainId"]),
+
+  // =================================================================
   // Notifications
   // =================================================================
+
+  // Per-call API usage log (granular cost tracking for DataForSEO auditing)
+  apiUsageLog: defineTable({
+    endpoint: v.string(),        // e.g. "/serp/google/organic/live/advanced"
+    taskCount: v.number(),       // number of tasks in the request
+    estimatedCost: v.number(),   // estimated cost in USD
+    caller: v.string(),          // function name that made the call
+    domainId: v.optional(v.id("domains")),
+    metadata: v.optional(v.string()), // JSON string with extra context
+    createdAt: v.number(),
+  })
+    .index("by_date", ["createdAt"])
+    .index("by_domain", ["domainId"])
+    .index("by_caller", ["caller"]),
+
+  // DataForSEO cached reference data (locations, languages)
+  dataforseoCache: defineTable({
+    key: v.string(),        // "locations" | "languages"
+    data: v.string(),       // JSON stringified array
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 
   notifications: defineTable({
     userId: v.id("users"),
@@ -1752,4 +1918,102 @@ export default defineSchema({
   })
     .index("by_user", ["userId", "createdAt"])
     .index("by_user_unread", ["userId", "isRead", "createdAt"]),
+
+  // =================================================================
+  // AI SEO Strategist Calendar
+  // =================================================================
+
+  calendarEvents: defineTable({
+    domainId: v.id("domains"),
+    // Event categorization
+    category: v.union(
+      v.literal("position_check"),      // Scheduled/completed position checks
+      v.literal("ranking_drop"),         // AI detected significant ranking drop
+      v.literal("ranking_opportunity"),  // Keyword near top 3, push recommended
+      v.literal("content_gap"),          // Content gap detected, creation planned
+      v.literal("content_plan"),         // AI-generated content creation task
+      v.literal("competitor_alert"),     // Competitor published/ranked for target keyword
+      v.literal("link_building"),        // Link building task
+      v.literal("seasonal_trend"),       // Seasonal keyword peak approaching
+      v.literal("audit_task"),           // SEO audit follow-up
+      v.literal("follow_up"),           // Follow-up check after an action
+      v.literal("custom")               // User-created event
+    ),
+    title: v.string(),
+    description: v.optional(v.string()),
+    // AI-generated action plan
+    aiReasoning: v.optional(v.string()),    // Why AI created this event
+    aiActionItems: v.optional(v.array(v.string())), // Specific steps to take
+    // Time
+    scheduledAt: v.number(),               // Start timestamp
+    scheduledEndAt: v.optional(v.number()), // End timestamp (for duration events)
+    // Priority & status
+    priority: v.union(
+      v.literal("critical"),   // Urgent: major ranking drop, competitor takeover
+      v.literal("high"),       // Important: near top-3 opportunity, content gap
+      v.literal("medium"),     // Standard: scheduled checks, content plans
+      v.literal("low")         // FYI: seasonal trends, minor follow-ups
+    ),
+    status: v.union(
+      v.literal("scheduled"),   // Upcoming
+      v.literal("in_progress"), // Being worked on
+      v.literal("completed"),   // Done
+      v.literal("dismissed"),   // User dismissed
+      v.literal("auto_resolved") // System detected issue resolved itself
+    ),
+    // Linked entities
+    keywordId: v.optional(v.id("keywords")),
+    keywordPhrase: v.optional(v.string()),   // Denormalized for display
+    competitorDomain: v.optional(v.string()),
+    // Source tracking
+    sourceType: v.union(
+      v.literal("ai_generated"),   // Created by AI Strategist
+      v.literal("system"),         // Created by system (job completions, etc)
+      v.literal("user")           // Created manually by user
+    ),
+    sourceJobId: v.optional(v.string()),    // Reference to originating job
+    // Color for calendar display
+    color: v.optional(v.string()),  // EventViewColor: "blue" | "orange" | "rose" | "purple" | "sky" | "amber" | "emerald"
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_domain_date", ["domainId", "scheduledAt"])
+    .index("by_domain_status", ["domainId", "status"])
+    .index("by_domain_category", ["domainId", "category"]),
+
+  // Tracks when AI Strategist last ran per domain (avoid duplicate generation)
+  aiStrategistRuns: defineTable({
+    domainId: v.id("domains"),
+    ranAt: v.number(),
+    eventsGenerated: v.number(),
+    dataSnapshot: v.optional(v.string()), // JSON summary of data analyzed
+    status: v.union(
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+    error: v.optional(v.string()),
+  }).index("by_domain", ["domainId"]),
+
+  generatorOutputs: defineTable({
+    domainId: v.id("domains"),
+    type: v.union(
+      v.literal("jsonSchema"),
+      v.literal("llmsTxt"),
+      v.literal("llmsFullTxt")
+    ),
+    version: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("generating"),
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+    content: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_domain_type", ["domainId", "type"])
+    .index("by_domain", ["domainId"]),
 });

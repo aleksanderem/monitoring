@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { auth } from "./auth";
+import { requirePermission } from "./permissions";
 
 // Get organizations for current user
 export const getUserOrganizations = query({
@@ -69,22 +70,9 @@ export const updateOrganization = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
-
-    // Check if user is admin or owner
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_user", (q) =>
-        q.eq("organizationId", args.organizationId).eq("userId", userId)
-      )
-      .unique();
-
-    if (!membership || !["owner", "admin"].includes(membership.role)) {
-      throw new Error("Not authorized");
-    }
+    await requirePermission(ctx, "org.settings.edit", {
+      organizationId: args.organizationId,
+    });
 
     const updates: Record<string, unknown> = {};
     if (args.name) updates.name = args.name;
@@ -148,33 +136,20 @@ export const updateMemberRole = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
-
     // Get the membership being updated
     const membership = await ctx.db.get(args.membershipId);
     if (!membership) {
-      throw new Error("Membership not found");
+      throw new Error("Członkostwo nie istnieje");
     }
 
     // Cannot change owner role
     if (membership.role === "owner") {
-      throw new Error("Cannot change owner role");
+      throw new Error("Nie można zmienić roli właściciela");
     }
 
-    // Check if current user is owner or admin
-    const currentUserMembership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_user", (q) =>
-        q.eq("organizationId", membership.organizationId).eq("userId", userId)
-      )
-      .unique();
-
-    if (!currentUserMembership || !["owner", "admin"].includes(currentUserMembership.role)) {
-      throw new Error("Not authorized to change roles");
-    }
+    await requirePermission(ctx, "members.roles.edit", {
+      organizationId: membership.organizationId,
+    });
 
     await ctx.db.patch(args.membershipId, { role: args.role });
     return args.membershipId;
@@ -193,22 +168,9 @@ export const inviteMember = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
-
-    // Check if current user is owner or admin
-    const currentUserMembership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_user", (q) =>
-        q.eq("organizationId", args.organizationId).eq("userId", userId)
-      )
-      .unique();
-
-    if (!currentUserMembership || !["owner", "admin"].includes(currentUserMembership.role)) {
-      throw new Error("Tylko administratorzy mogą zapraszać użytkowników");
-    }
+    await requirePermission(ctx, "members.invite", {
+      organizationId: args.organizationId,
+    });
 
     // Find user by email
     const users = await ctx.db.query("users").collect();
@@ -246,32 +208,19 @@ export const inviteMember = mutation({
 export const removeMember = mutation({
   args: { membershipId: v.id("organizationMembers") },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
-
     const membership = await ctx.db.get(args.membershipId);
     if (!membership) {
-      throw new Error("Membership not found");
+      throw new Error("Członkostwo nie istnieje");
     }
 
     // Cannot remove owner
     if (membership.role === "owner") {
-      throw new Error("Cannot remove owner");
+      throw new Error("Nie można usunąć właściciela");
     }
 
-    // Check if current user is owner or admin
-    const currentUserMembership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_user", (q) =>
-        q.eq("organizationId", membership.organizationId).eq("userId", userId)
-      )
-      .unique();
-
-    if (!currentUserMembership || !["owner", "admin"].includes(currentUserMembership.role)) {
-      throw new Error("Not authorized to remove members");
-    }
+    await requirePermission(ctx, "members.remove", {
+      organizationId: membership.organizationId,
+    });
 
     // Also remove from all teams in this org
     const teams = await ctx.db

@@ -18,6 +18,10 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
 import { CreateDomainDialog } from "@/components/application/modals/create-domain-dialog";
 import { toast } from "sonner";
+import { getCountryFlag, getLanguageFlag } from "@/lib/countryFlags";
+import { EzIcon } from "@/components/foundations/ez-icon";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import { PermissionGate } from "@/components/auth/PermissionGate";
 
 // Helper to format relative time
 function formatRelativeTime(timestamp: number, t: (key: any, params?: any) => string): string {
@@ -37,6 +41,7 @@ export default function DomainsPage() {
   const t = useTranslations('domains');
   const router = useRouter();
   const domains = useQuery(api.domains.list);
+  usePageTitle("Domains");
   const deleteDomain = useMutation(api.domains.remove);
 
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -141,7 +146,7 @@ export default function DomainsPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-container flex-col gap-8 px-4 py-8 lg:px-8">
+    <div className="mx-auto flex w-full max-w-container flex-col gap-8 px-4 py-8 lg:px-8">
       {domains.length === 0 ? (
         <EmptyState size="md">
           <EmptyState.Header>
@@ -156,32 +161,41 @@ export default function DomainsPage() {
           </EmptyState.Content>
 
           <EmptyState.Footer>
-            <CreateDomainDialog>
-              <Button size="md">
-                {t('addDomain')}
-              </Button>
-            </CreateDomainDialog>
+            <PermissionGate permission="domains.create">
+              <CreateDomainDialog>
+                <Button size="md">
+                  {t('addDomain')}
+                </Button>
+              </CreateDomainDialog>
+            </PermissionGate>
           </EmptyState.Footer>
         </EmptyState>
       ) : (
         <>
         <div className="relative flex flex-col gap-5 bg-primary">
           <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
-            <div className="flex flex-col gap-0.5 lg:gap-1">
-              <p className="text-xl font-semibold text-primary lg:text-display-xs">
-                {t('domains')}
-              </p>
-              <p className="text-md text-tertiary">
-                {t('domainsDescription')}
-              </p>
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                <EzIcon name="globe" size={24} color="#2563eb" strokeColor="#2563eb" />
+              </div>
+              <div className="flex flex-col gap-0.5 lg:gap-1">
+                <p className="text-xl font-semibold text-primary lg:text-display-xs">
+                  {t('domains')}
+                </p>
+                <p className="text-md text-tertiary">
+                  {t('domainsDescription')}
+                </p>
+              </div>
             </div>
             <div className="flex flex-col gap-4 lg:flex-row">
               <div className="flex items-start gap-3">
-                <CreateDomainDialog>
-                  <Button size="md">
-                    {t('addDomain')}
-                  </Button>
-                </CreateDomainDialog>
+                <PermissionGate permission="domains.create">
+                  <CreateDomainDialog>
+                    <Button size="md">
+                      {t('addDomain')}
+                    </Button>
+                  </CreateDomainDialog>
+                </PermissionGate>
               </div>
             </div>
           </div>
@@ -303,7 +317,7 @@ export default function DomainsPage() {
                           {item.domain}
                         </p>
                         <p className="text-sm text-tertiary">
-                          {item.settings.searchEngine} · {item.settings.refreshFrequency}
+                          {getCountryFlag(item.settings.location)} {item.settings.location} · {getLanguageFlag(item.settings.language)} {item.settings.language} · {item.settings.searchEngine}
                         </p>
                       </div>
                     </div>
@@ -362,34 +376,38 @@ export default function DomainsPage() {
                   </Table.Cell>
                   <Table.Cell className="px-4">
                     <div className="flex justify-end gap-0.5">
-                      <ButtonUtility
-                        size="xs"
-                        color="tertiary"
-                        tooltip={t('edit')}
-                        icon={Edit05}
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          toast.info(t('editDialogComingSoon'));
-                        }}
-                      />
-                      <DeleteConfirmationDialog
-                        title={t('deleteDomainTitle', { domain: item.domain })}
-                        description={t('deleteDomainDescription')}
-                        confirmLabel={t('deleteDomainConfirm')}
-                        onConfirm={async () => {
-                          await handleDelete(item._id);
-                        }}
-                      >
+                      <PermissionGate permission="domains.edit">
                         <ButtonUtility
                           size="xs"
                           color="tertiary"
-                          tooltip={t('delete')}
-                          icon={Trash01}
+                          tooltip={t('edit')}
+                          icon={Edit05}
                           onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
+                            toast.info(t('editDialogComingSoon'));
                           }}
                         />
-                      </DeleteConfirmationDialog>
+                      </PermissionGate>
+                      <PermissionGate permission="domains.delete">
+                        <DeleteConfirmationDialog
+                          title={t('deleteDomainTitle', { domain: item.domain })}
+                          description={t('deleteDomainDescription')}
+                          confirmLabel={t('deleteDomainConfirm')}
+                          onConfirm={async () => {
+                            await handleDelete(item._id);
+                          }}
+                        >
+                          <ButtonUtility
+                            size="xs"
+                            color="tertiary"
+                            tooltip={t('delete')}
+                            icon={Trash01}
+                            onClick={(e: React.MouseEvent) => {
+                              e.stopPropagation();
+                            }}
+                          />
+                        </DeleteConfirmationDialog>
+                      </PermissionGate>
                     </div>
                   </Table.Cell>
                 </Table.Row>

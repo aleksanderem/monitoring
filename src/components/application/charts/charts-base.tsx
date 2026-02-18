@@ -118,6 +118,43 @@ export const ChartTooltipContent = ({ active, payload, label, isRadialChart, isP
     );
 };
 
+/**
+ * Gradient-styled Recharts tooltip for dark mode.
+ * Use as: `<Tooltip content={<GradientChartTooltip />} formatter={...} />`
+ */
+export const GradientChartTooltip = ({ active, payload, label, formatter, labelFormatter }: ChartTooltipContentProps) => {
+    if (!active || !payload?.length) return null;
+
+    return (
+        <div className="rounded-lg border border-gray-200/80 bg-gradient-to-br from-white to-gray-50/80 px-3 py-2 text-xs shadow-xl dark:border-white/[0.06] dark:from-[#1e2433] dark:to-[#111827]">
+            {label != null && (
+                <p className="mb-1 text-gray-500 dark:text-gray-400">
+                    {labelFormatter ? labelFormatter(label, payload) : label}
+                </p>
+            )}
+            {payload.map((item: any, i: number) => {
+                let displayValue: any = item.value;
+                let displayName: any = item.name;
+                if (formatter) {
+                    const result = formatter(item.value, item.name, item, i, payload);
+                    if (Array.isArray(result)) {
+                        [displayValue, displayName] = result;
+                    }
+                }
+                return (
+                    <div key={i} className="flex items-center gap-1.5">
+                        {item.color && <div className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />}
+                        <span className="text-gray-600 dark:text-gray-300">
+                            {displayName && displayName !== "" ? <>{displayName}: </> : null}
+                            <span className="font-medium text-gray-900 dark:text-white">{displayValue}</span>
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
 interface ChartActiveDotProps extends DotProps {
     // We have to use `any` here because the `payload` prop is not typed correctly in the `recharts` library.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

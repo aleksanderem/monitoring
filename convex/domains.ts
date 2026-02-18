@@ -1,15 +1,19 @@
 import { v } from "convex/values";
-import { mutation, query, action, internalQuery, internalMutation, internalAction } from "./_generated/server";
+import { mutation, query, internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { auth } from "./auth";
 import { checkKeywordLimit } from "./limits";
 import type { Id } from "./_generated/dataModel";
-import { requirePermission, getOrgFromProject, getContextFromDomain } from "./permissions";
+import { requirePermission, requireTenantAccess, getOrgFromProject, getContextFromDomain } from "./permissions";
 
 // Get domains for a project
 export const getDomains = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "project", args.projectId);
+
     const domains = await ctx.db
       .query("domains")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -62,6 +66,10 @@ export const getDomains = query({
 export const getDomain = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     return await ctx.db.get(args.domainId);
   },
 });
@@ -88,6 +96,9 @@ export const createDomain = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Tenant isolation
+    await requireTenantAccess(ctx, "project", args.projectId);
+
     // Get organization from project
     const organizationId = await getOrgFromProject(ctx, args.projectId);
     if (!organizationId) {
@@ -100,9 +111,28 @@ export const createDomain = mutation({
       projectId: args.projectId,
     });
 
+    // Strip protocol — store bare hostname, lowercased for case-insensitive uniqueness
+    const cleanDomain = args.domain.replace(/^https?:\/\//, "").replace(/\/+$/, "").toLowerCase();
+
+    // Uniqueness check: same domain + location + language in same project
+    const existing = await ctx.db
+      .query("domains")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("domain"), cleanDomain),
+          q.eq(q.field("settings.location"), args.settings.location),
+          q.eq(q.field("settings.language"), args.settings.language)
+        )
+      )
+      .first();
+    if (existing) {
+      throw new Error("Domain with this location/language already exists in this project");
+    }
+
     const domainId = await ctx.db.insert("domains", {
       projectId: args.projectId,
-      domain: args.domain,
+      domain: cleanDomain,
       settings: args.settings,
       createdAt: Date.now(),
     });
@@ -110,8 +140,9 @@ export const createDomain = mutation({
     // Schedule automatic initial data fetch (keywords + visibility)
     await ctx.scheduler.runAfter(0, internal.domains.initializeDomainData, {
       domainId,
-      domain: args.domain,
+      domain: cleanDomain,
       location: args.settings.location,
+      language: args.settings.language,
     });
 
     return domainId;
@@ -144,6 +175,9 @@ export const updateDomain = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Get permission context
     const context = await getContextFromDomain(ctx, args.domainId);
     if (!context) {
@@ -154,7 +188,30 @@ export const updateDomain = mutation({
     await requirePermission(ctx, "domains.edit", context);
 
     const updates: Record<string, unknown> = {};
-    if (args.domain) updates.domain = args.domain;
+    if (args.domain) {
+      const cleanDomain = args.domain.replace(/^https?:\/\//, "").replace(/\/+$/, "").toLowerCase();
+      // Uniqueness check when domain name changes
+      const currentDomain = await ctx.db.get(args.domainId);
+      if (currentDomain && cleanDomain !== currentDomain.domain) {
+        const projectId = args.projectId ?? currentDomain.projectId;
+        const settings = args.settings ?? currentDomain.settings;
+        const existing = await ctx.db
+          .query("domains")
+          .withIndex("by_project", (q) => q.eq("projectId", projectId))
+          .filter((q) =>
+            q.and(
+              q.eq(q.field("domain"), cleanDomain),
+              q.eq(q.field("settings.location"), settings.location),
+              q.eq(q.field("settings.language"), settings.language)
+            )
+          )
+          .first();
+        if (existing && existing._id !== args.domainId) {
+          throw new Error("Domain with this location/language already exists in this project");
+        }
+      }
+      updates.domain = cleanDomain;
+    }
     if (args.projectId) updates.projectId = args.projectId;
     if (args.tags !== undefined) updates.tags = args.tags;
     if (args.settings) updates.settings = args.settings;
@@ -171,6 +228,7 @@ export const getUserRoleForDomain = query({
     const userId = await auth.getUserId(ctx);
     console.log("[getUserRoleForDomain] userId:", userId);
     if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
     const domain = await ctx.db.get(args.domainId);
     console.log("[getUserRoleForDomain] domain:", domain?._id);
@@ -204,6 +262,9 @@ export const deleteDomain = mutation({
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
     // Get permission context
     const context = await getContextFromDomain(ctx, args.domainId);
@@ -257,6 +318,10 @@ export const deleteDomain = mutation({
 export const markRefreshed = mutation({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     await ctx.db.patch(args.domainId, {
       lastRefreshedAt: Date.now(),
     });
@@ -288,6 +353,10 @@ export const getDiscoveredKeywords = query({
     )),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     let keywords;
 
     if (args.status) {
@@ -321,6 +390,9 @@ export const promoteDiscoveredKeywords = mutation({
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
     // First pass: count how many keywords will actually be added
     const keywordsToAdd: Array<{
@@ -429,6 +501,14 @@ export const ignoreDiscoveredKeywords = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Tenant isolation: resolve domain from first discovered keyword
+    if (args.keywordIds.length > 0) {
+      const firstDk = await ctx.db.get(args.keywordIds[0]);
+      if (firstDk) {
+        await requireTenantAccess(ctx, "domain", firstDk.domainId);
+      }
+    }
+
     for (const id of args.keywordIds) {
       await ctx.db.patch(id, { status: "ignored" });
     }
@@ -439,6 +519,10 @@ export const ignoreDiscoveredKeywords = mutation({
 export const getDiscoveredKeywordsCount = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const all = await ctx.db
       .query("discoveredKeywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -464,6 +548,10 @@ export const getVisibilityHistory = query({
     days: v.optional(v.number()), // Default 365
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const history = await ctx.db
       .query("domainVisibilityHistory")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -492,6 +580,10 @@ export const getVisibilityHistory = query({
 export const getBacklinksSummary = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     return await ctx.db
       .query("domainBacklinksSummary")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -506,6 +598,10 @@ export const getBacklinks = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const limit = args.limit || 100;
     const backlinks = await ctx.db
       .query("domainBacklinks")
@@ -521,6 +617,10 @@ export const getBacklinks = query({
 export const getPositionDistribution = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -570,6 +670,10 @@ export const getPositionDistribution = query({
 export const getLatestVisibilityMetrics = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const history = await ctx.db
       .query("domainVisibilityHistory")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -623,114 +727,6 @@ export const getLatestVisibilityMetrics = query({
   },
 });
 
-// =================================================================
-// Bulk Domain Checking
-// =================================================================
-
-// Check rankings for all domains in a project
-export const checkAllDomainsForProject = action({
-  args: { projectId: v.id("projects") },
-  handler: async (ctx, args): Promise<{
-    success: boolean;
-    totalDomains: number;
-    successCount: number;
-    failureCount: number;
-    totalKeywords: number;
-    errors: Array<{ domainName: string; error: string }>;
-  }> => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    // Get all domains for the project
-    const domains = await ctx.runQuery(internal.domains.getDomainsInternal, {
-      projectId: args.projectId,
-    });
-
-    let successCount = 0;
-    let failureCount = 0;
-    let totalKeywords = 0;
-    const errors: Array<{ domainName: string; error: string }> = [];
-
-    console.log(`[checkAllDomainsForProject] Checking ${domains.length} domains for project ${args.projectId}`);
-
-    // Check each domain sequentially
-    for (const domain of domains) {
-      try {
-        // Get keywords for this domain
-        const keywords = await ctx.runQuery(internal.scheduler.getDomainKeywords, {
-          domainId: domain._id,
-        });
-
-        if (keywords.length === 0) {
-          console.log(`[checkAllDomainsForProject] Skipping domain ${domain.domain} - no active keywords`);
-          continue;
-        }
-
-        console.log(`[checkAllDomainsForProject] Checking ${keywords.length} keywords for domain ${domain.domain}`);
-
-        // Call fetchPositions action
-        const result = await ctx.runAction(internal.dataforseo.fetchPositionsInternal, {
-          domainId: domain._id,
-          keywords: keywords.map((k: { _id: Id<"keywords">; phrase: string }) => ({ id: k._id, phrase: k.phrase })),
-          domain: domain.domain,
-          searchEngine: domain.settings.searchEngine,
-          location: domain.settings.location,
-          language: domain.settings.language,
-        });
-
-        if (result.success) {
-          successCount++;
-          totalKeywords += keywords.length;
-
-          // Update lastRefreshedAt
-          await ctx.runMutation(internal.domains.markRefreshedInternal, {
-            domainId: domain._id,
-          });
-
-          console.log(`[checkAllDomainsForProject] Successfully checked domain ${domain.domain}`);
-        } else {
-          failureCount++;
-          errors.push({
-            domainName: domain.domain,
-            error: result.error || "Unknown error",
-          });
-
-          console.error(`[checkAllDomainsForProject] Failed to check domain ${domain.domain}:`, result.error);
-        }
-      } catch (error) {
-        failureCount++;
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        errors.push({
-          domainName: domain.domain,
-          error: errorMessage,
-        });
-
-        console.error(`[checkAllDomainsForProject] Error checking domain ${domain.domain}:`, error);
-
-        // Log to system logs
-        await ctx.runMutation(internal.logs.logSystemMessage, {
-          level: "error",
-          message: `Failed to check domain ${domain.domain}: ${errorMessage}`,
-          eventType: "bulk_domain_check_error",
-        });
-      }
-    }
-
-    console.log(`[checkAllDomainsForProject] Complete: ${successCount} successful, ${failureCount} failed, ${totalKeywords} keywords updated`);
-
-    return {
-      success: successCount > 0,
-      totalDomains: domains.length,
-      successCount,
-      failureCount,
-      totalKeywords,
-      errors,
-    };
-  },
-});
-
 // Internal query to get domains for a project (for actions)
 export const getDomainsInternal = internalQuery({
   args: { projectId: v.id("projects") },
@@ -747,6 +743,31 @@ export const getDomainInternal = internalQuery({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.domainId);
+  },
+});
+
+// Internal query: get discovered keywords for a domain (for actions)
+export const getDiscoveredKeywordsInternal = internalQuery({
+  args: { domainId: v.id("domains"), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const all = await ctx.db
+      .query("discoveredKeywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+    // Sort by volume desc, then take top N
+    all.sort((a, b) => (b.searchVolume ?? 0) - (a.searchVolume ?? 0));
+    return all.slice(0, args.limit ?? 200);
+  },
+});
+
+// Internal query: get monitored keywords for a domain (for actions)
+export const getMonitoredKeywordsInternal = internalQuery({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
   },
 });
 
@@ -826,6 +847,8 @@ export const create = mutation({
       v.literal("weekly"),
       v.literal("on_demand")
     )),
+    location: v.string(),
+    language: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
@@ -833,14 +856,36 @@ export const create = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Tenant isolation
+    await requireTenantAccess(ctx, "project", args.projectId);
+
+    // Strip protocol — store bare hostname, lowercased for case-insensitive uniqueness
+    const cleanDomain = args.domain.replace(/^https?:\/\//, "").replace(/\/+$/, "").toLowerCase();
+
+    // Uniqueness check: same domain + location + language in same project
+    const existing = await ctx.db
+      .query("domains")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("domain"), cleanDomain),
+          q.eq(q.field("settings.location"), args.location),
+          q.eq(q.field("settings.language"), args.language)
+        )
+      )
+      .first();
+    if (existing) {
+      throw new Error("Domain with this location/language already exists in this project");
+    }
+
     const domainId = await ctx.db.insert("domains", {
       projectId: args.projectId,
-      domain: args.domain,
+      domain: cleanDomain,
       settings: {
         refreshFrequency: args.refreshFrequency || "weekly",
         searchEngine: args.searchEngine || "google.com",
-        location: "Poland",
-        language: "pl",
+        location: args.location,
+        language: args.language,
       },
       createdAt: Date.now(),
     });
@@ -848,8 +893,9 @@ export const create = mutation({
     // Schedule automatic initial data fetch (keywords + visibility)
     await ctx.scheduler.runAfter(0, internal.domains.initializeDomainData, {
       domainId,
-      domain: args.domain,
-      location: "Poland",
+      domain: cleanDomain,
+      location: args.location,
+      language: args.language,
     });
 
     return domainId;
@@ -866,6 +912,9 @@ export const remove = mutation({
     if (!userId) {
       throw new Error("Not authenticated");
     }
+
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.id);
 
     // Get domain for cascade delete
     const domain = await ctx.db.get(args.id);
@@ -910,6 +959,10 @@ export const remove = mutation({
 export const getVisibilityStats = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Get all discovered keywords for this domain with actual rankings (bestPosition !== 999)
     const discoveredKeywords = await ctx.db
       .query("discoveredKeywords")
@@ -984,6 +1037,10 @@ export const getTopKeywords = query({
     })),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const limit = args.limit || 10;
 
     // Get all discovered keywords with actual rankings (bestPosition !== 999)
@@ -1040,9 +1097,11 @@ export const initializeDomainData = internalAction({
     domainId: v.id("domains"),
     domain: v.string(),
     location: v.string(),
+    language: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    console.log(`[INIT] Starting automatic initialization for domain: ${args.domain}`);
+    const language = args.language || "en";
+    console.log(`[INIT] Starting automatic initialization for domain: ${args.domain} (${args.location}/${language})`);
 
     try {
       // 1. Fetch domain visibility (discovered keywords the domain ranks for)
@@ -1051,7 +1110,7 @@ export const initializeDomainData = internalAction({
         domainId: args.domainId,
         domain: args.domain,
         location: args.location,
-        language: "pl", // TODO: use domain language setting
+        language,
       });
 
       if (visibilityResult.success) {
@@ -1066,7 +1125,7 @@ export const initializeDomainData = internalAction({
         domainId: args.domainId,
         domain: args.domain,
         location: args.location,
-        language: "pl", // TODO: use domain language setting
+        language,
       });
 
       if (historyResult.success) {
@@ -1096,5 +1155,50 @@ export const initializeDomainData = internalAction({
         eventType: "domain_initialization_error",
       });
     }
+  },
+});
+
+// Save business context from onboarding wizard (public, auth-checked)
+export const saveBusinessContextPublic = mutation({
+  args: {
+    domainId: v.id("domains"),
+    businessDescription: v.string(),
+    targetCustomer: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Tenant isolation
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
+    const context = await getContextFromDomain(ctx, args.domainId);
+    if (!context) {
+      throw new Error("Domain not found");
+    }
+
+    await requirePermission(ctx, "domains.edit", context);
+
+    await ctx.db.patch(args.domainId, {
+      businessDescription: args.businessDescription,
+      targetCustomer: args.targetCustomer,
+    });
+  },
+});
+
+// Save business context to domain for auto-fill across AI features
+export const saveBusinessContext = internalMutation({
+  args: {
+    domainId: v.id("domains"),
+    businessDescription: v.string(),
+    targetCustomer: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.domainId, {
+      businessDescription: args.businessDescription,
+      targetCustomer: args.targetCustomer,
+    });
   },
 });

@@ -5,6 +5,7 @@ import { XClose, HelpCircle, TrendUp02, SearchLg, Target04 } from "@untitledui/i
 import { Badge } from "@/components/base/badges/badges";
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { useEscapeClose } from "@/hooks/useEscapeClose";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface KeywordItem {
     phrase: string;
@@ -78,6 +79,7 @@ export function TopicClusterDetailModal({ cluster, onClose }: TopicClusterDetail
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
             <div className="relative z-10 max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-xl border border-secondary bg-primary shadow-xl">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 {/* Header */}
                 <div className="sticky top-0 z-10 flex items-center justify-between border-b border-secondary bg-primary px-6 py-4">
                     <div>

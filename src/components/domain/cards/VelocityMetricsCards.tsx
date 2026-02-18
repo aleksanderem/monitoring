@@ -2,6 +2,7 @@
 
 import { TrendUp01, TrendDown01, ArrowsRight } from "@untitledui/icons";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface VelocityStats {
   avgNewPerDay: number;
@@ -31,11 +32,12 @@ export function VelocityMetricsCards({
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className="flex flex-col gap-2 rounded-xl border border-secondary bg-primary p-4"
+            className="relative flex flex-col gap-2 rounded-xl border border-secondary bg-primary p-4"
           >
-            <div className="h-4 w-24 animate-pulse rounded bg-gray-100" />
-            <div className="h-8 w-16 animate-pulse rounded bg-gray-100" />
-            <div className="h-3 w-20 animate-pulse rounded bg-gray-100" />
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+            <div className="h-4 w-24 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+            <div className="h-8 w-16 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+            <div className="h-3 w-20 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
           </div>
         ))}
       </div>
@@ -102,8 +104,9 @@ export function VelocityMetricsCards({
         return (
           <div
             key={index}
-            className="flex flex-col gap-2 rounded-xl border border-secondary bg-primary p-4"
+            className="relative flex flex-col gap-2 rounded-xl border border-secondary bg-primary p-4"
           >
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-tertiary">
                 {metric.title}

@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 /**
  * Get position scatter data: your position vs competitor position per keyword.
@@ -9,6 +11,10 @@ import type { Id } from "./_generated/dataModel";
 export const getPositionScatterData = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Get active keywords with denormalized positions
     const keywords = await ctx.db
       .query("keywords")
@@ -92,6 +98,10 @@ export const getPositionScatterData = query({
 export const getBacklinkRadarData = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Get domain's backlink summary
     const domainSummary = await ctx.db
       .query("domainBacklinksSummary")
@@ -205,6 +215,10 @@ export const getBacklinkRadarData = query({
 export const getBacklinkQualityComparison = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { tiers: [], series: [] };
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const tiers = ["High DR (60+)", "Medium DR (30-59)", "Low DR (0-29)"];
 
     function tierIndex(rank: number | undefined | null): number {
@@ -262,6 +276,8 @@ export const getBacklinkQualityComparison = query({
 /**
  * Get top keywords with position bars for your domain + each competitor.
  * Top N by search volume (default 15).
+ * Uses SERP results for competitor positions (same source as keyword map),
+ * with recentPositions fallback for own domain when SERP is missing.
  */
 export const getKeywordPositionBars = query({
   args: {
@@ -269,6 +285,10 @@ export const getKeywordPositionBars = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { keywords: [], series: [] };
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const limit = args.limit ?? 15;
 
     // Get all active keywords, sorted by search volume desc
@@ -284,8 +304,6 @@ export const getKeywordPositionBars = query({
 
     if (topKeywords.length === 0) return { keywords: [], series: [] };
 
-    const keywordIds = new Set(topKeywords.map((k) => k._id));
-
     // Get active competitors
     const competitors = await ctx.db
       .query("competitors")
@@ -294,46 +312,71 @@ export const getKeywordPositionBars = query({
       )
       .collect();
 
-    // Own positions from denormalized data
-    const ownPositions = topKeywords.map(
-      (k) => k.currentPosition ?? null
+    const competitorDomains = competitors.map((c) =>
+      c.competitorDomain.toLowerCase().replace(/^www\./, "")
     );
 
-    const series: Array<{ name: string; positions: (number | null)[] }> =
-      [{ name: "__own__", positions: ownPositions }];
+    // Use SERP results (same source as keyword map) for competitor positions
+    const ownPositions: (number | null)[] = [];
+    const competitorPositionsByDomain = new Map<string, (number | null)[]>();
+    for (const cd of competitorDomains) {
+      competitorPositionsByDomain.set(cd, []);
+    }
 
-    // Competitor positions
-    for (const comp of competitors) {
-      const allPositions = await ctx.db
-        .query("competitorKeywordPositions")
-        .withIndex("by_competitor", (q) =>
-          q.eq("competitorId", comp._id)
-        )
-        .collect();
+    for (const keyword of topKeywords) {
+      // Get latest SERP results for this keyword
+      const serpResults = await ctx.db
+        .query("keywordSerpResults")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
+        .order("desc")
+        .take(100);
 
-      // Latest position per keyword
-      const latestByKeyword = new Map<
-        Id<"keywords">,
-        { position: number | null; fetchedAt: number }
-      >();
-      for (const pos of allPositions) {
-        if (!keywordIds.has(pos.keywordId)) continue;
-        const existing = latestByKeyword.get(pos.keywordId);
-        if (!existing || pos.fetchedAt > existing.fetchedAt) {
-          latestByKeyword.set(pos.keywordId, {
-            position: pos.position,
-            fetchedAt: pos.fetchedAt,
-          });
+      if (serpResults.length === 0) {
+        // Fall back to recentPositions -> currentPosition for own domain
+        const recent = keyword.recentPositions;
+        const ownPos = (recent && recent.length > 0)
+          ? (recent[recent.length - 1].position ?? null)
+          : (keyword.currentPosition ?? null);
+        ownPositions.push(ownPos);
+        for (const cd of competitorDomains) {
+          competitorPositionsByDomain.get(cd)!.push(null);
         }
+        continue;
       }
 
-      const positions = topKeywords.map(
-        (k) => latestByKeyword.get(k._id)?.position ?? null
-      );
+      const latestDate = serpResults[0].date;
+      const latestResults = serpResults.filter((r) => r.date === latestDate);
 
+      // Own position: SERP first, then recentPositions, then currentPosition
+      const yourResult = latestResults.find((r) => r.isYourDomain);
+      let ownPos = yourResult?.position ?? null;
+      if (ownPos == null) {
+        const recent = keyword.recentPositions;
+        ownPos = (recent && recent.length > 0)
+          ? (recent[recent.length - 1].position ?? null)
+          : (keyword.currentPosition ?? null);
+      }
+      ownPositions.push(ownPos);
+
+      // Competitor positions from SERP
+      for (const cd of competitorDomains) {
+        const compResult = latestResults.find((r) => {
+          const rd = (r.mainDomain || r.domain || "").toLowerCase().replace(/^www\./, "");
+          return rd === cd || rd.endsWith("." + cd);
+        });
+        competitorPositionsByDomain.get(cd)!.push(compResult?.position ?? null);
+      }
+    }
+
+    const series: Array<{ name: string; positions: (number | null)[] }> = [
+      { name: "__own__", positions: ownPositions },
+    ];
+
+    for (const comp of competitors) {
+      const cd = comp.competitorDomain.toLowerCase().replace(/^www\./, "");
       series.push({
         name: comp.name || comp.competitorDomain,
-        positions,
+        positions: competitorPositionsByDomain.get(cd) ?? [],
       });
     }
 

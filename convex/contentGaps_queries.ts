@@ -1,10 +1,28 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
+
+/** NaN-safe number read: returns fallback if value is null, undefined, NaN, or Infinity */
+function safeNum(val: number | null | undefined, fallback: number): number {
+  if (val == null || isNaN(val) || !isFinite(val)) return fallback;
+  return val;
+}
+
+/** Derive priority from opportunity score (single source of truth) */
+function derivePriority(score: number): "high" | "medium" | "low" {
+  if (score >= 70) return "high";
+  if (score >= 40) return "medium";
+  return "low";
+}
 
 /**
  * Get content gaps with advanced filtering
  * Returns gaps ordered by opportunity score
+ *
+ * Optimized: uses targeted ctx.db.get() for enrichment instead of
+ * loading ALL keywords/competitors (avoids 32k doc read limit).
  */
 export const getContentGaps = query({
   args: {
@@ -34,13 +52,31 @@ export const getContentGaps = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db
-      .query("contentGaps")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId));
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
-    let gaps = await query.collect();
+    const limit = args.limit ?? 200;
 
-    // Apply filters
+    // Use index-based filtering when possible to reduce docs scanned
+    let gaps;
+    if (args.filters?.status) {
+      gaps = await ctx.db
+        .query("contentGaps")
+        .withIndex("by_status", (q) =>
+          q.eq("domainId", args.domainId).eq("status", args.filters!.status!)
+        )
+        .collect();
+    } else {
+      // Default: read up to 4x limit using score index (desc) to reduce reads
+      gaps = await ctx.db
+        .query("contentGaps")
+        .withIndex("by_score", (q) => q.eq("domainId", args.domainId))
+        .order("desc")
+        .take(limit * 4);
+    }
+
+    // Apply remaining in-memory filters
     if (args.filters) {
       const f = args.filters;
 
@@ -48,10 +84,7 @@ export const getContentGaps = query({
         gaps = gaps.filter((g) => g.priority === f.priority);
       }
 
-      if (f.status) {
-        gaps = gaps.filter((g) => g.status === f.status);
-      }
-
+      // status already applied via index when present
       if (f.minScore !== undefined) {
         const minScore = f.minScore;
         gaps = gaps.filter((g) => g.opportunityScore >= minScore);
@@ -90,23 +123,24 @@ export const getContentGaps = query({
     // Sort by opportunity score descending
     gaps.sort((a, b) => b.opportunityScore - a.opportunityScore);
 
-    // Apply limit if specified
-    if (args.limit) {
-      gaps = gaps.slice(0, args.limit);
-    }
+    // Apply limit
+    gaps = gaps.slice(0, limit);
 
-    // Batch fetch keywords and competitors for this domain (2 queries instead of 2*N)
-    const allKeywords = await ctx.db
-      .query("keywords")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .collect();
-    const keywordMap = new Map(allKeywords.map((kw) => [kw._id, kw]));
+    // Targeted enrichment: load only the keywords and competitors we need
+    const uniqueKeywordIds = [...new Set(gaps.map((g) => g.keywordId))];
+    const uniqueCompetitorIds = [...new Set(gaps.map((g) => g.competitorId))];
 
-    const allCompetitors = await ctx.db
-      .query("competitors")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .collect();
-    const competitorMap = new Map(allCompetitors.map((c) => [c._id, c]));
+    const [keywordDocs, competitorDocs] = await Promise.all([
+      Promise.all(uniqueKeywordIds.map((id) => ctx.db.get(id))),
+      Promise.all(uniqueCompetitorIds.map((id) => ctx.db.get(id))),
+    ]);
+
+    const keywordMap = new Map(
+      uniqueKeywordIds.map((id, i) => [id, keywordDocs[i]])
+    );
+    const competitorMap = new Map(
+      uniqueCompetitorIds.map((id, i) => [id, competitorDocs[i]])
+    );
 
     // Enrich with keyword and competitor data, sanitize NaN values
     const enrichedGaps = gaps.map((gap) => {
@@ -147,19 +181,41 @@ export const getContentGaps = query({
 
 /**
  * Get gap summary statistics for a domain
+ *
+ * Optimized: uses streaming aggregation to compute stats in a single pass
+ * over gaps, then targeted ctx.db.get() for top-10 enrichment only.
+ * Avoids loading ALL keywords + ALL competitors (was hitting 32k limit).
  */
 export const getGapSummary = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
-    const rawGaps = await ctx.db
-      .query("contentGaps")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .collect();
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { totalGaps: 0, highPriority: 0, mediumPriority: 0, lowPriority: 0, statusCounts: { identified: 0, monitoring: 0, ranking: 0, dismissed: 0 }, totalEstimatedValue: 0, topOpportunities: [], competitorsAnalyzed: 0, lastAnalyzedAt: null };
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
-    // Sanitize NaN scores and recalculate priorities
-    const gaps = rawGaps.map((g) => {
+    // Single pass: compute all stats + collect top 10 in one traversal
+    let totalGaps = 0;
+    let highPriority = 0;
+    let mediumPriority = 0;
+    let lowPriority = 0;
+    let totalEstimatedValue = 0;
+    const statusCounts = { identified: 0, monitoring: 0, ranking: 0, dismissed: 0 };
+    const competitorSet = new Set<Id<"competitors">>();
+
+    // Keep a min-heap of top 10 by score (use sorted array for simplicity)
+    const TOP_N = 10;
+    type ScoredGap = { _id: Id<"contentGaps">; keywordId: Id<"keywords">; competitorId: Id<"competitors">; opportunityScore: number; estimatedTrafficValue: number; priority: "high" | "medium" | "low" };
+    const topGaps: ScoredGap[] = [];
+    let minTopScore = -1;
+
+    // Stream through all gaps without collecting into one giant array
+    const gapsCursor = ctx.db
+      .query("contentGaps")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId));
+
+    for await (const g of gapsCursor) {
+      // Sanitize score
       let score = g.opportunityScore;
-      let priority = g.priority;
       if (isNaN(score) || score === null || score === undefined) {
         const vol = g.searchVolume || 0;
         const diff = isNaN(g.difficulty) ? 50 : (g.difficulty || 50);
@@ -169,48 +225,48 @@ export const getGapSummary = query({
         const posBonus = compPos <= 3 ? 20 : compPos <= 10 ? 10 : 0;
         score = Math.min(Math.round(volScore + diffScore + posBonus), 100);
       }
-      if (score >= 70) priority = "high";
-      else if (score >= 40) priority = "medium";
-      else priority = "low";
-      return { ...g, opportunityScore: score, priority };
-    });
+      const priority = derivePriority(score);
 
-    // Calculate statistics
-    const totalGaps = gaps.length;
-    const highPriority = gaps.filter((g) => g.priority === "high").length;
-    const mediumPriority = gaps.filter((g) => g.priority === "medium").length;
-    const lowPriority = gaps.filter((g) => g.priority === "low").length;
+      // Aggregate stats
+      totalGaps++;
+      if (priority === "high") highPriority++;
+      else if (priority === "medium") mediumPriority++;
+      else lowPriority++;
+      if (g.status in statusCounts) statusCounts[g.status as keyof typeof statusCounts]++;
+      totalEstimatedValue += safeNum(g.estimatedTrafficValue, 0);
+      competitorSet.add(g.competitorId);
 
-    const statusCounts = {
-      identified: gaps.filter((g) => g.status === "identified").length,
-      monitoring: gaps.filter((g) => g.status === "monitoring").length,
-      ranking: gaps.filter((g) => g.status === "ranking").length,
-      dismissed: gaps.filter((g) => g.status === "dismissed").length,
-    };
+      // Track top N
+      if (topGaps.length < TOP_N || score > minTopScore) {
+        topGaps.push({
+          _id: g._id,
+          keywordId: g.keywordId,
+          competitorId: g.competitorId,
+          opportunityScore: score,
+          estimatedTrafficValue: safeNum(g.estimatedTrafficValue, 0),
+          priority,
+        });
+        if (topGaps.length > TOP_N) {
+          topGaps.sort((a, b) => b.opportunityScore - a.opportunityScore);
+          topGaps.length = TOP_N;
+        }
+        minTopScore = topGaps[topGaps.length - 1].opportunityScore;
+      }
+    }
 
-    // Calculate total estimated traffic value
-    const totalEstimatedValue = gaps.reduce(
-      (sum, gap) => sum + gap.estimatedTrafficValue,
-      0
-    );
+    topGaps.sort((a, b) => b.opportunityScore - a.opportunityScore);
 
-    // Get top 10 opportunities
-    const topGaps = [...gaps]
-      .sort((a, b) => b.opportunityScore - a.opportunityScore)
-      .slice(0, 10);
+    // Targeted enrichment for top 10 only (max 20 doc reads)
+    const uniqueKeywordIds = [...new Set(topGaps.map((g) => g.keywordId))];
+    const uniqueCompetitorIds = [...new Set(topGaps.map((g) => g.competitorId))];
 
-    // Batch fetch keywords and competitors for enrichment (2 queries instead of 2*N)
-    const allKeywords = await ctx.db
-      .query("keywords")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .collect();
-    const keywordMap = new Map(allKeywords.map((kw) => [kw._id, kw]));
+    const [keywordDocs, competitorDocs] = await Promise.all([
+      Promise.all(uniqueKeywordIds.map((id) => ctx.db.get(id))),
+      Promise.all(uniqueCompetitorIds.map((id) => ctx.db.get(id))),
+    ]);
 
-    const allCompetitors = await ctx.db
-      .query("competitors")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .collect();
-    const competitorMap = new Map(allCompetitors.map((c) => [c._id, c]));
+    const keywordMap = new Map(uniqueKeywordIds.map((id, i) => [id, keywordDocs[i]]));
+    const competitorMap = new Map(uniqueCompetitorIds.map((id, i) => [id, competitorDocs[i]]));
 
     const topOpportunities = topGaps.map((gap) => {
       const keyword = keywordMap.get(gap.keywordId);
@@ -224,9 +280,6 @@ export const getGapSummary = query({
         priority: gap.priority,
       };
     });
-
-    const uniqueCompetitors = new Set(gaps.map((g) => g.competitorId));
-    const competitorsAnalyzed = uniqueCompetitors.size;
 
     // Get latest report
     const latestReport = await ctx.db
@@ -243,7 +296,7 @@ export const getGapSummary = query({
       statusCounts,
       totalEstimatedValue,
       topOpportunities,
-      competitorsAnalyzed,
+      competitorsAnalyzed: competitorSet.size,
       lastAnalyzedAt: latestReport?.generatedAt ?? null,
     };
   },
@@ -258,6 +311,10 @@ export const getGapTrends = query({
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const days = args.days || 90;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -312,24 +369,37 @@ export const getGapTrends = query({
 /**
  * Get topic clusters (group gaps by semantic similarity)
  * Uses simple keyword phrase analysis to cluster related keywords
+ *
+ * Optimized: limits gaps read and uses targeted ctx.db.get() for keywords
+ * instead of loading ALL keywords for the domain.
  */
 export const getTopicClusters = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
+    // Limit to top 2000 gaps by score to avoid exceeding read limits
     const gaps = await ctx.db
       .query("contentGaps")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .filter((q) => q.neq(q.field("status"), "dismissed"))
-      .collect();
+      .withIndex("by_score", (q) => q.eq("domainId", args.domainId))
+      .order("desc")
+      .take(2000);
 
-    // Batch fetch all keywords for domain (1 query instead of N)
-    const allKeywords = await ctx.db
-      .query("keywords")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .collect();
-    const keywordMap = new Map(allKeywords.map((kw) => [kw._id, kw]));
+    // Filter out dismissed in memory (small fraction after take)
+    const activeGaps = gaps.filter((g) => g.status !== "dismissed");
 
-    const gapsWithKeywords = gaps.map((gap) => ({
+    // Targeted keyword loading: only fetch keywords referenced by these gaps
+    const uniqueKeywordIds = [...new Set(activeGaps.map((g) => g.keywordId))];
+    const keywordDocs = await Promise.all(
+      uniqueKeywordIds.map((id) => ctx.db.get(id))
+    );
+    const keywordMap = new Map(
+      uniqueKeywordIds.map((id, i) => [id, keywordDocs[i]])
+    );
+
+    const gapsWithKeywords = activeGaps.map((gap) => ({
       ...gap,
       phrase: keywordMap.get(gap.keywordId)?.phrase ?? "",
     }));
@@ -386,11 +456,11 @@ export const getTopicClusters = query({
     const clusterArray = Array.from(clusters.entries()).map(
       ([topic, clusterGaps]) => {
         const totalScore = clusterGaps.reduce(
-          (sum, g) => sum + g.opportunityScore,
+          (sum, g) => sum + safeNum(g.opportunityScore, 0),
           0
         );
         const totalValue = clusterGaps.reduce(
-          (sum, g) => sum + g.estimatedTrafficValue,
+          (sum, g) => sum + safeNum(g.estimatedTrafficValue, 0),
           0
         );
         const avgScore =
@@ -404,21 +474,22 @@ export const getTopicClusters = query({
         // All keywords with details (sorted by score)
         const keywords = sorted.map((g) => ({
           phrase: g.phrase,
-          searchVolume: g.searchVolume,
-          opportunityScore: g.opportunityScore,
-          difficulty: isNaN(g.difficulty) ? 0 : g.difficulty,
-          estimatedTrafficValue: g.estimatedTrafficValue,
+          searchVolume: safeNum(g.searchVolume, 0),
+          opportunityScore: safeNum(g.opportunityScore, 0),
+          difficulty: safeNum(g.difficulty, 0),
+          estimatedTrafficValue: safeNum(g.estimatedTrafficValue, 0),
           competitorPosition: g.competitorPosition,
+          priority: derivePriority(safeNum(g.opportunityScore, 0)),
           status: g.status,
         }));
 
         const totalSearchVolume = clusterGaps.reduce(
-          (sum, g) => sum + g.searchVolume,
+          (sum, g) => sum + safeNum(g.searchVolume, 0),
           0
         );
         const avgDifficulty =
           clusterGaps.length > 0
-            ? clusterGaps.reduce((sum, g) => sum + (isNaN(g.difficulty) ? 0 : g.difficulty), 0) / clusterGaps.length
+            ? clusterGaps.reduce((sum, g) => sum + safeNum(g.difficulty, 0), 0) / clusterGaps.length
             : 0;
 
         return {
@@ -445,62 +516,67 @@ export const getTopicClusters = query({
 
 /**
  * Compare gap counts across competitors
+ *
+ * Optimized: uses streaming aggregation (no giant gaps array in memory)
+ * and targeted ctx.db.get() for competitor enrichment.
  */
 export const getCompetitorGapComparison = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
-    const gaps = await ctx.db
-      .query("contentGaps")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .filter((q) => q.neq(q.field("status"), "dismissed"))
-      .collect();
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
 
-    // Group by competitor
-    const competitorMap = new Map<
+    // Stream-aggregate by competitor to avoid holding all gaps in memory
+    const competitorAgg = new Map<
       Id<"competitors">,
-      {
-        gaps: (typeof gaps)[0][];
-        highPriority: number;
-        totalScore: number;
-      }
+      { count: number; highPriority: number; totalScore: number }
     >();
 
-    for (const gap of gaps) {
-      const existing = competitorMap.get(gap.competitorId) || {
-        gaps: [],
+    const gapsCursor = ctx.db
+      .query("contentGaps")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId));
+
+    for await (const gap of gapsCursor) {
+      if (gap.status === "dismissed") continue;
+
+      const score = safeNum(gap.opportunityScore, 0);
+      const priority = derivePriority(score);
+      const existing = competitorAgg.get(gap.competitorId) || {
+        count: 0,
         highPriority: 0,
         totalScore: 0,
       };
 
-      competitorMap.set(gap.competitorId, {
-        gaps: [...existing.gaps, gap],
-        highPriority:
-          existing.highPriority + (gap.priority === "high" ? 1 : 0),
-        totalScore: existing.totalScore + gap.opportunityScore,
+      competitorAgg.set(gap.competitorId, {
+        count: existing.count + 1,
+        highPriority: existing.highPriority + (priority === "high" ? 1 : 0),
+        totalScore: existing.totalScore + score,
       });
     }
 
-    // Batch fetch all competitors for domain (1 query instead of N)
-    const allCompetitors = await ctx.db
-      .query("competitors")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .collect();
-    const competitorLookup = new Map(allCompetitors.map((c) => [c._id, c]));
-
-    const comparison = Array.from(competitorMap.entries()).map(
-      ([competitorId, data]) => {
-        const competitor = competitorLookup.get(competitorId);
-        return {
-          competitorId,
-          competitorDomain: competitor?.competitorDomain ?? "Unknown",
-          competitorName: competitor?.name ?? "Unknown",
-          totalGaps: data.gaps.length,
-          highPriorityGaps: data.highPriority,
-          avgOpportunityScore:
-            data.gaps.length > 0 ? data.totalScore / data.gaps.length : 0,
-        };
-      }
+    // Targeted competitor enrichment (typically <20 competitors)
+    const competitorIds = [...competitorAgg.keys()];
+    const competitorDocs = await Promise.all(
+      competitorIds.map((id) => ctx.db.get(id))
     );
+    const competitorLookup = new Map(
+      competitorIds.map((id, i) => [id, competitorDocs[i]])
+    );
+
+    const comparison = competitorIds.map((competitorId) => {
+      const data = competitorAgg.get(competitorId)!;
+      const competitor = competitorLookup.get(competitorId);
+      return {
+        competitorId,
+        competitorDomain: competitor?.competitorDomain ?? "Unknown",
+        competitorName: competitor?.name ?? "Unknown",
+        totalGaps: data.count,
+        highPriorityGaps: data.highPriority,
+        avgOpportunityScore:
+          data.count > 0 ? data.totalScore / data.count : 0,
+      };
+    });
 
     // Sort by total gaps descending
     comparison.sort((a, b) => b.totalGaps - a.totalGaps);

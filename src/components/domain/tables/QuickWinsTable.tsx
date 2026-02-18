@@ -17,12 +17,16 @@ import {
     FilterLines,
     Settings01,
     Plus,
+    Trash01,
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { Input } from "@/components/base/input/input";
 import { Button } from "@/components/base/buttons/button";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { QuickWinDetailModal } from "../modals/QuickWinDetailModal";
+import { useRowSelection } from "@/hooks/useRowSelection";
+import { BulkActionBar } from "@/components/patterns/BulkActionBar";
 
 interface QuickWinsTableProps {
     domainId: Id<"domains">;
@@ -119,7 +123,9 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
     const tc = useTranslations('common');
     const quickWins = useQuery(api.keywordMap_queries.getQuickWins, { domainId, limit: 200 });
     const addKeywords = useMutation(api.keywords.addKeywords);
+    const deleteDiscoveredKeywords = useMutation(api.dataforseo.deleteDiscoveredKeywords);
     const [addingKeywords, setAddingKeywords] = useState<Set<string>>(new Set());
+    const selection = useRowSelection();
 
     const handleAddToMonitoring = async (keyword: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -228,6 +234,7 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
 
     const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
     const paginatedData = filteredData.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+    const visibleIds = paginatedData.map((item: any) => item._id as string);
 
     // Reset page when filters change
     const resetPage = () => setPage(0);
@@ -256,16 +263,18 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
 
     if (quickWins === undefined) {
         return (
-            <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-                <div className="h-5 w-32 animate-pulse rounded bg-gray-100" />
-                <div className="h-64 animate-pulse rounded bg-gray-50" />
+            <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+                <div className="h-5 w-32 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+                <div className="h-64 animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
             </div>
         );
     }
 
     return (
         <>
-            <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 {/* Header */}
                 <div className="mb-3">
                     <div className="flex items-center gap-2">
@@ -366,10 +375,62 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
                     </div>
                 ) : (
                     <>
+                        <BulkActionBar
+                            selectedCount={selection.count}
+                            selectedIds={selection.selectedIds}
+                            onClearSelection={selection.clear}
+                            actions={[
+                                {
+                                    label: tc('bulkAddToMonitoring'),
+                                    icon: Plus,
+                                    onClick: async (ids) => {
+                                        const phrases = filteredData
+                                            .filter((item: any) => ids.has(item._id))
+                                            .map((item: any) => item.keyword);
+                                        if (phrases.length === 0) return;
+                                        try {
+                                            await addKeywords({ domainId, phrases });
+                                            toast.success(tc('bulkActionSuccess', { count: phrases.length }));
+                                            selection.clear();
+                                        } catch {
+                                            toast.error(tc('bulkActionFailed'));
+                                        }
+                                    },
+                                },
+                                {
+                                    label: tc('bulkDelete'),
+                                    icon: Trash01,
+                                    variant: "destructive" as const,
+                                    onClick: async (ids) => {
+                                        const keywordIds = filteredData
+                                            .filter((item: any) => ids.has(item._id))
+                                            .map((item: any) => item._id);
+                                        if (keywordIds.length === 0) return;
+                                        try {
+                                            await deleteDiscoveredKeywords({ keywordIds });
+                                            toast.success(tc('bulkActionSuccess', { count: keywordIds.length }));
+                                            selection.clear();
+                                        } catch {
+                                            toast.error(tc('bulkActionFailed'));
+                                        }
+                                    },
+                                },
+                            ]}
+                        />
+
                         <div className="overflow-x-auto rounded-lg border border-secondary">
                             <table className="w-full">
                                 <thead className="bg-secondary/50">
                                     <tr>
+                                        <th className="w-10 px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selection.isAllSelected(visibleIds)}
+                                                ref={(el) => { if (el) el.indeterminate = selection.isIndeterminate(visibleIds); }}
+                                                onChange={() => selection.toggleAll(visibleIds)}
+                                                className="h-4 w-4 rounded border-secondary"
+                                            />
+                                        </th>
                                         {columnVisibility.keyword && (
                                             <th
                                                 className="sticky left-0 z-20 bg-secondary cursor-pointer px-4 py-3 text-left text-xs font-medium text-tertiary border-r border-secondary transition-colors hover:bg-secondary/70"
@@ -433,6 +494,14 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
                                                 className="group transition-colors hover:bg-primary_hover cursor-pointer"
                                                 onClick={() => setSelectedKeywordId(item._id)}
                                             >
+                                                <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selection.isSelected(item._id)}
+                                                        onChange={() => selection.toggle(item._id)}
+                                                        className="h-4 w-4 rounded border-secondary"
+                                                    />
+                                                </td>
                                                 {columnVisibility.keyword && (
                                                     <td className="sticky left-0 z-10 bg-primary group-hover:bg-primary_hover border-r border-secondary px-4 py-3 transition-colors">
                                                         <span className="text-sm font-medium text-primary whitespace-nowrap">{item.keyword}</span>

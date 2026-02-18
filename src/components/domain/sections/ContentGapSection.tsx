@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { SectionLabel } from "@/components/application/section-headers/section-label";
 import { AddCompetitorModal } from "../modals/AddCompetitorModal";
+import { PermissionGate } from "@/components/auth/PermissionGate";
 import { GapSummaryCards } from "../cards/GapSummaryCards";
 import { ContentGapOpportunitiesTable } from "../tables/ContentGapOpportunitiesTable";
 import { ContentGapTrendsChart } from "../charts/ContentGapTrendsChart";
@@ -70,21 +71,25 @@ export function ContentGapSection({ domainId }: ContentGapSectionProps) {
                     tooltipDescription={t('contentGapSectionTooltip')}
                 />
                 <div className="flex shrink-0 items-center gap-2">
-                    <button
-                        onClick={() => setShowAddDialog(true)}
-                        className="inline-flex items-center gap-2 rounded-lg border border-secondary bg-primary px-4 py-2 text-sm font-medium text-primary shadow-xs hover:bg-primary-hover"
-                    >
-                        <Plus className="h-4 w-4" />
-                        {t('contentGapAddCompetitor')}
-                    </button>
-                    <button
-                        onClick={handleRefresh}
-                        disabled={isRefreshing || activeCompetitors.length === 0}
-                        className="inline-flex items-center gap-2 rounded-lg border border-secondary bg-primary px-4 py-2 text-sm font-medium text-primary shadow-xs hover:bg-primary-hover disabled:opacity-50"
-                    >
-                        <RefreshCw01 className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                        {isRefreshing ? t('contentGapAnalyzing') : t('contentGapRefreshAnalysis')}
-                    </button>
+                    <PermissionGate permission="competitors.add">
+                        <button
+                            onClick={() => setShowAddDialog(true)}
+                            className="inline-flex items-center gap-2 rounded-lg border border-secondary bg-primary px-4 py-2 text-sm font-medium text-primary shadow-xs hover:bg-primary-hover"
+                        >
+                            <Plus className="h-4 w-4" />
+                            {t('contentGapAddCompetitor')}
+                        </button>
+                    </PermissionGate>
+                    <PermissionGate permission="competitors.analyze">
+                        <button
+                            onClick={handleRefresh}
+                            disabled={isRefreshing || activeCompetitors.length === 0}
+                            className="inline-flex items-center gap-2 rounded-lg border border-secondary bg-primary px-4 py-2 text-sm font-medium text-primary shadow-xs hover:bg-primary-hover disabled:opacity-50"
+                        >
+                            <RefreshCw01 className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                            {isRefreshing ? t('contentGapAnalyzing') : t('contentGapRefreshAnalysis')}
+                        </button>
+                    </PermissionGate>
                 </div>
             </div>
 

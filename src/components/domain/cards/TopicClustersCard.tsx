@@ -19,6 +19,7 @@ import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { TopicClusterDetailModal } from "../modals/TopicClusterDetailModal";
 
 interface TopicClustersCardProps {
@@ -266,11 +267,12 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
     // Loading
     if (clusters === undefined) {
         return (
-            <div className="rounded-xl border border-secondary bg-primary p-6">
-                <div className="h-5 w-40 animate-pulse rounded bg-gray-100 mb-4" />
+            <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+                <div className="h-5 w-40 animate-pulse rounded bg-gray-100 dark:bg-gray-700 mb-4" />
                 <div className="space-y-3">
                     {[1, 2, 3, 4].map((i) => (
-                        <div key={i} className="h-12 animate-pulse rounded bg-gray-50" />
+                        <div key={i} className="h-12 animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
                     ))}
                 </div>
             </div>
@@ -280,7 +282,8 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
     // Empty
     if (!clusters || clusters.length === 0) {
         return (
-            <div className="rounded-xl border border-secondary bg-primary p-6">
+            <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 <div className="flex items-center gap-2 mb-4">
                     <h3 className="text-md font-semibold text-primary">{t('topicClusters')}</h3>
                     <Tooltip title={t('topicClusters')} description={t('topicClustersTooltip')}>
@@ -297,7 +300,8 @@ export function TopicClustersCard({ domainId }: TopicClustersCardProps) {
     }
 
     return (
-        <div className="rounded-xl border border-secondary bg-primary">
+        <div className="relative rounded-xl border border-secondary bg-primary">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             {/* Toolbar */}
             <div className="border-b border-secondary p-4">
                 <div className="flex items-center justify-between gap-4 flex-wrap">

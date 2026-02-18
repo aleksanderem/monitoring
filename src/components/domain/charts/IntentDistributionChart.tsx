@@ -5,6 +5,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recha
 import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { GradientChartTooltip } from "@/components/application/charts/charts-base";
 
 interface IntentDistributionChartProps {
     domainId: Id<"domains">;
@@ -38,9 +40,10 @@ export function IntentDistributionChart({ domainId }: IntentDistributionChartPro
 
     if (intentData === undefined) {
         return (
-            <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-                <div className="h-5 w-40 animate-pulse rounded bg-gray-100" />
-                <div className="h-[250px] animate-pulse rounded bg-gray-50" />
+            <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+                <div className="h-5 w-40 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+                <div className="h-[250px] animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
             </div>
         );
     }
@@ -57,14 +60,16 @@ export function IntentDistributionChart({ domainId }: IntentDistributionChartPro
 
     if (chartData.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-secondary bg-primary p-6 py-12">
+            <div className="relative flex flex-col items-center justify-center gap-4 rounded-xl border border-secondary bg-primary p-6 py-12">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 <p className="text-sm text-tertiary">{t('noIntentDataAvailable')}</p>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             <div>
                 <h3 className="text-md font-semibold text-primary">{t('searchIntentDistribution')}</h3>
                 <p className="text-sm text-tertiary">{t('searchIntentDistributionDescription')}</p>
@@ -79,6 +84,7 @@ export function IntentDistributionChart({ domainId }: IntentDistributionChartPro
                             ))}
                         </Pie>
                         <Tooltip
+                            content={<GradientChartTooltip />}
                             formatter={(value: any, name: any, props: any) => [
                                 t('intentTooltip', { count: value, volume: formatNumber(props.payload.volume) }),
                                 name,

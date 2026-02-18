@@ -20,6 +20,8 @@ import { DeleteConfirmationDialog } from "@/components/application/modals/delete
 import { ProjectDetailsSlideout } from "@/components/application/slideout-menus/project-details-slideout";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import { PermissionGate } from "@/components/auth/PermissionGate";
 
 // Helper to format relative time
 function formatRelativeTime(timestamp: number): string {
@@ -39,6 +41,7 @@ export default function ProjectsPage() {
   const t = useTranslations("projects");
   const projects = useQuery(api.projects.list);
   const deleteProject = useMutation(api.projects.remove);
+  usePageTitle("Projects");
 
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
@@ -99,7 +102,7 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-container flex-col gap-8 px-4 py-8 lg:px-8">
+    <div className="mx-auto flex w-full max-w-container flex-col gap-8 px-4 py-8 lg:px-8">
       {projects.length === 0 ? (
         <EmptyState size="md">
           <EmptyState.Header>
@@ -114,7 +117,9 @@ export default function ProjectsPage() {
           </EmptyState.Content>
 
           <EmptyState.Footer>
-            <CreateProjectDialog />
+            <PermissionGate permission="projects.create">
+              <CreateProjectDialog />
+            </PermissionGate>
           </EmptyState.Footer>
         </EmptyState>
       ) : (
@@ -131,7 +136,9 @@ export default function ProjectsPage() {
             </div>
             <div className="flex flex-col gap-4 lg:flex-row">
               <div className="flex items-start gap-3">
-                <CreateProjectDialog />
+                <PermissionGate permission="projects.create">
+                  <CreateProjectDialog />
+                </PermissionGate>
               </div>
             </div>
           </div>
@@ -295,34 +302,38 @@ export default function ProjectsPage() {
                           }}
                         />
                       </ProjectDetailsSlideout>
-                      <ButtonUtility
-                        size="xs"
-                        color="tertiary"
-                        tooltip={t("editTooltip")}
-                        icon={Edit05}
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          toast.info(t("editComingSoon"));
-                        }}
-                      />
-                      <DeleteConfirmationDialog
-                        title={t("deleteTitle", { name: item.name })}
-                        description={t("deleteDescription")}
-                        confirmLabel={t("deleteConfirm")}
-                        onConfirm={async () => {
-                          await handleDelete(item._id);
-                        }}
-                      >
+                      <PermissionGate permission="projects.edit">
                         <ButtonUtility
                           size="xs"
                           color="tertiary"
-                          tooltip={t("deleteTooltip")}
-                          icon={Trash01}
+                          tooltip={t("editTooltip")}
+                          icon={Edit05}
                           onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
+                            toast.info(t("editComingSoon"));
                           }}
                         />
-                      </DeleteConfirmationDialog>
+                      </PermissionGate>
+                      <PermissionGate permission="projects.delete">
+                        <DeleteConfirmationDialog
+                          title={t("deleteTitle", { name: item.name })}
+                          description={t("deleteDescription")}
+                          confirmLabel={t("deleteConfirm")}
+                          onConfirm={async () => {
+                            await handleDelete(item._id);
+                          }}
+                        >
+                          <ButtonUtility
+                            size="xs"
+                            color="tertiary"
+                            tooltip={t("deleteTooltip")}
+                            icon={Trash01}
+                            onClick={(e: React.MouseEvent) => {
+                              e.stopPropagation();
+                            }}
+                          />
+                        </DeleteConfirmationDialog>
+                      </PermissionGate>
                     </div>
                   </Table.Cell>
                 </Table.Row>

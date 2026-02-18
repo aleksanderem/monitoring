@@ -5,6 +5,8 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 
 import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { GradientChartTooltip } from "@/components/application/charts/charts-base";
 
 interface ReferringDomainQualityChartProps {
     domainId: Id<"domains">;
@@ -30,16 +32,18 @@ export function ReferringDomainQualityChart({ domainId }: ReferringDomainQuality
 
     if (data === undefined) {
         return (
-            <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-                <div className="h-5 w-48 animate-pulse rounded bg-gray-100" />
-                <div className="h-48 animate-pulse rounded bg-gray-50" />
+            <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+                <div className="h-5 w-48 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+                <div className="h-48 animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
             </div>
         );
     }
 
     if (!data) {
         return (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary p-6 py-8">
+            <div className="relative flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary p-6 py-8">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 <p className="text-sm text-tertiary">{t('qualityEmpty')}</p>
             </div>
         );
@@ -55,7 +59,8 @@ export function ReferringDomainQualityChart({ domainId }: ReferringDomainQuality
     const total = data.distribution.reduce((sum, d) => sum + d.count, 0);
 
     return (
-        <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             <div>
                 <h3 className="text-md font-semibold text-primary">{t('qualityTitle')}</h3>
                 <p className="text-sm text-tertiary">
@@ -76,8 +81,8 @@ export function ReferringDomainQualityChart({ domainId }: ReferringDomainQuality
                             tickLine={false}
                         />
                         <Tooltip
+                            content={<GradientChartTooltip />}
                             formatter={(value: any, _name: any, props: any) => [`${value} links (${props.payload.percentage}%)`, ""]}
-                            contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px" }}
                         />
                         <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={24}>
                             {chartData.map((entry, i) => (

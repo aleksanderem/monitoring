@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { HelpCircle } from "@untitledui/icons";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { Tooltip as InfoTooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -18,16 +19,18 @@ export function CompetitorGapComparisonCard({ domainId }: CompetitorGapCompariso
 
     if (comparison === undefined) {
         return (
-            <div className="rounded-xl border border-secondary bg-primary p-6">
-                <div className="h-5 w-48 animate-pulse rounded bg-gray-100 mb-4" />
-                <div className="h-[200px] animate-pulse rounded bg-gray-50" />
+            <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+                <div className="h-5 w-48 animate-pulse rounded bg-gray-100 dark:bg-gray-700 mb-4" />
+                <div className="h-[200px] animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
             </div>
         );
     }
 
     if (!comparison || comparison.length === 0) {
         return (
-            <div className="rounded-xl border border-secondary bg-primary p-6">
+            <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 <div className="flex items-center gap-2">
                     <h3 className="text-md font-semibold text-primary">{t('gapComparisonTitle')}</h3>
                     <InfoTooltip title={t('gapComparisonTitle')} description={t('gapComparisonTooltip')}>
@@ -52,7 +55,8 @@ export function CompetitorGapComparisonCard({ domainId }: CompetitorGapCompariso
     }));
 
     return (
-        <div className="rounded-xl border border-secondary bg-primary p-6">
+        <div className="relative rounded-xl border border-secondary bg-primary p-6">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             <div className="flex items-center gap-2">
                 <h3 className="text-md font-semibold text-primary">{t('gapComparisonTitle')}</h3>
                 <InfoTooltip title={t('gapComparisonTitle')} description={t('gapComparisonTooltip')}>

@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useMutation } from "convex/react";
+import { toast } from "sonner";
+import { api } from "../../../../convex/_generated/api";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { Badge, BadgeWithDot } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
@@ -15,8 +19,13 @@ import {
   SearchLg,
   Settings01,
   FilterLines,
+  Download01,
+  Trash01,
 } from "@untitledui/icons";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { useRowSelection } from "@/hooks/useRowSelection";
+import { BulkActionBar } from "@/components/patterns/BulkActionBar";
 
 interface Backlink {
   _id: string;
@@ -82,6 +91,7 @@ function getSpamBadge(score?: number): { score: number | null; labelKey: string;
 export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
   const t = useTranslations('backlinks');
   const tc = useTranslations('common');
+  const deleteBacklinks = useMutation(api.backlinks.deleteBacklinks);
   const [sortColumn, setSortColumn] = useState<SortColumn>("lastSeen");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [searchQuery, setSearchQuery] = useState("");
@@ -89,6 +99,7 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
   const [itemsPerPage] = useState(25);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const selection = useRowSelection();
 
   // Column visibility state — persisted to localStorage
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(() => {
@@ -236,6 +247,39 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
     currentPage * itemsPerPage
   );
 
+  const visibleIds = useMemo(
+    () => paginatedBacklinks.map((b) => b._id),
+    [paginatedBacklinks]
+  );
+
+  const exportSelectedAsCsv = () => {
+    const selected = filteredAndSortedBacklinks.filter((b) =>
+      selection.selectedIds.has(b._id)
+    );
+    if (selected.length === 0) return;
+    const headers = ["Referring Domain", "URL From", "URL To", "Anchor", "Type", "Link Type", "Rank", "Spam Score", "Last Seen"];
+    const rows = selected.map((b) => [
+      b.domainFrom || "",
+      b.urlFrom,
+      b.urlTo,
+      (b.anchor || "").replace(/"/g, '""'),
+      b.itemType || "",
+      b.dofollow ? "dofollow" : "nofollow",
+      b.rank?.toString() || "",
+      b.backlink_spam_score?.toString() || "",
+      b.lastSeen || "",
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `backlinks-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    selection.clear();
+  };
+
   // Get unique values for filters
   const uniqueTypes = useMemo(() => {
     const types = new Set(backlinks?.items.map((b) => b.itemType).filter(Boolean));
@@ -244,16 +288,18 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-        <div className="h-8 w-48 animate-pulse rounded bg-gray-100" />
-        <div className="h-64 animate-pulse rounded bg-gray-100" />
+      <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+        <div className="h-8 w-48 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+        <div className="h-64 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
       </div>
     );
   }
 
   if (!backlinks || backlinks.items.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
+      <div className="relative rounded-xl border border-secondary bg-primary p-8 text-center">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <Link01 className="mx-auto h-12 w-12 text-fg-quaternary" />
         <p className="mt-4 text-sm text-tertiary">{t('noBacklinksFound')}</p>
       </div>
@@ -261,7 +307,8 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       {/* Header with controls */}
       <div className="flex items-center justify-between">
         <div>
@@ -420,11 +467,54 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
         </div>
       )}
 
+      {/* Bulk action bar */}
+      {selection.count > 0 && (
+        <BulkActionBar
+          selectedCount={selection.count}
+          selectedIds={selection.selectedIds}
+          onClearSelection={selection.clear}
+          actions={[
+            {
+              label: tc('bulkExport'),
+              icon: Download01,
+              onClick: exportSelectedAsCsv,
+            },
+            {
+              label: tc('bulkDelete'),
+              icon: Trash01,
+              variant: "destructive" as const,
+              onClick: async (ids) => {
+                const backlinkIds = filteredAndSortedBacklinks
+                  .filter((b) => ids.has(b._id))
+                  .map((b) => b._id as Id<"domainBacklinks">);
+                if (backlinkIds.length === 0) return;
+                try {
+                  await deleteBacklinks({ backlinkIds });
+                  toast.success(tc('bulkActionSuccess', { count: backlinkIds.length }));
+                  selection.clear();
+                } catch {
+                  toast.error(tc('bulkActionFailed'));
+                }
+              },
+            },
+          ]}
+        />
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto rounded-lg border border-secondary">
         <table className="w-full">
           <thead className="bg-secondary/50">
             <tr>
+              <th className="px-4 py-3 w-10">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300"
+                  checked={selection.isAllSelected(visibleIds)}
+                  ref={(el) => { if (el) el.indeterminate = selection.isIndeterminate(visibleIds); }}
+                  onChange={() => selection.toggleAll(visibleIds)}
+                />
+              </th>
               {columnVisibility.domainFrom && (
                 <th
                   className="cursor-pointer px-4 py-3 text-left text-xs font-medium text-tertiary transition-colors hover:bg-secondary/70"
@@ -511,6 +601,14 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
 
               return (
                 <tr key={backlink._id} className="transition-colors hover:bg-primary_hover">
+                  <td className="px-4 py-3 w-10" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300"
+                      checked={selection.isSelected(backlink._id)}
+                      onChange={() => selection.toggle(backlink._id)}
+                    />
+                  </td>
                   {columnVisibility.domainFrom && (
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">

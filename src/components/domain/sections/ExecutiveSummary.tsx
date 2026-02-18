@@ -8,6 +8,7 @@ import { MetricCard } from "../cards/MetricCard";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { BadgeWithDot } from "@/components/base/badges/badges";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface ExecutiveSummaryProps {
   domainId: Id<"domains">;
@@ -21,7 +22,8 @@ export function ExecutiveSummary({ domainId }: ExecutiveSummaryProps) {
     return (
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="rounded-xl bg-primary p-6">
+          <div key={i} className="relative rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             <LoadingState type="card" />
           </div>
         ))}
@@ -31,7 +33,8 @@ export function ExecutiveSummary({ domainId }: ExecutiveSummaryProps) {
 
   if (!metrics) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <p className="text-sm text-tertiary">{t("noVisibilityDataYet")}</p>
       </div>
     );

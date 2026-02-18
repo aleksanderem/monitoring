@@ -21,6 +21,18 @@ export function KeywordPositionChart({ positionHistory }: KeywordPositionChartPr
       }));
   }, [positionHistory]);
 
+  // Auto-scale Y-axis: pad the range around actual data instead of hardcoding [1, 100]
+  const yDomain = useMemo(() => {
+    if (chartData.length === 0) return [1, 20];
+    const positions = chartData.map((d) => d.position);
+    const minPos = Math.min(...positions);
+    const maxPos = Math.max(...positions);
+    // Pad by ~20% on each side, minimum range of 5
+    const range = Math.max(maxPos - minPos, 5);
+    const padding = Math.max(Math.ceil(range * 0.2), 2);
+    return [Math.max(1, minPos - padding), maxPos + padding];
+  }, [chartData]);
+
   if (chartData.length === 0) {
     return (
       <div className="flex h-48 items-center justify-center rounded-lg border border-secondary bg-secondary/20">
@@ -47,7 +59,7 @@ export function KeywordPositionChart({ positionHistory }: KeywordPositionChartPr
             fontSize={12}
             tickLine={false}
             reversed
-            domain={[1, 100]}
+            domain={yDomain}
             label={{ value: t("columnPosition"), angle: -90, position: 'insideLeft', style: { fill: '#9CA3AF', fontSize: 12 } }}
           />
           <Tooltip

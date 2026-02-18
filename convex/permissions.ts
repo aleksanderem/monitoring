@@ -8,41 +8,66 @@ import { Id, Doc } from "./_generated/dataModel";
 // =================================================================
 
 export const PERMISSIONS = {
-  // Organization
+  // --- Organization ---
   "org.settings.view": "Podgląd ustawień organizacji",
   "org.settings.edit": "Edycja ustawień organizacji",
   "org.limits.view": "Podgląd limitów",
   "org.limits.edit": "Edycja limitów",
 
-  // Members
+  // --- Members ---
   "members.view": "Podgląd listy członków",
   "members.invite": "Zapraszanie członków",
   "members.remove": "Usuwanie członków",
   "members.roles.edit": "Zmiana ról członków",
 
-  // Projects
+  // --- Projects ---
   "projects.view": "Podgląd projektów",
   "projects.create": "Tworzenie projektów",
   "projects.edit": "Edycja projektów",
   "projects.delete": "Usuwanie projektów",
 
-  // Domains
+  // --- Domains ---
   "domains.view": "Podgląd domen",
   "domains.create": "Dodawanie domen",
   "domains.edit": "Edycja domen",
   "domains.delete": "Usuwanie domen",
 
-  // Keywords
+  // --- Keywords (positioning module) ---
   "keywords.view": "Podgląd słów kluczowych",
   "keywords.add": "Dodawanie słów kluczowych",
   "keywords.remove": "Usuwanie słów kluczowych",
   "keywords.refresh": "Odświeżanie pozycji",
 
-  // Reports
+  // --- Reports ---
   "reports.view": "Podgląd raportów",
   "reports.create": "Tworzenie raportów",
   "reports.edit": "Edycja raportów",
   "reports.share": "Udostępnianie raportów",
+
+  // --- Backlinks module ---
+  "backlinks.view": "Podgląd profilu backlinków",
+  "backlinks.analyze": "Analiza backlinków",
+
+  // --- SEO Audit module ---
+  "audit.view": "Podgląd audytu SEO",
+  "audit.run": "Uruchamianie skanów SEO",
+
+  // --- Competitors module ---
+  "competitors.view": "Podgląd konkurentów",
+  "competitors.add": "Dodawanie konkurentów",
+  "competitors.analyze": "Analiza konkurentów",
+
+  // --- AI Strategy module ---
+  "ai.research": "Badanie słów kluczowych AI",
+  "ai.strategy": "Generowanie strategii AI",
+
+  // --- Forecasts module ---
+  "forecasts.view": "Podgląd prognoz",
+  "forecasts.generate": "Generowanie prognoz",
+
+  // --- Link Building module ---
+  "links.view": "Podgląd prospektów linków",
+  "links.manage": "Zarządzanie prospektami linków",
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -73,18 +98,35 @@ export const PERMISSION_CATEGORIES = {
     label: "Raporty",
     permissions: ["reports.view", "reports.create", "reports.edit", "reports.share"],
   },
+  backlinks: {
+    label: "Backlinki",
+    permissions: ["backlinks.view", "backlinks.analyze"],
+  },
+  audit: {
+    label: "Audyt SEO",
+    permissions: ["audit.view", "audit.run"],
+  },
+  competitors: {
+    label: "Konkurenci",
+    permissions: ["competitors.view", "competitors.add", "competitors.analyze"],
+  },
+  ai: {
+    label: "AI",
+    permissions: ["ai.research", "ai.strategy"],
+  },
+  forecasts: {
+    label: "Prognozy",
+    permissions: ["forecasts.view", "forecasts.generate"],
+  },
+  links: {
+    label: "Link Building",
+    permissions: ["links.view", "links.manage"],
+  },
 } as const;
 
 // Default system role permissions
 export const SYSTEM_ROLE_PERMISSIONS = {
-  admin: [
-    "org.settings.view", "org.settings.edit", "org.limits.view", "org.limits.edit",
-    "members.view", "members.invite", "members.remove", "members.roles.edit",
-    "projects.view", "projects.create", "projects.edit", "projects.delete",
-    "domains.view", "domains.create", "domains.edit", "domains.delete",
-    "keywords.view", "keywords.add", "keywords.remove", "keywords.refresh",
-    "reports.view", "reports.create", "reports.edit", "reports.share",
-  ],
+  admin: Object.keys(PERMISSIONS) as Permission[],
   member: [
     "org.settings.view", "org.limits.view",
     "members.view",
@@ -92,7 +134,13 @@ export const SYSTEM_ROLE_PERMISSIONS = {
     "domains.view", "domains.create", "domains.edit",
     "keywords.view", "keywords.add", "keywords.remove", "keywords.refresh",
     "reports.view", "reports.create", "reports.edit",
-  ],
+    "backlinks.view", "backlinks.analyze",
+    "audit.view", "audit.run",
+    "competitors.view", "competitors.add", "competitors.analyze",
+    "ai.research", "ai.strategy",
+    "forecasts.view", "forecasts.generate",
+    "links.view", "links.manage",
+  ] as Permission[],
   viewer: [
     "org.settings.view", "org.limits.view",
     "members.view",
@@ -100,8 +148,28 @@ export const SYSTEM_ROLE_PERMISSIONS = {
     "domains.view",
     "keywords.view",
     "reports.view",
-  ],
+    "backlinks.view",
+    "audit.view",
+    "competitors.view",
+    "forecasts.view",
+    "links.view",
+  ] as Permission[],
 } as const;
+
+// Maps module keys to the permissions they unlock
+export const MODULE_PERMISSIONS: Record<string, Permission[]> = {
+  positioning: ["keywords.view", "keywords.add", "keywords.remove", "keywords.refresh", "domains.view", "domains.create", "domains.edit", "domains.delete"],
+  backlinks: ["backlinks.view", "backlinks.analyze"],
+  seo_audit: ["audit.view", "audit.run"],
+  reports: ["reports.view", "reports.create", "reports.edit", "reports.share"],
+  competitors: ["competitors.view", "competitors.add", "competitors.analyze"],
+  ai_strategy: ["ai.research", "ai.strategy"],
+  forecasts: ["forecasts.view", "forecasts.generate"],
+  link_building: ["links.view", "links.manage"],
+};
+
+// All modules
+export const ALL_MODULES = Object.keys(MODULE_PERMISSIONS);
 
 // =================================================================
 // Permission Context Helpers
@@ -202,7 +270,9 @@ export async function getContextFromKeyword(
 // =================================================================
 
 /**
- * Get effective permissions for a user in an organization/project
+ * Get effective permissions for a user in an organization/project.
+ * Uses Permission Ceiling: effective = intersection(plan_permissions, role_permissions, granted_permissions).
+ * Super admins get ["*"] wildcard.
  */
 export async function getUserPermissions(
   ctx: QueryCtx | MutationCtx,
@@ -210,7 +280,28 @@ export async function getUserPermissions(
   organizationId: Id<"organizations">,
   projectId?: Id<"projects">
 ): Promise<string[]> {
-  // Get organization membership
+  // 1. Super admin bypass
+  const superAdminRecord = await ctx.db
+    .query("superAdmins")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .unique();
+  if (superAdminRecord) return ["*"];
+
+  // 2. Get plan ceiling
+  const org = await ctx.db.get(organizationId);
+  if (!org) return [];
+
+  let planPermissions: string[] | null = null;
+  if (org.planId) {
+    const plan = await ctx.db.get(org.planId);
+    if (plan) {
+      planPermissions = plan.permissions;
+    }
+  }
+  // If no plan assigned, no ceiling (backward compat — all permissions available)
+  const ceiling = planPermissions ?? Object.keys(PERMISSIONS);
+
+  // 3. Get org membership
   const orgMembership = await ctx.db
     .query("organizationMembers")
     .withIndex("by_org_user", (q) =>
@@ -218,16 +309,35 @@ export async function getUserPermissions(
     )
     .unique();
 
-  if (!orgMembership) {
-    return [];
-  }
+  if (!orgMembership) return [];
 
-  // Owner has all permissions
+  // 4. Owner gets everything the plan allows
   if (orgMembership.role === "owner") {
-    return ["*"];
+    return ceiling;
   }
 
-  // Check project-level override first
+  // 5. Resolve role permissions
+  let rolePermissions: string[];
+
+  if (orgMembership.role === "custom" && orgMembership.roleId) {
+    const customRole = await ctx.db.get(orgMembership.roleId);
+    rolePermissions = customRole ? customRole.permissions : [];
+  } else {
+    const role = orgMembership.role as keyof typeof SYSTEM_ROLE_PERMISSIONS;
+    rolePermissions = role in SYSTEM_ROLE_PERMISSIONS
+      ? [...SYSTEM_ROLE_PERMISSIONS[role]]
+      : [];
+  }
+
+  // 6. Apply plan ceiling: intersection(ceiling, rolePermissions)
+  let effective = rolePermissions.filter((p) => ceiling.includes(p));
+
+  // 7. Apply grantedPermissions if set (further restriction by higher-level user)
+  if (orgMembership.grantedPermissions) {
+    effective = effective.filter((p) => orgMembership.grantedPermissions!.includes(p));
+  }
+
+  // 8. Check project-level override
   if (projectId) {
     const projectMember = await ctx.db
       .query("projectMembers")
@@ -239,26 +349,13 @@ export async function getUserPermissions(
     if (projectMember && !projectMember.inheritFromOrg && projectMember.roleId) {
       const projectRole = await ctx.db.get(projectMember.roleId);
       if (projectRole) {
-        return projectRole.permissions;
+        // Project role also bounded by ceiling
+        effective = projectRole.permissions.filter((p) => ceiling.includes(p));
       }
     }
   }
 
-  // Use org membership role
-  if (orgMembership.role === "custom" && orgMembership.roleId) {
-    const customRole = await ctx.db.get(orgMembership.roleId);
-    if (customRole) {
-      return customRole.permissions;
-    }
-  }
-
-  // Use built-in role permissions
-  const role = orgMembership.role as keyof typeof SYSTEM_ROLE_PERMISSIONS;
-  if (role in SYSTEM_ROLE_PERMISSIONS) {
-    return [...SYSTEM_ROLE_PERMISSIONS[role]];
-  }
-
-  return [];
+  return effective;
 }
 
 /**
@@ -344,8 +441,161 @@ export async function requirePermission(
 }
 
 // =================================================================
+// Tenant Isolation Helpers
+// =================================================================
+
+/**
+ * Verify user belongs to the organization that owns a resource.
+ * Use in queries (read-only access). For write operations, use requirePermission().
+ * Super admins bypass. Returns the organizationId for further use.
+ */
+export async function requireTenantAccess(
+  ctx: QueryCtx | MutationCtx,
+  resourceType: "domain" | "project" | "team" | "organization",
+  resourceId: string
+): Promise<Id<"organizations">> {
+  const userId = await auth.getUserId(ctx);
+  if (!userId) throw new Error("Nie jesteś zalogowany");
+
+  // Super admin bypass
+  const superAdminRecord = await ctx.db
+    .query("superAdmins")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .unique();
+  if (superAdminRecord) {
+    // Still need to resolve org for data scoping
+    let orgId: Id<"organizations"> | null = null;
+    if (resourceType === "organization") {
+      orgId = resourceId as Id<"organizations">;
+    } else if (resourceType === "domain") {
+      orgId = await getOrgFromDomain(ctx, resourceId as Id<"domains">);
+    } else if (resourceType === "project") {
+      orgId = await getOrgFromProject(ctx, resourceId as Id<"projects">);
+    } else if (resourceType === "team") {
+      const team = await ctx.db.get(resourceId as Id<"teams">);
+      orgId = team?.organizationId ?? null;
+    }
+    if (!orgId) throw new Error("Zasób nie istnieje");
+    return orgId;
+  }
+
+  // Resolve organizationId
+  let organizationId: Id<"organizations"> | null = null;
+
+  if (resourceType === "organization") {
+    organizationId = resourceId as Id<"organizations">;
+  } else if (resourceType === "domain") {
+    organizationId = await getOrgFromDomain(ctx, resourceId as Id<"domains">);
+  } else if (resourceType === "project") {
+    organizationId = await getOrgFromProject(ctx, resourceId as Id<"projects">);
+  } else if (resourceType === "team") {
+    const team = await ctx.db.get(resourceId as Id<"teams">);
+    organizationId = team?.organizationId ?? null;
+  }
+
+  if (!organizationId) throw new Error("Zasób nie istnieje");
+
+  // Check org membership
+  const membership = await ctx.db
+    .query("organizationMembers")
+    .withIndex("by_org_user", (q) =>
+      q.eq("organizationId", organizationId!).eq("userId", userId)
+    )
+    .unique();
+
+  if (!membership) {
+    throw new Error("Brak dostępu do tego zasobu");
+  }
+
+  return organizationId;
+}
+
+/**
+ * Check permission in a query context (no audit logging).
+ * Throws if user lacks the permission.
+ */
+export async function requireQueryPermission(
+  ctx: QueryCtx,
+  permission: string,
+  context: PermissionContext
+): Promise<void> {
+  const userId = await auth.getUserId(ctx);
+  if (!userId) throw new Error("Nie jesteś zalogowany");
+
+  // Super admin bypass
+  const superAdminRecord = await ctx.db
+    .query("superAdmins")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .unique();
+
+  if (superAdminRecord) return;
+
+  const result = await checkPermission(ctx, userId, permission, context);
+
+  if (!result.allowed) {
+    throw new Error(result.reason || "Brak uprawnień");
+  }
+}
+
+/**
+ * Get available modules for an organization based on its plan.
+ */
+export async function getOrganizationModules(
+  ctx: QueryCtx | MutationCtx,
+  organizationId: Id<"organizations">
+): Promise<string[]> {
+  const org = await ctx.db.get(organizationId);
+  if (!org) return [];
+
+  if (!org.planId) {
+    // No plan = all modules (backward compat)
+    return ALL_MODULES;
+  }
+
+  const plan = await ctx.db.get(org.planId);
+  return plan?.modules ?? ALL_MODULES;
+}
+
+// =================================================================
 // Queries
 // =================================================================
+
+/**
+ * Get user's effective permissions and plan info for frontend use
+ */
+export const getMyContext = query({
+  args: {
+    organizationId: v.id("organizations"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+
+    const permissions = await getUserPermissions(ctx, userId, args.organizationId);
+    const modules = await getOrganizationModules(ctx, args.organizationId);
+
+    const org = await ctx.db.get(args.organizationId);
+    let plan = null;
+    if (org?.planId) {
+      plan = await ctx.db.get(org.planId);
+    }
+
+    // Get membership for role info
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_user", (q) =>
+        q.eq("organizationId", args.organizationId).eq("userId", userId)
+      )
+      .unique();
+
+    return {
+      permissions,
+      modules,
+      role: membership?.role ?? null,
+      plan: plan ? { name: plan.name, key: plan.key } : null,
+    };
+  },
+});
 
 /**
  * Get all roles for an organization (including system roles)
@@ -578,6 +828,26 @@ export const assignMemberRole = mutation({
     await requirePermission(ctx, "members.roles.edit", {
       organizationId: membership.organizationId,
     });
+
+    // Cascading permission check: caller can only assign permissions they have
+    const callerPermissions = await getUserPermissions(ctx, userId, membership.organizationId);
+    if (!callerPermissions.includes("*")) {
+      let targetPermissions: string[];
+      if (args.role === "custom" && args.roleId) {
+        const targetRole = await ctx.db.get(args.roleId);
+        targetPermissions = targetRole?.permissions ?? [];
+      } else {
+        const roleKey = args.role as keyof typeof SYSTEM_ROLE_PERMISSIONS;
+        targetPermissions = roleKey in SYSTEM_ROLE_PERMISSIONS
+          ? [...SYSTEM_ROLE_PERMISSIONS[roleKey]]
+          : [];
+      }
+
+      const callerCannotGrant = targetPermissions.filter((p) => !callerPermissions.includes(p));
+      if (callerCannotGrant.length > 0) {
+        throw new Error(`Nie możesz nadać uprawnień których sam nie posiadasz: ${callerCannotGrant.join(", ")}`);
+      }
+    }
 
     // Validate custom role
     if (args.role === "custom") {

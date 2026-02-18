@@ -2,6 +2,32 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery, query, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { buildLocationParam } from "./dataforseoLocations";
+import { createDebugLogger } from "./lib/debugLogger";
+import { API_COSTS } from "./apiUsage";
+
+// Sanitize a number that may be NaN/undefined/null to a safe default
+function safeNum(val: number | null | undefined, fallback: number): number {
+  if (val == null || isNaN(val) || !isFinite(val)) return fallback;
+  return val;
+}
+
+// Calculate opportunity score from gap data (single source of truth)
+function calculateOpportunityScore(
+  searchVolume: number,
+  difficulty: number,
+  competitorPosition: number | null
+): { opportunityScore: number; priority: "high" | "medium" | "low" } {
+  const vol = safeNum(searchVolume, 0);
+  const diff = safeNum(difficulty, 50);
+  const compPos = competitorPosition != null && !isNaN(competitorPosition) ? competitorPosition : null;
+  const volScore = Math.min((vol / 10000) * 50, 50);
+  const diffScore = Math.max(50 - diff / 2, 0);
+  const posBonus = compPos !== null && compPos > 0 ? (compPos <= 3 ? 20 : compPos <= 10 ? 10 : 0) : 0;
+  const opportunityScore = Math.min(Math.round(volScore + diffScore + posBonus), 100);
+  const priority: "high" | "medium" | "low" = opportunityScore >= 70 ? "high" : opportunityScore >= 40 ? "medium" : "low";
+  return { opportunityScore, priority };
+}
 
 /**
  * Analyze content gap between your domain and a competitor
@@ -14,6 +40,7 @@ export const analyzeContentGap = internalAction({
   },
   handler: async (ctx, args) => {
     console.log(`[analyzeContentGap] Starting analysis for competitor ${args.competitorId}`);
+    const debug = await createDebugLogger(ctx, "content_gap", args.domainId);
 
     // Get own domain
     const domain = await ctx.runQuery(internal.domains.getDomainInternal, {
@@ -43,67 +70,89 @@ export const analyzeContentGap = internalAction({
 
     const auth = btoa(`${login}:${password}`);
 
-    // Map location names to DataForSEO location codes
-    const locationCodeMap: Record<string, number> = {
-      "Poland": 2616,
-      "United States": 2840,
-      "United Kingdom": 2826,
-      "Germany": 2276,
-      "France": 2250,
-      "Spain": 2724,
-      "Italy": 2380,
-      "Netherlands": 2528,
-    };
-
-    const locationCode = locationCodeMap[domain.settings.location] || 2616; // Default to Poland
+    const locationParam = buildLocationParam(domain.settings.location);
 
     // Call Domain Intersection API
-    // intersections: false means "keywords where target2 ranks but target1 doesn't"
-    const requestBody = [{
-      target1: domain.domain,
-      target2: competitor.competitorDomain,
-      location_code: locationCode,
+    // intersections: false returns keywords where target1 ranks but target2 DOESN'T.
+    // For content gap (competitor has, we don't): competitor = target1, our domain = target2.
+    const baseRequest = {
+      target1: competitor.competitorDomain,
+      target2: domain.domain,
+      ...locationParam,
       language_code: domain.settings.language,
-      intersections: false, // Content gap: competitor has, we don't
+      intersections: false,
       limit: 1000,
       filters: [
-        "keyword_data.keyword_info.search_volume", ">", 0
+        ["keyword_data.keyword_info.search_volume", ">", 0]
       ],
-      order_by: ["keyword_data.keyword_info.search_volume,desc"], // Order by search volume
-    }];
+      order_by: ["keyword_data.keyword_info.search_volume,desc"],
+    };
 
-    console.log(`[analyzeContentGap] Calling Domain Intersection API for ${domain.domain} vs ${competitor.competitorDomain}`);
+    console.log(`[analyzeContentGap] Request params: location=${domain.settings.location}, language=${domain.settings.language}, locationParam=${JSON.stringify(locationParam)}`);
 
-    const response = await fetch(
-      "https://api.dataforseo.com/v3/dataforseo_labs/google/domain_intersection/live",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${auth}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      }
-    );
+    // Helper: call the Labs domain_intersection endpoint
+    const callIntersection = async (requestBody: object[]) => {
+      return debug.logStep("domain_intersection", requestBody, async () => {
+        const response = await fetch(
+          "https://api.dataforseo.com/v3/dataforseo_labs/google/domain_intersection/live",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Basic ${auth}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(requestBody),
+          }
+        );
+        if (!response.ok) {
+          throw new Error(`DataForSEO API error: ${response.status}`);
+        }
+        return await response.json();
+      });
+    };
 
-    if (!response.ok) {
-      console.error(`[analyzeContentGap] API error: ${response.status}`);
-      throw new Error(`DataForSEO API error: ${response.status}`);
+    // Check daily cost cap before making API call
+    const costCheck = await ctx.runQuery(internal.apiUsage.checkDailyCostCap, {
+      estimatedCost: API_COSTS.LABS_DOMAIN_INTERSECTION,
+      domainId: args.domainId,
+    });
+    if (!costCheck.allowed) {
+      throw new Error(`Daily API cost limit reached ($${costCheck.todayCost}/$${costCheck.cap})`);
     }
 
-    const data = await response.json();
+    let data = await callIntersection([baseRequest]);
+
+    // Log domain intersection API usage
+    await ctx.runMutation(internal.apiUsage.logApiUsage, {
+      endpoint: "/dataforseo_labs/google/domain_intersection/live",
+      taskCount: 1,
+      estimatedCost: API_COSTS.LABS_DOMAIN_INTERSECTION,
+      caller: "analyzeContentGap",
+      domainId: args.domainId,
+      metadata: JSON.stringify({ competitor: competitor.competitorDomain }),
+    });
 
     if (data.status_code !== 20000) {
-      console.error(`[analyzeContentGap] API returned error: ${data.status_code}`);
       throw new Error(`DataForSEO API error: ${data.status_code}`);
     }
 
-    const taskResult = data.tasks?.[0];
+    let taskResult = data.tasks?.[0];
+
+    // Labs API enforces strict location+language pairs. If language_code is
+    // invalid for this location (40501), retry without language parameter —
+    // the API will auto-detect language from location.
+    if (taskResult?.status_code === 40501) {
+      console.warn(`[analyzeContentGap] 40501 with language_code="${domain.settings.language}": "${taskResult.status_message}". Retrying without language parameter.`);
+      const { language_code: _, ...requestWithoutLang } = baseRequest;
+      data = await callIntersection([requestWithoutLang]);
+      if (data.status_code !== 20000) {
+        throw new Error(`DataForSEO API error: ${data.status_code}`);
+      }
+      taskResult = data.tasks?.[0];
+    }
 
     if (!taskResult || taskResult.status_code !== 20000) {
-      console.error(`[analyzeContentGap] Task failed with status: ${taskResult?.status_code}`);
-      console.error(`[analyzeContentGap] Task error message: ${taskResult?.status_message}`);
-      console.error(`[analyzeContentGap] Full task result:`, JSON.stringify(taskResult, null, 2));
+      console.error(`[analyzeContentGap] Task failed: ${taskResult?.status_message} (${taskResult?.status_code})`);
       throw new Error(`Domain Intersection task failed: ${taskResult?.status_message || 'Unknown error'} (code: ${taskResult?.status_code})`);
     }
 
@@ -174,8 +223,8 @@ export const analyzeContentGap = internalAction({
           keyword: item.keyword_data?.keyword || "",
           searchVolume: item.keyword_data?.keyword_info?.search_volume || 0,
           difficulty: item.keyword_data?.keyword_properties?.keyword_difficulty || 0,
-          competitorPosition: item.target2_serp_info?.rank_absolute || item.target2_serp_info?.rank_group || 0,
-          competitorUrl: item.target2_serp_info?.page_address || "",
+          competitorPosition: item.first_domain_serp_element?.rank_absolute || item.first_domain_serp_element?.rank_group || 0,
+          competitorUrl: item.first_domain_serp_element?.url || "",
           estimatedTrafficValue: Math.round((item.keyword_data?.keyword_info?.search_volume || 0) * 0.3),
         })),
       });
@@ -203,21 +252,12 @@ export const storeContentGapOpportunity = internalMutation({
     estimatedTrafficValue: v.number(),
   },
   handler: async (ctx, args) => {
-    // Calculate opportunity score (0-100)
-    // Higher score = better opportunity
-    // Factors: high search volume, low difficulty, high traffic value, competitor in top 3
-    const vol = args.searchVolume ?? 0;
-    const diff = args.difficulty ?? 50;
-    const compPos = args.competitorPosition ?? null;
-    const searchVolumeScore = Math.min((vol / 10000) * 50, 50); // 0-50 points
-    const difficultyScore = Math.max(50 - diff / 2, 0); // 0-50 points (lower difficulty = higher score)
-    const positionBonus = compPos !== null && compPos > 0 ? (compPos <= 3 ? 20 : compPos <= 10 ? 10 : 0) : 0;
-    const opportunityScore = Math.min(Math.round(searchVolumeScore + difficultyScore + positionBonus), 100);
-
-    // Determine priority
-    let priority: "high" | "medium" | "low" = "low";
-    if (opportunityScore >= 70) priority = "high";
-    else if (opportunityScore >= 40) priority = "medium";
+    // Calculate opportunity score and priority (NaN-safe)
+    const { opportunityScore, priority } = calculateOpportunityScore(
+      args.searchVolume, args.difficulty, args.competitorPosition
+    );
+    const sanitizedDifficulty = safeNum(args.difficulty, 50);
+    const sanitizedEstTraffic = safeNum(args.estimatedTrafficValue, 0);
 
     // Check if this gap already exists for this keyword
     const existing = await ctx.db
@@ -226,19 +266,19 @@ export const storeContentGapOpportunity = internalMutation({
       .first();
 
     if (existing) {
-      // Update existing
+      // Update existing (NaN-safe values)
       await ctx.db.patch(existing._id, {
-        searchVolume: args.searchVolume,
-        difficulty: args.difficulty,
+        searchVolume: safeNum(args.searchVolume, 0),
+        difficulty: sanitizedDifficulty,
         competitorPosition: args.competitorPosition,
         competitorUrl: args.competitorUrl,
-        estimatedTrafficValue: args.estimatedTrafficValue,
+        estimatedTrafficValue: sanitizedEstTraffic,
         opportunityScore,
         priority,
         lastChecked: Date.now(),
       });
     } else {
-      // Create new
+      // Create new (NaN-safe values)
       await ctx.db.insert("contentGaps", {
         domainId: args.domainId,
         keywordId: args.keywordId,
@@ -246,10 +286,10 @@ export const storeContentGapOpportunity = internalMutation({
         opportunityScore,
         competitorPosition: args.competitorPosition,
         yourPosition: null,
-        searchVolume: args.searchVolume,
-        difficulty: args.difficulty,
+        searchVolume: safeNum(args.searchVolume, 0),
+        difficulty: sanitizedDifficulty,
         competitorUrl: args.competitorUrl,
-        estimatedTrafficValue: args.estimatedTrafficValue,
+        estimatedTrafficValue: sanitizedEstTraffic,
         priority,
         status: "identified",
         identifiedAt: Date.now(),
@@ -261,6 +301,9 @@ export const storeContentGapOpportunity = internalMutation({
 
 /**
  * Get content gap opportunities for a domain
+ *
+ * Optimized: uses targeted ctx.db.get() for keyword enrichment
+ * instead of loading ALL keywords for the domain.
  */
 export const getContentGapOpportunities = query({
   args: {
@@ -282,12 +325,14 @@ export const getContentGapOpportunities = query({
       opportunities = opportunities.filter(opp => opp.priority === args.priority);
     }
 
-    // Batch fetch all keywords for this domain (single query instead of N queries)
-    const allKeywords = await ctx.db
-      .query("keywords")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .collect();
-    const keywordMap = new Map(allKeywords.map((kw) => [kw._id, kw]));
+    // Targeted keyword loading: only fetch the keywords we need
+    const uniqueKeywordIds = [...new Set(opportunities.map((o) => o.keywordId))];
+    const keywordDocs = await Promise.all(
+      uniqueKeywordIds.map((id) => ctx.db.get(id))
+    );
+    const keywordMap = new Map(
+      uniqueKeywordIds.map((id, i) => [id, keywordDocs[i]])
+    );
 
     // Resolve keywords and sanitize NaN values
     const resolved = opportunities.map((opp) => {
@@ -381,6 +426,15 @@ export const dismissOpportunity = mutation({
   },
 });
 
+export const dismissOpportunities = mutation({
+  args: { gapIds: v.array(v.id("contentGaps")) },
+  handler: async (ctx, args) => {
+    for (const gapId of args.gapIds) {
+      await ctx.db.patch(gapId, { status: "dismissed" });
+    }
+  },
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Batch helpers (used by analyzeContentGap to avoid N+1 patterns)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -401,6 +455,9 @@ export const getAllKeywordsForDomain = internalQuery({
 
 /**
  * Batch create keywords that don't exist yet
+ *
+ * Optimized: loads all keywords for domain ONCE into a Map, then does
+ * in-memory dedup instead of per-keyword DB scans (was causing 32k limit).
  */
 export const createKeywordsBatch = internalMutation({
   args: {
@@ -412,16 +469,18 @@ export const createKeywordsBatch = internalMutation({
     })),
   },
   handler: async (ctx, args) => {
+    // Single scan: load all existing keywords for domain into a Map
+    const existingKeywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+    const phraseMap = new Map(existingKeywords.map((kw) => [kw.phrase, kw._id]));
+
     const results: (Id<"keywords"> | null)[] = [];
     for (const kw of args.keywords) {
-      // Double-check it doesn't exist (race condition safety)
-      const existing = await ctx.db
-        .query("keywords")
-        .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-        .filter((q) => q.eq(q.field("phrase"), kw.phrase))
-        .first();
+      const existing = phraseMap.get(kw.phrase);
       if (existing) {
-        results.push(existing._id);
+        results.push(existing);
       } else {
         const id = await ctx.db.insert("keywords", {
           domainId: args.domainId,
@@ -431,6 +490,8 @@ export const createKeywordsBatch = internalMutation({
           searchVolume: kw.searchVolume,
           difficulty: kw.difficulty,
         });
+        // Add to map so subsequent items in this batch dedup correctly
+        phraseMap.set(kw.phrase, id);
         results.push(id);
       }
     }
@@ -458,17 +519,11 @@ export const storeContentGapOpportunitiesBatch = internalMutation({
   handler: async (ctx, args) => {
     let stored = 0;
     for (const opp of args.opportunities) {
-      const vol = opp.searchVolume ?? 0;
-      const diff = opp.difficulty ?? 50;
-      const compPos = opp.competitorPosition ?? null;
-      const searchVolumeScore = Math.min((vol / 10000) * 50, 50);
-      const difficultyScore = Math.max(50 - diff / 2, 0);
-      const positionBonus = compPos !== null && compPos > 0 ? (compPos <= 3 ? 20 : compPos <= 10 ? 10 : 0) : 0;
-      const opportunityScore = Math.min(Math.round(searchVolumeScore + difficultyScore + positionBonus), 100);
-
-      let priority: "high" | "medium" | "low" = "low";
-      if (opportunityScore >= 70) priority = "high";
-      else if (opportunityScore >= 40) priority = "medium";
+      const { opportunityScore, priority } = calculateOpportunityScore(
+        opp.searchVolume, opp.difficulty, opp.competitorPosition
+      );
+      const sanitizedDifficulty = safeNum(opp.difficulty, 50);
+      const sanitizedEstTraffic = safeNum(opp.estimatedTrafficValue, 0);
 
       const existing = await ctx.db
         .query("contentGaps")
@@ -477,11 +532,11 @@ export const storeContentGapOpportunitiesBatch = internalMutation({
 
       if (existing) {
         await ctx.db.patch(existing._id, {
-          searchVolume: opp.searchVolume,
-          difficulty: opp.difficulty,
+          searchVolume: safeNum(opp.searchVolume, 0),
+          difficulty: sanitizedDifficulty,
           competitorPosition: opp.competitorPosition,
           competitorUrl: opp.competitorUrl,
-          estimatedTrafficValue: opp.estimatedTrafficValue,
+          estimatedTrafficValue: sanitizedEstTraffic,
           opportunityScore,
           priority,
           lastChecked: Date.now(),
@@ -494,10 +549,10 @@ export const storeContentGapOpportunitiesBatch = internalMutation({
           opportunityScore,
           competitorPosition: opp.competitorPosition,
           yourPosition: null,
-          searchVolume: opp.searchVolume,
-          difficulty: opp.difficulty,
+          searchVolume: safeNum(opp.searchVolume, 0),
+          difficulty: sanitizedDifficulty,
           competitorUrl: opp.competitorUrl,
-          estimatedTrafficValue: opp.estimatedTrafficValue,
+          estimatedTrafficValue: sanitizedEstTraffic,
           priority,
           status: "identified",
           identifiedAt: Date.now(),
@@ -507,5 +562,42 @@ export const storeContentGapOpportunitiesBatch = internalMutation({
       stored++;
     }
     return stored;
+  },
+});
+
+/**
+ * Repair content gaps with NaN scores/difficulty.
+ * Recalculates opportunityScore and priority from stored fields.
+ */
+export const repairContentGapScores = internalMutation({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const gaps = await ctx.db
+      .query("contentGaps")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    let repaired = 0;
+    for (const gap of gaps) {
+      const scoreNaN = isNaN(gap.opportunityScore);
+      const diffNaN = isNaN(gap.difficulty);
+      const evNaN = isNaN(gap.estimatedTrafficValue);
+
+      if (!scoreNaN && !diffNaN && !evNaN) continue;
+
+      const { opportunityScore, priority } = calculateOpportunityScore(
+        gap.searchVolume, gap.difficulty, gap.competitorPosition
+      );
+
+      await ctx.db.patch(gap._id, {
+        opportunityScore,
+        priority,
+        difficulty: safeNum(gap.difficulty, 50),
+        estimatedTrafficValue: safeNum(gap.estimatedTrafficValue, 0),
+      });
+      repaired++;
+    }
+
+    return { domainId: args.domainId, total: gaps.length, repaired };
   },
 });

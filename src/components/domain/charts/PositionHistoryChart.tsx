@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useAction } from "convex/react";
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis, Label } from "recharts";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -13,6 +13,10 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { DateRangePicker } from "@/components/common/DateRangePicker";
 import { useDateRange } from "@/hooks/useDateRange";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { Button } from "@/components/base/buttons/button";
+import { RefreshCcw01 } from "@untitledui/icons";
+import { toast } from "sonner";
 
 interface PositionHistoryChartProps {
   domainId: Id<"domains">;
@@ -22,6 +26,32 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
   const t = useTranslations("keywords");
   const { dateRange, setDateRange } = useDateRange({ initialPreset: "1y" });
   const isDesktop = useBreakpoint("lg");
+  const [isFetching, setIsFetching] = useState(false);
+
+  const domain = useQuery(api.domains.getDomain, { domainId });
+  const fetchHistoryAction = useAction(api.dataforseo.fetchAndStoreVisibilityHistory);
+
+  const handleFetchHistory = async () => {
+    if (!domain || isFetching) return;
+    setIsFetching(true);
+    try {
+      const result = await fetchHistoryAction({
+        domainId,
+        domain: domain.domain,
+        location: domain.settings.location,
+        language: domain.settings.language,
+      });
+      if (result.success) {
+        toast.success(t("fetchHistoryButton") + `: ${result.datesStored} records`);
+      } else {
+        toast.error(result.error || "Failed to fetch history");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to fetch history");
+    } finally {
+      setIsFetching(false);
+    }
+  };
 
   // Always fetch all data — filter on the frontend based on selected range
   // This prevents empty charts when short ranges are selected on monthly data
@@ -32,7 +62,8 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
 
   if (history === undefined) {
     return (
-      <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-primary">{t("positionHistory")}</h2>
         </div>
@@ -43,13 +74,23 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
 
   if (!history || history.length === 0) {
     return (
-      <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-primary">{t("positionHistory")}</h2>
         </div>
-        <div className="flex flex-col items-center gap-2 py-12 text-center">
+        <div className="flex flex-col items-center gap-3 py-12 text-center">
           <p className="text-sm font-medium text-primary">{t("noHistoricalDataYet")}</p>
           <p className="text-sm text-tertiary">{t("checkBackAfterRankingUpdate")}</p>
+          <Button
+            color="secondary"
+            size="sm"
+            iconLeading={RefreshCcw01}
+            onClick={handleFetchHistory}
+            isDisabled={isFetching || !domain}
+          >
+            {isFetching ? t("fetchingHistory") : t("fetchHistoryButton")}
+          </Button>
         </div>
       </div>
     );
@@ -65,7 +106,8 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
 
   if (filteredHistory.length === 0) {
     return (
-      <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <h2 className="text-lg font-semibold text-primary">{t("positionHistory")}</h2>
           <DateRangePicker value={dateRange} onChange={setDateRange} excludePresets={["7d", "30d"]} />
@@ -99,9 +141,20 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
   };
 
   return (
-    <div className="flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative flex flex-col gap-6 rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <h2 className="text-lg font-semibold text-primary">{t('positionHistory')}</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-primary">{t('positionHistory')}</h2>
+          <button
+            onClick={handleFetchHistory}
+            disabled={isFetching || !domain}
+            className="p-1 rounded-md text-quaternary hover:text-secondary hover:bg-secondary transition-colors disabled:opacity-50"
+            title={t("fetchHistoryButton")}
+          >
+            <RefreshCcw01 className={cx("h-4 w-4", isFetching && "animate-spin")} />
+          </button>
+        </div>
         <DateRangePicker
           value={dateRange}
           onChange={setDateRange}

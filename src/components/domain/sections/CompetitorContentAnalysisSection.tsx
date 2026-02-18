@@ -11,6 +11,7 @@ import type { SelectItemType } from "@/components/base/select/select";
 import { FileSearch02, TrendUp02, TrendDown02, RefreshCw01, Zap } from "@untitledui/icons";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface CompetitorContentAnalysisSectionProps {
   domainId: Id<"domains">;
@@ -115,7 +116,8 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
 
   if (competitors === undefined || allKeywords === undefined) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="text-center py-8 text-tertiary">{t('contentAnalysisLoading')}</div>
       </div>
     );
@@ -123,7 +125,8 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
 
   if (activeCompetitors.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="text-center py-12">
           <FileSearch02 className="h-12 w-12 text-quaternary mx-auto mb-4" />
           <p className="text-tertiary mb-2">{t('competitorMgmtNoCompetitors')}</p>
@@ -136,7 +139,8 @@ export function CompetitorContentAnalysisSection({ domainId }: CompetitorContent
   }
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary">
+    <div className="relative rounded-xl border border-secondary bg-primary">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       {/* Header */}
       <div className="border-b border-secondary p-6">
         <div className="flex items-center justify-between mb-4">

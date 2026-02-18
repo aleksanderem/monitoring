@@ -70,6 +70,8 @@ export function SERPFeaturesChart({
     );
   }
 
+  if (!summary) return null;
+
   if (summary.totalDataPoints === 0) {
     return (
       <div className="flex h-[300px] flex-col items-center justify-center gap-2">

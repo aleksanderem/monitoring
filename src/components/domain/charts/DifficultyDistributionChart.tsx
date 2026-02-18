@@ -5,6 +5,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Toolti
 import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { GradientChartTooltip } from "@/components/application/charts/charts-base";
 
 interface DifficultyDistributionChartProps {
     domainId: Id<"domains">;
@@ -29,9 +31,10 @@ export function DifficultyDistributionChart({ domainId }: DifficultyDistribution
 
     if (data === undefined) {
         return (
-            <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-                <div className="h-5 w-44 animate-pulse rounded bg-gray-100" />
-                <div className="h-[250px] animate-pulse rounded bg-gray-50" />
+            <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+                <div className="h-5 w-44 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+                <div className="h-[250px] animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
             </div>
         );
     }
@@ -45,14 +48,16 @@ export function DifficultyDistributionChart({ domainId }: DifficultyDistribution
 
     if (data.total === 0) {
         return (
-            <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-secondary bg-primary p-6 py-12">
+            <div className="relative flex flex-col items-center justify-center gap-4 rounded-xl border border-secondary bg-primary p-6 py-12">
+                <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 <p className="text-sm text-tertiary">{t('noDifficultyDataAvailable')}</p>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             <div>
                 <h3 className="text-md font-semibold text-primary">{t('difficultyDistribution')}</h3>
                 <p className="text-sm text-tertiary">{t('difficultyDistributionDescription', { total: data.total })}</p>
@@ -64,11 +69,11 @@ export function DifficultyDistributionChart({ domainId }: DifficultyDistribution
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip
+                        content={<GradientChartTooltip />}
                         formatter={(value: any, name: any, props: any) => [
                             t('difficultyTooltip', { count: value, volume: formatNumber(props.payload.volume) }),
                             t('count'),
                         ]}
-                        contentStyle={{ fontSize: 12 }}
                     />
                     <Bar dataKey="keywords" radius={[4, 4, 0, 0]}>
                         {chartData.map((entry, i) => (

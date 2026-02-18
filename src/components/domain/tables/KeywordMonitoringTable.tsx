@@ -19,6 +19,7 @@ import {
   Edit05,
   Plus,
   DotsVertical,
+  Stars01,
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -30,6 +31,9 @@ import { KeywordPositionChart } from "../charts/KeywordPositionChart";
 import { AddKeywordsModal } from "../modals/AddKeywordsModal";
 import { KeywordMonitoringDetailModal } from "../modals/KeywordMonitoringDetailModal";
 import { RefreshConfirmModal } from "../modals/RefreshConfirmModal";
+import { useRowSelection } from "@/hooks/useRowSelection";
+import { BulkActionBar } from "@/components/patterns/BulkActionBar";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface KeywordMonitoringTableProps {
   domainId: Id<"domains">;
@@ -129,6 +133,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const deleteKeyword = useMutation(api.keywords.deleteKeywords);
   const createSerpFetchJob = useMutation(api.keywordSerpJobs.createSerpFetchJob);
   const activeSerpJob = useQuery(api.keywordSerpJobs.getActiveJobForDomain, { domainId });
+  const selection = useRowSelection();
 
   // Track SERP job completion and show notification
   const [lastSerpJobId, setLastSerpJobId] = useState<string | null>(null);
@@ -241,6 +246,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+  const visibleIds = paginatedKeywords.map((kw: any) => kw.keywordId);
 
   if (keywords === undefined) {
     return <LoadingState />;
@@ -248,7 +254,8 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
 
   if (keywords.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
+      <div className="relative rounded-xl border border-secondary bg-primary p-8 text-center">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <SearchLg className="mx-auto h-12 w-12 text-fg-quaternary" />
         <p className="mt-4 text-sm text-primary font-medium">{t('noKeywordsMonitored')}</p>
         <p className="mt-2 text-xs text-tertiary">{t('addKeywordsToStartTracking')}</p>
@@ -285,7 +292,8 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
 
   return (
     <>
-      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         {/* SERP Fetch Job Progress */}
         {activeSerpJob && activeSerpJob.status !== "completed" && (
           <div className="rounded-lg border border-utility-blue-200 bg-utility-blue-50 p-4">
@@ -490,10 +498,67 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
           </div>
         )}
 
+        <BulkActionBar
+          selectedCount={selection.count}
+          selectedIds={selection.selectedIds}
+          onClearSelection={selection.clear}
+          actions={[
+            {
+              label: tc('bulkRefresh'),
+              icon: RefreshCw01,
+              onClick: async (ids) => {
+                try {
+                  await refreshPositions({ keywordIds: Array.from(ids) as Id<"keywords">[] });
+                  toast.success(tc('bulkActionSuccess', { count: ids.size }));
+                  selection.clear();
+                } catch {
+                  toast.error(tc('bulkActionFailed'));
+                }
+              },
+            },
+            {
+              label: tc('bulkFetchSerp'),
+              icon: SearchLg,
+              onClick: async (ids) => {
+                try {
+                  await createSerpFetchJob({ domainId, keywordIds: Array.from(ids) as Id<"keywords">[] });
+                  toast.success(t('serpFetchJobQueued', { count: ids.size }));
+                  selection.clear();
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : tc('bulkActionFailed'));
+                }
+              },
+            },
+            {
+              label: tc('bulkDelete'),
+              icon: Trash01,
+              variant: "destructive",
+              onClick: async (ids) => {
+                try {
+                  await deleteKeyword({ keywordIds: Array.from(ids) as Id<"keywords">[] });
+                  toast.success(tc('bulkActionSuccess', { count: ids.size }));
+                  selection.clear();
+                } catch {
+                  toast.error(tc('bulkActionFailed'));
+                }
+              },
+            },
+          ]}
+        />
+
         <div className="overflow-x-auto rounded-lg border border-secondary">
           <table className="w-full">
             <thead className="bg-secondary/50">
               <tr>
+                <th className="w-10 px-2 py-3 bg-secondary" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selection.isAllSelected(visibleIds)}
+                    ref={(el) => { if (el) el.indeterminate = selection.isIndeterminate(visibleIds); }}
+                    onChange={() => selection.toggleAll(visibleIds)}
+                    className="h-4 w-4 rounded border-secondary"
+                  />
+                </th>
                 <th
                   className="sticky left-0 z-20 bg-secondary cursor-pointer px-4 py-3 text-left text-xs font-medium text-tertiary border-r border-secondary transition-colors hover:bg-secondary/70"
                   onClick={() => toggleSort("phrase")}
@@ -586,6 +651,14 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                       className="group transition-colors hover:bg-primary_hover cursor-pointer"
                       onClick={() => setSelectedKeyword(keyword)}
                     >
+                      <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selection.isSelected(keyword.keywordId)}
+                          onChange={() => selection.toggle(keyword.keywordId)}
+                          className="h-4 w-4 rounded border-secondary"
+                        />
+                      </td>
                       {columnVisibility.keyword && (
                         <td className="sticky left-0 z-10 bg-primary group-hover:bg-primary_hover border-r border-secondary px-4 py-3 transition-colors">
                           <div className="flex items-center gap-2">
@@ -603,6 +676,12 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                               )}
                             </button>
                             <span className="text-sm font-medium text-primary">{keyword.phrase}</span>
+                            {keyword.proposedBy === "ai" && (
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-brand-subtle/20 px-1.5 py-0.5 text-[10px] font-medium text-brand-primary" title="AI-generated keyword">
+                                <Stars01 className="h-3 w-3" />
+                                AI
+                              </span>
+                            )}
                           </div>
                         </td>
                       )}

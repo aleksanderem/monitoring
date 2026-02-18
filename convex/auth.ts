@@ -62,6 +62,19 @@ export const { auth, signIn, signOut, store } = convexAuth({
         userId: typedUserId,
         joinedAt: Date.now(),
       });
+
+      // Find default plan and assign
+      const defaultPlan = await ctx.db
+        .query("plans")
+        .filter((q) => q.eq(q.field("isDefault"), true))
+        .first();
+
+      if (defaultPlan) {
+        await ctx.db.patch(orgId, {
+          planId: defaultPlan._id,
+          limits: defaultPlan.limits,
+        });
+      }
     },
   },
 });

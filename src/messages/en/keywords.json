@@ -48,6 +48,9 @@
   "noRankTooltip": "No ranking position found for this keyword",
   "difficultyNotAvailableTooltip": "Difficulty data not available for this keyword",
   "addToMonitor": "Add to Monitor",
+  "removeFromMonitor": "Remove from Monitor",
+  "removedFromMonitoring": "Removed \"{keyword}\" from monitoring",
+  "failedToRemoveKeyword": "Failed to remove keyword",
   "searchVolumeTrend": "Search Volume Trend",
 
   "keywordMonitoring": "Keyword Monitoring",
@@ -282,6 +285,13 @@
 
   "noHistoricalDataYet": "No historical data yet",
   "checkBackAfterRankingUpdate": "Check back after the first ranking update",
+  "fetchHistoryButton": "Fetch history",
+  "fetchingHistory": "Fetching...",
+  "noDiscoveredKeywords": "No discovered keywords yet",
+  "noDiscoveredKeywordsDesc": "Fetch keyword visibility data from DataForSEO to discover what keywords this domain ranks for",
+  "fetchDiscoveredKeywords": "Fetch keywords",
+  "fetchingDiscoveredKeywords": "Fetching...",
+  "discoveredKeywordsRefreshed": "Discovered {count} keywords",
   "noPositionHistoryAvailable": "No position history available",
   "noTrendDataAvailable": "No trend data available",
   "avgVolume": "Avg Volume",
@@ -535,5 +545,6 @@
   "confirmRefresh": "Confirm",
   "cannotRefresh": "Refresh not available",
   "limitBulkCap": "Keywords per action",
-  "limitBulkCapExceeded": "Max {limit} keywords per bulk action ({count} selected)"
+  "limitBulkCapExceeded": "Max {limit} keywords per bulk action ({count} selected)",
+  "refreshCostEstimate": "Estimated API cost for {count} keywords: ~${cost}"
 }

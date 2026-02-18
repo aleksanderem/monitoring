@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Globe01 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { useTranslations } from "next-intl";
 
 interface ProjectDomainsTableProps {
@@ -25,8 +26,8 @@ export function ProjectDomainsTable({ projectId }: ProjectDomainsTableProps) {
     if (domains === undefined) {
         return (
             <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-                <div className="h-5 w-40 animate-pulse rounded bg-gray-100" />
-                <div className="h-48 animate-pulse rounded bg-gray-50" />
+                <div className="h-5 w-40 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+                <div className="h-48 animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
             </div>
         );
     }
@@ -42,7 +43,8 @@ export function ProjectDomainsTable({ projectId }: ProjectDomainsTableProps) {
     }
 
     return (
-        <div className="rounded-xl border border-secondary bg-primary p-6">
+        <div className="relative rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             <h3 className="text-md font-semibold text-primary">{t("columnDomains")}</h3>
             <p className="mb-4 text-sm text-tertiary">{t("domainsInProject", { count: domains.length })}</p>
 

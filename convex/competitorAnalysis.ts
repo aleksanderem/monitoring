@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { mutation, query, internalAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 /**
  * Analyze competitor page content for a specific keyword
@@ -246,6 +248,12 @@ export const getCompetitorPageAnalysis = query({
     keywordId: v.id("keywords"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) return null;
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     return await ctx.db
       .query("competitorPageAnalysis")
       .withIndex("by_competitor_keyword", (q) =>
@@ -263,6 +271,12 @@ export const getCompetitorAnalyzedPages = query({
     competitorId: v.id("competitors"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) return [];
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     return await ctx.db
       .query("competitorPageAnalysis")
       .withIndex("by_competitor", (q) => q.eq("competitorId", args.competitorId))
@@ -279,6 +293,12 @@ export const comparePageWithCompetitor = query({
     competitorId: v.id("competitors"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) return null;
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     // Get competitor page analysis
     const competitorPage = await ctx.db
       .query("competitorPageAnalysis")
@@ -335,6 +355,12 @@ export const triggerCompetitorPageAnalysis = mutation({
     keywordId: v.id("keywords"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) throw new Error("Competitor not found");
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     let url: string | null = null;
     let position = 0;
 

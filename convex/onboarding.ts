@@ -55,6 +55,7 @@ export const getOnboardingStatus = query({
       .collect();
 
     const steps = {
+      businessContextSet: !!(domain.businessDescription && domain.targetCustomer),
       keywordsDiscovered: discoveredKeywords.length > 0 || activeKeywords.length > 0,
       keywordsMonitored: activeKeywords.length > 0,
       serpChecked: serpResult !== null,

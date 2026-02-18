@@ -16,10 +16,16 @@ import {
   AlertCircle,
   CheckCircle,
   Settings01,
+  LogIn01,
 } from "@untitledui/icons";
 import type { Selection } from "react-aria-components";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { usePageTitle } from "@/hooks/usePageTitle";
+
+// Plans API is newly created — cast to bypass generated types until next `npx convex dev`
+const plansApi = (api as any).plans;
 
 interface OrgWithStats {
   _id: Id<"organizations">;
@@ -61,6 +67,10 @@ interface OrgDetails {
       _id: Id<"projects">;
       name: string;
       domainCount: number;
+      domains: Array<{
+        _id: Id<"domains">;
+        domain: string;
+      }>;
     }>;
   }>;
   limits?: {
@@ -73,6 +83,8 @@ interface OrgDetails {
 export default function AdminOrganizationsPage() {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
+  const router = useRouter();
+  usePageTitle("Admin", "Organizations");
   const [search, setSearch] = useState("");
   const [selectedOrgId, setSelectedOrgId] = useState<Id<"organizations"> | null>(null);
   const [isSlideoutOpen, setIsSlideoutOpen] = useState(false);
@@ -89,14 +101,22 @@ export default function AdminOrganizationsPage() {
     maxDailyRefreshesPerUser: number;
     maxKeywordsPerBulkRefresh: number;
   } | null>(null);
+  const [isEditingAI, setIsEditingAI] = useState(false);
+  const [editedAIProvider, setEditedAIProvider] = useState<"anthropic" | "google" | "zai">("anthropic");
+  const [editedAIModel, setEditedAIModel] = useState("");
 
   const organizations = useQuery(api.admin.listAllOrganizations, { search: search || undefined, limit: 100 });
   const orgDetails = useQuery(api.admin.getOrganizationDetails, selectedOrgId ? { organizationId: selectedOrgId } : "skip");
 
   const updateLimits = useMutation(api.admin.adminUpdateOrganizationLimits);
+  const updateAISettings = useMutation(api.admin.adminUpdateOrganizationAISettings);
   const suspendOrg = useMutation(api.admin.adminSuspendOrganization);
   const activateOrg = useMutation(api.admin.adminActivateOrganization);
   const deleteOrg = useMutation(api.admin.adminDeleteOrganization);
+  const repairDenorm = useMutation(api.admin.triggerRepairDenormalization);
+
+  const allPlans = useQuery(plansApi.getPlans) as any[] | undefined;
+  const assignPlan = useMutation(plansApi.assignPlanToOrganization);
 
   const handleRowClick = (orgId: Id<"organizations">) => {
     setSelectedOrgId(orgId);
@@ -137,6 +157,32 @@ export default function AdminOrganizationsPage() {
       setIsEditingLimits(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("failedUpdateLimits"));
+    }
+  };
+
+  const handleStartEditAI = () => {
+    if (orgDetails) {
+      const settings = (orgDetails as any).aiSettings;
+      setEditedAIProvider(settings?.provider ?? "anthropic");
+      setEditedAIModel(settings?.model ?? "");
+      setIsEditingAI(true);
+    }
+  };
+
+  const handleSaveAI = async () => {
+    if (!selectedOrgId) return;
+    try {
+      await updateAISettings({
+        organizationId: selectedOrgId,
+        aiSettings: {
+          provider: editedAIProvider,
+          model: editedAIModel || undefined,
+        },
+      });
+      toast.success(t("aiSettingsUpdated"));
+      setIsEditingAI(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("aiSettingsUpdateFailed"));
     }
   };
 
@@ -263,6 +309,8 @@ export default function AdminOrganizationsPage() {
                     { key: "users", label: t("tabUsers") },
                     { key: "limits", label: t("tabLimits") },
                     { key: "usage", label: t("tabUsage") },
+                    { key: "ai", label: t("tabAI") },
+                    { key: "maintenance", label: t("tabMaintenance") },
                   ] as const).map((tab) => (
                     <button
                       key={tab.key}
@@ -285,6 +333,43 @@ export default function AdminOrganizationsPage() {
                       <div className="flex justify-between"><dt className="text-sm text-tertiary">{t("columnStatus")}</dt><dd>{orgDetails.suspended ? <Badge color="error" size="sm">{t("statusSuspended")}</Badge> : <Badge color="success" size="sm">{t("statusActive")}</Badge>}</dd></div>
                       <div className="flex justify-between"><dt className="text-sm text-tertiary">{t("columnCreated")}</dt><dd className="text-sm text-primary">{new Date(orgDetails.createdAt).toLocaleDateString()}</dd></div>
                     </dl>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-secondary mb-3">Plan</h3>
+                    <div className="flex items-center gap-3">
+                      <select
+                        value={(orgDetails as any).planId ?? ""}
+                        onChange={async (e) => {
+                          if (!selectedOrgId || !e.target.value) return;
+                          try {
+                            await assignPlan({
+                              organizationId: selectedOrgId,
+                              planId: e.target.value as Id<"plans">,
+                            });
+                            toast.success("Plan zostal przypisany");
+                          } catch (err: any) {
+                            toast.error(err?.message || "Nie udalo sie przypisac planu");
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-primary rounded-lg bg-primary text-primary focus:outline-none focus:ring-2 focus:ring-brand-solid dark:bg-utility-gray-800 dark:text-white"
+                      >
+                        <option value="">-- Brak planu --</option>
+                        {allPlans?.map((plan: any) => (
+                          <option key={plan._id} value={plan._id}>
+                            {plan.name} ({plan.key}){plan.isDefault ? " [domyslny]" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {(orgDetails as any).planId && allPlans && (() => {
+                      const currentPlan = allPlans.find((p: any) => p._id === (orgDetails as any).planId);
+                      if (!currentPlan) return null;
+                      return (
+                        <div className="mt-2 text-xs text-tertiary">
+                          Moduly: {currentPlan.modules?.join(", ") || "brak"}
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-secondary mb-3">{t("resources")}</h3>
@@ -405,9 +490,143 @@ export default function AdminOrganizationsPage() {
                 </div>
               )}
 
+              {activeTab === "ai" && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-medium text-secondary">{t("aiProvider")}</h3>
+                    {!isEditingAI && <Button color="secondary" size="sm" onClick={handleStartEditAI}><Settings01 className="w-4 h-4" />{t("edit")}</Button>}
+                  </div>
+                  <p className="text-sm text-tertiary mb-4">{t("aiSettingsDescription")}</p>
+                  {isEditingAI ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-secondary mb-1">{t("aiProvider")}</label>
+                        <select
+                          value={editedAIProvider}
+                          onChange={(e) => {
+                            setEditedAIProvider(e.target.value as "anthropic" | "google" | "zai");
+                            setEditedAIModel("");
+                          }}
+                          className="w-full px-3 py-2 border border-primary rounded-lg bg-primary text-primary focus:outline-none focus:ring-2 focus:ring-brand-solid dark:bg-utility-gray-800 dark:text-white"
+                        >
+                          <option value="anthropic">{t("aiProviderClaude")}</option>
+                          <option value="google">{t("aiProviderGoogle")}</option>
+                          <option value="zai">{t("aiProviderZAI")}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-secondary mb-1">{t("aiModel")}</label>
+                        <input
+                          type="text"
+                          value={editedAIModel}
+                          onChange={(e) => setEditedAIModel(e.target.value)}
+                          placeholder={
+                            editedAIProvider === "anthropic" ? "claude-sonnet-4-5-20250929" :
+                            editedAIProvider === "google" ? "gemini-2.0-flash" :
+                            "glm-5"
+                          }
+                          className="w-full px-3 py-2 border border-primary rounded-lg bg-primary text-primary placeholder:text-tertiary focus:outline-none focus:ring-2 focus:ring-brand-solid dark:bg-utility-gray-800 dark:text-white dark:placeholder:text-gray-500"
+                        />
+                        <p className="text-xs text-tertiary mt-1">{t("aiModelPlaceholder")}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button color="primary" size="sm" onClick={handleSaveAI}>{tc("save")}</Button>
+                        <Button color="secondary" size="sm" onClick={() => setIsEditingAI(false)}>{tc("cancel")}</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <dl className="space-y-3">
+                      <div className="flex justify-between">
+                        <dt className="text-sm text-tertiary">{t("aiProvider")}</dt>
+                        <dd className="text-sm font-medium text-primary">
+                          {(() => {
+                            const settings = (orgDetails as any).aiSettings;
+                            if (!settings?.provider || settings.provider === "anthropic") return t("aiProviderClaude");
+                            if (settings.provider === "google") return t("aiProviderGoogle");
+                            if (settings.provider === "zai") return t("aiProviderZAI");
+                            return settings.provider;
+                          })()}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-sm text-tertiary">{t("aiModel")}</dt>
+                        <dd className="text-sm font-medium text-primary">
+                          {(() => {
+                            const settings = (orgDetails as any).aiSettings;
+                            if (settings?.model) return settings.model;
+                            const provider = settings?.provider ?? "anthropic";
+                            if (provider === "anthropic") return "claude-sonnet-4-5-20250929";
+                            if (provider === "google") return "gemini-2.0-flash";
+                            if (provider === "zai") return "glm-5";
+                            return "—";
+                          })()}
+                        </dd>
+                      </div>
+                    </dl>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "maintenance" && (
+                <div>
+                  <h3 className="text-sm font-medium text-secondary mb-2">{t("tabMaintenance")}</h3>
+                  <p className="text-xs text-tertiary mb-4">{t("maintenanceDescription")}</p>
+                  {(() => {
+                    const allDomains = orgDetails.teams.flatMap((team) =>
+                      team.projects.flatMap((project) =>
+                        project.domains.map((d) => ({ ...d, projectName: project.name }))
+                      )
+                    );
+                    if (allDomains.length === 0) {
+                      return <p className="text-sm text-tertiary">{t("noDomains")}</p>;
+                    }
+                    return (
+                      <div className="space-y-3">
+                        {allDomains.map((d) => (
+                          <div key={d._id} className="flex items-center justify-between p-3 border border-primary rounded-lg">
+                            <div>
+                              <div className="text-sm font-medium text-primary">{d.domain}</div>
+                              <div className="text-xs text-tertiary">{d.projectName}</div>
+                            </div>
+                            <Button
+                              color="secondary"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  await repairDenorm({ domainId: d._id });
+                                  toast.success(t("repairScheduled", { domain: d.domain }));
+                                } catch (error) {
+                                  toast.error(error instanceof Error ? error.message : t("repairFailed"));
+                                }
+                              }}
+                            >
+                              {t("repairDenormalization")}
+                            </Button>
+                          </div>
+                        ))}
+                        <p className="text-xs text-tertiary mt-2">{t("repairDenormalizationHint")}</p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               <div className="mt-auto pt-6 border-t border-primary">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
+                    <Button
+                      color="primary"
+                      size="sm"
+                      onClick={() => {
+                        if (!selectedOrgId || !orgDetails) return;
+                        localStorage.setItem("impersonatingOrgId", selectedOrgId);
+                        localStorage.setItem("impersonatingOrgName", orgDetails.name);
+                        router.push("/projects");
+                      }}
+                    >
+                      <LogIn01 className="w-4 h-4" />
+                      Wejdz jako tenant
+                    </Button>
                     <Button color={orgDetails.suspended ? "primary" : "secondary"} size="sm" onClick={() => selectedOrgId && handleToggleSuspend(selectedOrgId, orgDetails.suspended)}>
                       {orgDetails.suspended ? t("activate") : t("suspend")}
                     </Button>

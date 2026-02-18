@@ -5,6 +5,13 @@ import { Id, Doc } from "./_generated/dataModel";
 import { requirePermission, getOrgFromProject, getContextFromDomain } from "./permissions";
 
 // =================================================================
+// Constants
+// =================================================================
+
+/** Hard default: 50 keywords per domain when nothing is configured at any level. */
+export const DEFAULT_KEYWORD_LIMIT = 50;
+
+// =================================================================
 // Helper Functions (internal use)
 // =================================================================
 
@@ -43,24 +50,22 @@ export function resolveKeywordLimit(
   domain: Doc<"domains">,
   project: Doc<"projects">,
   organization: Doc<"organizations">
-): number | null {
-  // Domain-level limit takes precedence
-  if (domain.limits?.maxKeywords !== undefined) {
-    return domain.limits.maxKeywords;
-  }
+): number {
+  if (domain.limits?.maxKeywords !== undefined) return domain.limits.maxKeywords;
+  if (project.limits?.maxKeywordsPerDomain !== undefined) return project.limits.maxKeywordsPerDomain;
+  if (organization.limits?.maxKeywordsPerDomain !== undefined) return organization.limits.maxKeywordsPerDomain;
+  return DEFAULT_KEYWORD_LIMIT;
+}
 
-  // Project-level default per domain
-  if (project.limits?.maxKeywordsPerDomain !== undefined) {
-    return project.limits.maxKeywordsPerDomain;
-  }
-
-  // Organization-level default per domain
-  if (organization.limits?.maxKeywordsPerDomain !== undefined) {
-    return organization.limits.maxKeywordsPerDomain;
-  }
-
-  // No limit set
-  return null;
+export function resolveKeywordLimitSource(
+  domain: Doc<"domains">,
+  project: Doc<"projects">,
+  organization: Doc<"organizations">
+): "domain" | "project" | "organization" | "default" {
+  if (domain.limits?.maxKeywords !== undefined) return "domain";
+  if (project.limits?.maxKeywordsPerDomain !== undefined) return "project";
+  if (organization.limits?.maxKeywordsPerDomain !== undefined) return "organization";
+  return "default";
 }
 
 /**
@@ -193,9 +198,9 @@ export async function countOrgProjects(
 export interface LimitCheckResult {
   allowed: boolean;
   currentCount: number;
-  limit: number | null;
-  remaining: number | null;
-  source: "domain" | "project" | "organization" | null;
+  limit: number;
+  remaining: number;
+  source: "domain" | "project" | "organization" | "default";
   message?: string;
 }
 
@@ -213,50 +218,25 @@ export async function checkKeywordLimit(
     return {
       allowed: false,
       currentCount: 0,
-      limit: null,
-      remaining: null,
-      source: null,
+      limit: DEFAULT_KEYWORD_LIMIT,
+      remaining: 0,
+      source: "default",
       message: "Domain not found",
     };
   }
 
   const { domain, project, organization } = hierarchy;
   const currentCount = await countDomainKeywords(ctx, domainId);
-
-  // Determine limit and source
-  let limit: number | null = null;
-  let source: "domain" | "project" | "organization" | null = null;
-
-  if (domain.limits?.maxKeywords !== undefined) {
-    limit = domain.limits.maxKeywords;
-    source = "domain";
-  } else if (project.limits?.maxKeywordsPerDomain !== undefined) {
-    limit = project.limits.maxKeywordsPerDomain;
-    source = "project";
-  } else if (organization.limits?.maxKeywordsPerDomain !== undefined) {
-    limit = organization.limits.maxKeywordsPerDomain;
-    source = "organization";
-  }
-
-  // No limit set
-  if (limit === null) {
-    return {
-      allowed: true,
-      currentCount,
-      limit: null,
-      remaining: null,
-      source: null,
-    };
-  }
-
-  const remaining = limit - currentCount;
+  const limit = resolveKeywordLimit(domain, project, organization);
+  const source = resolveKeywordLimitSource(domain, project, organization);
+  const remaining = Math.max(0, limit - currentCount);
   const allowed = currentCount + countToAdd <= limit;
 
   return {
     allowed,
     currentCount,
     limit,
-    remaining: Math.max(0, remaining),
+    remaining,
     source,
     message: allowed
       ? undefined
@@ -339,23 +319,80 @@ export const getDomainLimits = query({
 
     const { domain, project, organization } = hierarchy;
     const currentCount = await countDomainKeywords(ctx, args.domainId);
-
     const limit = resolveKeywordLimit(domain, project, organization);
-
-    let source: "domain" | "project" | "organization" | null = null;
-    if (domain.limits?.maxKeywords !== undefined) source = "domain";
-    else if (project.limits?.maxKeywordsPerDomain !== undefined) source = "project";
-    else if (organization.limits?.maxKeywordsPerDomain !== undefined) source = "organization";
+    const source = resolveKeywordLimitSource(domain, project, organization);
 
     return {
       currentCount,
       limit,
-      remaining: limit !== null ? Math.max(0, limit - currentCount) : null,
+      remaining: Math.max(0, limit - currentCount),
       source,
       domainLimit: domain.limits?.maxKeywords ?? null,
       projectDefault: project.limits?.maxKeywordsPerDomain ?? null,
       orgDefault: organization.limits?.maxKeywordsPerDomain ?? null,
     };
+  },
+});
+
+/**
+ * Lightweight sidebar usage query: per-domain keyword counts + limits.
+ */
+export const getSidebarUsage = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (!membership) return null;
+
+    const teams = await ctx.db
+      .query("teams")
+      .withIndex("by_organization", (q) => q.eq("organizationId", membership.organizationId))
+      .collect();
+
+    const org = await ctx.db.get(membership.organizationId);
+    if (!org) return null;
+
+    const domains: Array<{
+      domainId: Id<"domains">;
+      domainName: string;
+      currentCount: number;
+      limit: number;
+    }> = [];
+
+    for (const team of teams) {
+      const projects = await ctx.db
+        .query("projects")
+        .withIndex("by_team", (q) => q.eq("teamId", team._id))
+        .collect();
+
+      for (const project of projects) {
+        const projectDomains = await ctx.db
+          .query("domains")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect();
+
+        for (const domain of projectDomains) {
+          const currentCount = await countDomainKeywords(ctx, domain._id);
+          const limit = resolveKeywordLimit(domain, project, org);
+          domains.push({
+            domainId: domain._id,
+            domainName: domain.domain,
+            currentCount,
+            limit,
+          });
+        }
+      }
+    }
+
+    const totalKeywords = domains.reduce((s, d) => s + d.currentCount, 0);
+    const totalLimit = domains.reduce((s, d) => s + d.limit, 0);
+
+    return { domains, totalKeywords, totalLimit };
   },
 });
 
@@ -587,6 +624,14 @@ export function checkBulkActionCap(
  * Run all refresh limit checks for a domain.
  * Checks: bulk cap, cooldown, org daily quota, per-user daily quota, project daily quota, domain daily quota.
  */
+// Sensible defaults when org has no limits configured
+const DEFAULT_REFRESH_LIMITS = {
+  refreshCooldownMinutes: 5,        // 5 min between refreshes per domain
+  maxDailyRefreshes: 50,            // 50 manual refreshes per org per day
+  maxDailyRefreshesPerDomain: 10,   // 10 per domain per day
+  maxKeywordsPerBulkRefresh: 500,   // 500 keywords per bulk action
+} as const;
+
 export async function checkRefreshLimits(
   ctx: QueryCtx | MutationCtx,
   domainId: Id<"domains">,
@@ -598,27 +643,45 @@ export async function checkRefreshLimits(
 
   const orgLimits = hierarchy.organization.limits;
 
-  // 0. Bulk action keyword cap
+  // 0. Bulk action keyword cap (use org setting or default)
   if (keywordCount !== undefined) {
-    checkBulkActionCap(orgLimits?.maxKeywordsPerBulkRefresh, keywordCount);
+    checkBulkActionCap(
+      orgLimits?.maxKeywordsPerBulkRefresh ?? DEFAULT_REFRESH_LIMITS.maxKeywordsPerBulkRefresh,
+      keywordCount
+    );
   }
 
-  // 1. Cooldown between refreshes per domain
-  await checkRefreshCooldown(ctx, domainId, orgLimits?.refreshCooldownMinutes);
+  // 1. Cooldown between refreshes per domain (use org setting or default)
+  await checkRefreshCooldown(
+    ctx,
+    domainId,
+    orgLimits?.refreshCooldownMinutes ?? DEFAULT_REFRESH_LIMITS.refreshCooldownMinutes
+  );
 
-  // 2. Org-wide daily quota
-  await checkDailyRefreshQuota(ctx, hierarchy.organization._id, orgLimits?.maxDailyRefreshes);
+  // 2. Org-wide daily quota (use org setting or default)
+  await checkDailyRefreshQuota(
+    ctx,
+    hierarchy.organization._id,
+    orgLimits?.maxDailyRefreshes ?? DEFAULT_REFRESH_LIMITS.maxDailyRefreshes
+  );
 
-  // 3. Per-user daily quota
+  // 3. Per-user daily quota (only if explicitly configured)
   if (userId && orgLimits?.maxDailyRefreshesPerUser) {
     await checkPerUserDailyQuota(ctx, hierarchy.organization._id, userId, orgLimits.maxDailyRefreshesPerUser);
   }
 
-  // 4. Per-project daily quota
+  // 4. Per-project daily quota (only if explicitly configured)
   await checkProjectDailyQuota(ctx, hierarchy.project);
 
-  // 5. Per-domain daily quota
-  await checkDomainDailyQuota(ctx, hierarchy.domain);
+  // 5. Per-domain daily quota (use domain setting or default)
+  const domainDailyLimit = hierarchy.domain.limits?.maxDailyRefreshes
+    ?? DEFAULT_REFRESH_LIMITS.maxDailyRefreshesPerDomain;
+  // Temporarily patch domain for the check
+  const domainWithDefault = {
+    ...hierarchy.domain,
+    limits: { ...hierarchy.domain.limits, maxDailyRefreshes: domainDailyLimit },
+  };
+  await checkDomainDailyQuota(ctx, domainWithDefault as Doc<"domains">);
 }
 
 // =================================================================

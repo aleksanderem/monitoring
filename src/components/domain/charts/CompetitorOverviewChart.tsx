@@ -5,6 +5,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
 import { cx } from "@/utils/cx";
 import { useTranslations } from "next-intl";
@@ -100,7 +101,8 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
   });
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-primary">{t('competitorOverviewTitle')}</h3>
         <p className="text-sm text-tertiary">

@@ -1,26 +1,25 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import {
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  ResponsiveContainer,
-  Legend,
-  Tooltip,
-} from "recharts";
 import { useTranslations } from "next-intl";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface CompetitorBacklinkRadarChartProps {
   domainId: Id<"domains">;
 }
 
-const CHART_COLORS = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#a855f7"];
-const OWN_DOMAIN_COLOR = "#374151";
+const DOMAIN_COLORS = [
+  "#6366f1", // own — indigo
+  "#2563eb",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#a855f7",
+  "#06b6d4",
+  "#ec4899",
+];
 
 const METRIC_LABEL_KEYS: Record<string, string> = {
   totalBacklinks: "backlinkRadarTotalBacklinks",
@@ -41,9 +40,10 @@ export function CompetitorBacklinkRadarChart({
 
   if (data === undefined) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
-        <div className="h-5 w-48 animate-pulse rounded bg-gray-100" />
-        <div className="mt-4 h-[350px] animate-pulse rounded bg-gray-50" />
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+        <div className="h-5 w-48 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+        <div className="mt-4 h-[350px] animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
       </div>
     );
   }
@@ -58,24 +58,17 @@ export function CompetitorBacklinkRadarChart({
     );
   }
 
-  // Transform data for RadarChart: each metric becomes a data point
-  const competitorNames =
-    data[0]?.competitors?.map((c) => c.name) ?? [];
-
-  const chartData = data.map((item) => {
-    const point: Record<string, string | number> = {
-      metric: t(METRIC_LABEL_KEYS[item.metric] ?? item.metric),
-    };
-    point[t("chartYourDomain")] = item.yourValue;
-    for (const comp of item.competitors) {
-      point[comp.name] = comp.value;
-    }
-    return point;
-  });
+  // Build entity list: own domain + competitors
+  const competitorNames = data[0]?.competitors?.map((c) => c.name) ?? [];
+  const entities = [
+    { name: t("chartYourDomain"), isOwn: true },
+    ...competitorNames.map((name) => ({ name, isOwn: false })),
+  ];
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary p-6">
-      <div className="mb-4">
+    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+      <div className="mb-5">
         <h3 className="text-lg font-semibold text-primary">
           {t("backlinkRadarTitle")}
         </h3>
@@ -84,44 +77,97 @@ export function CompetitorBacklinkRadarChart({
         </p>
       </div>
 
-      <ResponsiveContainer width="100%" height={350}>
-        <RadarChart data={chartData} cx="50%" cy="50%" outerRadius="70%">
-          <PolarGrid strokeOpacity={0.2} />
-          <PolarAngleAxis dataKey="metric" tick={{ fontSize: 11 }} />
-          <PolarRadiusAxis
-            angle={90}
-            domain={[0, 100]}
-            tick={{ fontSize: 10 }}
-          />
-          <Tooltip
-            contentStyle={{
-              borderRadius: 8,
-              border: "1px solid var(--color-border-secondary)",
-              backgroundColor: "var(--color-bg-primary)",
-            }}
-          />
-          <Legend />
-          <Radar
-            name={t("chartYourDomain")}
-            dataKey={t("chartYourDomain")}
-            stroke={OWN_DOMAIN_COLOR}
-            fill={OWN_DOMAIN_COLOR}
-            fillOpacity={0.15}
-            strokeWidth={2}
-          />
-          {competitorNames.map((name, i) => (
-            <Radar
-              key={name}
-              name={name}
-              dataKey={name}
-              stroke={CHART_COLORS[i % CHART_COLORS.length]}
-              fill={CHART_COLORS[i % CHART_COLORS.length]}
-              fillOpacity={0.1}
-              strokeWidth={2}
+      {/* Legend */}
+      <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+        {entities.map((entity, i) => (
+          <span key={entity.name} className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: DOMAIN_COLORS[i % DOMAIN_COLORS.length] }}
             />
-          ))}
-        </RadarChart>
-      </ResponsiveContainer>
+            <span className={entity.isOwn ? "font-semibold text-primary" : "text-secondary"}>
+              {entity.name}
+            </span>
+          </span>
+        ))}
+      </div>
+
+      {/* Metric comparison rows */}
+      <div className="flex flex-col gap-5">
+        {data.map((item) => {
+          const label = t(METRIC_LABEL_KEYS[item.metric] ?? item.metric);
+          const allValues = [item.yourValue, ...item.competitors.map((c) => c.value)];
+          const maxValue = Math.max(...allValues, 1);
+
+          return (
+            <div key={item.metric}>
+              <div className="mb-2 text-xs font-medium text-secondary">{label}</div>
+              <div className="flex flex-col gap-1.5">
+                {/* Own domain */}
+                <MetricBar
+                  name={t("chartYourDomain")}
+                  value={item.yourValue}
+                  max={maxValue}
+                  color={DOMAIN_COLORS[0]}
+                  isOwn
+                />
+                {/* Competitors */}
+                {item.competitors.map((comp, ci) => (
+                  <MetricBar
+                    key={comp.name}
+                    name={comp.name}
+                    value={comp.value}
+                    max={maxValue}
+                    color={DOMAIN_COLORS[(ci + 1) % DOMAIN_COLORS.length]}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MetricBar({
+  name,
+  value,
+  max,
+  color,
+  isOwn,
+}: {
+  name: string;
+  value: number;
+  max: number;
+  color: string;
+  isOwn?: boolean;
+}) {
+  const pct = max > 0 ? (value / max) * 100 : 0;
+
+  return (
+    <div className="flex items-center gap-2">
+      <div
+        className={`w-28 shrink-0 truncate text-right text-[11px] ${
+          isOwn ? "font-semibold text-primary" : "text-tertiary"
+        }`}
+        title={name}
+      >
+        {name}
+      </div>
+      <div className="relative h-4 flex-1 overflow-hidden rounded-sm bg-secondary/30">
+        <div
+          className="h-full rounded-sm transition-all duration-500"
+          style={{
+            width: `${Math.max(pct, 0.5)}%`,
+            backgroundColor: color,
+            opacity: isOwn ? 1 : 0.7,
+          }}
+        />
+      </div>
+      <div className="w-10 shrink-0 text-right text-[11px] tabular-nums text-tertiary">
+        {Math.round(value)}
+      </div>
     </div>
   );
 }

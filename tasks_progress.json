@@ -1,118 +1,127 @@
 {
-  "session_id": "S0029",
-  "date": "2026-02-06",
+  "session_id": "S0086",
+  "date": "2026-02-16",
   "tasks": [
     {
       "id": 1,
-      "name": "content_gap_detail_modal",
+      "name": "default_keyword_limit_50",
       "status": "passing",
-      "created_session": "S0027",
-      "last_updated_session": "S0027"
+      "created_session": "S0068",
+      "last_updated_session": "S0068"
     },
     {
       "id": 2,
-      "name": "content_gap_table_rewrite",
+      "name": "sidebar_usage_indicator",
       "status": "passing",
-      "created_session": "S0027",
-      "last_updated_session": "S0027"
+      "created_session": "S0068",
+      "last_updated_session": "S0068"
     },
     {
       "id": 3,
-      "name": "content_gap_tooltips",
+      "name": "diagnostic_endpoint",
       "status": "passing",
-      "created_session": "S0027",
-      "last_updated_session": "S0027"
+      "created_session": "S0068",
+      "last_updated_session": "S0069"
     },
     {
       "id": 4,
-      "name": "user_system_admin_panel",
+      "name": "fix_denormalization_drift",
       "status": "passing",
-      "created_session": "S0027",
-      "last_updated_session": "S0028"
+      "created_session": "S0069",
+      "last_updated_session": "S0069"
     },
     {
       "id": 5,
-      "name": "domain_onboarding_system",
+      "name": "fix_getMovementTrend_bug",
       "status": "passing",
-      "created_session": "S0029",
-      "last_updated_session": "S0029"
-    }
-  ],
-  "reason": "Domain onboarding system implemented: wizard (3-step) + inline checklist + auto-chaining between steps.",
-  "thinking_process": "Created 8 new files + edited 1 existing. Schema already had onboarding fields from previous session. All TypeScript checks pass.",
-  "connected_tasks": [5],
-  "how_to_test": [
-    {
-      "id": 1,
-      "name": "Content Gap table: column visibility, sorting, search, filters, pagination all work",
-      "status": "done",
-      "is_ok": true,
-      "data_for_next_step": [],
-      "session_id": "S0027"
+      "created_session": "S0069",
+      "last_updated_session": "S0069"
     },
     {
-      "id": 2,
-      "name": "Row click opens detail modal with score breakdown, competitor info, recommendations",
-      "status": "done",
-      "is_ok": true,
-      "data_for_next_step": [],
-      "session_id": "S0027"
+      "id": 6,
+      "name": "fix_content_gap_nan_scores",
+      "status": "passing",
+      "created_session": "S0069",
+      "last_updated_session": "S0069"
     },
     {
-      "id": 3,
-      "name": "Tooltips visible on: section header, summary cards, chart headings, table columns",
-      "status": "done",
-      "is_ok": true,
-      "data_for_next_step": [],
-      "session_id": "S0027"
+      "id": 7,
+      "name": "fix_backlink_competitor_data_bugs",
+      "status": "passing",
+      "created_session": "S0069",
+      "last_updated_session": "S0069"
     },
     {
-      "id": 4,
-      "name": "npx tsc --noEmit passes with zero errors (including all onboarding files)",
-      "status": "done",
-      "is_ok": true,
-      "data_for_next_step": [],
-      "session_id": "S0029"
+      "id": 8,
+      "name": "fix_nan_propagation_and_stale_priority_in_scoring",
+      "status": "passing",
+      "created_session": "S0071",
+      "last_updated_session": "S0071"
+    },
+    {
+      "id": 9,
+      "name": "fix_keyword_map_display_google_ads_keywords",
+      "status": "passing",
+      "created_session": "S0086",
+      "last_updated_session": "S0086"
     },
     {
       "id": 10,
-      "name": "New domain -> wizard auto-opens with 3 steps: Keywords, Competitors, Analysis",
-      "status": "not_started",
-      "is_ok": null,
-      "data_for_next_step": [],
-      "session_id": "S0029"
+      "name": "fix_ezicon_dark_mode_currentcolor",
+      "status": "passing",
+      "created_session": "S0086",
+      "last_updated_session": "S0086"
     },
     {
       "id": 11,
-      "name": "Step 1: discovered keywords table, Select Recommended, Add to Monitoring works",
-      "status": "not_started",
-      "is_ok": null,
-      "data_for_next_step": [],
-      "session_id": "S0029"
+      "name": "fix_settings_container_width_consistency",
+      "status": "passing",
+      "created_session": "S0086",
+      "last_updated_session": "S0086"
     },
     {
       "id": 12,
-      "name": "Step 2: SERP auto-runs, progress bar updates, competitor cards with checkboxes appear",
-      "status": "not_started",
-      "is_ok": null,
+      "name": "fix_insights_container_class_consistency",
+      "status": "passing",
+      "created_session": "S0086",
+      "last_updated_session": "S0086"
+    }
+  ],
+  "reason": "S0086: Fixed 4 issues - keyword map display (bestPosition=999 filter), EzIcon dark mode (currentColor resolution), settings page container width (mx-auto in flex-col shrink fix + CSS Grid restructure), insights page container consistency",
+  "thinking_process": "Keyword map showed 'found X phrases' but displayed nothing because Google Ads keywords store bestPosition=999 and the filter excluded them. EzIcon web component shadow DOM can't inherit CSS currentColor so we resolve it via getComputedStyle. Settings page was narrower than other pages because mx-auto in a flex-col parent overrides align-self:stretch - fixed with w-full. See tasks_progress_verbose.txt for details.",
+  "connected_tasks": [9, 10, 11, 12],
+  "how_to_test": [
+    {
+      "id": 1,
+      "name": "npx tsc --noEmit passes",
+      "status": "done",
+      "is_ok": true,
       "data_for_next_step": [],
-      "session_id": "S0029"
+      "session_id": "S0086"
     },
     {
-      "id": 13,
-      "name": "Step 3: analysis auto-runs, summary shows counts, Go to Dashboard works",
-      "status": "not_started",
-      "is_ok": null,
+      "id": 2,
+      "name": "Keyword map displays Google Ads keywords (bestPosition > 0)",
+      "status": "done",
+      "is_ok": true,
       "data_for_next_step": [],
-      "session_id": "S0029"
+      "session_id": "S0086"
     },
     {
-      "id": 14,
-      "name": "After wizard close -> inline checklist shows remaining steps",
-      "status": "not_started",
-      "is_ok": null,
+      "id": 3,
+      "name": "EzIcons visible in both light and dark mode",
+      "status": "done",
+      "is_ok": true,
       "data_for_next_step": [],
-      "session_id": "S0029"
+      "session_id": "S0086"
+    },
+    {
+      "id": 4,
+      "name": "Settings page fills same container width as domains page",
+      "status": "done",
+      "is_ok": true,
+      "data_for_next_step": [],
+      "session_id": "S0086"
     }
   ]
 }

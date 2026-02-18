@@ -2,6 +2,7 @@
 
 import { Link03, Globe01, Server01, AlertCircle } from "@untitledui/icons";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface BacklinksSummaryStatsProps {
   summary: {
@@ -69,8 +70,8 @@ export function BacklinksSummaryStats({ summary, isLoading }: BacklinksSummarySt
             key={i}
             className="flex flex-col gap-2 rounded-lg border border-secondary bg-primary p-4"
           >
-            <div className="h-4 w-24 animate-pulse rounded bg-gray-100" />
-            <div className="h-8 w-16 animate-pulse rounded bg-gray-100" />
+            <div className="h-4 w-24 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+            <div className="h-8 w-16 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
           </div>
         ))}
       </div>
@@ -79,7 +80,8 @@ export function BacklinksSummaryStats({ summary, isLoading }: BacklinksSummarySt
 
   if (!summary) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-xl border border-secondary bg-primary p-8">
+      <div className="relative flex flex-col items-center gap-3 rounded-xl border border-secondary bg-primary p-8">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <AlertCircle className="h-12 w-12 text-fg-quaternary" />
         <div className="text-center">
           <p className="text-sm font-medium text-primary">{t("noBacklinkDataAvailable")}</p>

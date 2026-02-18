@@ -9,10 +9,12 @@ import { Input } from "@/components/base/input/input";
 import { AppLogo } from "@/components/foundations/logo/app-logo";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function LoginPage() {
   const t = useTranslations("auth");
   const { signIn } = useAuthActions();
+  usePageTitle("Login");
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -37,7 +39,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col gap-8 rounded-xl border border-white/10 bg-gray-900/80 p-8 backdrop-blur-sm">
+    <div className="mx-auto flex w-full max-w-md flex-col gap-8 rounded-xl border border-white/10 bg-gray-900/80 p-8 backdrop-blur-sm">
       <div className="flex flex-col gap-3">
         <AppLogo variant="white" className="h-9" />
         <p className="text-md text-tertiary">

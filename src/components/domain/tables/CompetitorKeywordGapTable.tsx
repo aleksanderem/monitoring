@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useState, useMemo } from "react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { Badge } from "@/components/base/badges/badges";
@@ -12,6 +12,9 @@ import { Input } from "@/components/base/input/input";
 import { Plus, ChevronSelectorVertical, SearchLg } from "@untitledui/icons";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { useRowSelection } from "@/hooks/useRowSelection";
+import { BulkActionBar } from "@/components/patterns/BulkActionBar";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface CompetitorKeywordGapTableProps {
   domainId: Id<"domains">;
@@ -19,10 +22,14 @@ interface CompetitorKeywordGapTableProps {
 
 export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTableProps) {
   const t = useTranslations('competitors');
+  const tc = useTranslations('common');
   const [selectedCompetitor, setSelectedCompetitor] = useState<Id<"competitors"> | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"gapScore" | "volume" | "difficulty">("gapScore");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const addKeywords = useMutation(api.keywords.addKeywords);
+  const selection = useRowSelection();
 
   const competitors = useQuery(api.queries.competitors.getCompetitorsByDomain, { domainId });
   const gaps = useQuery(
@@ -66,6 +73,11 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
     }
   };
 
+  const visibleIds = useMemo(
+    () => (filteredGaps ?? []).map((g) => g.keywordId),
+    [filteredGaps]
+  );
+
   const getScoreBadgeColor = (score: number): "success" | "warning" | "gray" => {
     if (score >= 70) return "success"; // High opportunity - green
     if (score >= 40) return "warning"; // Medium opportunity - yellow
@@ -87,7 +99,8 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
 
   if (isLoadingCompetitors) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="text-center py-8 text-tertiary">{t('keywordGapLoading')}</div>
       </div>
     );
@@ -95,7 +108,8 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
 
   if (activeCompetitors.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="text-center py-12">
           <p className="text-tertiary mb-4">{t('keywordGapNoCompetitors')}</p>
           <p className="text-sm text-quaternary">
@@ -107,7 +121,8 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
   }
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary p-6 space-y-4">
+    <div className="relative rounded-xl border border-secondary bg-primary p-6 space-y-4">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div>
         <h3 className="text-lg font-semibold text-primary">{t('keywordGapTitle')}</h3>
         <p className="text-sm text-tertiary">
@@ -157,10 +172,46 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
             {filteredGaps?.length} {t('keywordGapTitle')}
           </div>
 
+          {selection.count > 0 && (
+            <BulkActionBar
+              selectedCount={selection.count}
+              selectedIds={selection.selectedIds}
+              onClearSelection={selection.clear}
+              actions={[
+                {
+                  label: tc('bulkAddToMonitoring'),
+                  icon: Plus,
+                  onClick: async () => {
+                    const phrases = (filteredGaps ?? [])
+                      .filter((g) => selection.selectedIds.has(g.keywordId))
+                      .map((g) => g.phrase);
+                    if (phrases.length === 0) return;
+                    try {
+                      await addKeywords({ domainId, phrases });
+                      toast.success(tc('bulkActionSuccess', { count: phrases.length }));
+                      selection.clear();
+                    } catch {
+                      toast.error(tc('bulkActionFailed'));
+                    }
+                  },
+                },
+              ]}
+            />
+          )}
+
           <div className="overflow-x-auto rounded-lg border border-secondary">
             <table className="w-full">
               <thead className="bg-secondary/50">
                 <tr>
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300"
+                      checked={selection.isAllSelected(visibleIds)}
+                      ref={(el) => { if (el) el.indeterminate = selection.isIndeterminate(visibleIds); }}
+                      onChange={() => selection.toggleAll(visibleIds)}
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-tertiary">
                     {t('columnKeyword')}
                   </th>
@@ -208,6 +259,14 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
               <tbody className="divide-y divide-secondary">
                 {filteredGaps?.map((gap) => (
                   <tr key={gap.keywordId} className="hover:bg-primary_hover transition-colors">
+                    <td className="px-4 py-3 w-10" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300"
+                        checked={selection.isSelected(gap.keywordId)}
+                        onChange={() => selection.toggle(gap.keywordId)}
+                      />
+                    </td>
                     <td className="px-4 py-3 font-medium text-primary">{gap.phrase}</td>
                     <td className="px-4 py-3 text-center">
                       <Badge color="gray" size="sm">#{gap.competitorPosition}</Badge>

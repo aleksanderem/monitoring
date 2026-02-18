@@ -2,6 +2,7 @@
 
 import { TrendUp02 } from "@untitledui/icons";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface Keyword {
   _id: string;
@@ -33,11 +34,12 @@ export function Top10KeywordsSection({ keywords, isLoading }: Top10KeywordsSecti
   const t = useTranslations("keywords");
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
-        <div className="h-8 w-48 animate-pulse rounded bg-gray-100" />
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+        <div className="h-8 w-48 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
           {[...Array(10)].map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-lg bg-gray-100" />
+            <div key={i} className="h-24 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-700" />
           ))}
         </div>
       </div>
@@ -46,7 +48,8 @@ export function Top10KeywordsSection({ keywords, isLoading }: Top10KeywordsSecti
 
   if (keywords.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
+      <div className="relative rounded-xl border border-secondary bg-primary p-8 text-center">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <TrendUp02 className="mx-auto h-12 w-12 text-fg-quaternary" />
         <p className="mt-4 text-sm text-tertiary">{t("noTopKeywordsFound")}</p>
       </div>
@@ -54,7 +57,8 @@ export function Top10KeywordsSection({ keywords, isLoading }: Top10KeywordsSecti
   }
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary p-6">
+    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-primary">{t("top10Keywords")}</h3>
         <p className="text-sm text-tertiary">{t("bestPerformingByPosition")}</p>

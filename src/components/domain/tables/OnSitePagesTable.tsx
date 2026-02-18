@@ -23,6 +23,7 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { Input } from "@/components/base/input/input";
 import { Button } from "@/components/base/buttons/button";
 import { PageDetailModal } from "../modals/PageDetailModal";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface OnSitePagesTableProps {
   domainId: Id<"domains">;
@@ -225,7 +226,8 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
 
   if (allPages.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-8 text-center">
+      <div className="relative rounded-xl border border-secondary bg-primary p-8 text-center">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <AlertCircle className="mx-auto h-12 w-12 text-fg-quaternary" />
         <h3 className="mt-4 text-sm font-semibold text-primary">{t('noPageDataAvailable')}</h3>
         <p className="mt-1 text-sm text-tertiary">
@@ -237,7 +239,8 @@ export function OnSitePagesTable({ domainId, scanId }: OnSitePagesTableProps) {
 
   return (
     <>
-      <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

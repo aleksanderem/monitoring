@@ -3,6 +3,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
@@ -17,6 +18,7 @@ import {
   MinusCircle,
 } from "@untitledui/icons";
 import { cx } from "@/utils/cx";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -104,7 +106,8 @@ function ActiveJobsTab() {
 
   if (activeJobs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
+      <div className="relative flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <CheckCircle className="size-10 text-success-400" />
         <p className="mt-3 text-sm font-medium text-primary">{t("noActiveJobs")}</p>
         <p className="mt-1 text-xs text-tertiary">{t("allTasksCompleted")}</p>
@@ -117,8 +120,9 @@ function ActiveJobsTab() {
       {activeJobs.map((job) => (
         <div
           key={job.id}
-          className="rounded-xl border border-secondary bg-primary p-4 shadow-xs"
+          className="relative rounded-xl border border-secondary bg-primary p-4 shadow-xs"
         >
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 flex size-8 items-center justify-center rounded-lg bg-secondary-subtle">
@@ -184,8 +188,9 @@ function ScheduledJobsTab() {
       {scheduledJobs.map((job) => (
         <div
           key={job.name}
-          className="flex items-center justify-between rounded-xl border border-secondary bg-primary p-4 shadow-xs"
+          className="relative flex items-center justify-between rounded-xl border border-secondary bg-primary p-4 shadow-xs"
         >
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="flex items-center gap-3">
             <div className="flex size-8 items-center justify-center rounded-lg bg-secondary-subtle">
               <Clock className="size-4 text-quaternary" />
@@ -211,6 +216,7 @@ function ScheduledJobsTab() {
 function HistoryTab() {
   const t = useTranslations("jobs");
   const [historyFilter, setHistoryFilter] = useState<"completed" | "failed" | "all">("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const completedJobs = useQuery(api.jobs_queries.getAllJobs, { filter: historyFilter === "all" ? "all" : historyFilter, limit: 100 });
 
   if (completedJobs === undefined) return <LoadingState rows={8} />;
@@ -241,7 +247,8 @@ function HistoryTab() {
       </div>
 
       {historyJobs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
+        <div className="relative flex flex-col items-center justify-center rounded-xl border border-secondary bg-primary py-16">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <MinusCircle className="size-10 text-quaternary" />
           <p className="mt-3 text-sm font-medium text-primary">{t("noJobsFound")}</p>
         </div>
@@ -266,33 +273,16 @@ function HistoryTab() {
                     : job.completedAt && job.createdAt
                       ? formatDuration(job.completedAt - job.createdAt)
                       : "—";
+                const isExpanded = expandedId === job.id;
 
                 return (
-                  <tr key={job.id} className="border-b border-secondary last:border-b-0">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <JobTypeIcon type={job.type} />
-                        <span className="text-sm text-primary">{job.type}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-secondary">{job.domainName}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={job.status} />
-                    </td>
-                    <td className="px-4 py-3 text-sm text-tertiary">{duration}</td>
-                    <td className="px-4 py-3 text-sm text-tertiary">
-                      {new Date(job.createdAt).toLocaleString()}
-                    </td>
-                    <td className="max-w-[200px] px-4 py-3">
-                      {job.error ? (
-                        <span className="truncate text-xs text-error-600" title={job.error}>
-                          {job.error}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-quaternary">—</span>
-                      )}
-                    </td>
-                  </tr>
+                  <JobHistoryRow
+                    key={job.id}
+                    job={job}
+                    duration={duration}
+                    isExpanded={isExpanded}
+                    onToggle={() => setExpandedId(isExpanded ? null : job.id)}
+                  />
                 );
               })}
             </tbody>
@@ -303,9 +293,123 @@ function HistoryTab() {
   );
 }
 
+// --- Job History Row with Expandable Details ---
+function JobHistoryRow({
+  job,
+  duration,
+  isExpanded,
+  onToggle,
+}: {
+  job: { id: string; table: string; type: string; domainName: string; status: string; progress?: number; currentStep?: string; createdAt: number; startedAt?: number; completedAt?: number; error?: string };
+  duration: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const t = useTranslations("jobs");
+
+  return (
+    <>
+      <tr
+        onClick={onToggle}
+        className={cx(
+          "cursor-pointer transition-colors",
+          isExpanded
+            ? "bg-secondary-subtle"
+            : "hover:bg-primary_hover",
+          !isExpanded && "border-b border-secondary last:border-b-0"
+        )}
+      >
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2">
+            <JobTypeIcon type={job.type} />
+            <span className="text-sm text-primary">{job.type}</span>
+          </div>
+        </td>
+        <td className="px-4 py-3 text-sm text-secondary">{job.domainName}</td>
+        <td className="px-4 py-3">
+          <StatusBadge status={job.status} />
+        </td>
+        <td className="px-4 py-3 text-sm text-tertiary">{duration}</td>
+        <td className="px-4 py-3 text-sm text-tertiary">
+          {new Date(job.createdAt).toLocaleString()}
+        </td>
+        <td className="max-w-[200px] px-4 py-3">
+          {job.error ? (
+            <span className="truncate text-xs text-error-600" title={job.error}>
+              {job.error}
+            </span>
+          ) : (
+            <span className="text-xs text-quaternary">—</span>
+          )}
+        </td>
+      </tr>
+      {isExpanded && (
+        <tr className="border-b border-secondary last:border-b-0">
+          <td colSpan={6} className="bg-secondary-subtle px-4 pb-4">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3 rounded-lg border border-secondary bg-primary p-4 sm:grid-cols-3 lg:grid-cols-4">
+              <DetailItem label={t("detailJobId")} value={job.id} mono />
+              <DetailItem label={t("detailTable")} value={job.table} />
+              <DetailItem label={t("detailType")} value={job.type} />
+              <DetailItem label={t("detailDomain")} value={job.domainName} />
+              <DetailItem label={t("detailStatus")} value={job.status} />
+              <DetailItem label={t("detailDuration")} value={duration} />
+              <DetailItem
+                label={t("detailCreated")}
+                value={new Date(job.createdAt).toLocaleString()}
+              />
+              {job.startedAt && (
+                <DetailItem
+                  label={t("detailStarted")}
+                  value={new Date(job.startedAt).toLocaleString()}
+                />
+              )}
+              {job.completedAt && (
+                <DetailItem
+                  label={t("detailCompleted")}
+                  value={new Date(job.completedAt).toLocaleString()}
+                />
+              )}
+              {job.progress != null && (
+                <DetailItem label={t("detailProgress")} value={`${job.progress}%`} />
+              )}
+              {job.currentStep && (
+                <DetailItem label={t("detailStep")} value={job.currentStep} />
+              )}
+              {job.error && (
+                <div className="col-span-full">
+                  <DetailItem label={t("detailError")} value={job.error} error />
+                </div>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function DetailItem({ label, value, mono, error }: { label: string; value: string; mono?: boolean; error?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-xs text-tertiary">{label}</div>
+      <div
+        className={cx(
+          "mt-0.5 truncate text-sm",
+          error ? "whitespace-normal break-all text-error-600" : "text-primary",
+          mono && "font-mono text-xs"
+        )}
+        title={value}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 // --- Main Page ---
 export default function JobsPage() {
   const t = useTranslations("jobs");
+  usePageTitle("Jobs");
   const stats = useQuery(api.jobs_queries.getJobStats);
 
   const tabs = [
@@ -315,7 +419,7 @@ export default function JobsPage() {
   ];
 
   return (
-    <div className="mx-auto flex max-w-container flex-col gap-6 px-4 py-8 lg:px-8">
+    <div className="mx-auto flex w-full max-w-container flex-col gap-6 px-4 py-8 lg:px-8">
       {/* Header */}
       <div>
         <h1 className="text-lg font-semibold text-primary">{t("title")}</h1>
@@ -326,7 +430,8 @@ export default function JobsPage() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-secondary bg-primary p-4 shadow-xs">
+        <div className="relative rounded-xl border border-secondary bg-primary p-4 shadow-xs">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-lg bg-brand-50">
               <Activity className="size-5 text-brand-600" />
@@ -339,7 +444,8 @@ export default function JobsPage() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-secondary bg-primary p-4 shadow-xs">
+        <div className="relative rounded-xl border border-secondary bg-primary p-4 shadow-xs">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-lg bg-success-50">
               <CheckCircle className="size-5 text-success-600" />
@@ -352,7 +458,8 @@ export default function JobsPage() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-secondary bg-primary p-4 shadow-xs">
+        <div className="relative rounded-xl border border-secondary bg-primary p-4 shadow-xs">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-lg bg-error-50">
               <AlertCircle className="size-5 text-error-600" />

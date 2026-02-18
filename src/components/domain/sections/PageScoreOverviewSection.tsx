@@ -15,6 +15,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { Star01 } from "@untitledui/icons";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -98,7 +99,8 @@ export function PageScoreOverviewSection({ analysis }: PageScoreOverviewSectionP
   // If no scoring data at all, show empty state
   if (avgPageScore == null && !dist && !axes) {
     return (
-      <div className="rounded-xl border border-secondary bg-primary p-6">
+      <div className="relative rounded-xl border border-secondary bg-primary p-6">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         <div className="flex flex-col items-center justify-center py-8">
           <Star01 className="h-8 w-8 text-fg-quaternary mb-2" />
           <p className="text-sm font-medium text-secondary">{t("noScoringData")}</p>
@@ -149,7 +151,8 @@ export function PageScoreOverviewSection({ analysis }: PageScoreOverviewSectionP
     : [];
 
   return (
-    <div className="rounded-xl border border-secondary bg-primary p-6 space-y-6">
+    <div className="relative rounded-xl border border-secondary bg-primary p-6 space-y-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       {/* Header */}
       <div>
         <h3 className="text-md font-semibold text-primary">{t("scoringOverview")}</h3>

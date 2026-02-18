@@ -9,6 +9,14 @@ export function useEscapeClose(onClose: () => void, enabled: boolean = true) {
             }
         }
         document.addEventListener("keydown", handleKeyDown);
-        return () => document.removeEventListener("keydown", handleKeyDown);
+
+        // Lock body scroll while modal is open
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown);
+            document.body.style.overflow = prev;
+        };
     }, [onClose, enabled]);
 }

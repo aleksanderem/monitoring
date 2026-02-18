@@ -4,6 +4,9 @@ import { v } from "convex/values";
 import { action, internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
+import { buildLocationParam } from "../dataforseoLocations";
+import { createDebugLogger } from "../lib/debugLogger";
+import { API_COSTS } from "../apiUsage";
 
 const DATAFORSEO_API_URL = "https://api.dataforseo.com/v3";
 
@@ -35,9 +38,9 @@ export const checkCompetitorPositions = action({
     });
 
     const settings = domain?.settings || {
-      location: "Poland",
-      language: "pl",
-      searchEngine: "google.pl",
+      location: "United States",
+      language: "en",
+      searchEngine: "google.com",
       refreshFrequency: "weekly",
     };
 
@@ -136,29 +139,35 @@ export const checkSingleKeyword = internalAction({
 
     // Production mode - call DataForSEO API
     try {
+      const debug = await createDebugLogger(ctx, "competitor_position");
       const authHeader = btoa(`${args.login}:${args.password}`);
 
-      const response = await fetch(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Basic ${authHeader}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify([{
-          keyword: args.phrase,
-          location_name: args.location,
-          language_code: args.language,
-          device: "desktop",
-          os: "windows",
-          depth: 100,
-        }]),
+      const serpRequestBody = [{ keyword: args.phrase, ...buildLocationParam(args.location), language_code: args.language, device: "desktop", os: "windows", depth: 100 }];
+      const data = await debug.logStep("serp_live", serpRequestBody[0], async () => {
+        const response = await fetch(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Basic ${authHeader}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(serpRequestBody),
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        return await response.json();
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // Log SERP API usage for competitor position check
+      await ctx.runMutation(internal.apiUsage.logApiUsage, {
+        endpoint: "/serp/google/organic/live/advanced",
+        taskCount: 1,
+        estimatedCost: API_COSTS.SERP_LIVE_ADVANCED,
+        caller: "checkSingleKeyword",
+        metadata: JSON.stringify({ competitor: args.competitorDomain, keyword: args.phrase }),
+      });
 
       if (data.status_code !== 20000 || !data.tasks?.[0]?.result?.[0]?.items) {
         throw new Error(data.status_message || "No results");

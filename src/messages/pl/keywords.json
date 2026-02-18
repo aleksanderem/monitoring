@@ -48,6 +48,9 @@
   "noRankTooltip": "Nie znaleziono pozycji w rankingu dla tego słowa kluczowego",
   "difficultyNotAvailableTooltip": "Dane o trudności nie są dostępne dla tego słowa kluczowego",
   "addToMonitor": "Dodaj do monitoringu",
+  "removeFromMonitor": "Usuń z monitoringu",
+  "removedFromMonitoring": "Usunięto \"{keyword}\" z monitoringu",
+  "failedToRemoveKeyword": "Nie udało się usunąć słowa kluczowego",
   "searchVolumeTrend": "Trend wolumenu wyszukiwań",
 
   "keywordMonitoring": "Monitoring słów kluczowych",
@@ -282,6 +285,13 @@
 
   "noHistoricalDataYet": "Brak danych historycznych",
   "checkBackAfterRankingUpdate": "Sprawdź ponownie po pierwszej aktualizacji pozycji",
+  "fetchHistoryButton": "Pobierz historię",
+  "fetchingHistory": "Pobieranie...",
+  "noDiscoveredKeywords": "Brak odkrytych słów kluczowych",
+  "noDiscoveredKeywordsDesc": "Pobierz dane widoczności z DataForSEO, aby odkryć na jakie słowa kluczowe ta domena się pozycjonuje",
+  "fetchDiscoveredKeywords": "Pobierz słowa kluczowe",
+  "fetchingDiscoveredKeywords": "Pobieranie...",
+  "discoveredKeywordsRefreshed": "Odkryto {count} słów kluczowych",
   "noPositionHistoryAvailable": "Brak dostępnej historii pozycji",
   "noTrendDataAvailable": "Brak danych o trendach",
   "avgVolume": "Śr. wolumen",
@@ -535,5 +545,6 @@
   "confirmRefresh": "Potwierdź",
   "cannotRefresh": "Odświeżanie niedostępne",
   "limitBulkCap": "Słów kluczowych na akcję",
-  "limitBulkCapExceeded": "Maks. {limit} słów kluczowych na akcję zbiorczą ({count} wybrano)"
+  "limitBulkCapExceeded": "Maks. {limit} słów kluczowych na akcję zbiorczą ({count} wybrano)",
+  "refreshCostEstimate": "Szacowany koszt API dla {count} słów kluczowych: ~${cost}"
 }

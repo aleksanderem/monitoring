@@ -31,13 +31,6 @@ crons.weekly(
 //   internal.scheduler.triggerWeeklyReports
 // );
 
-// Cleanup stuck keyword check jobs every 5 minutes
-crons.interval(
-  "cleanup-stuck-jobs",
-  { minutes: 5 },
-  internal.keywordCheckJobs.cleanupStuckJobs
-);
-
 // Calculate backlink velocity daily at 2 AM UTC (after backlink refresh)
 crons.daily(
   "calculate-backlink-velocity",

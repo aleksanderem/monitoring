@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 // Difficulty tier classification
 function getDifficultyTier(difficulty: number | null | undefined): "easy" | "medium" | "hard" | "very_hard" | "unknown" {
@@ -33,6 +35,10 @@ function calculateQuickWinScore(position: number | null, searchVolume: number | 
 export const getKeywordMapData = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return [];
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const domain = await ctx.db.get(args.domainId);
         if (!domain) return [];
         const domainName = domain.domain;
@@ -51,7 +57,7 @@ export const getKeywordMapData = query({
         const monitoredPhrases = new Set(monitoredKeywords.map((k) => k.phrase.toLowerCase()));
 
         return discoveredKeywords
-            .filter((dk) => dk.bestPosition > 0 && dk.bestPosition !== 999)
+            .filter((dk) => dk.bestPosition > 0)
             .map((dk) => {
                 const keywordType = detectKeywordType(dk.keyword, domainName);
                 const difficultyTier = getDifficultyTier(dk.difficulty);
@@ -96,6 +102,10 @@ export const getQuickWins = query({
         limit: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return [];
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const limit = args.limit ?? 200;
 
         const discoveredKeywords = await ctx.db
@@ -153,6 +163,10 @@ export const getQuickWinActionPlan = query({
         discoveredKeywordId: v.id("discoveredKeywords"),
     },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return null;
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         // 1. Get the discovered keyword
         const dk = await ctx.db.get(args.discoveredKeywordId);
         if (!dk || dk.domainId !== args.domainId) return null;
@@ -543,10 +557,14 @@ export const getQuickWinActionPlan = query({
 export const getDifficultyDistribution = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return { distribution: { easy: 0, medium: 0, hard: 0, very_hard: 0, unknown: 0 }, volumeByTier: { easy: 0, medium: 0, hard: 0, very_hard: 0, unknown: 0 }, total: 0 };
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const discoveredKeywords = await ctx.db
             .query("discoveredKeywords")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-            .filter((q) => q.neq(q.field("bestPosition"), 999))
+            .filter((q) => q.gt(q.field("bestPosition"), 0))
             .collect();
 
         const distribution = { easy: 0, medium: 0, hard: 0, very_hard: 0, unknown: 0 };
@@ -572,10 +590,14 @@ export const getDifficultyDistribution = query({
 export const getIntentDistribution = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return {};
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const discoveredKeywords = await ctx.db
             .query("discoveredKeywords")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-            .filter((q) => q.neq(q.field("bestPosition"), 999))
+            .filter((q) => q.gt(q.field("bestPosition"), 0))
             .collect();
 
         const intents: Record<string, { count: number; totalVolume: number; avgPosition: number; positionSum: number }> = {
@@ -610,10 +632,14 @@ export const getIntentDistribution = query({
 export const getSerpFeatureOpportunities = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return [];
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const discoveredKeywords = await ctx.db
             .query("discoveredKeywords")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-            .filter((q) => q.neq(q.field("bestPosition"), 999))
+            .filter((q) => q.gt(q.field("bestPosition"), 0))
             .collect();
 
         const featureMap: Record<string, { count: number; keywords: string[]; avgPosition: number; positionSum: number }> = {};
@@ -651,6 +677,10 @@ export const getSerpFeatureOpportunities = query({
 export const getCompetitorOverlapMatrix = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return { competitors: [], keywords: [], matrix: [] };
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const domain = await ctx.db.get(args.domainId);
         if (!domain) return { competitors: [], keywords: [], matrix: [] };
 
@@ -730,6 +760,10 @@ export const getCompetitorOverlapMatrix = query({
 export const getKeywordCannibalization = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return [];
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const keywords = await ctx.db
             .query("keywords")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -785,10 +819,14 @@ export const getKeywordCannibalization = query({
 export const getMonthlySearchTrends = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return { trends: [], keywordsWithData: 0, totalKeywords: 0 };
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const discoveredKeywords = await ctx.db
             .query("discoveredKeywords")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-            .filter((q) => q.neq(q.field("bestPosition"), 999))
+            .filter((q) => q.gt(q.field("bestPosition"), 0))
             .collect();
 
         // Aggregate monthly search volumes across all keywords
@@ -822,13 +860,16 @@ export const getMonthlySearchTrends = query({
 export const getKeywordMapBubbleData = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return [];
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const domain = await ctx.db.get(args.domainId);
         if (!domain) return [];
 
         const discoveredKeywords = await ctx.db
             .query("discoveredKeywords")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-            .filter((q) => q.neq(q.field("bestPosition"), 999))
             .collect();
 
         return discoveredKeywords

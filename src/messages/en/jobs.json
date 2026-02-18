@@ -32,5 +32,17 @@
   "unknownError": "Unknown error occurred",
   "refreshCancelled": "Position refresh cancelled for {domain}",
   "refreshCancelledDescription": "{processed}/{total} keywords were processed",
-  "domainFallback": "domain"
+  "domainFallback": "domain",
+  "detailJobId": "Job ID",
+  "detailTable": "Source Table",
+  "detailType": "Type",
+  "detailDomain": "Domain",
+  "detailStatus": "Status",
+  "detailDuration": "Duration",
+  "detailCreated": "Created",
+  "detailStarted": "Started",
+  "detailCompleted": "Completed",
+  "detailProgress": "Progress",
+  "detailStep": "Last Step",
+  "detailError": "Error"
 }

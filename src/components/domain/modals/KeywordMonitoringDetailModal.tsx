@@ -10,6 +10,7 @@ import { MonthlySearchTrendChart } from "../charts/MonthlySearchTrendChart";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { toast } from "sonner";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { CreateCompetitorReportModal } from "./CreateCompetitorReportModal";
 
 interface KeywordMonitoringDetailModalProps {
@@ -32,6 +33,12 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
   const [selectedCompetitors, setSelectedCompetitors] = useState<Set<string>>(new Set());
   const [isAddingCompetitors, setIsAddingCompetitors] = useState(false);
   const [isCompetitorReportModalOpen, setIsCompetitorReportModalOpen] = useState(false);
+
+  // Fetch full position history from keywordPositions table (not just 7-entry sparkline)
+  const fullPositionHistory = useQuery(
+    api.keywords.getPositionHistory,
+    keyword?.keywordId ? { keywordId: keyword.keywordId } : "skip"
+  );
 
   // Fetch SERP results for this keyword (show top 20 instead of 10)
   const serpResults = useQuery(
@@ -91,7 +98,8 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
 
       {/* Modal */}
       <div className="relative z-10 w-full max-w-6xl max-h-[90vh] overflow-y-auto mx-4">
-        <div className="rounded-xl border border-secondary bg-primary shadow-xl">
+        <div className="relative rounded-xl border border-secondary bg-primary shadow-xl">
+          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           {/* Header */}
           <div className="flex items-center justify-between border-b border-secondary p-6">
             <div>
@@ -137,11 +145,11 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
 
           {/* Content */}
           <div className="p-6 space-y-6">
-            {/* Position History Chart */}
-            {keyword.positionHistory && keyword.positionHistory.length > 0 && (
+            {/* Position History Chart — uses full history from keywordPositions table */}
+            {fullPositionHistory && fullPositionHistory.length > 0 && (
               <div>
                 <h3 className="text-base font-semibold text-primary mb-4">{t('positionHistory')}</h3>
-                <KeywordPositionChart positionHistory={keyword.positionHistory} />
+                <KeywordPositionChart positionHistory={fullPositionHistory} />
               </div>
             )}
 

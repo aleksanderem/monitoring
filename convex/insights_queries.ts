@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 /**
  * Domain Health Score — aggregates health across keywords, backlinks, on-site
@@ -7,6 +9,10 @@ import { query } from "./_generated/server";
 export const getDomainHealthScore = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return null;
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const domain = await ctx.db.get(args.domainId);
         if (!domain) return null;
 
@@ -131,6 +137,10 @@ export const getDomainHealthScore = query({
 export const getKeywordInsights = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return { atRisk: [], opportunities: [], nearPage1: [], summary: { atRiskCount: 0, opportunityCount: 0, nearPage1Count: 0 } };
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const keywords = await ctx.db
             .query("keywords")
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -207,6 +217,10 @@ export const getKeywordInsights = query({
 export const getBacklinkInsights = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return { totalBacklinks: 0, referringDomains: 0, toxicCount: 0, toxicPercentage: 0, newBacklinks: 0, lostBacklinks: 0, dofollowRatio: 0, activeProspects: 0 };
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         // Get backlink summary
         const summaries = await ctx.db
             .query("domainBacklinksSummary")
@@ -235,9 +249,15 @@ export const getBacklinkInsights = query({
             lostBacklinks = Math.max(0, (previous.totalBacklinks ?? 0) - (current.totalBacklinks ?? 0));
         }
 
-        // Dofollow ratio
-        const dofollowCount = backlinks.filter((bl) => bl.dofollow === true).length;
-        const dofollowRatio = backlinks.length > 0 ? Math.round((dofollowCount / backlinks.length) * 100) : 0;
+        // Dofollow ratio: use summary data (full API counts) when available,
+        // fall back to table sample (capped at 1000 records) otherwise.
+        let dofollowRatio = 0;
+        if (current && (current.dofollow + current.nofollow) > 0) {
+            dofollowRatio = Math.round((current.dofollow / (current.dofollow + current.nofollow)) * 100);
+        } else if (backlinks.length > 0) {
+            const dofollowCount = backlinks.filter((bl) => bl.dofollow === true).length;
+            dofollowRatio = Math.round((dofollowCount / backlinks.length) * 100);
+        }
 
         // Link building prospects
         const prospects = await ctx.db
@@ -266,6 +286,10 @@ export const getBacklinkInsights = query({
 export const getRecommendations = query({
     args: { domainId: v.id("domains") },
     handler: async (ctx, args) => {
+        const userId = await auth.getUserId(ctx);
+        if (!userId) return [];
+        await requireTenantAccess(ctx, "domain", args.domainId);
+
         const recommendations: Array<{
             priority: "high" | "medium" | "low";
             category: "keywords" | "backlinks" | "onsite" | "content";
@@ -412,7 +436,14 @@ export const getRecommendations = query({
             .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
             .collect();
 
-        const highPriorityGaps = gaps.filter((g) => g.priority === "high" && g.status === "identified").length;
+        const highPriorityGaps = gaps.filter((g) => {
+            if (g.status !== "identified") return false;
+            const score = g.opportunityScore;
+            // Recalculate priority from score (stored priority may be stale from NaN-era data)
+            const priority = (score != null && !isNaN(score) && score >= 70) ? "high"
+              : (score != null && !isNaN(score) && score >= 40) ? "medium" : "low";
+            return priority === "high";
+        }).length;
 
         if (highPriorityGaps > 10) {
             recommendations.push({

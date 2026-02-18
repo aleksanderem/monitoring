@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 interface PageProps {
   params: Promise<{
@@ -19,6 +20,7 @@ interface PageProps {
 
 export default function InsightsPage({ params }: PageProps) {
   const { domainId } = use(params);
+  usePageTitle("Insights");
 
   // Filters
   const [severityFilter, setSeverityFilter] = useState<"all" | "high" | "medium" | "low">("all");
@@ -38,7 +40,7 @@ export default function InsightsPage({ params }: PageProps) {
 
   if (summary === undefined || anomalies === undefined) {
     return (
-      <div className="container mx-auto max-w-7xl space-y-6 p-6">
+      <div className="mx-auto w-full max-w-container space-y-6 px-4 py-8 lg:px-8">
         <div>
           <h1 className="text-2xl font-semibold text-primary">Insights & Anomalies</h1>
           <p className="mt-1 text-sm text-tertiary">
@@ -51,7 +53,7 @@ export default function InsightsPage({ params }: PageProps) {
   }
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-6 p-6">
+    <div className="mx-auto w-full max-w-container space-y-6 px-4 py-8 lg:px-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold text-primary">Insights & Anomalies</h1>

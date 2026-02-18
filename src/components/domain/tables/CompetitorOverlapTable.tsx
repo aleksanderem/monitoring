@@ -16,6 +16,7 @@ import {
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface CompetitorOverlapTableProps {
     domainId: Id<"domains">;
@@ -171,16 +172,18 @@ export function CompetitorOverlapTable({ domainId }: CompetitorOverlapTableProps
 
     if (overlapData === undefined) {
         return (
-            <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
-                <div className="h-5 w-44 animate-pulse rounded bg-gray-100" />
-                <div className="h-64 animate-pulse rounded bg-gray-50" />
+            <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+                <div className="h-5 w-44 animate-pulse rounded bg-gray-100 dark:bg-gray-700" />
+                <div className="h-64 animate-pulse rounded bg-gray-50 dark:bg-gray-800" />
             </div>
         );
     }
 
     if (!overlapData || overlapData.competitors.length === 0 || overlapData.matrix.length === 0) {
         return (
-            <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 <div className="flex items-center gap-2">
                     <Users01 className="h-5 w-5 text-fg-quaternary" />
                     <div>
@@ -200,7 +203,8 @@ export function CompetitorOverlapTable({ domainId }: CompetitorOverlapTableProps
     const youRanking = overlapData.matrix.filter((r) => r.yourPosition !== null).length;
 
     return (
-        <div className="flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+        <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+            <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
             {/* Header */}
             <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">

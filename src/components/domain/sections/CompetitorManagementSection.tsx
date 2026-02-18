@@ -13,6 +13,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Heading } from "react-aria-components";
 import { AddCompetitorModal } from "../modals/AddCompetitorModal";
+import { PermissionGate } from "@/components/auth/PermissionGate";
 
 interface CompetitorManagementSectionProps {
   domainId: Id<"domains">;
@@ -136,13 +137,17 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
     <div className="space-y-4">
       <div className="flex items-center justify-end gap-2">
         {selectedCompetitors.size > 0 && (
-          <Button onClick={handleBulkDelete} size="sm" color="tertiary-destructive" iconLeading={Trash01}>
-            {tc('delete')} ({selectedCompetitors.size})
-          </Button>
+          <PermissionGate permission="competitors.add">
+            <Button onClick={handleBulkDelete} size="sm" color="tertiary-destructive" iconLeading={Trash01}>
+              {tc('delete')} ({selectedCompetitors.size})
+            </Button>
+          </PermissionGate>
         )}
-        <Button onClick={() => setShowAddDialog(true)} size="sm" color="primary" iconLeading={Plus}>
-          {t('competitorMgmtAddCompetitor')}
-        </Button>
+        <PermissionGate permission="competitors.add">
+          <Button onClick={() => setShowAddDialog(true)} size="sm" color="primary" iconLeading={Plus}>
+            {t('competitorMgmtAddCompetitor')}
+          </Button>
+        </PermissionGate>
       </div>
 
       {competitors === undefined ? (
@@ -150,9 +155,11 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
       ) : activeCompetitors.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-secondary rounded-lg">
           <p className="text-tertiary mb-4">{t('competitorMgmtNoCompetitors')}</p>
-          <Button onClick={() => setShowAddDialog(true)} color="secondary" size="sm" iconLeading={Plus}>
-            {t('competitorMgmtAddFirst')}
-          </Button>
+          <PermissionGate permission="competitors.add">
+            <Button onClick={() => setShowAddDialog(true)} color="secondary" size="sm" iconLeading={Plus}>
+              {t('competitorMgmtAddFirst')}
+            </Button>
+          </PermissionGate>
         </div>
       ) : (
         <div className="space-y-2">

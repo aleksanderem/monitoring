@@ -5,9 +5,12 @@ import { api } from "../../../../../convex/_generated/api";
 import { Breadcrumbs } from "@/components/application/breadcrumbs/breadcrumbs";
 import { Badge } from "@/components/base/badges/badges";
 import { useTranslations } from "next-intl";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function AdminLogsPage() {
   const t = useTranslations("admin");
+  usePageTitle("Admin", "Audit Logs");
   const auditLogs = useQuery(api.admin.getAdminAuditLogs, { limit: 100 });
 
   return (
@@ -22,7 +25,8 @@ export default function AdminLogsPage() {
         <p className="mt-1 text-sm text-tertiary">{t("auditLogsDescription")}</p>
       </div>
 
-      <div className="bg-primary rounded-xl border border-secondary shadow-xs overflow-hidden">
+      <div className="relative bg-primary rounded-xl border border-secondary shadow-xs overflow-hidden">
+        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
         {auditLogs && auditLogs.length > 0 ? (
           <div className="divide-y divide-secondary">
             {auditLogs.map((log) => (
