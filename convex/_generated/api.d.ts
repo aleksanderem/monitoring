@@ -20,6 +20,7 @@ import type * as actions_generateLlmsTxt from "../actions/generateLlmsTxt.js";
 import type * as actions_generatePlatformInstructions from "../actions/generatePlatformInstructions.js";
 import type * as actions_generateSchema from "../actions/generateSchema.js";
 import type * as actions_scrapeHomepage from "../actions/scrapeHomepage.js";
+import type * as actions_sendEmail from "../actions/sendEmail.js";
 import type * as admin from "../admin.js";
 import type * as aiResearch from "../aiResearch.js";
 import type * as aiStrategy from "../aiStrategy.js";
@@ -132,6 +133,7 @@ declare const fullApi: ApiFromModules<{
   "actions/generatePlatformInstructions": typeof actions_generatePlatformInstructions;
   "actions/generateSchema": typeof actions_generateSchema;
   "actions/scrapeHomepage": typeof actions_scrapeHomepage;
+  "actions/sendEmail": typeof actions_sendEmail;
   admin: typeof admin;
   aiResearch: typeof aiResearch;
   aiStrategy: typeof aiStrategy;
