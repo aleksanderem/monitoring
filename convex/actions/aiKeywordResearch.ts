@@ -141,7 +141,7 @@ export const generateKeywordIdeas = action({
       limit: 200,
     };
 
-    const [pageContent, dataforseoResult, discoveredKeywords, monitoredKeywords] = await Promise.all([
+    const [pageContentResult, dataforseoResult, discoveredKeywords, monitoredKeywords] = await Promise.all([
       // 3a. Fetch homepage text
       logStep(ctx, debugEnabled, args.domainId, "content_parsing",
         { url: `https://${domain.domain}` },
@@ -165,12 +165,13 @@ export const generateKeywordIdeas = action({
       }),
     ]);
 
-    // Log content parsing API usage (if page content was fetched)
-    if (pageContent) {
+    // Extract text and log content parsing API usage
+    const pageContent = pageContentResult?.text ?? null;
+    if (pageContentResult?.apiCost > 0) {
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/on_page/content_parsing/live",
         taskCount: 1,
-        estimatedCost: 0.001,
+        estimatedCost: pageContentResult.apiCost,
         caller: "aiKeywordResearch",
         domainId: args.domainId,
       });

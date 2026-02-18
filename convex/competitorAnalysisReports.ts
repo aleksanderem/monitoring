@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { API_COSTS, extractApiCost } from "./apiUsage";
 
 /**
  * Create a new competitor analysis report for a keyword
@@ -237,6 +238,15 @@ export const analyzeReportInternal = internalAction({
           // Call DataForSEO to analyze the page
           const analysis = await analyzePageWithDataForSEO(compPage.url);
 
+          // Log API usage
+          await ctx.runMutation(internal.apiUsage.logApiUsage, {
+            endpoint: "/on_page/instant_pages",
+            taskCount: 1,
+            estimatedCost: analysis._apiCost,
+            caller: "analyzeReportInternal",
+            domainId: report.domainId,
+          });
+
           // Store the analysis in competitorPageAnalysis table
           const pageAnalysisId = await ctx.runMutation(
             internal.competitorAnalysis.storeCompetitorPageAnalysis,
@@ -370,6 +380,7 @@ async function analyzePageWithDataForSEO(url: string) {
     loadTime: result.page_timing?.time_to_interactive,
     pageSize: result.page_metrics?.page_size,
     onpageScore: result.onpage_score,
+    _apiCost: extractApiCost(data, API_COSTS.ON_PAGE_INSTANT_PAGES),
   };
 }
 

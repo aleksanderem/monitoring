@@ -1,16 +1,19 @@
 "use node";
 
+import { API_COSTS, extractApiCost } from "../apiUsage";
+
 const DATAFORSEO_API_URL = "https://api.dataforseo.com/v3";
 
 /**
  * Fetch homepage text content via DataForSEO Content Parsing API.
- * Returns plain text summary (truncated to ~3000 chars for prompt context).
+ * Returns plain text summary (truncated to ~3000 chars for prompt context)
+ * and the estimated API cost for logging by the caller.
  * Shared across AI features: business context generation, keyword research, etc.
  */
-export async function fetchPageContent(domain: string): Promise<string | null> {
+export async function fetchPageContent(domain: string): Promise<{ text: string | null; apiCost: number }> {
   const login = process.env.DATAFORSEO_LOGIN;
   const password = process.env.DATAFORSEO_PASSWORD;
-  if (!login || !password) return null;
+  if (!login || !password) return { text: null, apiCost: 0 };
 
   try {
     const auth = Buffer.from(`${login}:${password}`).toString("base64");
@@ -23,11 +26,12 @@ export async function fetchPageContent(domain: string): Promise<string | null> {
       body: JSON.stringify([{ url: `https://${domain}` }]),
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) return { text: null, apiCost: 0 };
 
     const data = await response.json();
+    const apiCost = extractApiCost(data, API_COSTS.ON_PAGE_CONTENT_PARSING);
     const result = data?.tasks?.[0]?.result?.[0];
-    if (!result) return null;
+    if (!result) return { text: null, apiCost };
 
     // Collect text from primary content sections
     const texts: string[] = [];
@@ -57,9 +61,10 @@ export async function fetchPageContent(domain: string): Promise<string | null> {
 
     const fullText = texts.join("\n").trim();
     // Truncate to ~3000 chars to keep prompt manageable
-    return fullText.length > 3000 ? fullText.slice(0, 3000) + "..." : fullText;
+    const text = fullText.length > 3000 ? fullText.slice(0, 3000) + "..." : fullText;
+    return { text, apiCost };
   } catch (error) {
     console.warn("Content parsing failed:", error);
-    return null;
+    return { text: null, apiCost: 0 };
   }
 }

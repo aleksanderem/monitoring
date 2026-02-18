@@ -30,20 +30,21 @@ export const generateBusinessContext = action({
     // 2. Scrape homepage content
     let pageContent: string | null = null;
     try {
-      pageContent = await fetchPageContent(domain.domain);
+      const result = await fetchPageContent(domain.domain);
+      pageContent = result.text;
+
+      // Log content parsing API usage
+      if (result.apiCost > 0) {
+        await ctx.runMutation(internal.apiUsage.logApiUsage, {
+          endpoint: "/on_page/content_parsing/live",
+          taskCount: 1,
+          estimatedCost: result.apiCost,
+          caller: "aiBusinessContext",
+          domainId: args.domainId,
+        });
+      }
     } catch (error) {
       console.warn("[BusinessContext] Failed to scrape homepage:", error);
-    }
-
-    // Log content parsing API usage
-    if (pageContent) {
-      await ctx.runMutation(internal.apiUsage.logApiUsage, {
-        endpoint: "/on_page/content_parsing/live",
-        taskCount: 1,
-        estimatedCost: 0.001,
-        caller: "aiBusinessContext",
-        domainId: args.domainId,
-      });
     }
 
     // 3. Resolve AI provider config

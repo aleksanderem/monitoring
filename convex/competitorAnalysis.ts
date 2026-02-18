@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { auth } from "./auth";
 import { requireTenantAccess } from "./permissions";
+import { API_COSTS, extractApiCost } from "./apiUsage";
 
 /**
  * Analyze competitor page content for a specific keyword
@@ -58,6 +59,14 @@ export const analyzeCompetitorPage = internalAction({
     }
 
     const data = await response.json();
+
+    // Log API usage
+    await ctx.runMutation(internal.apiUsage.logApiUsage, {
+      endpoint: "/on_page/instant_pages",
+      taskCount: 1,
+      estimatedCost: extractApiCost(data, API_COSTS.ON_PAGE_INSTANT_PAGES),
+      caller: "analyzeCompetitorPage",
+    });
 
     if (data.status_code !== 20000) {
       console.error(`[analyzeCompetitorPage] API returned error: ${data.status_code}`);
