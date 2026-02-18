@@ -1334,7 +1334,7 @@ async function executePhase1WithRetry(
   if (results[1].status === "rejected") console.error(`[Strategy] Phase 1 link failed: ${results[1].reason}`);
   if (results[2].status === "rejected") console.error(`[Strategy] Phase 1 technical failed: ${results[2].reason}`);
 
-  const allFailed = Object.keys(keyword).length === 0 && Object.keys(link).length === 0 && Object.keys(technical).length === 0;
+  const allFailed = results.every((r) => r.status === "rejected");
 
   console.log(`[Strategy] Phase 1 results: keyword=${Object.keys(keyword).length}keys link=${Object.keys(link).length}keys tech=${Object.keys(technical).length}keys${allFailed ? " — ALL FAILED" : ""}`);
 
@@ -1389,10 +1389,23 @@ function parseStrategyJson(text: string): Record<string, any> | null {
   try {
     return JSON.parse(repaired);
   } catch {
-    // Last resort: try closing any open string first
-    repaired = repaired.replace(/,\s*"[^"]*$/, "") + "]".repeat(Math.max(0, openBrackets)) + "}".repeat(Math.max(0, openBraces));
+    // Last resort: strip trailing incomplete string from original cleaned text and re-close
+    let lastResort = cleaned.replace(/,\s*"[^"]*$/, "").replace(/,\s*$/, "");
+    let ob = 0, oc = 0, inStr2 = false, esc2 = false;
+    for (const ch of lastResort) {
+      if (esc2) { esc2 = false; continue; }
+      if (ch === "\\") { esc2 = true; continue; }
+      if (ch === '"') { inStr2 = !inStr2; continue; }
+      if (inStr2) continue;
+      if (ch === "{") oc++;
+      else if (ch === "}") oc--;
+      else if (ch === "[") ob++;
+      else if (ch === "]") ob--;
+    }
+    for (let i = 0; i < ob; i++) lastResort += "]";
+    for (let i = 0; i < oc; i++) lastResort += "}";
     try {
-      return JSON.parse(repaired);
+      return JSON.parse(lastResort);
     } catch {
       return null;
     }
@@ -1558,10 +1571,10 @@ export const processStrategyGeneration = internalAction({
       const competitorSummaries: StrategyDataSummary["competitors"] = activeCompetitors.map(
         (comp: any, i: number) => ({
           domain: comp.competitorDomain,
-          keywordsCovered: competitorResults[i].coveredKeywords,
+          keywordsCovered: competitorResults[i]?.coveredKeywords ?? 0,
           totalKeywords: activeKws.length,
           coveragePct: activeKws.length > 0
-            ? Math.round((competitorResults[i].coveredKeywords / activeKws.length) * 100)
+            ? Math.round(((competitorResults[i]?.coveredKeywords ?? 0) / activeKws.length) * 100)
             : 0,
         })
       );

@@ -6,6 +6,8 @@ import { buildLocationParam } from "./dataforseoLocations";
 import { createDebugLogger } from "./lib/debugLogger";
 import { API_COSTS } from "./apiUsage";
 import { checkKeywordLimit } from "./limits";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 // DataForSEO API configuration
 const DATAFORSEO_API_URL = "https://api.dataforseo.com/v3";
@@ -1004,6 +1006,13 @@ export const addKeywordsInternal = internalMutation({
       return results;
     }
 
+    // Pre-fetch all existing keyword phrases for this domain (avoids N+1)
+    const existingKeywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+    const existingPhrases = new Set(existingKeywords.map((k) => k.phrase));
+
     let added = 0;
     for (const phrase of args.phrases) {
       if (added >= maxToAdd) break;
@@ -1011,23 +1020,17 @@ export const addKeywordsInternal = internalMutation({
       const normalized = phrase.toLowerCase().trim();
       if (!normalized) continue;
 
-      // Check if exists
-      const existing = await ctx.db
-        .query("keywords")
-        .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-        .filter((q) => q.eq(q.field("phrase"), normalized))
-        .unique();
+      if (existingPhrases.has(normalized)) continue;
 
-      if (!existing) {
-        const id = await ctx.db.insert("keywords", {
-          domainId: args.domainId,
-          phrase: normalized,
-          status: "active",
-          createdAt: Date.now(),
-        });
-        results.push(id);
-        added++;
-      }
+      const id = await ctx.db.insert("keywords", {
+        domainId: args.domainId,
+        phrase: normalized,
+        status: "active",
+        createdAt: Date.now(),
+      });
+      results.push(id);
+      existingPhrases.add(normalized); // prevent duplicates within same batch
+      added++;
     }
 
     if (added < args.phrases.length) {
@@ -1908,6 +1911,17 @@ export const getDiscoveredKeywords = query({
 export const deleteDiscoveredKeywords = mutation({
   args: { keywordIds: v.array(v.id("discoveredKeywords")) },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    // Tenant isolation: verify first keyword belongs to user's domain
+    if (args.keywordIds.length > 0) {
+      const firstDk = await ctx.db.get(args.keywordIds[0]);
+      if (firstDk) {
+        await requireTenantAccess(ctx, "domain", firstDk.domainId);
+      }
+    }
+
     for (const id of args.keywordIds) {
       await ctx.db.delete(id);
     }

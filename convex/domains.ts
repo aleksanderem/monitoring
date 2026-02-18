@@ -111,8 +111,8 @@ export const createDomain = mutation({
       projectId: args.projectId,
     });
 
-    // Strip protocol — store bare hostname (e.g. "example.com" not "https://example.com")
-    const cleanDomain = args.domain.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    // Strip protocol — store bare hostname, lowercased for case-insensitive uniqueness
+    const cleanDomain = args.domain.replace(/^https?:\/\//, "").replace(/\/+$/, "").toLowerCase();
 
     // Uniqueness check: same domain + location + language in same project
     const existing = await ctx.db
@@ -188,7 +188,30 @@ export const updateDomain = mutation({
     await requirePermission(ctx, "domains.edit", context);
 
     const updates: Record<string, unknown> = {};
-    if (args.domain) updates.domain = args.domain.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    if (args.domain) {
+      const cleanDomain = args.domain.replace(/^https?:\/\//, "").replace(/\/+$/, "").toLowerCase();
+      // Uniqueness check when domain name changes
+      const currentDomain = await ctx.db.get(args.domainId);
+      if (currentDomain && cleanDomain !== currentDomain.domain) {
+        const projectId = args.projectId ?? currentDomain.projectId;
+        const settings = args.settings ?? currentDomain.settings;
+        const existing = await ctx.db
+          .query("domains")
+          .withIndex("by_project", (q) => q.eq("projectId", projectId))
+          .filter((q) =>
+            q.and(
+              q.eq(q.field("domain"), cleanDomain),
+              q.eq(q.field("settings.location"), settings.location),
+              q.eq(q.field("settings.language"), settings.language)
+            )
+          )
+          .first();
+        if (existing && existing._id !== args.domainId) {
+          throw new Error("Domain with this location/language already exists in this project");
+        }
+      }
+      updates.domain = cleanDomain;
+    }
     if (args.projectId) updates.projectId = args.projectId;
     if (args.tags !== undefined) updates.tags = args.tags;
     if (args.settings) updates.settings = args.settings;
@@ -836,8 +859,8 @@ export const create = mutation({
     // Tenant isolation
     await requireTenantAccess(ctx, "project", args.projectId);
 
-    // Strip protocol — store bare hostname (e.g. "example.com" not "https://example.com")
-    const cleanDomain = args.domain.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    // Strip protocol — store bare hostname, lowercased for case-insensitive uniqueness
+    const cleanDomain = args.domain.replace(/^https?:\/\//, "").replace(/\/+$/, "").toLowerCase();
 
     // Uniqueness check: same domain + location + language in same project
     const existing = await ctx.db

@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 export const STRATEGY_STEPS = [
   { name: "Loading domain data" },                            // 0
@@ -16,6 +18,10 @@ export const STRATEGY_STEPS = [
 export const getHistory = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     return await ctx.db
       .query("aiStrategySessions")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -27,6 +33,10 @@ export const getHistory = query({
 export const getLatest = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     return await ctx.db
       .query("aiStrategySessions")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -181,9 +191,13 @@ export const appendDrillDown = internalMutation({
 export const deleteSession = mutation({
   args: { id: v.id("aiStrategySessions") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
     // If this session is the active strategy for its domain, clear the reference
     const session = await ctx.db.get(args.id);
     if (session) {
+      await requireTenantAccess(ctx, "domain", session.domainId);
       const domain = await ctx.db.get(session.domainId);
       if (domain?.activeStrategyId === args.id) {
         await ctx.db.patch(session.domainId, { activeStrategyId: undefined });
@@ -196,6 +210,10 @@ export const deleteSession = mutation({
 export const getActiveStrategy = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const domain = await ctx.db.get(args.domainId);
     if (!domain?.activeStrategyId) return null;
     return await ctx.db.get(domain.activeStrategyId);
@@ -208,6 +226,10 @@ export const setActiveStrategy = mutation({
     sessionId: v.optional(v.id("aiStrategySessions")),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     if (!args.sessionId) {
       // Clear active strategy
       await ctx.db.patch(args.domainId, { activeStrategyId: undefined });
@@ -248,8 +270,12 @@ export const updateTaskStatus = mutation({
     completed: v.boolean(),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
     const session = await ctx.db.get(args.sessionId);
     if (!session) throw new Error("Session not found");
+    await requireTenantAccess(ctx, "domain", session.domainId);
 
     const taskStatuses = [...(session.taskStatuses ?? [])];
     const existing = taskStatuses.find((t) => t.index === args.taskIndex);
@@ -275,8 +301,12 @@ export const updateStepStatus = mutation({
     completed: v.boolean(),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
     const session = await ctx.db.get(args.sessionId);
     if (!session) throw new Error("Session not found");
+    await requireTenantAccess(ctx, "domain", session.domainId);
 
     const stepStatuses = [...(session.stepStatuses ?? [])];
     const existing = stepStatuses.find((s) => s.index === args.stepIndex);
@@ -298,16 +328,16 @@ export const updateStepStatus = mutation({
 // ─── Org AI settings resolver (used by aiProvider) ───
 
 export const getOrgAISettingsForDomain = internalQuery({
-  args: { domainId: v.string() },
+  args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
-    const domain = await ctx.db.get(args.domainId as any);
+    const domain = await ctx.db.get(args.domainId);
     if (!domain) return null;
-    const project = await ctx.db.get((domain as any).projectId);
+    const project = await ctx.db.get(domain.projectId);
     if (!project) return null;
-    const team = await ctx.db.get((project as any).teamId);
+    const team = await ctx.db.get(project.teamId);
     if (!team) return null;
-    const org = await ctx.db.get((team as any).organizationId);
-    return (org as any)?.aiSettings ?? null;
+    const org = await ctx.db.get(team.organizationId);
+    return org?.aiSettings ?? null;
   },
 });
 

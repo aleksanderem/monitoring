@@ -116,6 +116,7 @@ async function buildDomainDiagnostic(
   let staleCount = 0;
   const missingDenorm: string[] = [];
 
+  // Phase 1: stats from denormalized fields (no DB queries)
   for (const kw of activeKws) {
     const cp = kw.currentPosition;
     if (cp != null) {
@@ -140,11 +141,23 @@ async function buildDomainDiagnostic(
         }
       }
     }
+  }
 
-    const posRecords = await ctx.db
-      .query("keywordPositions")
-      .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
-      .collect();
+  // Phase 2: batch-fetch position records for all keywords in parallel
+  const posRecordsByKeyword = await Promise.all(
+    activeKws.map((kw) =>
+      ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
+        .collect()
+    )
+  );
+
+  // Phase 3: denormalization health checks from position records
+  for (let i = 0; i < activeKws.length; i++) {
+    const kw = activeKws[i];
+    const posRecords = posRecordsByKeyword[i];
+    const cp = kw.currentPosition;
 
     if (posRecords.length > 0) {
       kwWithPositionRecords++;
@@ -531,8 +544,10 @@ async function buildDiagnosticSnapshot(ctx: QueryCtx, org: Doc<"organizations">)
 
       const domainStats: DomainStats[] = [];
 
-      for (const domain of domains) {
-        const { stats, invariants } = await buildDomainDiagnostic(ctx, domain, project, org, now);
+      const domainResults = await Promise.all(
+        domains.map((domain) => buildDomainDiagnostic(ctx, domain, project, org, now))
+      );
+      for (const { stats, invariants } of domainResults) {
         domainStats.push(stats);
         allInvariants.push(...invariants);
       }
