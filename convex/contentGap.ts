@@ -4,7 +4,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { buildLocationParam } from "./dataforseoLocations";
 import { createDebugLogger } from "./lib/debugLogger";
-import { API_COSTS } from "./apiUsage";
+import { API_COSTS, extractApiCost } from "./apiUsage";
 
 // Sanitize a number that may be NaN/undefined/null to a safe default
 function safeNum(val: number | null | undefined, fallback: number): number {
@@ -126,7 +126,7 @@ export const analyzeContentGap = internalAction({
     await ctx.runMutation(internal.apiUsage.logApiUsage, {
       endpoint: "/dataforseo_labs/google/domain_intersection/live",
       taskCount: 1,
-      estimatedCost: API_COSTS.LABS_DOMAIN_INTERSECTION,
+      estimatedCost: extractApiCost(data, API_COSTS.LABS_DOMAIN_INTERSECTION),
       caller: "analyzeContentGap",
       domainId: args.domainId,
       metadata: JSON.stringify({ competitor: competitor.competitorDomain }),

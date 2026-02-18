@@ -6,7 +6,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { buildLocationParam } from "./dataforseoLocations";
 import { createDebugLogger } from "./lib/debugLogger";
-import { API_COSTS } from "./apiUsage";
+import { API_COSTS, extractApiCost } from "./apiUsage";
 
 // DataForSEO API configuration
 const DATAFORSEO_API_URL = "https://api.dataforseo.com/v3";
@@ -160,7 +160,7 @@ export const checkSingleCompetitorPosition = internalAction({
       const debug = await createDebugLogger(ctx, "competitor_check");
       const authHeader = btoa(`${login}:${password}`);
 
-      const serpRequestBody = [{ keyword: args.phrase, ...buildLocationParam(args.location), language_code: args.language, device: "desktop", os: "windows", depth: 100 }];
+      const serpRequestBody = [{ keyword: args.phrase, ...buildLocationParam(args.location), language_code: args.language, device: "desktop", os: "windows", depth: 30 }];
       const data = await debug.logStep("serp_live", serpRequestBody[0], async () => {
         const response = await fetch(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
           method: "POST",
@@ -457,7 +457,7 @@ export const suggestCompetitors = action({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/dataforseo_labs/google/competitors_domain/live",
         taskCount: 1,
-        estimatedCost: API_COSTS.LABS_COMPETITORS_DOMAIN,
+        estimatedCost: extractApiCost(data, API_COSTS.LABS_COMPETITORS_DOMAIN),
         caller: "discoverCompetitors",
         domainId: args.domainId,
       });

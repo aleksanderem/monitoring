@@ -6,7 +6,7 @@ import { auth } from "./auth";
 import { checkRefreshLimits } from "./limits";
 import { buildLocationParam } from "./dataforseoLocations";
 import { createDebugLogger } from "./lib/debugLogger";
-import { API_COSTS } from "./apiUsage";
+import { API_COSTS, extractApiCost } from "./apiUsage";
 import { isValidKeywordPhrase } from "./lib/keywordValidation";
 
 // Create a new SERP fetch job
@@ -309,7 +309,7 @@ export const processSerpFetchJobInternal = internalAction({
             language_code: domain.settings.language,
             device: "desktop",
             os: "windows",
-            depth: 100,
+            depth: 30,
           };
 
           let data = await callSerpApi(task);
@@ -318,7 +318,7 @@ export const processSerpFetchJobInternal = internalAction({
           await ctx.runMutation(internal.apiUsage.logApiUsage, {
             endpoint: "/serp/google/organic/live/advanced",
             taskCount: 1,
-            estimatedCost: API_COSTS.SERP_LIVE_ADVANCED,
+            estimatedCost: extractApiCost(data, API_COSTS.SERP_LIVE_ADVANCED),
             caller: "processSerpFetchJob",
             domainId: job.domainId,
           });

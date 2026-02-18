@@ -4,7 +4,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { buildLocationParam } from "./dataforseoLocations";
 import { createDebugLogger } from "./lib/debugLogger";
-import { API_COSTS } from "./apiUsage";
+import { API_COSTS, extractApiCost } from "./apiUsage";
 import { checkKeywordLimit } from "./limits";
 import { auth } from "./auth";
 import { requireTenantAccess } from "./permissions";
@@ -99,7 +99,7 @@ export const fetchSinglePositionInternal = internalAction({
         language_code: args.language,
         device: "desktop",
         os: "windows",
-        depth: 100,
+        depth: 30,
       }];
 
       const data = await debug.logStep("serp_live", serpRequest[0], async () => {
@@ -123,7 +123,7 @@ export const fetchSinglePositionInternal = internalAction({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/serp/google/organic/live/advanced",
         taskCount: 1,
-        estimatedCost: API_COSTS.SERP_LIVE_ADVANCED,
+        estimatedCost: extractApiCost(data, API_COSTS.SERP_LIVE_ADVANCED),
         caller: "fetchSinglePositionInternal",
       });
 
@@ -161,7 +161,7 @@ export const fetchSinglePositionInternal = internalAction({
           await ctx.runMutation(internal.apiUsage.logApiUsage, {
             endpoint: "/keywords_data/google/search_volume/live",
             taskCount: 1,
-            estimatedCost: API_COSTS.KEYWORDS_DATA_SEARCH_VOLUME,
+            estimatedCost: extractApiCost(svData, API_COSTS.KEYWORDS_DATA_SEARCH_VOLUME),
             caller: "fetchSinglePositionInternal",
           });
           if (svData.tasks?.[0]?.result?.[0]) {
@@ -277,7 +277,7 @@ export const fetchSinglePosition = action({
           language_code: args.language,
           device: "desktop",
           os: "windows",
-          depth: 100,
+          depth: 30,
         }]),
       });
 
@@ -290,7 +290,7 @@ export const fetchSinglePosition = action({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/serp/google/organic/live/advanced",
         taskCount: 1,
-        estimatedCost: 1 * API_COSTS.SERP_LIVE_ADVANCED,
+        estimatedCost: extractApiCost(data, API_COSTS.SERP_LIVE_ADVANCED),
         caller: "fetchSinglePosition",
       });
 
@@ -327,7 +327,7 @@ export const fetchSinglePosition = action({
           await ctx.runMutation(internal.apiUsage.logApiUsage, {
             endpoint: "/keywords_data/google/search_volume/live",
             taskCount: 1,
-            estimatedCost: 1 * API_COSTS.KEYWORDS_DATA_SEARCH_VOLUME,
+            estimatedCost: extractApiCost(keywordsData, API_COSTS.KEYWORDS_DATA_SEARCH_VOLUME),
             caller: "fetchSinglePosition",
           });
 
@@ -454,7 +454,7 @@ export const fetchPositions = action({
           language_code: args.language,
           device: "desktop",
           os: "windows",
-          depth: 100,
+          depth: 30,
         }];
 
         // Post SERP task
@@ -482,7 +482,7 @@ export const fetchPositions = action({
         await ctx.runMutation(internal.apiUsage.logApiUsage, {
           endpoint: "/serp/google/organic/live/advanced",
           taskCount: 1,
-          estimatedCost: 1 * API_COSTS.SERP_LIVE_ADVANCED,
+          estimatedCost: extractApiCost(data, API_COSTS.SERP_LIVE_ADVANCED),
           caller: "fetchPositions",
           domainId: args.domainId,
         });
@@ -695,7 +695,7 @@ export const fetchPositionsInternal = internalAction({
         language_code: args.language,
         device: "desktop",
         os: "windows",
-        depth: 100,
+        depth: 30,
       }));
 
       const authHeader = btoa(`${login}:${password}`);
@@ -719,7 +719,7 @@ export const fetchPositionsInternal = internalAction({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/serp/google/organic/live/advanced",
         taskCount: tasks.length,
-        estimatedCost: tasks.length * API_COSTS.SERP_LIVE_ADVANCED,
+        estimatedCost: extractApiCost(data, tasks.length * API_COSTS.SERP_LIVE_ADVANCED),
         caller: "fetchPositionsInternal",
         domainId: args.domainId,
         metadata: JSON.stringify({ keywordCount: args.keywords.length }),
@@ -793,7 +793,7 @@ export const fetchPositionsInternal = internalAction({
           await ctx.runMutation(internal.apiUsage.logApiUsage, {
             endpoint: "/keywords_data/google_ads/search_volume/live",
             taskCount: 1,
-            estimatedCost: API_COSTS.KEYWORDS_DATA_GOOGLE_ADS,
+            estimatedCost: extractApiCost(metricsData, API_COSTS.KEYWORDS_DATA_GOOGLE_ADS),
             caller: "fetchPositionsInternal",
             domainId: args.domainId,
             metadata: JSON.stringify({ keywordsQueried: validKeywords.length }),
@@ -916,7 +916,7 @@ export const fetchHistoricalBatch = internalAction({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/dataforseo_labs/google/historical_serps/live",
         taskCount: tasks.length,
-        estimatedCost: tasks.length * API_COSTS.LABS_HISTORICAL_SERPS,
+        estimatedCost: extractApiCost(data, tasks.length * API_COSTS.LABS_HISTORICAL_SERPS),
         caller: "fetchHistoricalBatch",
         metadata: JSON.stringify({ keywords: args.keywords.length, dates: dates.length }),
       });
@@ -1130,7 +1130,7 @@ export const fetchHistoricalPositionsInternal = internalAction({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/dataforseo_labs/google/historical_serps/live",
         taskCount: tasks.length,
-        estimatedCost: tasks.length * API_COSTS.LABS_HISTORICAL_SERPS,
+        estimatedCost: extractApiCost(data, tasks.length * API_COSTS.LABS_HISTORICAL_SERPS),
         caller: "fetchHistoricalPositionsInternal",
       });
 
@@ -1246,7 +1246,7 @@ export const suggestKeywords = action({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/dataforseo_labs/google/keywords_for_site/live",
         taskCount: 1,
-        estimatedCost: 1 * API_COSTS.LABS_KEYWORDS_FOR_SITE,
+        estimatedCost: extractApiCost(data, API_COSTS.LABS_KEYWORDS_FOR_SITE),
         caller: "suggestKeywords",
       });
 
@@ -1339,7 +1339,7 @@ export const fetchHistoricalPositions = action({
             language_code: args.language,
             device: "desktop",
             os: "windows",
-            depth: 100,
+            depth: 30,
             datetime: `${date} 00:00:00 +00:00`,
           }]),
         });
@@ -1553,7 +1553,7 @@ export const fetchDomainVisibility = action({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/dataforseo_labs/google/historical_rank_overview/live",
         taskCount: 1,
-        estimatedCost: 1 * API_COSTS.LABS_HISTORICAL_RANK_OVERVIEW,
+        estimatedCost: extractApiCost(data, API_COSTS.LABS_HISTORICAL_RANK_OVERVIEW),
         caller: "fetchDomainVisibility",
       });
 
@@ -1643,7 +1643,7 @@ export const fetchDomainVisibility = action({
           await ctx.runMutation(internal.apiUsage.logApiUsage, {
             endpoint: "/dataforseo_labs/google/keywords_for_site/live",
             taskCount: 1,
-            estimatedCost: 1 * API_COSTS.LABS_KEYWORDS_FOR_SITE,
+            estimatedCost: extractApiCost(kwData, API_COSTS.LABS_KEYWORDS_FOR_SITE),
             caller: "fetchDomainVisibility",
           });
 
@@ -2065,7 +2065,7 @@ export const fetchDomainVisibilityInternal = internalAction({
         await ctx.runMutation(internal.apiUsage.logApiUsage, {
           endpoint: "/dataforseo_labs/google/ranked_keywords/live",
           taskCount: 1,
-          estimatedCost: 1 * API_COSTS.LABS_RANKED_KEYWORDS,
+          estimatedCost: extractApiCost(rankedData, API_COSTS.LABS_RANKED_KEYWORDS),
           caller: "fetchDomainVisibilityInternal",
         });
 
@@ -2088,7 +2088,7 @@ export const fetchDomainVisibilityInternal = internalAction({
             await ctx.runMutation(internal.apiUsage.logApiUsage, {
               endpoint: "/dataforseo_labs/google/ranked_keywords/live",
               taskCount: 1,
-              estimatedCost: 1 * API_COSTS.LABS_RANKED_KEYWORDS,
+              estimatedCost: extractApiCost(retryData, API_COSTS.LABS_RANKED_KEYWORDS),
               caller: "fetchDomainVisibilityInternal_retry",
             });
             rankedTask = retryData?.tasks?.[0];
@@ -2232,7 +2232,7 @@ export const fetchDomainVisibilityInternal = internalAction({
         await ctx.runMutation(internal.apiUsage.logApiUsage, {
           endpoint: "/keywords_data/google_ads/keywords_for_site/live",
           taskCount: 1,
-          estimatedCost: 1 * API_COSTS.KEYWORDS_DATA_GOOGLE_ADS,
+          estimatedCost: extractApiCost(googleAdsData, API_COSTS.KEYWORDS_DATA_GOOGLE_ADS),
           caller: "fetchDomainVisibilityInternal",
         });
 
@@ -2255,7 +2255,7 @@ export const fetchDomainVisibilityInternal = internalAction({
             await ctx.runMutation(internal.apiUsage.logApiUsage, {
               endpoint: "/keywords_data/google_ads/keywords_for_site/live",
               taskCount: 1,
-              estimatedCost: 1 * API_COSTS.KEYWORDS_DATA_GOOGLE_ADS,
+              estimatedCost: extractApiCost(retryData, API_COSTS.KEYWORDS_DATA_GOOGLE_ADS),
               caller: "fetchDomainVisibilityInternal_retry",
             });
             googleAdsTask = retryData?.tasks?.[0];
@@ -2377,7 +2377,7 @@ export const fetchKeywordData = action({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/keywords_data/google_ads/search_volume/live",
         taskCount: 1,
-        estimatedCost: 1 * API_COSTS.KEYWORDS_DATA_GOOGLE_ADS,
+        estimatedCost: extractApiCost(responseData, API_COSTS.KEYWORDS_DATA_GOOGLE_ADS),
         caller: "fetchKeywordData",
       });
 
@@ -2536,7 +2536,7 @@ export const fetchAndStoreVisibilityHistory = action({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/dataforseo_labs/google/historical_rank_overview/live",
         taskCount: 1,
-        estimatedCost: 1 * API_COSTS.LABS_HISTORICAL_RANK_OVERVIEW,
+        estimatedCost: extractApiCost(data, API_COSTS.LABS_HISTORICAL_RANK_OVERVIEW),
         caller: "fetchAndStoreVisibilityHistory",
         domainId: args.domainId,
       });
@@ -2559,7 +2559,7 @@ export const fetchAndStoreVisibilityHistory = action({
           await ctx.runMutation(internal.apiUsage.logApiUsage, {
             endpoint: "/dataforseo_labs/google/historical_rank_overview/live",
             taskCount: 1,
-            estimatedCost: 1 * API_COSTS.LABS_HISTORICAL_RANK_OVERVIEW,
+            estimatedCost: extractApiCost(data, API_COSTS.LABS_HISTORICAL_RANK_OVERVIEW),
             caller: "fetchAndStoreVisibilityHistory_retry",
             domainId: args.domainId,
           });
@@ -2787,7 +2787,7 @@ export const fetchKeywordPositionHistory = action({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/dataforseo_labs/google/historical_serps/live",
         taskCount: 1,
-        estimatedCost: 1 * API_COSTS.LABS_HISTORICAL_SERPS,
+        estimatedCost: extractApiCost(data, API_COSTS.LABS_HISTORICAL_SERPS),
         caller: "fetchKeywordPositionHistory",
       });
 
@@ -3372,7 +3372,7 @@ export const fetchOnsiteAnalysisInternal = internalAction({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/on_page/instant_pages",
         taskCount: 1,
-        estimatedCost: 1 * API_COSTS.ON_PAGE_INSTANT_PAGES,
+        estimatedCost: extractApiCost(data, API_COSTS.ON_PAGE_INSTANT_PAGES),
         caller: "fetchOnsiteAnalysisInternal",
       });
 
@@ -3865,7 +3865,7 @@ export const bulkFetchSerpResults = action({
             language_code: domain.settings.language,
             device: "desktop",
             os: "windows",
-            depth: 100, // Get top 100 results
+            depth: 30, // Get top 100 results
           };
 
           const response = await fetch(
