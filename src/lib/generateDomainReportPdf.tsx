@@ -913,13 +913,36 @@ function SEOReportDocument({ data, domainName, logoSrc, reportConfig }: { data: 
   );
 }
 
-// ─── Strategy PDF Helpers ────────────────────────────────────────
+// ─── Strategy PDF — Electra Consulting Theme ─────────────────────
 
-const catColors: Record<string, string> = {
-  content: colors.brand,
-  technical: colors.warning500,
-  links: colors.success500,
-  keywords: colors.brand500,
+const el = {
+  coverBg: "#1B2838",
+  teal: "#0D7377",
+  tealLight: "#0E9AA7",
+  tealBadge: "#CCFBF1",
+  gold: "#D4A843",
+  white: "#FFFFFF",
+  offWhite: "#F9FAFB",
+  lightGray: "#F5F7F9",
+  textDark: "#1A2332",
+  textBody: "#374151",
+  textGray: "#6B7280",
+  textMuted: "#9CA3AF",
+  border: "#E5E7EB",
+  borderLight: "#F3F4F6",
+  success: "#10B981",
+  successBg: "#D1FAE5",
+  warning: "#F59E0B",
+  warningBg: "#FEF3C7",
+  error: "#EF4444",
+  errorBg: "#FEE2E2",
+};
+
+const catColorsEl: Record<string, string> = {
+  content: el.teal,
+  technical: el.warning,
+  links: el.success,
+  keywords: el.tealLight,
 };
 
 const timeframeMonths: Record<string, [number, number]> = {
@@ -930,29 +953,179 @@ const timeframeMonths: Record<string, [number, number]> = {
 
 const effortAdj: Record<string, number> = { low: -0.5, medium: 0, high: 0.5 };
 
-const SEVERITY_PDF: Record<string, { bg: string; text: string }> = {
-  high:   { bg: colors.errorLight, text: colors.error },
-  medium: { bg: colors.warningLight, text: colors.warning },
-  low:    { bg: colors.bgMuted, text: colors.secondary },
+const EL_SEVERITY: Record<string, { bg: string; text: string; label: string }> = {
+  high:   { bg: el.errorBg,   text: el.error,    label: "WYSOKI" },
+  medium: { bg: el.warningBg, text: el.warning,   label: "ŚREDNI" },
+  low:    { bg: el.lightGray, text: el.textMuted,  label: "NISKI" },
 };
 
-/** Render markdown text as PDF Text nodes with bold support */
-function PdfMarkdown({ text }: { text: string }) {
-  // Split on **bold** markers
-  const parts = text.split(/(\*\*.*?\*\*)/g);
+// ─── Electra Theme Components ────────────────────────────────────
+
+function ElPageHeader({ domain, date }: { domain: string; date?: string }) {
   return (
-    <Text style={styles.text}>
-      {parts.map((p, i) => {
-        if (p.startsWith("**") && p.endsWith("**")) {
-          return <Text key={i} style={{ fontFamily: "Inter", fontWeight: 700 }}>{p.slice(2, -2)}</Text>;
-        }
-        return <Text key={i}>{p}</Text>;
+    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 24 }}>
+      <Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>
+        {domain.toUpperCase()} — Raport strategii SEO
+      </Text>
+      {date && <Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textMuted }}>{date}</Text>}
+    </View>
+  );
+}
+
+function ElPageFooter() {
+  return (
+    <View style={{ position: "absolute", bottom: 24, left: 40, right: 40, flexDirection: "row", justifyContent: "space-between" }}>
+      <Text style={{ fontSize: 7, fontFamily: "Inter", color: el.textMuted }}>Przygotowane przez DOSEO.app</Text>
+      <Text
+        style={{ fontSize: 7, fontFamily: "Inter", color: el.textMuted }}
+        render={({ pageNumber, totalPages }) => `Strona ${pageNumber} z ${totalPages}`}
+      />
+    </View>
+  );
+}
+
+function ElSectionTitle({ number, children }: { number?: string; children: React.ReactNode }) {
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={{ fontSize: 22, fontFamily: "Inter", fontWeight: 700, color: el.teal, marginBottom: 8 }}>
+        {number ? `${number} ` : ""}{children}
+      </Text>
+      <View style={{ height: 1, backgroundColor: el.border }} />
+    </View>
+  );
+}
+
+function ElSubTitle({ children, color }: { children: React.ReactNode; color?: string }) {
+  return (
+    <Text style={{ fontSize: 15, fontFamily: "Inter", fontWeight: 700, color: color ?? el.teal, marginBottom: 8, marginTop: 14 }}>{children}</Text>
+  );
+}
+
+/** Left-border callout box (Electra "insight" box) */
+function ElCallout({ title, children, borderColor }: { title?: string; children: React.ReactNode; borderColor?: string }) {
+  return (
+    <View style={{ borderLeftWidth: 3, borderLeftColor: borderColor ?? el.teal, backgroundColor: el.lightGray, padding: 14, marginBottom: 12, marginTop: 6 }}>
+      {title && <Text style={{ fontSize: 10, fontFamily: "Inter", fontWeight: 700, color: el.textDark, marginBottom: 4 }}>{title}</Text>}
+      {children}
+    </View>
+  );
+}
+
+/** Metric card with top accent line (Electra dashboard card) */
+function ElMetricCard({ value, label, description, accentColor, valueColor }: {
+  value: string | number | null | undefined; label: string; description?: string; accentColor?: string; valueColor?: string;
+}) {
+  return (
+    <View style={{ flex: 1, borderWidth: 1, borderColor: el.border, borderRadius: 4, overflow: "hidden" }}>
+      <View style={{ height: 3, backgroundColor: accentColor ?? el.teal }} />
+      <View style={{ padding: 10 }}>
+        <Text style={{ fontSize: 18, fontFamily: "Inter", fontWeight: 700, color: valueColor ?? el.teal }}>{String(value ?? "—")}</Text>
+        <Text style={{ fontSize: 7, fontFamily: "Inter", color: el.textGray, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 2 }}>{label}</Text>
+        {description && <Text style={{ fontSize: 7, fontFamily: "Inter", color: el.textMuted, marginTop: 1 }}>{description}</Text>}
+      </View>
+    </View>
+  );
+}
+
+/** Horizontal bar chart row (Electra bar chart) */
+function ElHorizontalBar({ label, value, max, color, showLabel }: {
+  label: string; value: number; max: number; color: string; showLabel?: string;
+}) {
+  const pct = max > 0 ? Math.min(((value ?? 0) / max) * 100, 100) : 0;
+  return (
+    <View style={{ marginBottom: 6 }}>
+      <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textDark, marginBottom: 2 }}>{label}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+        <View style={{ flex: 1, height: 18, backgroundColor: el.borderLight, borderRadius: 2 }}>
+          <View style={{ height: 18, width: `${Math.max(pct, 5)}%`, backgroundColor: color, borderRadius: 2, justifyContent: "center", paddingLeft: 6 }}>
+            <Text style={{ fontSize: 8, fontFamily: "Inter", fontWeight: 700, color: el.white }}>{String(value ?? 0)}</Text>
+          </View>
+        </View>
+        {showLabel && <Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textMuted, width: 60, textAlign: "right" }}>{showLabel}</Text>}
+      </View>
+    </View>
+  );
+}
+
+/** Status badge / pill (Electra style) */
+function ElBadge({ text, color, bgColor }: { text: string; color?: string; bgColor?: string }) {
+  return (
+    <View style={{ backgroundColor: bgColor ?? el.tealBadge, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, alignSelf: "flex-start" }}>
+      <Text style={{ fontSize: 7, fontFamily: "Inter", fontWeight: 700, color: color ?? el.teal, textTransform: "uppercase", letterSpacing: 0.3 }}>{text}</Text>
+    </View>
+  );
+}
+
+function ElTocEntry({ number, title }: { number: string; title: string }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: el.border }}>
+      <Text style={{ fontSize: 12, fontFamily: "Inter", fontWeight: 700, color: el.teal, width: 36 }}>{number}</Text>
+      <Text style={{ fontSize: 12, fontFamily: "Inter", color: el.textDark, flex: 1 }}>{title}</Text>
+    </View>
+  );
+}
+
+// ─── Electra Markdown & Table ────────────────────────────────────
+
+/** Render markdown text with bold, italic, link stripping, and cleanup */
+/** Strip markdown formatting + emoji from plain text (for table cells, headers, etc.) */
+function cleanMdPlain(text: string): string {
+  if (!text) return "";
+  let s = text;
+  // Strip markdown links: [text](url) → text
+  s = s.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+  // Strip inline code backticks: `code` → code
+  s = s.replace(/`([^`]+)`/g, "$1");
+  // Strip bold/italic markers
+  s = s.replace(/\*{1,3}/g, "");
+  // Strip emoji that react-pdf can't render (supplementary plane + common emoji)
+  // eslint-disable-next-line no-misleading-character-class
+  s = s.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu, "");
+  // Replace common text-emoji with readable alternatives
+  s = s.replace(/⬆️?/g, "^").replace(/⬇️?/g, "v").replace(/⚠️?/g, "(!)")
+    .replace(/✅/g, "[OK]").replace(/❌/g, "[X]").replace(/🔴/g, "(!)").replace(/🟡/g, "(~)").replace(/🟢/g, "(+)")
+    .replace(/➡️?/g, "->").replace(/📈/g, "^").replace(/📉/g, "v");
+  // Collapse whitespace
+  s = s.replace(/\s{2,}/g, " ").trim();
+  return s;
+}
+
+function PdfMarkdown({ text, style }: { text: string; style?: any }) {
+  if (!text) return null;
+  // 1. Strip markdown links: [text](url) → text
+  let cleaned = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+  // 2. Strip inline code backticks: `code` → code
+  cleaned = cleaned.replace(/`([^`]+)`/g, "$1");
+  // 3. Strip emoji
+  // eslint-disable-next-line no-misleading-character-class
+  cleaned = cleaned.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu, "");
+  cleaned = cleaned.replace(/⬆️?/g, "^").replace(/⬇️?/g, "v").replace(/⚠️?/g, "(!)")
+    .replace(/✅/g, "[OK]").replace(/❌/g, "[X]").replace(/🔴/g, "(!)").replace(/🟡/g, "(~)").replace(/🟢/g, "(+)")
+    .replace(/➡️?/g, "->").replace(/📈/g, "^").replace(/📉/g, "v");
+
+  // 3. Parse bold (**text**) — strip single-asterisk italic markers (no italic font registered)
+  const tokens: { text: string; bold: boolean }[] = [];
+  const boldParts = cleaned.split(/(\*\*[^*]+\*\*)/g);
+  for (const bp of boldParts) {
+    if (bp.startsWith("**") && bp.endsWith("**")) {
+      tokens.push({ text: bp.slice(2, -2), bold: true });
+    } else {
+      // Strip any remaining asterisks (italic markers, stray)
+      const plain = bp.replace(/\*/g, "");
+      if (plain) tokens.push({ text: plain, bold: false });
+    }
+  }
+
+  return (
+    <Text style={[{ fontSize: 10, fontFamily: "Inter", color: el.textBody, lineHeight: 1.6 }, style]}>
+      {tokens.map((t, i) => {
+        if (t.bold) return <Text key={i} style={{ fontFamily: "Inter", fontWeight: 700, color: el.textDark }}>{t.text}</Text>;
+        return <Text key={i}>{t.text}</Text>;
       })}
     </Text>
   );
 }
 
-/** Parse markdown into structured blocks for PDF rendering */
 type PdfMdBlock =
   | { type: "h2"; text: string }
   | { type: "h3"; text: string }
@@ -964,6 +1137,7 @@ type PdfMdBlock =
   | { type: "blank" };
 
 function parsePdfMarkdownBlocks(md: string): PdfMdBlock[] {
+  if (!md) return [];
   const lines = md.split("\n");
   const blocks: PdfMdBlock[] = [];
   let i = 0;
@@ -974,7 +1148,6 @@ function parsePdfMarkdownBlocks(md: string): PdfMdBlock[] {
 
     if (!trimmed) { blocks.push({ type: "blank" }); i++; continue; }
 
-    // Blockquote / callout
     if (/^>\s/.test(trimmed)) {
       let text = trimmed.replace(/^>\s*/, "");
       i++;
@@ -986,7 +1159,6 @@ function parsePdfMarkdownBlocks(md: string): PdfMdBlock[] {
       continue;
     }
 
-    // Table: line starts with |, next line is separator
     if (/^\|.+\|/.test(trimmed) && i + 1 < lines.length && /^\|[\s:?-]+(\|[\s:?-]+)+\|?\s*$/.test(lines[i + 1].trim())) {
       const headers = trimmed.split("|").slice(1, -1).map((c: string) => c.trim());
       i += 2;
@@ -999,10 +1171,16 @@ function parsePdfMarkdownBlocks(md: string): PdfMdBlock[] {
       continue;
     }
 
-    if (trimmed.startsWith("## ")) { blocks.push({ type: "h2", text: trimmed.slice(3) }); i++; continue; }
-    if (trimmed.startsWith("### ")) { blocks.push({ type: "h3", text: trimmed.slice(4) }); i++; continue; }
+    if (trimmed.startsWith("## ")) { blocks.push({ type: "h2", text: cleanMdPlain(trimmed.slice(3)) }); i++; continue; }
+    if (trimmed.startsWith("### ")) { blocks.push({ type: "h3", text: cleanMdPlain(trimmed.slice(4)) }); i++; continue; }
     if (/^[-*]\s/.test(trimmed)) { blocks.push({ type: "bullet", text: trimmed.replace(/^[-*]\s+/, "") }); i++; continue; }
-    if (/^\d+\.\s/.test(trimmed)) { blocks.push({ type: "numbered", text: trimmed }); i++; continue; }
+    // Match numbered lists: "1. text", "**1.** text", "**1**. text"
+    if (/^\d+\.\s/.test(trimmed) || /^\*\*\d+\.?\*\*\.?\s/.test(trimmed)) {
+      const cleanedNum = trimmed.replace(/^\*\*(\d+\.?)\*\*\.?\s*/, "$1 ");
+      blocks.push({ type: "numbered", text: cleanedNum });
+      i++;
+      continue;
+    }
 
     blocks.push({ type: "paragraph", text: trimmed });
     i++;
@@ -1010,24 +1188,22 @@ function parsePdfMarkdownBlocks(md: string): PdfMdBlock[] {
   return blocks;
 }
 
-/** Render a table block as PDF Views */
+/** Electra-style table: teal header, alternating white/offWhite rows */
 function PdfTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
   const colCount = headers.length;
-  const colFlex = headers.map(() => 1);
-
+  // Small tables (≤6 rows) keep together; larger tables allow page breaks
+  const shouldWrap = rows.length > 6;
   return (
-    <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 3, marginVertical: 4 }}>
-      {/* Header */}
-      <View style={{ flexDirection: "row", backgroundColor: colors.bgMuted, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 4, paddingHorizontal: 6 }}>
+    <View wrap={shouldWrap} style={{ borderWidth: 1, borderColor: el.border, borderRadius: 4, marginVertical: 6, overflow: "hidden" }}>
+      <View style={{ flexDirection: "row", backgroundColor: el.teal, paddingVertical: 6, paddingHorizontal: 8 }}>
         {headers.map((h, hi) => (
-          <Text key={hi} style={[styles.label, { flex: colFlex[hi], color: colors.secondary }]}>{h}</Text>
+          <Text key={hi} style={{ flex: 1, fontSize: 8, fontFamily: "Inter", fontWeight: 700, color: el.white, paddingRight: 10 }}>{cleanMdPlain(h)}</Text>
         ))}
       </View>
-      {/* Rows */}
       {rows.map((row, ri) => (
-        <View key={ri} style={{ flexDirection: "row", borderBottomWidth: ri < rows.length - 1 ? 1 : 0, borderBottomColor: colors.border, paddingVertical: 3, paddingHorizontal: 6, backgroundColor: ri % 2 === 1 ? colors.bgMuted : colors.bg }}>
+        <View key={ri} wrap={false} style={{ flexDirection: "row", borderBottomWidth: ri < rows.length - 1 ? 1 : 0, borderBottomColor: el.borderLight, paddingVertical: 6, paddingHorizontal: 8, backgroundColor: ri % 2 === 1 ? el.offWhite : el.white }}>
           {row.slice(0, colCount).map((cell, ci) => (
-            <Text key={ci} style={{ flex: colFlex[ci] ?? 1, fontSize: 8, color: ci === 0 ? colors.primary : colors.secondary, fontFamily: "Inter", fontWeight: ci === 0 ? 600 : 400 }}>{cell}</Text>
+            <Text key={ci} style={{ flex: 1, fontSize: 9, fontFamily: "Inter", fontWeight: ci === 0 ? 600 : 400, color: ci === 0 ? el.textDark : el.textBody, paddingRight: 10 }}>{cleanMdPlain(cell)}</Text>
           ))}
         </View>
       ))}
@@ -1035,47 +1211,44 @@ function PdfTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
   );
 }
 
-/** Render drill-down responses as PDF pages */
-function DrillDownPages({ drillDowns, sectionKey }: { drillDowns: any[]; sectionKey: string }) {
+/** Drill-down pages in Electra style */
+function DrillDownPages({ drillDowns, sectionKey, domain, date }: { drillDowns: any[]; sectionKey: string; domain: string; date?: string }) {
   const items = drillDowns?.filter((d: any) => d.sectionKey === sectionKey) ?? [];
   if (items.length === 0) return null;
 
   return (
     <>
-      {items.map((dd: any, i: number) => {
-        const blocks = parsePdfMarkdownBlocks(dd.response);
+      {items.map((ddItem: any, i: number) => {
+        const blocks = parsePdfMarkdownBlocks(ddItem.response);
         return (
-          <Page key={`dd-${sectionKey}-${i}`} size="A4" style={styles.page}>
-            <View style={styles.section}>
+          <Page key={`dd-${sectionKey}-${i}`} size="A4" style={elPage}>
+            <ElPageHeader domain={domain} date={date} />
+            <View style={{ marginBottom: 20 }}>
               <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-                <View style={{ width: 4, height: 16, backgroundColor: colors.brand, borderRadius: 2, marginRight: 8 }} />
-                <Text style={[styles.subsectionTitle, { marginTop: 0, marginBottom: 0 }]}>
-                  {dd.question ? `Pogłębiona analiza: ${dd.question}` : `Pogłębiona analiza`}
+                <View style={{ width: 3, height: 16, backgroundColor: el.teal, marginRight: 8 }} />
+                <Text style={{ fontSize: 13, fontFamily: "Inter", fontWeight: 700, color: el.teal }}>
+                  {ddItem.question ? `Pogłębiona analiza: ${ddItem.question}` : `Pogłębiona analiza`}
                 </Text>
               </View>
-              <Text style={{ fontSize: 8, fontFamily: "Inter", color: colors.tertiary, marginBottom: 8 }}>
-                {new Date(dd.createdAt).toLocaleString()}
+              <Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textMuted, marginBottom: 10 }}>
+                {new Date(ddItem.createdAt).toLocaleString()}
               </Text>
               {blocks.map((block: PdfMdBlock, bi: number) => {
                 switch (block.type) {
                   case "blank": return <Text key={bi} style={{ height: 6 }}>{" "}</Text>;
-                  case "h2": return <Text key={bi} style={[styles.subsectionTitle, { color: colors.brand, marginTop: 8 }]}>{block.text}</Text>;
-                  case "h3": return <Text key={bi} style={[styles.subsectionTitle, { fontSize: 10 }]}>{block.text}</Text>;
+                  case "h2": return <Text key={bi} style={{ fontSize: 13, fontFamily: "Inter", fontWeight: 700, color: el.teal, marginTop: 8 }}>{block.text}</Text>;
+                  case "h3": return <Text key={bi} style={{ fontSize: 11, fontFamily: "Inter", fontWeight: 700, color: el.textDark, marginTop: 6 }}>{block.text}</Text>;
                   case "bullet": return <PdfMarkdown key={bi} text={`  • ${block.text}`} />;
                   case "numbered": return <PdfMarkdown key={bi} text={`  ${block.text}`} />;
                   case "paragraph": return <PdfMarkdown key={bi} text={block.text} />;
                   case "callout":
-                    return (
-                      <View key={bi} style={{ backgroundColor: colors.brandLight, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, marginVertical: 4, borderWidth: 1, borderColor: colors.borderLight }}>
-                        <PdfMarkdown text={block.text} />
-                      </View>
-                    );
+                    return <ElCallout key={bi}><PdfMarkdown text={block.text} /></ElCallout>;
                   case "table":
                     return <PdfTable key={bi} headers={block.headers} rows={block.rows} />;
                 }
               })}
             </View>
-            <PageFooter />
+            <ElPageFooter />
           </Page>
         );
       })}
@@ -1083,7 +1256,7 @@ function DrillDownPages({ drillDowns, sectionKey }: { drillDowns: any[]; section
   );
 }
 
-// ─── Strategy PDF Document ───────────────────────────────────────
+// ─── Strategy PDF Document (Electra Theme) ───────────────────────
 
 interface StrategyPdfProps {
   strategy: any;
@@ -1096,53 +1269,65 @@ interface StrategyPdfProps {
   logoSrc?: string;
 }
 
+const elPage = { padding: 40, fontSize: 10, fontFamily: "Inter" as const, color: el.textBody, backgroundColor: el.white };
+
 function StrategyPdfDocument({ strategy, domain, date, businessDescription, targetCustomer, dataSnapshot, drillDowns, logoSrc }: StrategyPdfProps) {
   const dd = drillDowns ?? [];
-  // Dynamic section numbering — insert optional sections without breaking fixed numbering
   const hasBacklinkContent = strategy.backlinkContentExamples?.length > 0;
   const hasActionableSteps = strategy.actionableSteps?.length > 0;
-  // Sections 1-5 fixed, then optional backlinkContent shifts everything after
   const sn = (base: number) => base + (hasBacklinkContent && base > 5 ? 1 : 0);
-  const backlinkContentNum = 6; // always 6 when present (right after section 5)
-  const lastSection = sn(10) + (hasActionableSteps ? 1 : 0);
-  void lastSection; // used in TOC
+  const backlinkContentNum = 6;
 
   return (
     <Document>
-      {/* ── Cover ─────────────────────────────────────────── */}
-      <Page size="A4" style={styles.coverPage}>
-        <DseoLogo src={logoSrc} />
-        <Text style={styles.coverTitle}>Raport strategii SEO</Text>
-        <Text style={styles.coverDomain}>{domain}</Text>
-        <Text style={styles.coverDate}>{date}</Text>
-        {businessDescription && (
-          <View style={{ marginTop: 40, maxWidth: 400, alignItems: "center" }}>
-            <Text style={{ fontSize: 10, fontFamily: "Inter", fontWeight: 600, color: colors.secondary, textAlign: "center", marginBottom: 4 }}>Firma</Text>
-            <Text style={{ fontSize: 9, fontFamily: "Inter", color: colors.primary, textAlign: "center", lineHeight: 1.5 }}>{businessDescription}</Text>
+      {/* ── Cover Page (Dark, Electra-style) ──────────────── */}
+      <Page size="A4" style={{ padding: 0, backgroundColor: el.coverBg }}>
+        {/* Right-edge vertical gold→teal gradient line */}
+        <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 6 }}>
+          <View style={{ flex: 1, backgroundColor: el.gold }} />
+          <View style={{ flex: 1, backgroundColor: "#8EAA3B" }} />
+          <View style={{ flex: 2, backgroundColor: el.teal }} />
+        </View>
+
+        <View style={{ paddingTop: 180, paddingHorizontal: 60, paddingBottom: 60, flex: 1 }}>
+          {logoSrc && <Image src={logoSrc} style={{ width: 140, marginBottom: 40 }} />}
+
+          <Text style={{ fontSize: 36, fontFamily: "Inter", fontWeight: 700, color: el.white, marginBottom: 8, lineHeight: 1.2 }}>Raport strategii SEO</Text>
+          <Text style={{ fontSize: 16, fontFamily: "Inter", color: "#9CA3AF", marginBottom: 16 }}>{domain} — Kompleksowa strategia pozycjonowania</Text>
+
+          {/* Gold accent line */}
+          <View style={{ width: 80, height: 4, backgroundColor: el.gold, marginBottom: 24 }} />
+
+          {businessDescription && (
+            <Text style={{ fontSize: 10, fontFamily: "Inter", color: "#9CA3AF", lineHeight: 1.6, marginBottom: 20, maxWidth: 420 }}>{businessDescription}</Text>
+          )}
+
+          {/* Metadata table */}
+          <View style={{ marginTop: "auto" }}>
+            <View style={{ height: 1, backgroundColor: "#374151", marginBottom: 16 }} />
+            {[
+              ["Data opracowania", date],
+              ["Przygotowane przez", "DOSEO.app"],
+              ["Domena", domain],
+              ["Typ dokumentu", "Raport strategii SEO"],
+              ...(targetCustomer ? [["Klient docelowy", targetCustomer]] : []),
+            ].map(([label, value], i) => (
+              <View key={i} style={{ flexDirection: "row", marginBottom: 6 }}>
+                <Text style={{ width: 150, fontSize: 9, fontFamily: "Inter", color: "#9CA3AF" }}>{label}</Text>
+                <Text style={{ fontSize: 9, fontFamily: "Inter", fontWeight: 600, color: el.white }}>{value}</Text>
+              </View>
+            ))}
           </View>
-        )}
-        {targetCustomer && (
-          <View style={{ marginTop: 16, maxWidth: 400, alignItems: "center" }}>
-            <Text style={{ fontSize: 10, fontFamily: "Inter", fontWeight: 600, color: colors.secondary, textAlign: "center", marginBottom: 4 }}>Klient docelowy</Text>
-            <Text style={{ fontSize: 9, fontFamily: "Inter", color: colors.primary, textAlign: "center", lineHeight: 1.5 }}>{targetCustomer}</Text>
-          </View>
-        )}
-        {dataSnapshot && (
-          <View style={{ flexDirection: "row", gap: 20, marginTop: 30, justifyContent: "center" }}>
-            {dataSnapshot.keywordCount != null && <Text style={{ fontSize: 9, fontFamily: "Inter", color: colors.tertiary }}>{dataSnapshot.keywordCount} słów kluczowych</Text>}
-            {dataSnapshot.competitorCount != null && <Text style={{ fontSize: 9, fontFamily: "Inter", color: colors.tertiary }}>{dataSnapshot.competitorCount} konkurentów</Text>}
-            {dataSnapshot.contentGapCount != null && <Text style={{ fontSize: 9, fontFamily: "Inter", color: colors.tertiary }}>{dataSnapshot.contentGapCount} luk w treści</Text>}
-            {dataSnapshot.backlinkCount != null && <Text style={{ fontSize: 9, fontFamily: "Inter", color: colors.tertiary }}>{dataSnapshot.backlinkCount} linków zwrotnych</Text>}
-          </View>
-        )}
+        </View>
       </Page>
 
-      {/* ── Table of Contents ──────────────────────────────── */}
-      <Page size="A4" style={styles.page}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Spis treści</Text>
+      {/* ── Table of Contents (White page) ────────────────── */}
+      <Page size="A4" style={elPage}>
+        <ElPageHeader domain={domain} date={date} />
+        <View style={{ marginTop: 20, marginBottom: 20 }}>
+          <ElSectionTitle>Spis treści</ElSectionTitle>
           {(() => {
-            const toc: Array<string> = [
+            const toc: string[] = [
               "Podsumowanie wykonawcze",
               "Szybkie korzyści",
               "Strategia treści",
@@ -1152,281 +1337,240 @@ function StrategyPdfDocument({ strategy, domain, date, businessDescription, targ
             if (strategy.backlinkContentExamples?.length > 0) toc.push("Pomysły na treści backlinkowe");
             toc.push("Techniczne SEO", "Ocena ryzyka", "Klastry słów kluczowych", "Prognoza ROI", "Plan działania");
             if (strategy.actionableSteps?.length > 0) toc.push("Kroki do wykonania");
-            return toc.map((title, i) => (
-              <TocEntry key={i} number={`${i + 1}.`} title={title} />
-            ));
+            return toc.map((title, i) => <ElTocEntry key={i} number={`${i + 1}.`} title={title} />);
           })()}
         </View>
-        <PageFooter />
+        <ElPageFooter />
       </Page>
 
       {/* ── 1. Executive Summary ───────────────────────────── */}
-      <Page size="A4" style={styles.page}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>1. Podsumowanie wykonawcze</Text>
+      <Page size="A4" style={elPage}>
+        <ElPageHeader domain={domain} date={date} />
+        <View style={{ marginBottom: 20 }}>
+          <ElSectionTitle number="1.">Podsumowanie wykonawcze</ElSectionTitle>
 
-          {/* Summary text in a styled card */}
-          <View style={{ backgroundColor: colors.bgMuted, padding: 14, borderRadius: 6, marginBottom: 16, borderWidth: 1, borderColor: colors.borderLight }}>
-            {(() => {
-              const blocks = parsePdfMarkdownBlocks(strategy.executiveSummary ?? "");
-              return blocks.map((block: PdfMdBlock, bi: number) => {
-                if (block.type === "blank") return <View key={bi} style={{ height: 6 }} />;
-                if (block.type === "h2") return <Text key={bi} style={[styles.subsectionTitle, { marginTop: bi > 0 ? 8 : 0 }]}>{block.text}</Text>;
-                if (block.type === "h3") return <Text key={bi} style={[styles.textBold, { marginTop: 6, marginBottom: 2 }]}>{block.text}</Text>;
-                if (block.type === "bullet") return <View key={bi} style={{ flexDirection: "row", paddingLeft: 10, marginBottom: 2 }}><Text style={styles.text}>•  </Text><PdfMarkdown text={block.text} /></View>;
-                if (block.type === "numbered") return <View key={bi} style={{ paddingLeft: 10, marginBottom: 2 }}><PdfMarkdown text={block.text} /></View>;
-                if (block.type === "callout") return <View key={bi} style={{ backgroundColor: colors.brandLight, padding: 8, borderRadius: 6, marginBottom: 4, borderWidth: 1, borderColor: colors.borderLight }}><PdfMarkdown text={block.text} /></View>;
-                if (block.type === "table") return <PdfTable key={bi} headers={block.headers} rows={block.rows} />;
-                return <Text key={bi} style={{ fontSize: 10, fontFamily: "Inter", color: colors.primary, lineHeight: 1.7 }}>{block.text}</Text>;
-              });
-            })()}
-          </View>
+          {(() => {
+            const blocks = parsePdfMarkdownBlocks(strategy.executiveSummary ?? "");
+            return blocks.map((block: PdfMdBlock, bi: number) => {
+              if (block.type === "blank") return <View key={bi} style={{ height: 6 }} />;
+              if (block.type === "h2") return <Text key={bi} style={{ fontSize: 13, fontFamily: "Inter", fontWeight: 700, color: el.teal, marginTop: bi > 0 ? 10 : 0 }}>{block.text}</Text>;
+              if (block.type === "h3") return <Text key={bi} style={{ fontSize: 11, fontFamily: "Inter", fontWeight: 700, color: el.textDark, marginTop: 8, marginBottom: 2 }}>{block.text}</Text>;
+              if (block.type === "bullet") return <View key={bi} style={{ flexDirection: "row", paddingLeft: 10, marginBottom: 2 }}><Text style={{ fontSize: 10, fontFamily: "Inter", color: el.textBody }}>•  </Text><PdfMarkdown text={block.text} /></View>;
+              if (block.type === "numbered") return <View key={bi} style={{ paddingLeft: 10, marginBottom: 2 }}><PdfMarkdown text={block.text} /></View>;
+              if (block.type === "callout") return <ElCallout key={bi}><PdfMarkdown text={block.text} /></ElCallout>;
+              if (block.type === "table") return <PdfTable key={bi} headers={block.headers} rows={block.rows} />;
+              return <Text key={bi} style={{ fontSize: 10, fontFamily: "Inter", color: el.textBody, lineHeight: 1.6, marginBottom: 4, textAlign: "justify" }}>{block.text}</Text>;
+            });
+          })()}
 
-          {/* Key data metrics */}
           {dataSnapshot && (
             <>
-              <Text style={styles.subsectionTitle}>Kluczowe dane</Text>
-              <View style={styles.metricsRow}>
-                {dataSnapshot.keywordCount != null && <MetricBox value={dataSnapshot.keywordCount} label="Słowa kluczowe" />}
-                {dataSnapshot.competitorCount != null && <MetricBox value={dataSnapshot.competitorCount} label="Konkurenci" />}
-                {dataSnapshot.contentGapCount != null && <MetricBox value={dataSnapshot.contentGapCount} label="Luki w treści" />}
-                {dataSnapshot.backlinkCount != null && <MetricBox value={dataSnapshot.backlinkCount} label="Linki zwrotne" />}
+              <ElSubTitle>Kluczowe dane</ElSubTitle>
+              <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+                {dataSnapshot.keywordCount != null && <ElMetricCard value={dataSnapshot.keywordCount} label="Słowa kluczowe" />}
+                {dataSnapshot.competitorCount != null && <ElMetricCard value={dataSnapshot.competitorCount} label="Konkurenci" />}
+                {dataSnapshot.contentGapCount != null && <ElMetricCard value={dataSnapshot.contentGapCount} label="Luki w treści" />}
+                {dataSnapshot.backlinkCount != null && <ElMetricCard value={dataSnapshot.backlinkCount} label="Linki zwrotne" />}
               </View>
               {(dataSnapshot.avgPosition != null || dataSnapshot.topKeywordsCount != null) && (
-                <View style={[styles.metricsRow, { marginTop: 6 }]}>
-                  {dataSnapshot.avgPosition != null && <MetricBox value={dataSnapshot.avgPosition} label="Śr. pozycja" />}
-                  {dataSnapshot.topKeywordsCount != null && <MetricBox value={dataSnapshot.topKeywordsCount} label="W TOP-10" />}
-                  {dataSnapshot.healthScore != null && <MetricBox value={`${dataSnapshot.healthScore}/100`} label="Wynik zdrowia" />}
-                  {dataSnapshot.totalTraffic != null && <MetricBox value={dataSnapshot.totalTraffic} label="Szac. ruch" />}
+                <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
+                  {dataSnapshot.avgPosition != null && <ElMetricCard value={dataSnapshot.avgPosition} label="Śr. pozycja" />}
+                  {dataSnapshot.topKeywordsCount != null && <ElMetricCard value={dataSnapshot.topKeywordsCount} label="W TOP-10" />}
+                  {dataSnapshot.healthScore != null && <ElMetricCard value={`${dataSnapshot.healthScore}/100`} label="Wynik zdrowia" />}
+                  {dataSnapshot.totalTraffic != null && <ElMetricCard value={dataSnapshot.totalTraffic} label="Szac. ruch" />}
                 </View>
               )}
             </>
           )}
 
-          {/* Strategy scope overview */}
-          <Text style={[styles.subsectionTitle, { marginTop: 14 }]}>Zakres strategii</Text>
+          <ElSubTitle>Zakres strategii</ElSubTitle>
           <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-            {strategy.quickWins?.length > 0 && (
-              <View style={{ flex: 1, minWidth: "45%", backgroundColor: colors.successLight, padding: 10, borderRadius: 4 }}>
-                <Text style={[styles.metricValue, { color: colors.success }]}>{strategy.quickWins.length}</Text>
-                <Text style={[styles.metricLabel, { color: colors.success }]}>Szybkich korzyści</Text>
-              </View>
-            )}
-            {strategy.contentStrategy?.length > 0 && (
-              <View style={{ flex: 1, minWidth: "45%", backgroundColor: colors.brandLight, padding: 10, borderRadius: 4 }}>
-                <Text style={[styles.metricValue, { color: colors.brand }]}>{strategy.contentStrategy.length}</Text>
-                <Text style={[styles.metricLabel, { color: colors.brand }]}>Strategii treści</Text>
-              </View>
-            )}
-            {strategy.competitorAnalysis?.length > 0 && (
-              <View style={{ flex: 1, minWidth: "45%", backgroundColor: colors.warningLight, padding: 10, borderRadius: 4 }}>
-                <Text style={[styles.metricValue, { color: colors.warning }]}>{strategy.competitorAnalysis.length}</Text>
-                <Text style={[styles.metricLabel, { color: colors.warning }]}>Analiz konkurencji</Text>
-              </View>
-            )}
-            {strategy.riskAssessment?.length > 0 && (
-              <View style={{ flex: 1, minWidth: "45%", backgroundColor: colors.errorLight, padding: 10, borderRadius: 4 }}>
-                <Text style={[styles.metricValue, { color: colors.error }]}>{strategy.riskAssessment.length}</Text>
-                <Text style={[styles.metricLabel, { color: colors.error }]}>Ryzyk do oceny</Text>
-              </View>
-            )}
-            {strategy.keywordClustering?.length > 0 && (
-              <View style={{ flex: 1, minWidth: "45%", backgroundColor: colors.bgTertiary, padding: 10, borderRadius: 4 }}>
-                <Text style={[styles.metricValue, { color: colors.secondary }]}>{strategy.keywordClustering.length}</Text>
-                <Text style={styles.metricLabel}>Klastrów słów kluczowych</Text>
-              </View>
-            )}
-            {strategy.actionPlan?.length > 0 && (
-              <View style={{ flex: 1, minWidth: "45%", backgroundColor: colors.bgTertiary, padding: 10, borderRadius: 4 }}>
-                <Text style={[styles.metricValue, { color: colors.secondary }]}>{strategy.actionPlan.length}</Text>
-                <Text style={styles.metricLabel}>Działań w planie</Text>
-              </View>
-            )}
+            {strategy.quickWins?.length > 0 && <ElMetricCard value={strategy.quickWins.length} label="Szybkich korzyści" accentColor={el.success} valueColor={el.success} />}
+            {strategy.contentStrategy?.length > 0 && <ElMetricCard value={strategy.contentStrategy.length} label="Strategii treści" accentColor={el.teal} />}
+            {strategy.competitorAnalysis?.length > 0 && <ElMetricCard value={strategy.competitorAnalysis.length} label="Analiz konkurencji" accentColor={el.warning} valueColor={el.warning} />}
+            {strategy.riskAssessment?.length > 0 && <ElMetricCard value={strategy.riskAssessment.length} label="Ryzyk do oceny" accentColor={el.error} valueColor={el.error} />}
+            {strategy.keywordClustering?.length > 0 && <ElMetricCard value={strategy.keywordClustering.length} label="Klastrów słów kluczowych" accentColor={el.textMuted} valueColor={el.textGray} />}
+            {strategy.actionPlan?.length > 0 && <ElMetricCard value={strategy.actionPlan.length} label="Działań w planie" accentColor={el.textMuted} valueColor={el.textGray} />}
           </View>
         </View>
-        <PageFooter />
+        <ElPageFooter />
       </Page>
-      <DrillDownPages drillDowns={dd} sectionKey="executiveSummary" />
+      <DrillDownPages drillDowns={dd} sectionKey="executiveSummary" domain={domain} date={date} />
 
       {/* ── 2. Quick Wins ──────────────────────────────────── */}
       {strategy.quickWins?.length > 0 && (
-        <Page size="A4" style={styles.page}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>2. Szybkie korzyści ({strategy.quickWins.length})</Text>
+        <Page size="A4" style={elPage}>
+          <ElPageHeader domain={domain} date={date} />
+          <View style={{ marginBottom: 20 }}>
+            <ElSectionTitle number="2.">Szybkie korzyści ({strategy.quickWins.length})</ElSectionTitle>
             {strategy.quickWins.map((qw: any, i: number) => {
-              const diffColor = qw.difficulty >= 70 ? colors.error : qw.difficulty >= 40 ? colors.warning : colors.success;
+              const diffColor = qw.difficulty >= 70 ? el.error : qw.difficulty >= 40 ? el.warning : el.success;
+              const diffBg = qw.difficulty >= 70 ? el.errorBg : qw.difficulty >= 40 ? el.warningBg : el.successBg;
               return (
-                <View key={i} wrap={false} style={{ marginBottom: 8, padding: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 6 }}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                    <Text style={styles.textBold}>{qw.keyword}</Text>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Text style={[styles.textSmall, { color: colors.primary }]}>#{qw.currentPosition}</Text>
-                      <Text style={[styles.textSmall, { color: colors.tertiary }]}>→</Text>
-                      <Text style={[styles.textSmallBold, { color: colors.success }]}>#{qw.targetPosition}</Text>
+                <View key={i} wrap={false} style={{ borderWidth: 1, borderColor: el.border, borderRadius: 4, marginBottom: 10, overflow: "hidden" }}>
+                  <View style={{ height: 3, backgroundColor: el.teal }} />
+                  <View style={{ padding: 12 }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <Text style={{ fontSize: 11, fontFamily: "Inter", fontWeight: 700, color: el.textDark }}>{qw.keyword}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Text style={{ fontSize: 10, fontFamily: "Inter", color: el.textGray }}>#{qw.currentPosition}</Text>
+                        <Text style={{ fontSize: 10, fontFamily: "Inter", color: el.textMuted }}>→</Text>
+                        <Text style={{ fontSize: 10, fontFamily: "Inter", fontWeight: 700, color: el.success }}>#{qw.targetPosition}</Text>
+                      </View>
                     </View>
+                    {qw.existingPage && (
+                      <Text style={{ fontSize: 8, fontFamily: "Inter", color: el.teal, marginBottom: 4 }}>Strona: {qw.existingPage}</Text>
+                    )}
+                    <View style={{ flexDirection: "row", gap: 12, marginBottom: qw.actionItems?.length > 0 ? 8 : 0 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textGray }}>Trudność:</Text>
+                        <ElBadge text={String(qw.difficulty)} color={diffColor} bgColor={diffBg} />
+                      </View>
+                      <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textGray }}>Wolumen: {qw.searchVolume?.toLocaleString()}</Text>
+                      {qw.estimatedTrafficGain && <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textGray }}>Wzrost: {qw.estimatedTrafficGain}</Text>}
+                    </View>
+                    {qw.actionItems?.length > 0 && (
+                      <ElCallout title="Działania do podjęcia">
+                        {qw.actionItems.map((a: string, j: number) => (
+                          <View key={j} style={{ flexDirection: "row", gap: 6, marginBottom: j < qw.actionItems.length - 1 ? 3 : 0 }}>
+                            <Text style={{ fontSize: 10, fontFamily: "Inter", color: el.textBody }}>•</Text>
+                            <Text style={{ fontSize: 10, fontFamily: "Inter", color: el.textBody, flex: 1, lineHeight: 1.5 }}>{a}</Text>
+                          </View>
+                        ))}
+                      </ElCallout>
+                    )}
                   </View>
-                  {qw.existingPage && (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 4, backgroundColor: "#EEF2FF", borderRadius: 4, padding: 4, paddingHorizontal: 6 }}>
-                      <Text style={{ fontSize: 7, fontFamily: "Inter", color: colors.brand, fontWeight: 600 }}>ISTNIEJĄCA STRONA:</Text>
-                      <Text style={{ fontSize: 7, fontFamily: "Inter", color: colors.brand }}>{qw.existingPage}</Text>
-                    </View>
-                  )}
-                  <View style={{ flexDirection: "row", gap: 16, marginBottom: qw.actionItems?.length > 0 ? 6 : 0 }}>
-                    <Text style={styles.textSmall}>Trudność: <Text style={{ color: diffColor, fontFamily: "Inter", fontWeight: 600 }}>{qw.difficulty}</Text></Text>
-                    <Text style={styles.textSmall}>Wolumen: {qw.searchVolume?.toLocaleString()}</Text>
-                    {qw.estimatedTrafficGain && <Text style={styles.textSmall}>Wzrost: {qw.estimatedTrafficGain}</Text>}
-                  </View>
-                  {qw.actionItems?.length > 0 && (
-                    <View style={{ backgroundColor: colors.bgMuted, padding: 8, borderRadius: 4 }}>
-                      {qw.actionItems.map((a: string, j: number) => (
-                        <View key={j} style={{ flexDirection: "row", gap: 6, marginBottom: j < qw.actionItems.length - 1 ? 3 : 0 }}>
-                          <Text style={styles.text}>•</Text>
-                          <Text style={[styles.text, { flex: 1 }]}>{a}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
                 </View>
               );
             })}
           </View>
-          <PageFooter />
+          <ElPageFooter />
         </Page>
       )}
-      <DrillDownPages drillDowns={dd} sectionKey="quickWins" />
+      <DrillDownPages drillDowns={dd} sectionKey="quickWins" domain={domain} date={date} />
 
       {/* ── 3. Content Strategy ─────────────────────────────── */}
       {strategy.contentStrategy?.length > 0 && (
-        <Page size="A4" style={styles.page}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>3. Strategia treści ({strategy.contentStrategy.length})</Text>
+        <Page size="A4" style={elPage}>
+          <ElPageHeader domain={domain} date={date} />
+          <View style={{ marginBottom: 20 }}>
+            <ElSectionTitle number="3.">Strategia treści ({strategy.contentStrategy.length})</ElSectionTitle>
 
-            {/* Opportunity ranking chart */}
             {(() => {
               const sorted = [...strategy.contentStrategy].sort((a: any, b: any) => b.opportunityScore - a.opportunityScore);
               const maxScore = Math.max(...strategy.contentStrategy.map((d: any) => d.opportunityScore ?? 0), 1);
               return (
                 <View style={{ marginBottom: 14 }}>
-                  <Text style={styles.subsectionTitle}>Ranking możliwości</Text>
+                  <ElSubTitle>Ranking możliwości</ElSubTitle>
                   {sorted.map((cs: any, i: number) => {
-                    const pct = ((cs.opportunityScore ?? 0) / maxScore) * 100;
-                    const barColor = cs.opportunityScore >= 70 ? colors.success : cs.opportunityScore >= 40 ? colors.warning : colors.error;
+                    const barColor = cs.opportunityScore >= 70 ? el.success : cs.opportunityScore >= 40 ? el.warning : el.error;
                     return (
-                      <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                        <Text style={[styles.textSmall, { width: 14, textAlign: "right", color: colors.tertiary }]}>{i + 1}</Text>
-                        <Text style={[styles.textSmall, { width: 120, color: colors.primary }]}>{cs.targetKeyword}</Text>
-                        <View style={{ flex: 1, height: 12, backgroundColor: colors.bgMuted, borderRadius: 2 }}>
-                          <View style={{ width: `${pct}%`, height: 12, backgroundColor: barColor, borderRadius: 2 }} />
-                        </View>
-                        <Text style={[styles.textSmallBold, { width: 28, textAlign: "right" }]}>{cs.opportunityScore}</Text>
-                        <Text style={[styles.textSmall, { width: 48, textAlign: "right", color: colors.tertiary }]}>{cs.searchVolume?.toLocaleString()}</Text>
-                      </View>
+                      <ElHorizontalBar key={i} label={cs.targetKeyword} value={cs.opportunityScore} max={maxScore} color={barColor} showLabel={`Vol: ${cs.searchVolume?.toLocaleString()}`} />
                     );
                   })}
                 </View>
               );
             })()}
 
-            {/* Content strategy cards */}
             {strategy.contentStrategy.map((cs: any, i: number) => {
-              const scoreColor = cs.opportunityScore >= 70 ? colors.success : cs.opportunityScore >= 40 ? colors.warning : colors.error;
+              const scoreColor = cs.opportunityScore >= 70 ? el.success : cs.opportunityScore >= 40 ? el.warning : el.error;
+              const scoreBg = cs.opportunityScore >= 70 ? el.successBg : cs.opportunityScore >= 40 ? el.warningBg : el.errorBg;
               return (
-                <View key={i} wrap={false} style={{ marginBottom: 8, padding: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 6 }}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                    <Text style={styles.textBold}>{cs.targetKeyword}</Text>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <Text style={[styles.recPriority, { backgroundColor: scoreColor, color: "#FFFFFF" }]}>{cs.opportunityScore}</Text>
-                      <Text style={styles.caption}>{cs.suggestedContentType}</Text>
+                <View key={i} wrap={false} style={{ borderWidth: 1, borderColor: el.border, borderRadius: 4, marginBottom: 10, overflow: "hidden" }}>
+                  <View style={{ height: 3, backgroundColor: el.teal }} />
+                  <View style={{ padding: 12 }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <Text style={{ fontSize: 11, fontFamily: "Inter", fontWeight: 700, color: el.textDark }}>{cs.targetKeyword}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <ElBadge text={String(cs.opportunityScore)} color={scoreColor} bgColor={scoreBg} />
+                        <Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textMuted }}>{cs.suggestedContentType}</Text>
+                      </View>
                     </View>
+                    {cs.existingPage && (
+                      <Text style={{ fontSize: 8, fontFamily: "Inter", color: el.teal, marginBottom: 4 }}>Strona: {cs.existingPage}</Text>
+                    )}
+                    <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textGray, marginBottom: 4 }}>Wolumen: {cs.searchVolume?.toLocaleString()}</Text>
+                    {cs.estimatedImpact && <Text style={{ fontSize: 10, fontFamily: "Inter", color: el.textBody, lineHeight: 1.5 }}>{cs.estimatedImpact}</Text>}
                   </View>
-                  {cs.existingPage && (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 4, backgroundColor: "#EEF2FF", borderRadius: 4, padding: 4, paddingHorizontal: 6 }}>
-                      <Text style={{ fontSize: 7, fontFamily: "Inter", color: colors.brand, fontWeight: 600 }}>ISTNIEJĄCA STRONA:</Text>
-                      <Text style={{ fontSize: 7, fontFamily: "Inter", color: colors.brand }}>{cs.existingPage}</Text>
-                    </View>
-                  )}
-                  <View style={{ flexDirection: "row", gap: 16, marginBottom: 4 }}>
-                    <Text style={styles.textSmall}>Wolumen: {cs.searchVolume?.toLocaleString()}</Text>
-                  </View>
-                  {cs.estimatedImpact && <Text style={[styles.text, { color: colors.secondary }]}>{cs.estimatedImpact}</Text>}
                 </View>
               );
             })}
           </View>
-          <PageFooter />
+          <ElPageFooter />
         </Page>
       )}
-      <DrillDownPages drillDowns={dd} sectionKey="contentStrategy" />
+      <DrillDownPages drillDowns={dd} sectionKey="contentStrategy" domain={domain} date={date} />
 
       {/* ── 4. Competitor Analysis ──────────────────────────── */}
       {strategy.competitorAnalysis?.length > 0 && (
-        <Page size="A4" style={styles.page}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>4. Analiza konkurencji ({strategy.competitorAnalysis.length})</Text>
+        <Page size="A4" style={elPage}>
+          <ElPageHeader domain={domain} date={date} />
+          <View style={{ marginBottom: 20 }}>
+            <ElSectionTitle number="4.">Analiza konkurencji ({strategy.competitorAnalysis.length})</ElSectionTitle>
             {strategy.competitorAnalysis.map((comp: any, i: number) => (
-              <View key={i} wrap={false} style={{ marginBottom: 14, padding: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 6 }}>
-                <Text style={[styles.subsectionTitle, { marginTop: 0, color: colors.brand }]}>{comp.domain}</Text>
-                {/* SWOT 2x2 grid */}
-                <View style={{ flexDirection: "row", gap: 6, marginBottom: 6 }}>
-                  {comp.strengths?.length > 0 && (
-                    <View style={{ flex: 1, backgroundColor: colors.successLight, padding: 8, borderRadius: 4 }}>
-                      <Text style={[styles.label, { color: colors.success, marginBottom: 6 }]}>MOCNE STRONY</Text>
-                      {comp.strengths.map((s: string, j: number) => <Text key={j} style={[styles.textSmall, { marginBottom: 3 }]}>• {s}</Text>)}
-                    </View>
-                  )}
-                  {comp.weaknesses?.length > 0 && (
-                    <View style={{ flex: 1, backgroundColor: colors.errorLight, padding: 8, borderRadius: 4 }}>
-                      <Text style={[styles.label, { color: colors.error, marginBottom: 6 }]}>SŁABE STRONY</Text>
-                      {comp.weaknesses.map((s: string, j: number) => <Text key={j} style={[styles.textSmall, { marginBottom: 3 }]}>• {s}</Text>)}
-                    </View>
-                  )}
-                </View>
-                <View style={{ flexDirection: "row", gap: 6 }}>
-                  {comp.threatsToUs?.length > 0 && (
-                    <View style={{ flex: 1, backgroundColor: colors.warningLight, padding: 8, borderRadius: 4 }}>
-                      <Text style={[styles.label, { color: colors.warning, marginBottom: 6 }]}>ZAGROŻENIA</Text>
-                      {comp.threatsToUs.map((s: string, j: number) => <Text key={j} style={[styles.textSmall, { marginBottom: 3 }]}>• {s}</Text>)}
-                    </View>
-                  )}
-                  {comp.opportunitiesAgainstThem?.length > 0 && (
-                    <View style={{ flex: 1, backgroundColor: colors.brandLight, padding: 8, borderRadius: 4 }}>
-                      <Text style={[styles.label, { color: colors.brand, marginBottom: 6 }]}>SZANSE</Text>
-                      {comp.opportunitiesAgainstThem.map((s: string, j: number) => <Text key={j} style={[styles.textSmall, { marginBottom: 3 }]}>• {s}</Text>)}
-                    </View>
-                  )}
+              <View key={i} wrap={false} style={{ borderWidth: 1, borderColor: el.border, borderRadius: 4, marginBottom: 12, overflow: "hidden" }}>
+                <View style={{ height: 3, backgroundColor: el.teal }} />
+                <View style={{ padding: 14 }}>
+                  <Text style={{ fontSize: 14, fontFamily: "Inter", fontWeight: 700, color: el.teal, marginBottom: 10 }}>{comp.domain}</Text>
+                  <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+                    {comp.strengths?.length > 0 && (
+                      <View style={{ flex: 1, backgroundColor: el.successBg, padding: 10, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 8, fontFamily: "Inter", fontWeight: 700, color: el.success, textTransform: "uppercase", marginBottom: 6 }}>MOCNE STRONY</Text>
+                        {comp.strengths.map((s: string, j: number) => <Text key={j} style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, marginBottom: 3, lineHeight: 1.4 }}>• {s}</Text>)}
+                      </View>
+                    )}
+                    {comp.weaknesses?.length > 0 && (
+                      <View style={{ flex: 1, backgroundColor: el.errorBg, padding: 10, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 8, fontFamily: "Inter", fontWeight: 700, color: el.error, textTransform: "uppercase", marginBottom: 6 }}>SŁABE STRONY</Text>
+                        {comp.weaknesses.map((s: string, j: number) => <Text key={j} style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, marginBottom: 3, lineHeight: 1.4 }}>• {s}</Text>)}
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    {comp.threatsToUs?.length > 0 && (
+                      <View style={{ flex: 1, backgroundColor: el.warningBg, padding: 10, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 8, fontFamily: "Inter", fontWeight: 700, color: el.warning, textTransform: "uppercase", marginBottom: 6 }}>ZAGROŻENIA</Text>
+                        {comp.threatsToUs.map((s: string, j: number) => <Text key={j} style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, marginBottom: 3, lineHeight: 1.4 }}>• {s}</Text>)}
+                      </View>
+                    )}
+                    {comp.opportunitiesAgainstThem?.length > 0 && (
+                      <View style={{ flex: 1, backgroundColor: el.tealBadge, padding: 10, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 8, fontFamily: "Inter", fontWeight: 700, color: el.teal, textTransform: "uppercase", marginBottom: 6 }}>SZANSE</Text>
+                        {comp.opportunitiesAgainstThem.map((s: string, j: number) => <Text key={j} style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, marginBottom: 3, lineHeight: 1.4 }}>• {s}</Text>)}
+                      </View>
+                    )}
+                  </View>
                 </View>
               </View>
             ))}
           </View>
-          <PageFooter />
+          <ElPageFooter />
         </Page>
       )}
-      <DrillDownPages drillDowns={dd} sectionKey="competitorAnalysis" />
+      <DrillDownPages drillDowns={dd} sectionKey="competitorAnalysis" domain={domain} date={date} />
 
       {/* ── 5. Backlink Strategy ────────────────────────────── */}
       {strategy.backlinkStrategy && (strategy.backlinkStrategy.profileAssessment || strategy.backlinkStrategy.toxicCleanup || strategy.backlinkStrategy.linkBuildingPriorities?.length > 0) && (
-        <Page size="A4" style={styles.page}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>5. Strategia linkowa</Text>
-            <Text style={styles.subsectionTitle}>Ocena profilu</Text>
-            <Text style={styles.text}>{strategy.backlinkStrategy.profileAssessment}</Text>
+        <Page size="A4" style={elPage}>
+          <ElPageHeader domain={domain} date={date} />
+          <View style={{ marginBottom: 20 }}>
+            <ElSectionTitle number="5.">Strategia linkowa</ElSectionTitle>
+            <ElSubTitle>Ocena profilu</ElSubTitle>
+            <Text style={{ fontSize: 10, fontFamily: "Inter", color: el.textBody, lineHeight: 1.6, textAlign: "justify" }}>{strategy.backlinkStrategy.profileAssessment}</Text>
 
             {strategy.backlinkStrategy.toxicCleanup && (
-              <View wrap={false} style={{ marginTop: 10, padding: 10, backgroundColor: colors.errorLight, borderRadius: 6 }}>
-                <Text style={[styles.label, { color: colors.error, marginBottom: 2 }]}>
-                  CZYSZCZENIE TOKSYCZNYCH — {strategy.backlinkStrategy.toxicCleanup.priority?.toUpperCase()} PRIORYTET ({strategy.backlinkStrategy.toxicCleanup.count} linków)
-                </Text>
-                <Text style={styles.textSmall}>{strategy.backlinkStrategy.toxicCleanup.description}</Text>
-              </View>
+              <ElCallout title={`Czyszczenie toksycznych — ${strategy.backlinkStrategy.toxicCleanup.priority?.toUpperCase()} priorytet (${strategy.backlinkStrategy.toxicCleanup.count} linków)`} borderColor={el.error}>
+                <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, lineHeight: 1.5 }}>{strategy.backlinkStrategy.toxicCleanup.description}</Text>
+              </ElCallout>
             )}
 
             {strategy.backlinkStrategy.linkBuildingPriorities?.length > 0 && (
               <>
-                <Text style={styles.subsectionTitle}>Priorytety link buildingu</Text>
+                <ElSubTitle>Priorytety link buildingu</ElSubTitle>
                 {strategy.backlinkStrategy.linkBuildingPriorities.map((p: string, i: number) => (
                   <View key={i} style={{ flexDirection: "row", gap: 6, marginBottom: 6 }}>
-                    <Text style={[styles.text, { width: 16 }]}>{i + 1}.</Text>
-                    <Text style={[styles.text, { flex: 1 }]}>{p}</Text>
+                    <Text style={{ fontSize: 10, fontFamily: "Inter", fontWeight: 700, color: el.teal, width: 16 }}>{i + 1}.</Text>
+                    <Text style={{ fontSize: 10, fontFamily: "Inter", color: el.textBody, flex: 1, lineHeight: 1.5 }}>{p}</Text>
                   </View>
                 ))}
               </>
@@ -1434,32 +1578,35 @@ function StrategyPdfDocument({ strategy, domain, date, businessDescription, targ
 
             {strategy.backlinkStrategy.prospectRecommendations && (
               <>
-                <Text style={styles.subsectionTitle}>Rekomendacje prospektów</Text>
-                <Text style={styles.text}>{strategy.backlinkStrategy.prospectRecommendations}</Text>
+                <ElSubTitle>Rekomendacje prospektów</ElSubTitle>
+                <Text style={{ fontSize: 10, fontFamily: "Inter", color: el.textBody, lineHeight: 1.6, textAlign: "justify" }}>{strategy.backlinkStrategy.prospectRecommendations}</Text>
               </>
             )}
 
             {strategy.backlinkStrategy.topProspects?.length > 0 && (
               <>
-                <Text style={styles.subsectionTitle}>Luki backlinkowe</Text>
-                <Text style={[styles.textSmall, { color: colors.tertiary, marginBottom: 6 }]}>Domeny linkujące do konkurencji, ale nie do Ciebie</Text>
+                <ElSubTitle>Luki backlinkowe</ElSubTitle>
+                <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textMuted, marginBottom: 8 }}>Domeny linkujące do konkurencji, ale nie do Ciebie</Text>
                 {strategy.backlinkStrategy.topProspects.map((p: any, i: number) => {
-                  const scoreColor = p.score >= 70 ? colors.success : p.score >= 40 ? colors.warning : colors.error;
+                  const scoreColor = p.score >= 70 ? el.success : p.score >= 40 ? el.warning : el.error;
+                  const scoreBg = p.score >= 70 ? el.successBg : p.score >= 40 ? el.warningBg : el.errorBg;
                   return (
-                    <View key={i} wrap={false} style={{ flexDirection: "row", alignItems: "center", marginBottom: 6, padding: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 6 }}>
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                          <Text style={styles.textBold}>{p.domain}</Text>
-                          <Text style={[styles.caption, { backgroundColor: colors.bgMuted, paddingHorizontal: 4, paddingVertical: 1, borderRadius: 3 }]}>DR {p.domainRank}</Text>
+                    <View key={i} wrap={false} style={{ borderWidth: 1, borderColor: el.border, borderRadius: 4, marginBottom: 8, padding: 10 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                            <Text style={{ fontSize: 10, fontFamily: "Inter", fontWeight: 700, color: el.textDark }}>{p.domain}</Text>
+                            <ElBadge text={`DR ${p.domainRank}`} />
+                          </View>
+                          <View style={{ flexDirection: "row", gap: 8 }}>
+                            <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textGray }}>Linki do konkurencji: {p.linksToCompetitors}</Text>
+                            <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textMuted }}>{p.competitors?.slice(0, 3).join(", ")}</Text>
+                          </View>
                         </View>
-                        <View style={{ flexDirection: "row", gap: 8 }}>
-                          <Text style={styles.textSmall}>Linki do konkurencji: {p.linksToCompetitors}</Text>
-                          <Text style={[styles.textSmall, { color: colors.tertiary }]}>{p.competitors?.slice(0, 3).join(", ")}</Text>
+                        <View style={{ alignItems: "center", gap: 2 }}>
+                          <Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textMuted }}>{p.channel}</Text>
+                          <ElBadge text={String(p.score)} color={scoreColor} bgColor={scoreBg} />
                         </View>
-                      </View>
-                      <View style={{ alignItems: "center", gap: 2 }}>
-                        <Text style={[styles.caption, { color: colors.tertiary }]}>{p.channel}</Text>
-                        <Text style={[styles.textSmallBold, { color: scoreColor }]}>{p.score}</Text>
                       </View>
                     </View>
                   );
@@ -1467,71 +1614,75 @@ function StrategyPdfDocument({ strategy, domain, date, businessDescription, targ
               </>
             )}
           </View>
-          <PageFooter />
+          <ElPageFooter />
         </Page>
       )}
-      <DrillDownPages drillDowns={dd} sectionKey="backlinkStrategy" />
+      <DrillDownPages drillDowns={dd} sectionKey="backlinkStrategy" domain={domain} date={date} />
 
       {/* ── Backlink Content Examples (optional) ──────────── */}
       {hasBacklinkContent && (
-        <Page size="A4" style={styles.page}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{backlinkContentNum}. Pomysły na treści backlinkowe ({strategy.backlinkContentExamples.length})</Text>
-            <Text style={[styles.textSmall, { color: colors.tertiary, marginBottom: 10 }]}>Gotowe pomysły na treści, które pomogą w pozyskiwaniu linków zwrotnych</Text>
+        <Page size="A4" style={elPage}>
+          <ElPageHeader domain={domain} date={date} />
+          <View style={{ marginBottom: 20 }}>
+            <ElSectionTitle number={`${backlinkContentNum}.`}>Pomysły na treści backlinkowe ({strategy.backlinkContentExamples.length})</ElSectionTitle>
             {strategy.backlinkContentExamples.map((ex: any, i: number) => (
-              <View key={i} wrap={false} style={{ marginBottom: 10, padding: 10, backgroundColor: colors.bgTertiary, borderRadius: 6 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                  <Text style={[styles.label, { color: colors.brand }]}>{ex.type?.toUpperCase()}</Text>
-                  {ex.category && <Text style={[styles.caption, { color: colors.tertiary }]}>· {ex.category}</Text>}
-                </View>
-                <Text style={[styles.textBold, { marginBottom: 3 }]}>{ex.title}</Text>
-                <Text style={[styles.textSmall, { marginBottom: 6 }]}>{ex.description}</Text>
-                <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-                  {ex.targetSites && (
-                    <View style={{ flex: 1, minWidth: "30%" }}>
-                      <Text style={[styles.caption, { color: colors.tertiary, marginBottom: 1 }]}>DOCELOWE STRONY</Text>
-                      <Text style={styles.textSmall}>{ex.targetSites}</Text>
-                    </View>
-                  )}
-                  {ex.suggestedAnchorText && (
-                    <View style={{ flex: 1, minWidth: "30%" }}>
-                      <Text style={[styles.caption, { color: colors.tertiary, marginBottom: 1 }]}>TEKST KOTWICY</Text>
-                      <Text style={styles.textSmall}>{ex.suggestedAnchorText}</Text>
-                    </View>
-                  )}
-                  {ex.emailSubject && (
-                    <View style={{ flex: 1, minWidth: "30%" }}>
-                      <Text style={[styles.caption, { color: colors.tertiary, marginBottom: 1 }]}>TEMAT E-MAILA</Text>
-                      <Text style={styles.textSmall}>{ex.emailSubject}</Text>
-                    </View>
-                  )}
+              <View key={i} wrap={false} style={{ borderWidth: 1, borderColor: el.border, borderRadius: 4, marginBottom: 10, overflow: "hidden" }}>
+                <View style={{ height: 3, backgroundColor: el.teal }} />
+                <View style={{ padding: 12 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                    <ElBadge text={ex.type?.toUpperCase() ?? "TREŚĆ"} />
+                    {ex.category && <Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textMuted }}>· {ex.category}</Text>}
+                  </View>
+                  <Text style={{ fontSize: 11, fontFamily: "Inter", fontWeight: 700, color: el.textDark, marginBottom: 4 }}>{ex.title}</Text>
+                  <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, marginBottom: 8, lineHeight: 1.5 }}>{ex.description}</Text>
+                  <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+                    {ex.targetSites && (
+                      <View style={{ flex: 1, minWidth: "30%" }}>
+                        <Text style={{ fontSize: 7, fontFamily: "Inter", fontWeight: 700, color: el.textMuted, textTransform: "uppercase", marginBottom: 1 }}>DOCELOWE STRONY</Text>
+                        <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, lineHeight: 1.4 }}>{ex.targetSites}</Text>
+                      </View>
+                    )}
+                    {ex.suggestedAnchorText && (
+                      <View style={{ flex: 1, minWidth: "30%" }}>
+                        <Text style={{ fontSize: 7, fontFamily: "Inter", fontWeight: 700, color: el.textMuted, textTransform: "uppercase", marginBottom: 1 }}>TEKST KOTWICY</Text>
+                        <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, lineHeight: 1.4 }}>{ex.suggestedAnchorText}</Text>
+                      </View>
+                    )}
+                    {ex.emailSubject && (
+                      <View style={{ flex: 1, minWidth: "30%" }}>
+                        <Text style={{ fontSize: 7, fontFamily: "Inter", fontWeight: 700, color: el.textMuted, textTransform: "uppercase", marginBottom: 1 }}>TEMAT E-MAILA</Text>
+                        <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, lineHeight: 1.4 }}>{ex.emailSubject}</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
               </View>
             ))}
           </View>
-          <PageFooter />
+          <ElPageFooter />
         </Page>
       )}
 
       {/* ── Technical SEO ────────────────────────────────── */}
       {strategy.technicalSEO && (strategy.technicalSEO.healthScore != null || strategy.technicalSEO.criticalFixes?.length > 0 || strategy.technicalSEO.warnings?.length > 0 || strategy.technicalSEO.improvementSteps?.length > 0) && (
-        <Page size="A4" style={styles.page}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{sn(6)}. Techniczne SEO</Text>
-            <View style={styles.metricsRow}>
-              <MetricBox value={`${strategy.technicalSEO.healthScore}/100`} label="Aktualny wynik" />
-              <MetricBox value={`${strategy.technicalSEO.healthScoreTarget}/100`} label="Docelowy wynik" />
-              <MetricBox value={strategy.technicalSEO.criticalFixes?.length ?? 0} label="Krytyczne naprawy" valueColor={(strategy.technicalSEO.criticalFixes?.length ?? 0) > 0 ? colors.error : undefined} />
-              <MetricBox value={strategy.technicalSEO.warnings?.length ?? 0} label="Ostrzeżenia" valueColor={(strategy.technicalSEO.warnings?.length ?? 0) > 0 ? colors.warning : undefined} />
+        <Page size="A4" style={elPage}>
+          <ElPageHeader domain={domain} date={date} />
+          <View style={{ marginBottom: 20 }}>
+            <ElSectionTitle number={`${sn(6)}.`}>Techniczne SEO</ElSectionTitle>
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+              <ElMetricCard value={`${strategy.technicalSEO.healthScore}/100`} label="Aktualny wynik" />
+              <ElMetricCard value={`${strategy.technicalSEO.healthScoreTarget}/100`} label="Docelowy wynik" accentColor={el.success} valueColor={el.success} />
+              <ElMetricCard value={strategy.technicalSEO.criticalFixes?.length ?? 0} label="Krytyczne naprawy" accentColor={el.error} valueColor={(strategy.technicalSEO.criticalFixes?.length ?? 0) > 0 ? el.error : undefined} />
+              <ElMetricCard value={strategy.technicalSEO.warnings?.length ?? 0} label="Ostrzeżenia" accentColor={el.warning} valueColor={(strategy.technicalSEO.warnings?.length ?? 0) > 0 ? el.warning : undefined} />
             </View>
 
             {strategy.technicalSEO.criticalFixes?.length > 0 && (
               <>
-                <Text style={[styles.subsectionTitle, { color: colors.error }]}>Krytyczne naprawy</Text>
+                <ElSubTitle color={el.error}>Krytyczne naprawy</ElSubTitle>
                 {strategy.technicalSEO.criticalFixes.map((f: string, i: number) => (
                   <View key={i} style={{ flexDirection: "row", gap: 6, marginBottom: 6 }}>
-                    <Text style={{ fontSize: 9, color: colors.error }}>●</Text>
-                    <Text style={[styles.text, { flex: 1 }]}>{f}</Text>
+                    <Text style={{ fontSize: 9, color: el.error }}>●</Text>
+                    <Text style={{ fontSize: 10, fontFamily: "Inter", color: el.textBody, flex: 1, lineHeight: 1.5 }}>{f}</Text>
                   </View>
                 ))}
               </>
@@ -1539,11 +1690,11 @@ function StrategyPdfDocument({ strategy, domain, date, businessDescription, targ
 
             {strategy.technicalSEO.warnings?.length > 0 && (
               <>
-                <Text style={[styles.subsectionTitle, { color: colors.warning }]}>Ostrzeżenia</Text>
+                <ElSubTitle color={el.warning}>Ostrzeżenia</ElSubTitle>
                 {strategy.technicalSEO.warnings.map((w: string, i: number) => (
                   <View key={i} style={{ flexDirection: "row", gap: 6, marginBottom: 6 }}>
-                    <Text style={{ fontSize: 9, color: colors.warning }}>▲</Text>
-                    <Text style={[styles.text, { flex: 1 }]}>{w}</Text>
+                    <Text style={{ fontSize: 9, color: el.warning }}>▲</Text>
+                    <Text style={{ fontSize: 10, fontFamily: "Inter", color: el.textBody, flex: 1, lineHeight: 1.5 }}>{w}</Text>
                   </View>
                 ))}
               </>
@@ -1551,118 +1702,109 @@ function StrategyPdfDocument({ strategy, domain, date, businessDescription, targ
 
             {strategy.technicalSEO.improvementSteps?.length > 0 && (
               <>
-                <Text style={styles.subsectionTitle}>Kroki ulepszenia</Text>
+                <ElSubTitle>Kroki ulepszenia</ElSubTitle>
                 {strategy.technicalSEO.improvementSteps.map((s: string, i: number) => (
                   <View key={i} style={{ flexDirection: "row", gap: 6, marginBottom: 6 }}>
-                    <Text style={[styles.text, { width: 16 }]}>{i + 1}.</Text>
-                    <Text style={[styles.text, { flex: 1 }]}>{s}</Text>
+                    <Text style={{ fontSize: 10, fontFamily: "Inter", fontWeight: 700, color: el.teal, width: 16 }}>{i + 1}.</Text>
+                    <Text style={{ fontSize: 10, fontFamily: "Inter", color: el.textBody, flex: 1, lineHeight: 1.5 }}>{s}</Text>
                   </View>
                 ))}
               </>
             )}
           </View>
-          <PageFooter />
+          <ElPageFooter />
         </Page>
       )}
-      <DrillDownPages drillDowns={dd} sectionKey="technicalSEO" />
+      <DrillDownPages drillDowns={dd} sectionKey="technicalSEO" domain={domain} date={date} />
 
-      {/* ── 7. Risk Assessment ──────────────────────────────── */}
+      {/* ── Risk Assessment ──────────────────────────────── */}
       {strategy.riskAssessment?.length > 0 && (
-        <Page size="A4" style={styles.page}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{sn(7)}. Ocena ryzyka ({strategy.riskAssessment.length})</Text>
+        <Page size="A4" style={elPage}>
+          <ElPageHeader domain={domain} date={date} />
+          <View style={{ marginBottom: 20 }}>
+            <ElSectionTitle number={`${sn(7)}.`}>Ocena ryzyka ({strategy.riskAssessment.length})</ElSectionTitle>
 
-            {/* Severity distribution summary */}
             {(() => {
               const counts = { high: 0, medium: 0, low: 0 };
               strategy.riskAssessment.forEach((r: any) => { if (counts[r.severity as keyof typeof counts] !== undefined) counts[r.severity as keyof typeof counts]++; });
               const total = strategy.riskAssessment.length;
               return (
                 <View style={{ marginBottom: 12 }}>
-                  <Text style={styles.subsectionTitle}>Rozkład ważności</Text>
-                  {/* Stacked bar */}
-                  <View style={{ flexDirection: "row", height: 16, borderRadius: 4, overflow: "hidden", marginBottom: 6 }}>
-                    {counts.high > 0 && <View style={{ width: `${(counts.high / total) * 100}%`, backgroundColor: colors.error, justifyContent: "center", alignItems: "center" }}><Text style={{ fontSize: 8, color: "#fff", fontFamily: "Inter", fontWeight: 700 }}>{counts.high}</Text></View>}
-                    {counts.medium > 0 && <View style={{ width: `${(counts.medium / total) * 100}%`, backgroundColor: colors.warning, justifyContent: "center", alignItems: "center" }}><Text style={{ fontSize: 8, color: "#fff", fontFamily: "Inter", fontWeight: 700 }}>{counts.medium}</Text></View>}
-                    {counts.low > 0 && <View style={{ width: `${(counts.low / total) * 100}%`, backgroundColor: colors.tertiary, justifyContent: "center", alignItems: "center" }}><Text style={{ fontSize: 8, color: "#fff", fontFamily: "Inter", fontWeight: 700 }}>{counts.low}</Text></View>}
+                  <ElSubTitle>Rozkład ważności</ElSubTitle>
+                  <View style={{ flexDirection: "row", height: 20, borderRadius: 4, overflow: "hidden", marginBottom: 8 }}>
+                    {counts.high > 0 && <View style={{ width: `${(counts.high / total) * 100}%`, backgroundColor: el.error, justifyContent: "center", alignItems: "center" }}><Text style={{ fontSize: 9, color: el.white, fontFamily: "Inter", fontWeight: 700 }}>{counts.high}</Text></View>}
+                    {counts.medium > 0 && <View style={{ width: `${(counts.medium / total) * 100}%`, backgroundColor: el.warning, justifyContent: "center", alignItems: "center" }}><Text style={{ fontSize: 9, color: el.white, fontFamily: "Inter", fontWeight: 700 }}>{counts.medium}</Text></View>}
+                    {counts.low > 0 && <View style={{ width: `${(counts.low / total) * 100}%`, backgroundColor: el.textMuted, justifyContent: "center", alignItems: "center" }}><Text style={{ fontSize: 9, color: el.white, fontFamily: "Inter", fontWeight: 700 }}>{counts.low}</Text></View>}
                   </View>
                   <View style={{ flexDirection: "row", gap: 16 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                      <View style={{ width: 8, height: 8, backgroundColor: colors.error, borderRadius: 1 }} />
-                      <Text style={styles.caption}>Wysoki: {counts.high}</Text>
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                      <View style={{ width: 8, height: 8, backgroundColor: colors.warning, borderRadius: 1 }} />
-                      <Text style={styles.caption}>Średni: {counts.medium}</Text>
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                      <View style={{ width: 8, height: 8, backgroundColor: colors.tertiary, borderRadius: 1 }} />
-                      <Text style={styles.caption}>Niski: {counts.low}</Text>
-                    </View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><View style={{ width: 10, height: 10, backgroundColor: el.error, borderRadius: 2 }} /><Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textGray }}>Wysoki: {counts.high}</Text></View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><View style={{ width: 10, height: 10, backgroundColor: el.warning, borderRadius: 2 }} /><Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textGray }}>Średni: {counts.medium}</Text></View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><View style={{ width: 10, height: 10, backgroundColor: el.textMuted, borderRadius: 2 }} /><Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textGray }}>Niski: {counts.low}</Text></View>
                   </View>
                 </View>
               );
             })()}
 
             {strategy.riskAssessment.map((r: any, i: number) => {
-              const sev = SEVERITY_PDF[r.severity] ?? SEVERITY_PDF.medium;
+              const sev = EL_SEVERITY[r.severity] ?? EL_SEVERITY.medium;
               return (
-                <View key={i} wrap={false} style={{ marginBottom: 8, backgroundColor: sev.bg, padding: 12, borderRadius: 6 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                    <Text style={[styles.recPriority, { backgroundColor: sev.text, color: "#FFFFFF" }]}>{r.severity?.toUpperCase()}</Text>
-                    <Text style={[styles.textBold, { flex: 1 }]}>{r.risk}</Text>
-                  </View>
-                  <View style={{ backgroundColor: "#FFFFFF", padding: 8, borderRadius: 4, marginBottom: 4 }}>
-                    <Text style={[styles.label, { marginBottom: 2 }]}>Wpływ</Text>
-                    <Text style={styles.textSmall}>{r.impact}</Text>
-                  </View>
-                  <View style={{ backgroundColor: "#FFFFFF", padding: 8, borderRadius: 4 }}>
-                    <Text style={[styles.label, { color: colors.success, marginBottom: 2 }]}>Mitygacja</Text>
-                    <Text style={styles.textSmall}>{r.mitigation}</Text>
+                <View key={i} wrap={false} style={{ borderWidth: 1, borderColor: el.border, borderRadius: 4, marginBottom: 10, overflow: "hidden" }}>
+                  <View style={{ height: 3, backgroundColor: sev.text }} />
+                  <View style={{ padding: 12 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <ElBadge text={sev.label} color={sev.text} bgColor={sev.bg} />
+                      <Text style={{ fontSize: 10, fontFamily: "Inter", fontWeight: 700, color: el.textDark, flex: 1 }}>{r.risk}</Text>
+                    </View>
+                    <ElCallout title="Wpływ">
+                      <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, lineHeight: 1.5 }}>{r.impact}</Text>
+                    </ElCallout>
+                    <ElCallout title="Mitygacja" borderColor={el.success}>
+                      <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, lineHeight: 1.5 }}>{r.mitigation}</Text>
+                    </ElCallout>
                   </View>
                 </View>
               );
             })}
           </View>
-          <PageFooter />
+          <ElPageFooter />
         </Page>
       )}
-      <DrillDownPages drillDowns={dd} sectionKey="riskAssessment" />
+      <DrillDownPages drillDowns={dd} sectionKey="riskAssessment" domain={domain} date={date} />
 
-      {/* ── 8. Keyword Clustering ──────────────────────────── */}
+      {/* ── Keyword Clustering ──────────────────────────── */}
       {strategy.keywordClustering?.length > 0 && (
-        <Page size="A4" style={styles.page}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{sn(8)}. Klastry słów kluczowych ({strategy.keywordClustering.length})</Text>
+        <Page size="A4" style={elPage}>
+          <ElPageHeader domain={domain} date={date} />
+          <View style={{ marginBottom: 20 }}>
+            <ElSectionTitle number={`${sn(8)}.`}>Klastry słów kluczowych ({strategy.keywordClustering.length})</ElSectionTitle>
 
-            {/* Cluster comparison chart */}
             {(() => {
               const maxVol = Math.max(...strategy.keywordClustering.map((c: any) => c.totalSearchVolume ?? 0), 1);
               const sorted = [...strategy.keywordClustering].sort((a: any, b: any) => (b.totalSearchVolume ?? 0) - (a.totalSearchVolume ?? 0));
               return (
-                <View style={{ marginBottom: 12 }}>
-                  <Text style={styles.subsectionTitle}>Porównanie wolumenu i trudności</Text>
-                  <View style={styles.table}>
-                    <View style={styles.tableHeader}>
-                      <Text style={[styles.tableHeaderCell, { flex: 2.5 }]}>Klaster</Text>
-                      <Text style={[styles.tableHeaderCell, { flex: 4 }]}>Wolumen wyszukiwań</Text>
-                      <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Trudn.</Text>
-                      <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Słowa kl.</Text>
+                <View style={{ marginBottom: 14 }}>
+                  <ElSubTitle>Porównanie wolumenu i trudności</ElSubTitle>
+                  <View style={{ borderWidth: 1, borderColor: el.border, borderRadius: 4, overflow: "hidden", marginBottom: 12 }}>
+                    <View style={{ flexDirection: "row", backgroundColor: el.teal, paddingVertical: 6, paddingHorizontal: 8 }}>
+                      <Text style={{ flex: 2.5, fontSize: 8, fontFamily: "Inter", fontWeight: 700, color: el.white }}>Klaster</Text>
+                      <Text style={{ flex: 4, fontSize: 8, fontFamily: "Inter", fontWeight: 700, color: el.white }}>Wolumen wyszukiwań</Text>
+                      <Text style={{ flex: 1, fontSize: 8, fontFamily: "Inter", fontWeight: 700, color: el.white }}>Trudn.</Text>
+                      <Text style={{ flex: 1, fontSize: 8, fontFamily: "Inter", fontWeight: 700, color: el.white }}>Słowa</Text>
                     </View>
                     {sorted.map((c: any, i: number) => {
                       const volPct = ((c.totalSearchVolume ?? 0) / maxVol) * 100;
-                      const diffColor = c.avgDifficulty >= 70 ? colors.error : c.avgDifficulty >= 40 ? colors.warning : colors.success;
+                      const diffColor = c.avgDifficulty >= 70 ? el.error : c.avgDifficulty >= 40 ? el.warning : el.success;
                       return (
-                        <View key={i} style={[styles.tableRow, { alignItems: "center" }]}>
-                          <Text style={[styles.tableCell, { flex: 2.5, fontFamily: "Inter", fontWeight: 600 }]}>{c.clusterName}</Text>
+                        <View key={i} style={{ flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: el.borderLight, paddingVertical: 7, paddingHorizontal: 8, backgroundColor: i % 2 === 1 ? el.offWhite : el.white }}>
+                          <Text style={{ flex: 2.5, fontSize: 9, fontFamily: "Inter", fontWeight: 600, color: el.textDark }}>{c.clusterName}</Text>
                           <View style={{ flex: 4, flexDirection: "row", alignItems: "center", gap: 4 }}>
-                            <View style={{ flex: 1, height: 10, backgroundColor: colors.bgMuted, borderRadius: 2 }}>
-                              <View style={{ width: `${volPct}%`, height: 10, backgroundColor: colors.brand, borderRadius: 2 }} />
+                            <View style={{ flex: 1, height: 12, backgroundColor: el.borderLight, borderRadius: 2 }}>
+                              <View style={{ width: `${volPct}%`, height: 12, backgroundColor: el.teal, borderRadius: 2 }} />
                             </View>
-                            <Text style={{ fontSize: 8, fontFamily: "Inter", color: colors.primary, width: 40, textAlign: "right" }}>{(c.totalSearchVolume ?? 0).toLocaleString()}</Text>
+                            <Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textDark, width: 40, textAlign: "right" }}>{(c.totalSearchVolume ?? 0).toLocaleString()}</Text>
                           </View>
-                          <Text style={[styles.tableCell, { flex: 1, color: diffColor, fontFamily: "Inter", fontWeight: 700 }]}>{c.avgDifficulty}</Text>
-                          <Text style={[styles.tableCell, { flex: 1 }]}>{c.keywords?.length ?? 0}</Text>
+                          <Text style={{ flex: 1, fontSize: 9, fontFamily: "Inter", fontWeight: 700, color: diffColor }}>{c.avgDifficulty}</Text>
+                          <Text style={{ flex: 1, fontSize: 9, fontFamily: "Inter", color: el.textGray }}>{c.keywords?.length ?? 0}</Text>
                         </View>
                       );
                     })}
@@ -1672,89 +1814,89 @@ function StrategyPdfDocument({ strategy, domain, date, businessDescription, targ
             })()}
 
             {strategy.keywordClustering.map((c: any, i: number) => (
-              <View key={i} style={{ marginBottom: 10, padding: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 4 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
-                  <Text style={styles.textBold}>{c.clusterName}</Text>
-                  <Text style={styles.textSmall}>Wol.: {c.totalSearchVolume?.toLocaleString()} | Trudn.: {c.avgDifficulty}</Text>
+              <View key={i} wrap={false} style={{ borderWidth: 1, borderColor: el.border, borderRadius: 4, marginBottom: 10, overflow: "hidden" }}>
+                <View style={{ height: 3, backgroundColor: el.teal }} />
+                <View style={{ padding: 12 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                    <Text style={{ fontSize: 11, fontFamily: "Inter", fontWeight: 700, color: el.textDark }}>{c.clusterName}</Text>
+                    <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textGray }}>Wol.: {c.totalSearchVolume?.toLocaleString()} | Trudn.: {c.avgDifficulty}</Text>
+                  </View>
+                  <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, marginBottom: 4, lineHeight: 1.4 }}>Temat: {c.theme}</Text>
+                  <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, marginBottom: 4, lineHeight: 1.4 }}>Słowa kluczowe: {c.keywords?.join(", ")}</Text>
+                  <Text style={{ fontSize: 9, fontFamily: "Inter", fontWeight: 600, color: el.teal }}>→ {c.suggestedContentPiece}</Text>
                 </View>
-                <Text style={[styles.textSmall, { marginBottom: 4 }]}>Temat: {c.theme}</Text>
-                <Text style={[styles.textSmall, { marginBottom: 4 }]}>Słowa kluczowe: {c.keywords?.join(", ")}</Text>
-                <Text style={styles.textSmallBold}>→ {c.suggestedContentPiece}</Text>
               </View>
             ))}
           </View>
-          <PageFooter />
+          <ElPageFooter />
         </Page>
       )}
-      <DrillDownPages drillDowns={dd} sectionKey="keywordClustering" />
+      <DrillDownPages drillDowns={dd} sectionKey="keywordClustering" domain={domain} date={date} />
 
-      {/* ── 9. ROI Forecast ─────────────────────────────────── */}
+      {/* ── ROI Forecast ─────────────────────────────────── */}
       {strategy.roiForecast && (strategy.roiForecast.currentEstimatedTraffic != null || strategy.roiForecast.projectedTraffic30d != null || strategy.roiForecast.keyDrivers?.length > 0) && (
-        <Page size="A4" style={styles.page}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{sn(9)}. Prognoza ROI</Text>
-            <View style={styles.metricsRow}>
-              <MetricBox value={strategy.roiForecast.currentEstimatedTraffic?.toLocaleString()} label="Aktualny ruch" />
-              <MetricBox value={strategy.roiForecast.projectedTraffic30d?.toLocaleString()} label="Prognoza 30 dni" />
-              <MetricBox value={strategy.roiForecast.projectedTraffic90d?.toLocaleString()} label="Prognoza 90 dni" />
+        <Page size="A4" style={elPage}>
+          <ElPageHeader domain={domain} date={date} />
+          <View style={{ marginBottom: 20 }}>
+            <ElSectionTitle number={`${sn(9)}.`}>Prognoza ROI</ElSectionTitle>
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+              <ElMetricCard value={strategy.roiForecast.currentEstimatedTraffic?.toLocaleString()} label="Aktualny ruch" accentColor={el.textMuted} valueColor={el.textGray} />
+              <ElMetricCard value={strategy.roiForecast.projectedTraffic30d?.toLocaleString()} label="Prognoza 30 dni" accentColor={el.warning} valueColor={el.warning} />
+              <ElMetricCard value={strategy.roiForecast.projectedTraffic90d?.toLocaleString()} label="Prognoza 90 dni" accentColor={el.success} valueColor={el.success} />
             </View>
 
-            {/* Traffic growth bar */}
-            <View style={{ marginBottom: 10 }}>
-              <HorizontalBar label="Aktualny" value={strategy.roiForecast.currentEstimatedTraffic ?? 0} max={Math.max(strategy.roiForecast.projectedTraffic90d ?? 1, 1)} color={colors.tertiary} />
-              <HorizontalBar label="30 dni" value={strategy.roiForecast.projectedTraffic30d ?? 0} max={Math.max(strategy.roiForecast.projectedTraffic90d ?? 1, 1)} color={colors.warning} />
-              <HorizontalBar label="90 dni" value={strategy.roiForecast.projectedTraffic90d ?? 0} max={Math.max(strategy.roiForecast.projectedTraffic90d ?? 1, 1)} color={colors.success} />
+            <View style={{ marginBottom: 12 }}>
+              <ElHorizontalBar label="Aktualny" value={strategy.roiForecast.currentEstimatedTraffic ?? 0} max={Math.max(strategy.roiForecast.projectedTraffic90d ?? 1, 1)} color={el.textMuted} />
+              <ElHorizontalBar label="30 dni" value={strategy.roiForecast.projectedTraffic30d ?? 0} max={Math.max(strategy.roiForecast.projectedTraffic90d ?? 1, 1)} color={el.warning} />
+              <ElHorizontalBar label="90 dni" value={strategy.roiForecast.projectedTraffic90d ?? 0} max={Math.max(strategy.roiForecast.projectedTraffic90d ?? 1, 1)} color={el.teal} />
             </View>
 
             {strategy.roiForecast.keyDrivers?.length > 0 && (
               <>
-                <Text style={styles.subsectionTitle}>Kluczowe czynniki</Text>
+                <ElSubTitle>Kluczowe czynniki</ElSubTitle>
                 {strategy.roiForecast.keyDrivers.map((d: string, i: number) => (
                   <View key={i} style={{ flexDirection: "row", gap: 6, marginBottom: 4 }}>
-                    <Text style={styles.text}>•</Text>
-                    <Text style={[styles.text, { flex: 1 }]}>{d}</Text>
+                    <Text style={{ fontSize: 10, fontFamily: "Inter", color: el.textBody }}>•</Text>
+                    <Text style={{ fontSize: 10, fontFamily: "Inter", color: el.textBody, flex: 1, lineHeight: 1.5 }}>{d}</Text>
                   </View>
                 ))}
               </>
             )}
             {strategy.roiForecast.assumptions?.length > 0 && (
-              <>
-                <Text style={styles.subsectionTitle}>Założenia</Text>
+              <ElCallout title="Założenia">
                 {strategy.roiForecast.assumptions.map((a: string, i: number) => (
-                  <View key={i} style={{ flexDirection: "row", gap: 6, marginBottom: 4 }}>
-                    <Text style={styles.text}>•</Text>
-                    <Text style={[styles.text, { flex: 1 }]}>{a}</Text>
+                  <View key={i} style={{ flexDirection: "row", gap: 6, marginBottom: 3 }}>
+                    <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody }}>•</Text>
+                    <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, flex: 1, lineHeight: 1.4 }}>{a}</Text>
                   </View>
                 ))}
-              </>
+              </ElCallout>
             )}
           </View>
-          <PageFooter />
+          <ElPageFooter />
         </Page>
       )}
-      <DrillDownPages drillDowns={dd} sectionKey="roiForecast" />
+      <DrillDownPages drillDowns={dd} sectionKey="roiForecast" domain={domain} date={date} />
 
-      {/* ── 10. Action Plan + Gantt ─────────────────────────── */}
+      {/* ── Action Plan + Gantt ─────────────────────────── */}
       {strategy.actionPlan?.length > 0 && (
-        <Page size="A4" style={styles.page}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{sn(10)}. Plan działania ({strategy.actionPlan.length})</Text>
+        <Page size="A4" style={elPage}>
+          <ElPageHeader domain={domain} date={date} />
+          <View style={{ marginBottom: 20 }}>
+            <ElSectionTitle number={`${sn(10)}.`}>Plan działania ({strategy.actionPlan.length})</ElSectionTitle>
 
-            {/* Gantt Timeline */}
-            <Text style={styles.subsectionTitle}>Oś czasu</Text>
-            <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 4, marginBottom: 12 }}>
-              {/* Gantt header */}
-              <View style={{ flexDirection: "row", backgroundColor: colors.bgMuted, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <ElSubTitle>Oś czasu</ElSubTitle>
+            <View style={{ borderWidth: 1, borderColor: el.border, borderRadius: 4, marginBottom: 14, overflow: "hidden" }}>
+              <View style={{ flexDirection: "row", backgroundColor: el.teal }}>
                 <View style={{ width: "40%", padding: 4 }}>
-                  <Text style={[styles.tableHeaderCell]}>Działanie</Text>
+                  <Text style={{ fontSize: 8, fontFamily: "Inter", fontWeight: 700, color: el.white }}>Działanie</Text>
                 </View>
                 {["M1", "M2", "M3", "M4", "M5", "M6"].map((m) => (
-                  <View key={m} style={{ flex: 1, padding: 4, borderLeftWidth: 1, borderLeftColor: colors.border, alignItems: "center" }}>
-                    <Text style={styles.tableHeaderCell}>{m}</Text>
+                  <View key={m} style={{ flex: 1, padding: 4, borderLeftWidth: 1, borderLeftColor: "rgba(255,255,255,0.2)", alignItems: "center" }}>
+                    <Text style={{ fontSize: 8, fontFamily: "Inter", fontWeight: 700, color: el.white }}>{m}</Text>
                   </View>
                 ))}
               </View>
-              {/* Gantt rows */}
               {[...strategy.actionPlan].sort((a: any, b: any) => a.priority - b.priority).map((item: any, i: number) => {
                 const [start, end] = timeframeMonths[item.timeframe] ?? [0, 2];
                 const adj = effortAdj[item.effort] ?? 0;
@@ -1762,24 +1904,22 @@ function StrategyPdfDocument({ strategy, domain, date, businessDescription, targ
                 const barEnd = Math.min(6, end + adj);
                 const leftPct = (barStart / 6) * 100;
                 const widthPct = Math.max(((barEnd - barStart) / 6) * 100, 8);
-                const barColor = catColors[item.category] ?? colors.brand;
+                const barColor = catColorsEl[item.category] ?? el.teal;
 
                 return (
-                  <View key={i} style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.border, minHeight: 22 }}>
+                  <View key={i} style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: el.borderLight, minHeight: 24, backgroundColor: i % 2 === 0 ? el.white : el.offWhite }}>
                     <View style={{ width: "40%", padding: 4, justifyContent: "center" }}>
-                      <Text style={{ fontSize: 8, fontFamily: "Inter", color: colors.primary }}>{item.priority}. {item.action}</Text>
+                      <Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textDark }}>{item.priority}. {item.action}</Text>
                     </View>
                     <View style={{ flex: 1, position: "relative", justifyContent: "center" }}>
-                      {/* Grid lines */}
                       {[0, 1, 2, 3, 4, 5].map((mi) => (
-                        <View key={mi} style={{ position: "absolute", left: `${(mi / 6) * 100}%`, top: 0, bottom: 0, width: 1, backgroundColor: colors.border }} />
+                        <View key={mi} style={{ position: "absolute", left: `${(mi / 6) * 100}%`, top: 0, bottom: 0, width: 1, backgroundColor: el.borderLight }} />
                       ))}
-                      {/* Bar */}
                       <View style={{
                         position: "absolute",
                         left: `${leftPct}%`,
                         width: `${widthPct}%`,
-                        height: 10,
+                        height: 12,
                         backgroundColor: barColor,
                         borderRadius: 2,
                         top: 6,
@@ -1788,133 +1928,140 @@ function StrategyPdfDocument({ strategy, domain, date, businessDescription, targ
                   </View>
                 );
               })}
-              {/* Legend */}
-              <View style={{ flexDirection: "row", padding: 4, gap: 12 }}>
-                {Object.entries(catColors).map(([cat, col]) => (
+              <View style={{ flexDirection: "row", padding: 6, gap: 12, backgroundColor: el.lightGray }}>
+                {Object.entries(catColorsEl).map(([cat, col]) => (
                   <View key={cat} style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-                    <View style={{ width: 8, height: 8, backgroundColor: col, borderRadius: 1 }} />
-                    <Text style={{ fontSize: 8, fontFamily: "Inter", color: colors.tertiary }}>{cat}</Text>
+                    <View style={{ width: 8, height: 8, backgroundColor: col, borderRadius: 2 }} />
+                    <Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textGray }}>{cat}</Text>
                   </View>
                 ))}
               </View>
             </View>
 
-            {/* Detailed list */}
-            <Text style={styles.subsectionTitle}>Szczegółowe działania</Text>
-            {[...strategy.actionPlan].sort((a: any, b: any) => a.priority - b.priority).map((item: any, i: number) => (
-              <View key={i} wrap={false} style={styles.recItem}>
-                <Text style={[styles.recPriority, {
-                  backgroundColor: item.effort === "high" ? colors.errorLight : item.effort === "medium" ? colors.warningLight : colors.bgMuted,
-                  color: item.effort === "high" ? colors.error : item.effort === "medium" ? colors.warning : colors.secondary,
-                }]}>
-                  P{item.priority}
-                </Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.textBold}>{item.action}</Text>
-                  <Text style={styles.textSmall}>
-                    {item.category} · {item.effort} effort · {item.timeframe}
-                  </Text>
-                  {item.expectedImpact && <Text style={styles.textSmall}>{item.expectedImpact}</Text>}
-                </View>
-              </View>
-            ))}
-          </View>
-          <PageFooter />
-        </Page>
-      )}
-      <DrillDownPages drillDowns={dd} sectionKey="actionPlan" />
-
-      {/* ── Actionable Steps (optional) ───────────────────── */}
-      {hasActionableSteps && (
-        <Page size="A4" style={styles.page}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{sn(10) + 1}. Kroki do wykonania ({strategy.actionableSteps.length})</Text>
-            <Text style={[styles.textSmall, { color: colors.tertiary, marginBottom: 10 }]}>Szczegółowe briefy wdrożeniowe z konkretną specyfikacją</Text>
-            {strategy.actionableSteps.map((step: any, i: number) => (
-              <View key={i} wrap={false} style={{ marginBottom: 12, borderRadius: 6, overflow: "hidden" }}>
-                {/* Step header */}
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.bgTertiary, padding: 10 }}>
-                  <View style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: colors.brand, justifyContent: "center", alignItems: "center" }}>
-                    <Text style={{ color: "#fff", fontSize: 9, fontFamily: "Inter", fontWeight: 700 }}>{i + 1}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.textBold}>{step.title}</Text>
-                    <View style={{ flexDirection: "row", gap: 6, marginTop: 2 }}>
-                      <Text style={[styles.caption, { color: colors.brand }]}>{step.type?.toUpperCase()}</Text>
-                      {step.goal && <Text style={[styles.caption, { color: colors.tertiary }]}>{step.goal}</Text>}
+            <ElSubTitle>Szczegółowe działania</ElSubTitle>
+            {[...strategy.actionPlan].sort((a: any, b: any) => a.priority - b.priority).map((item: any, i: number) => {
+              const effortColor = item.effort === "high" ? el.error : item.effort === "medium" ? el.warning : el.success;
+              const effortBg = item.effort === "high" ? el.errorBg : item.effort === "medium" ? el.warningBg : el.successBg;
+              return (
+                <View key={i} wrap={false} style={{ borderWidth: 1, borderColor: el.border, borderRadius: 4, marginBottom: 8, padding: 10 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <ElBadge text={`P${item.priority}`} color={effortColor} bgColor={effortBg} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 10, fontFamily: "Inter", fontWeight: 700, color: el.textDark }}>{item.action}</Text>
+                      <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textGray }}>
+                        {item.category} · {item.effort} effort · {item.timeframe}
+                      </Text>
+                      {item.expectedImpact && <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, lineHeight: 1.4 }}>{item.expectedImpact}</Text>}
                     </View>
                   </View>
                 </View>
-                {/* Specs */}
-                {step.specs && Object.keys(step.specs).length > 0 && (
-                  <View style={{ padding: 10, gap: 4 }}>
-                    {Object.entries(step.specs).filter(([, v]) => v != null && v !== "" && !(Array.isArray(v) && (v as any[]).length === 0)).map(([key, value]: [string, any]) => (
-                      <View key={key} style={{ flexDirection: "row", gap: 4 }}>
-                        <Text style={[styles.caption, { color: colors.tertiary, width: 90, textTransform: "uppercase" }]}>{key.replace(/([A-Z])/g, " $1").trim()}</Text>
-                        <Text style={[styles.textSmall, { flex: 1 }]}>{Array.isArray(value) ? value.join(", ") : String(value)}</Text>
+              );
+            })}
+          </View>
+          <ElPageFooter />
+        </Page>
+      )}
+      <DrillDownPages drillDowns={dd} sectionKey="actionPlan" domain={domain} date={date} />
+
+      {/* ── Actionable Steps (optional) ───────────────────── */}
+      {hasActionableSteps && (
+        <Page size="A4" style={elPage}>
+          <ElPageHeader domain={domain} date={date} />
+          <View style={{ marginBottom: 20 }}>
+            <ElSectionTitle number={`${sn(10) + 1}.`}>Kroki do wykonania ({strategy.actionableSteps.length})</ElSectionTitle>
+            <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textMuted, marginBottom: 12 }}>Szczegółowe briefy wdrożeniowe z konkretną specyfikacją</Text>
+            {strategy.actionableSteps.map((step: any, i: number) => (
+              <View key={i} wrap={false} style={{ borderWidth: 1, borderColor: el.border, borderRadius: 4, marginBottom: 10, overflow: "hidden" }}>
+                <View style={{ height: 3, backgroundColor: el.teal }} />
+                <View style={{ padding: 12 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <View style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: el.teal, justifyContent: "center", alignItems: "center" }}>
+                      <Text style={{ color: el.white, fontSize: 10, fontFamily: "Inter", fontWeight: 700 }}>{i + 1}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 11, fontFamily: "Inter", fontWeight: 700, color: el.textDark }}>{step.title}</Text>
+                      <View style={{ flexDirection: "row", gap: 6, marginTop: 2 }}>
+                        <ElBadge text={step.type?.toUpperCase() ?? "KROK"} />
+                        {step.goal && <Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textMuted }}>{step.goal}</Text>}
                       </View>
-                    ))}
+                    </View>
                   </View>
-                )}
-                {/* Notes */}
-                {step.notes && (
-                  <View style={{ padding: 10, paddingTop: 0 }}>
-                    <Text style={[styles.textSmall, { color: colors.tertiary }]}>{step.notes}</Text>
-                  </View>
-                )}
-                {/* Mockup — visual wireframe in PDF */}
-                {step.mockup && Array.isArray(step.mockup) && step.mockup.length > 0 && (
-                  <View style={{ margin: 10, marginTop: 0, borderRadius: 4, overflow: "hidden", borderWidth: 1, borderColor: colors.border }}>
-                    <Text style={[styles.caption, { color: colors.tertiary, padding: 6, paddingBottom: 2, textTransform: "uppercase" }]}>MOCKUP TREŚCI</Text>
-                    {step.mockup.map((sec: any, si: number) => {
-                      const bgColors: Record<string, string> = {
-                        hero: "#EEF2FF", features: "#EFF6FF", content: "#F9FAFB", faq: "#FFFBEB",
-                        cta: "#ECFDF5", testimonials: "#FAF5FF", stats: "#EEF2FF", comparison: "#FDF2F8",
-                        steps: "#F0FDFA", gallery: "#FFF1F2",
-                      };
-                      return (
-                        <View key={si} style={{ backgroundColor: bgColors[sec.type] ?? "#F9FAFB", padding: 8, borderBottomWidth: si < step.mockup.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
-                          <Text style={[styles.caption, { color: colors.tertiary, marginBottom: 1 }]}>{sec.type?.toUpperCase()}</Text>
-                          <Text style={[si === 0 ? styles.textBold : styles.text, { fontSize: si === 0 ? 10 : 9 }]}>{sec.heading}</Text>
-                          {sec.content && <Text style={[styles.caption, { color: colors.secondary, marginTop: 1 }]}>{sec.content}</Text>}
+                  {step.specs && Object.keys(step.specs).length > 0 && (
+                    <View style={{ gap: 4 }}>
+                      {Object.entries(step.specs).filter(([, v]) => v != null && v !== "" && !(Array.isArray(v) && (v as any[]).length === 0)).map(([key, value]: [string, any]) => (
+                        <View key={key} style={{ flexDirection: "row", gap: 4 }}>
+                          <Text style={{ fontSize: 8, fontFamily: "Inter", fontWeight: 700, color: el.textMuted, width: 90, textTransform: "uppercase" }}>{key.replace(/([A-Z])/g, " $1").trim()}</Text>
+                          <Text style={{ flex: 1, fontSize: 9, fontFamily: "Inter", color: el.textBody, lineHeight: 1.4 }}>{Array.isArray(value) ? value.join(", ") : String(value)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  {step.notes && (
+                    <ElCallout>
+                      <Text style={{ fontSize: 9, fontFamily: "Inter", color: el.textBody, lineHeight: 1.4 }}>{step.notes}</Text>
+                    </ElCallout>
+                  )}
+                  {step.mockup && Array.isArray(step.mockup) && step.mockup.length > 0 && (
+                    <View style={{ marginTop: 8, borderRadius: 4, overflow: "hidden", borderWidth: 1, borderColor: el.border }}>
+                      <View style={{ backgroundColor: el.teal, padding: 6 }}>
+                        <Text style={{ fontSize: 8, fontFamily: "Inter", fontWeight: 700, color: el.white, textTransform: "uppercase" }}>MOCKUP TREŚCI</Text>
+                      </View>
+                      {step.mockup.map((sec: any, si: number) => (
+                        <View key={si} style={{ backgroundColor: si % 2 === 0 ? el.white : el.offWhite, padding: 8, borderBottomWidth: si < step.mockup.length - 1 ? 1 : 0, borderBottomColor: el.borderLight }}>
+                          <Text style={{ fontSize: 7, fontFamily: "Inter", fontWeight: 700, color: el.teal, textTransform: "uppercase", marginBottom: 1 }}>{sec.type?.toUpperCase()}</Text>
+                          <Text style={si === 0 ? { fontSize: 10, fontFamily: "Inter", fontWeight: 700, color: el.textDark } : { fontSize: 9, fontFamily: "Inter", color: el.textDark }}>{sec.heading}</Text>
+                          {sec.content && <Text style={{ fontSize: 8, fontFamily: "Inter", color: el.textGray, marginTop: 1 }}>{sec.content}</Text>}
                           {sec.items?.length > 0 && (
                             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 3, marginTop: 3 }}>
                               {sec.items.map((item: string, j: number) => (
-                                <Text key={j} style={{ fontSize: 7, fontFamily: "Inter", color: colors.secondary, backgroundColor: "#F3F4F6", borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 }}>
+                                <Text key={j} style={{ fontSize: 7, fontFamily: "Inter", color: el.textBody, backgroundColor: el.lightGray, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 }}>
                                   {sec.type === "faq" ? `${j + 1}. ${item}` : item}
                                 </Text>
                               ))}
                             </View>
                           )}
                         </View>
-                      );
-                    })}
-                  </View>
-                )}
+                      ))}
+                    </View>
+                  )}
+                </View>
               </View>
             ))}
           </View>
-          <PageFooter />
+          <ElPageFooter />
         </Page>
       )}
-      <DrillDownPages drillDowns={dd} sectionKey="actionableSteps" />
+      <DrillDownPages drillDowns={dd} sectionKey="actionableSteps" domain={domain} date={date} />
     </Document>
   );
 }
 
+
 // ─── Logo Loader ─────────────────────────────────────────────────
 
 let _logoPngCache: string | null = null;
+let _logoWhitePngCache: string | null = null;
 
 async function getLogoPng(): Promise<string | undefined> {
   if (_logoPngCache) return _logoPngCache;
   try {
-    // Convert SVG logo to PNG via canvas (react-pdf Image only supports raster)
     const png = await svgToPngDataUri("/logo-dark.svg", 320);
     _logoPngCache = png;
     return png;
   } catch {
     console.warn("Could not load logo for PDF");
+    return undefined;
+  }
+}
+
+async function getLogoWhitePng(): Promise<string | undefined> {
+  if (_logoWhitePngCache) return _logoWhitePngCache;
+  try {
+    const png = await svgToPngDataUri("/logo-white.svg", 320);
+    _logoWhitePngCache = png;
+    return png;
+  } catch {
+    console.warn("Could not load white logo for PDF");
     return undefined;
   }
 }
@@ -1947,7 +2094,14 @@ export async function generateStrategyPdf(
     drillDowns?: any[];
   }
 ): Promise<Blob> {
-  const logoSrc = await getLogoPng();
+  let logoSrc: string | undefined;
+  try {
+    logoSrc = await getLogoWhitePng();
+  } catch (err) {
+    console.warn("[StrategyPdf] White logo failed, trying dark logo", err);
+    try { logoSrc = await getLogoPng(); } catch { /* proceed without logo */ }
+  }
+  console.log("[StrategyPdf] logo loaded:", !!logoSrc, "strategy keys:", Object.keys(strategy ?? {}));
   const doc = (
     <StrategyPdfDocument
       strategy={strategy}

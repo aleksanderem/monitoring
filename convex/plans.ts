@@ -94,6 +94,7 @@ export const updatePlan = mutation({
   args: {
     planId: v.id("plans"),
     name: v.optional(v.string()),
+    key: v.optional(v.string()),
     description: v.optional(v.string()),
     permissions: v.optional(v.array(v.string())),
     modules: v.optional(v.array(v.string())),
@@ -115,6 +116,14 @@ export const updatePlan = mutation({
 
     const plan = await ctx.db.get(args.planId);
     if (!plan) throw new Error("Plan nie istnieje");
+
+    if (args.key && args.key !== plan.key) {
+      const existing = await ctx.db
+        .query("plans")
+        .withIndex("by_key", (q) => q.eq("key", args.key))
+        .unique();
+      if (existing) throw new Error("Plan z takim kluczem już istnieje");
+    }
 
     if (args.isDefault) {
       const currentDefault = await ctx.db

@@ -62,6 +62,11 @@ export default defineSchema({
       provider: v.union(v.literal("anthropic"), v.literal("google"), v.literal("zai")),
       model: v.optional(v.string()),
     })),
+    stripeCustomerId: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
+    subscriptionStatus: v.optional(v.string()),
+    subscriptionPeriodEnd: v.optional(v.number()),
+    billingCycle: v.optional(v.string()),
   }).index("by_slug", ["slug"]),
 
   // Teams within organizations
@@ -1913,6 +1918,82 @@ export default defineSchema({
   })
     .index("by_user", ["userId", "createdAt"])
     .index("by_user_unread", ["userId", "isRead", "createdAt"]),
+
+  // =================================================================
+  // AI SEO Strategist Calendar
+  // =================================================================
+
+  calendarEvents: defineTable({
+    domainId: v.id("domains"),
+    // Event categorization
+    category: v.union(
+      v.literal("position_check"),      // Scheduled/completed position checks
+      v.literal("ranking_drop"),         // AI detected significant ranking drop
+      v.literal("ranking_opportunity"),  // Keyword near top 3, push recommended
+      v.literal("content_gap"),          // Content gap detected, creation planned
+      v.literal("content_plan"),         // AI-generated content creation task
+      v.literal("competitor_alert"),     // Competitor published/ranked for target keyword
+      v.literal("link_building"),        // Link building task
+      v.literal("seasonal_trend"),       // Seasonal keyword peak approaching
+      v.literal("audit_task"),           // SEO audit follow-up
+      v.literal("follow_up"),           // Follow-up check after an action
+      v.literal("custom")               // User-created event
+    ),
+    title: v.string(),
+    description: v.optional(v.string()),
+    // AI-generated action plan
+    aiReasoning: v.optional(v.string()),    // Why AI created this event
+    aiActionItems: v.optional(v.array(v.string())), // Specific steps to take
+    // Time
+    scheduledAt: v.number(),               // Start timestamp
+    scheduledEndAt: v.optional(v.number()), // End timestamp (for duration events)
+    // Priority & status
+    priority: v.union(
+      v.literal("critical"),   // Urgent: major ranking drop, competitor takeover
+      v.literal("high"),       // Important: near top-3 opportunity, content gap
+      v.literal("medium"),     // Standard: scheduled checks, content plans
+      v.literal("low")         // FYI: seasonal trends, minor follow-ups
+    ),
+    status: v.union(
+      v.literal("scheduled"),   // Upcoming
+      v.literal("in_progress"), // Being worked on
+      v.literal("completed"),   // Done
+      v.literal("dismissed"),   // User dismissed
+      v.literal("auto_resolved") // System detected issue resolved itself
+    ),
+    // Linked entities
+    keywordId: v.optional(v.id("keywords")),
+    keywordPhrase: v.optional(v.string()),   // Denormalized for display
+    competitorDomain: v.optional(v.string()),
+    // Source tracking
+    sourceType: v.union(
+      v.literal("ai_generated"),   // Created by AI Strategist
+      v.literal("system"),         // Created by system (job completions, etc)
+      v.literal("user")           // Created manually by user
+    ),
+    sourceJobId: v.optional(v.string()),    // Reference to originating job
+    // Color for calendar display
+    color: v.optional(v.string()),  // EventViewColor: "blue" | "orange" | "rose" | "purple" | "sky" | "amber" | "emerald"
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_domain_date", ["domainId", "scheduledAt"])
+    .index("by_domain_status", ["domainId", "status"])
+    .index("by_domain_category", ["domainId", "category"]),
+
+  // Tracks when AI Strategist last ran per domain (avoid duplicate generation)
+  aiStrategistRuns: defineTable({
+    domainId: v.id("domains"),
+    ranAt: v.number(),
+    eventsGenerated: v.number(),
+    dataSnapshot: v.optional(v.string()), // JSON summary of data analyzed
+    status: v.union(
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+    error: v.optional(v.string()),
+  }).index("by_domain", ["domainId"]),
 
   generatorOutputs: defineTable({
     domainId: v.id("domains"),

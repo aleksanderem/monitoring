@@ -7,6 +7,7 @@ import { api } from "../../../convex/_generated/api";
 import { SidebarNavigationSectionDividers } from "@/components/application/app-navigation/sidebar-navigation/sidebar-section-dividers";
 import { TopBar } from "@/components/application/app-navigation/TopBar";
 import {
+  Calendar,
   Folder,
   Globe01,
   LayersThree01,
@@ -16,6 +17,7 @@ import { usePathname } from "next/navigation";
 import { GlobalJobStatus } from "@/components/domain/job-status/GlobalJobStatus";
 import { JobCompletionNotifier } from "@/components/domain/job-status/JobCompletionNotifier";
 import { SidebarUsageIndicator } from "@/components/domain/SidebarUsageIndicator";
+import { AlertFullWidth } from "@/components/application/alerts/alerts";
 import { PermissionsProvider } from "@/contexts/PermissionsContext";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { useTranslations } from "next-intl";
@@ -45,6 +47,17 @@ export default function DashboardLayout({
   const activeOrgId = impersonatingOrgId
     ? (impersonatingOrgId as Id<"organizations">)
     : userOrgs?.[0]?._id;
+
+  const usage = useQuery(
+    api.limits.getUsageStats,
+    activeOrgId ? { organizationId: activeOrgId } : "skip"
+  );
+
+  const isOverLimit = usage && (
+    (usage.keywords.limit !== null && usage.keywords.current > usage.keywords.limit) ||
+    (usage.domains.limit !== null && usage.domains.current > usage.domains.limit) ||
+    (usage.projects.limit !== null && usage.projects.current > usage.projects.limit)
+  );
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -90,6 +103,11 @@ export default function DashboardLayout({
               href: "/jobs",
               icon: LayersThree01,
             },
+            {
+              label: t("calendar"),
+              href: "/calendar",
+              icon: Calendar,
+            },
             { divider: true },
             {
               label: t("settings"),
@@ -103,6 +121,16 @@ export default function DashboardLayout({
         <main className="min-w-0 flex-1 flex flex-col">
           <ImpersonationBanner />
           <TopBar activeUrl={pathname} />
+          {isOverLimit && (
+            <AlertFullWidth
+              color="warning"
+              title="Plan limit exceeded"
+              description="You've exceeded your plan limits. Upgrade your plan or remove excess resources to continue adding new items."
+              confirmLabel="Upgrade plan"
+              onConfirm={() => router.push("/pricing")}
+              actionType="button"
+            />
+          )}
           {children}
         </main>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import {
@@ -19,6 +19,17 @@ import {
   Speedometer02,
   Shield01,
   CreditCard02,
+  LayersTwo01,
+  LayersThree01,
+  Zap,
+  SearchRefraction,
+  Link01,
+  FileCheck02,
+  BarChart01,
+  Target04,
+  Stars02,
+  TrendUp01,
+  Globe01,
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
@@ -32,8 +43,12 @@ import { FileTrigger } from "@/components/base/file-upload-trigger/file-upload-t
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { useTheme } from "next-themes";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { SectionHeader } from "@/components/application/section-headers/section-headers";
+import { SectionLabel } from "@/components/application/section-headers/section-label";
+import * as RadioGroups from "@/components/base/radio-groups/radio-groups";
 
 // ─── Styled native select ───────────────────────────────────────────
 
@@ -1032,121 +1047,432 @@ function UsageBar({ current, limit, label }: { current: number; limit: number | 
   );
 }
 
-const MODULE_LABELS: Record<string, string> = {
-  positioning: "Keyword Tracking",
-  backlinks: "Backlinks",
-  seo_audit: "SEO Audit",
-  reports: "Reports",
-  competitors: "Competitors",
-  ai_strategy: "AI Strategy",
-  forecasts: "Forecasts",
-  link_building: "Link Building",
-};
+const MODULES = [
+  { key: "positioning", label: "Keyword Tracking", description: "Monitoruj pozycje słów kluczowych w Google i innych wyszukiwarkach.", icon: SearchRefraction },
+  { key: "backlinks", label: "Backlinks", description: "Analizuj profil linków zwrotnych i odkrywaj nowe możliwości.", icon: Link01 },
+  { key: "seo_audit", label: "SEO Audit", description: "Kompleksowy audyt techniczny Twojej strony.", icon: FileCheck02 },
+  { key: "reports", label: "Raporty", description: "Generuj szczegółowe raporty SEO dla klientów i zespołu.", icon: BarChart01 },
+  { key: "competitors", label: "Konkurencja", description: "Śledź i analizuj strategie SEO konkurencji.", icon: Target04 },
+  { key: "ai_strategy", label: "AI Strategy", description: "Inteligentne rekomendacje SEO oparte na AI.", icon: Stars02 },
+  { key: "forecasts", label: "Prognozy", description: "Prognozy pozycji i ruchu organicznego.", icon: TrendUp01 },
+  { key: "link_building", label: "Link Building", description: "Znajdź i zarządzaj możliwościami budowania linków.", icon: Globe01 },
+];
 
 function PlanUsageSection() {
   const t = useTranslations("settings");
   const orgs = useQuery(api.organizations.getUserOrganizations);
-  const orgId = orgs?.[0]?._id;
-  const plan = useQuery(
-    api.plans.getPlan,
-    orgs?.[0]?.planId ? { planId: orgs[0].planId } : "skip",
-  );
-  const usage = useQuery(
-    api.limits.getUsageStats,
-    orgId ? { organizationId: orgId } : "skip",
-  );
+  const firstOrg = orgs?.[0];
+  const orgId = firstOrg?._id;
+  const planId = firstOrg?.planId;
 
-  if (orgs === undefined || plan === undefined || usage === undefined) {
+  const createCheckout = useAction(api.stripe.createCheckoutSession);
+  const createPortal = useAction(api.stripe.createBillingPortalSession);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+
+  const subscriptionStatus = firstOrg?.subscriptionStatus;
+  const subscriptionEnd = firstOrg?.subscriptionPeriodEnd;
+  const isSubscribed = subscriptionStatus === "active" || subscriptionStatus === "trialing";
+
+  async function handleUpgrade() {
+    setUpgradeLoading(true);
+    try {
+      const url = await createCheckout({ billingCycle: "monthly" });
+      window.location.href = url;
+    } catch (err: any) {
+      console.error("[stripe] checkout error:", err);
+      const msg = err?.message || err?.data || "Unknown error";
+      toast.error(`Checkout failed: ${msg}`);
+      setUpgradeLoading(false);
+    }
+  }
+
+  async function handleManage() {
+    try {
+      const url = await createPortal();
+      window.location.href = url;
+    } catch {
+      toast.error("Nie udało się otworzyć portalu rozliczeniowego");
+    }
+  }
+
+  const plan = useQuery(api.plans.getPlan, planId ? { planId } : "skip");
+  const defaultPlan = useQuery(api.plans.getDefaultPlan, planId ? "skip" : {});
+  const usage = useQuery(api.limits.getUsageStats, orgId ? { organizationId: orgId } : "skip");
+
+  if (
+    orgs === undefined ||
+    (planId && plan === undefined) ||
+    (!planId && defaultPlan === undefined) ||
+    (orgId && usage === undefined)
+  ) {
     return <LoadingState type="card" rows={3} />;
   }
 
-  const planName = plan?.name ?? t("planFree");
-  const planKey = plan?.key ?? "free";
-  const planModules = (plan?.modules as string[]) ?? [];
+  const effectivePlan = plan ?? defaultPlan;
+  const planKey = effectivePlan?.key ?? "free";
+  const isTrialing = subscriptionStatus === "trialing";
+  const daysLeft = subscriptionEnd
+    ? Math.max(0, Math.ceil((subscriptionEnd * 1000 - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null;
+  const planModules = (effectivePlan?.modules as string[]) ?? [];
+  const planLimits = effectivePlan?.limits as Record<string, number | undefined> | undefined;
+  const currentSelection = selectedPlan ?? planKey;
+  const hasChangedPlan = currentSelection !== planKey;
 
-  const badgeColor = planKey === "enterprise" ? "purple" : planKey === "pro" ? "blue" : "gray";
+  // Build subscription detail string for the current plan card
+  const subscriptionDetail = (() => {
+    if (!isSubscribed) return "";
+    const parts: string[] = [];
+    if (isTrialing && daysLeft !== null) {
+      parts.push(`Trial: ${daysLeft} ${daysLeft === 1 ? "dzień" : "dni"} pozostało`);
+    }
+    if (!isTrialing && daysLeft !== null) {
+      parts.push(`Odnowienie za ${daysLeft} ${daysLeft === 1 ? "dzień" : "dni"}`);
+    }
+    if (firstOrg?.billingCycle) {
+      parts.push(firstOrg.billingCycle === "yearly" ? "Roczny" : "Miesięczny");
+    }
+    return parts.join(" · ");
+  })();
+
+  const planCards = [
+    {
+      value: "free",
+      title: "Free",
+      secondaryTitle: planKey === "free" && !isSubscribed ? "Aktualny plan" : "$0/mies.",
+      description: "Monitoring do 50 słów kluczowych i 3 domen.",
+      icon: LayersTwo01,
+      disabled: isSubscribed,
+    },
+    {
+      value: "pro",
+      title: "Pro",
+      secondaryTitle: planKey === "pro" && isSubscribed
+        ? `Aktualny plan${isTrialing ? " (Trial)" : ""}`
+        : "$29/mies.",
+      description: planKey === "pro" && isSubscribed && subscriptionDetail
+        ? subscriptionDetail
+        : "Pełen zestaw narzędzi SEO, 500 słów kluczowych, 20 domen.",
+      icon: LayersThree01,
+      disabled: isSubscribed && planKey === "pro",
+    },
+  ];
 
   return (
-    <Section
-      title={t("planTitle")}
-      description={t("planDescription")}
-    >
-      {/* Plan badge */}
-      <div className="mb-6 flex items-center gap-3">
-        <Badge size="md" type="pill-color" color={badgeColor}>
-          {planName}
-        </Badge>
-        {planKey === "free" && (
-          <span className="text-sm text-tertiary">{t("planFreeHint")}</span>
-        )}
-      </div>
+    <div className="flex flex-col gap-6 p-6">
+      {/* Section header */}
+      <SectionHeader.Root>
+        <SectionHeader.Group>
+          <div className="flex flex-1 flex-col justify-center gap-0.5 self-stretch">
+            <SectionHeader.Heading>{t("planTitle")}</SectionHeader.Heading>
+            <SectionHeader.Subheading>{t("planDescription")}</SectionHeader.Subheading>
+          </div>
+        </SectionHeader.Group>
+      </SectionHeader.Root>
 
-      {/* Usage stats */}
-      {usage && (
-        <div className="mb-6 flex flex-col gap-4">
-          <UsageBar
-            label={t("planKeywordsUsage")}
-            current={usage.keywords.current}
-            limit={usage.keywords.limit}
-          />
-          <UsageBar
-            label={t("planDomainsUsage")}
-            current={usage.domains.current}
-            limit={usage.domains.limit}
-          />
-          <UsageBar
-            label={t("planProjectsUsage")}
-            current={usage.projects.current}
-            limit={usage.projects.limit}
-          />
-        </div>
-      )}
-
-      {/* Modules */}
-      <div className="rounded-lg border border-secondary p-4">
-        <h3 className="mb-3 text-sm font-medium text-primary">{t("planModules")}</h3>
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(MODULE_LABELS).map(([key, label]) => {
-            const active = planModules.includes(key);
-            return (
-              <span
-                key={key}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
-                  active
-                    ? "bg-success-50 text-fg-success-primary dark:bg-success-50/10"
-                    : "bg-secondary text-quaternary line-through"
-                }`}
+      {/* Subscription status summary */}
+      {isSubscribed && (
+        <div className={`rounded-lg border p-4 ${
+          subscriptionStatus === "trialing"
+            ? "border-brand-200 bg-brand-25 dark:bg-brand-25/10"
+            : "border-fg-success-primary/20 bg-utility-green-50 dark:bg-utility-green-50/10"
+        }`}>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <div className="flex items-center gap-2">
+              <Badge
+                size="sm"
+                type="pill-color"
+                color={subscriptionStatus === "trialing" ? "brand" : "success"}
               >
-                {active && (
-                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                    <path d="M1.25 4L3.75 6.5L8.75 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-                {label}
+                {subscriptionStatus === "trialing" ? "Trial" : "Aktywna"}
+              </Badge>
+              <span className="text-sm font-medium text-primary">
+                Plan {effectivePlan?.name ?? "Pro"}
               </span>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Plan limits summary */}
-      {usage?.defaults && (
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-lg border border-secondary p-3">
-            <p className="text-xs text-tertiary">{t("planDomainsPerProject")}</p>
-            <p className="text-lg font-semibold text-primary tabular-nums">
-              {usage.defaults.maxDomainsPerProject ?? t("planUnlimited")}
-            </p>
-          </div>
-          <div className="rounded-lg border border-secondary p-3">
-            <p className="text-xs text-tertiary">{t("planKeywordsPerDomain")}</p>
-            <p className="text-lg font-semibold text-primary tabular-nums">
-              {usage.defaults.maxKeywordsPerDomain ?? t("planUnlimited")}
-            </p>
+            </div>
+            {subscriptionEnd && daysLeft !== null && (
+              <>
+                {isTrialing && (
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <span className="text-tertiary">Trial kończy się za:</span>
+                    <span className={`font-semibold tabular-nums ${daysLeft <= 2 ? "text-fg-error-primary" : "text-brand-700 dark:text-brand-300"}`}>
+                      {daysLeft} {daysLeft === 1 ? "dzień" : "dni"}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5 text-sm">
+                  <span className="text-tertiary">
+                    {isTrialing ? "Pierwszy billing:" : "Odnowienie:"}
+                  </span>
+                  <span className="font-medium text-primary">
+                    {new Date(subscriptionEnd * 1000).toLocaleDateString("pl-PL")}
+                  </span>
+                  {!isTrialing && (
+                    <span className="text-tertiary">
+                      (za {daysLeft} {daysLeft === 1 ? "dzień" : "dni"})
+                    </span>
+                  )}
+                </div>
+                {firstOrg?.billingCycle && (
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <span className="text-tertiary">Cykl:</span>
+                    <span className="font-medium text-primary">
+                      {firstOrg.billingCycle === "yearly" ? "Roczny" : "Miesięczny"}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
-    </Section>
+
+      {/* Past due warning */}
+      {subscriptionStatus === "past_due" && (
+        <div className="rounded-lg border border-warning-300 bg-warning-50 p-3 text-sm font-medium text-fg-warning-primary dark:bg-warning-50/10">
+          Płatność zaległa. Zaktualizuj metodę płatności, aby uniknąć przerwy w usłudze.
+        </div>
+      )}
+
+      <div className="flex flex-col gap-5">
+        {/* Plan selection */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(200px,280px)_1fr] lg:gap-8">
+          <SectionLabel.Root
+            size="sm"
+            title="Aktualny plan"
+            description="Wybierz plan dopasowany do Twoich potrzeb."
+          />
+          <div className="flex flex-col gap-3">
+            {/* Gradient border on selected card — static version of the GlowingEffect */}
+            <div className="plan-radio-cards">
+              <style>{`
+                .plan-radio-cards [data-selected] {
+                  --tw-ring-shadow: none !important;
+                  --tw-ring-color: transparent !important;
+                  position: relative;
+                  overflow: hidden;
+                }
+                .plan-radio-cards [data-selected]::before {
+                  content: '';
+                  position: absolute;
+                  inset: 0;
+                  border-radius: inherit;
+                  border: 1px solid transparent;
+                  background: conic-gradient(from 0deg, #dd7bbb, #d79f1e, #5a922c, #4c7894, #dd7bbb) border-box;
+                  -webkit-mask:
+                    linear-gradient(#fff 0 0) padding-box,
+                    linear-gradient(#fff 0 0);
+                  -webkit-mask-composite: xor;
+                  mask:
+                    linear-gradient(#fff 0 0) padding-box,
+                    linear-gradient(#fff 0 0);
+                  mask-composite: exclude;
+                  pointer-events: none;
+                }
+              `}</style>
+              <RadioGroups.IconSimple
+                aria-label="Wybierz plan"
+                value={currentSelection}
+                onChange={setSelectedPlan}
+                items={planCards}
+              />
+            </div>
+            {/* Action buttons based on selection */}
+            <div className="flex items-center gap-3">
+              {hasChangedPlan && currentSelection === "pro" && !isSubscribed && (
+                <Button
+                  color="primary"
+                  size="sm"
+                  iconLeading={Zap}
+                  onClick={handleUpgrade}
+                  isLoading={upgradeLoading}
+                >
+                  Upgrade do Pro — $29/mies.
+                </Button>
+              )}
+              {isSubscribed && (
+                <Button color="secondary" size="sm" onClick={handleManage}>
+                  Zarządzaj subskrypcją
+                </Button>
+              )}
+              {!isSubscribed && !hasChangedPlan && (
+                <a href="/pricing" className="text-sm font-medium text-brand-600 hover:text-brand-700">
+                  Zobacz pełne porównanie planów →
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <hr className="h-px w-full border-none bg-border-secondary" />
+
+        {/* Usage stats */}
+        {usage && (
+          <>
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(200px,280px)_1fr] lg:gap-8">
+              <SectionLabel.Root
+                size="sm"
+                title="Użycie zasobów"
+                description="Aktualne wykorzystanie limitów Twojego planu."
+              />
+              <div className="flex flex-col gap-4">
+                <UsageBar
+                  label={t("planKeywordsUsage")}
+                  current={usage.keywords.current}
+                  limit={usage.keywords.limit ?? planLimits?.maxKeywords ?? null}
+                />
+                <UsageBar
+                  label={t("planDomainsUsage")}
+                  current={usage.domains.current}
+                  limit={usage.domains.limit ?? planLimits?.maxDomains ?? null}
+                />
+                <UsageBar
+                  label={t("planProjectsUsage")}
+                  current={usage.projects.current}
+                  limit={usage.projects.limit ?? planLimits?.maxProjects ?? null}
+                />
+              </div>
+            </div>
+
+            <hr className="h-px w-full border-none bg-border-secondary" />
+          </>
+        )}
+
+        {/* Modules as cards */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(200px,280px)_1fr] lg:gap-8">
+          <SectionLabel.Root
+            size="sm"
+            title="Dostępne moduły"
+            description="Moduły włączone w Twoim planie."
+          />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {MODULES.map((mod) => {
+              const active = planModules.includes(mod.key);
+              return (
+                <div
+                  key={mod.key}
+                  className={`flex items-start gap-3 rounded-xl p-4 ring-1 ring-inset ${
+                    active
+                      ? "bg-primary ring-secondary"
+                      : "bg-disabled_subtle ring-disabled"
+                  }`}
+                >
+                  <FeaturedIcon
+                    icon={mod.icon}
+                    size="sm"
+                    color={active ? "brand" : "gray"}
+                    theme="modern"
+                  />
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className={`text-sm font-medium ${active ? "text-secondary" : "text-disabled"}`}>
+                      {mod.label}
+                    </span>
+                    <span className={`text-sm ${active ? "text-tertiary" : "text-disabled"}`}>
+                      {mod.description}
+                    </span>
+                    {!active && (
+                      <span className="mt-1 inline-flex w-fit items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-quaternary">
+                        Dostępne w Pro
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Per-resource limits */}
+        {(usage?.defaults || planLimits) && (
+          <>
+            <hr className="h-px w-full border-none bg-border-secondary" />
+
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(200px,280px)_1fr] lg:gap-8">
+              <SectionLabel.Root
+                size="sm"
+                title="Limity szczegółowe"
+                description="Limity na poziomie projektu i domeny."
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-secondary p-3">
+                  <p className="text-xs text-tertiary">{t("planDomainsPerProject")}</p>
+                  <p className="text-lg font-semibold text-primary tabular-nums">
+                    {usage?.defaults?.maxDomainsPerProject ?? planLimits?.maxDomainsPerProject ?? t("planUnlimited")}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-secondary p-3">
+                  <p className="text-xs text-tertiary">{t("planKeywordsPerDomain")}</p>
+                  <p className="text-lg font-semibold text-primary tabular-nums">
+                    {usage?.defaults?.maxKeywordsPerDomain ?? planLimits?.maxKeywordsPerDomain ?? t("planUnlimited")}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        <hr className="h-px w-full border-none bg-border-secondary" />
+
+        {/* Payment details */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(200px,280px)_1fr] lg:gap-8">
+          <SectionLabel.Root
+            size="sm"
+            title="Metoda płatności"
+            description="Zarządzaj kartą i danymi rozliczeniowymi."
+          />
+          <div className="flex flex-col gap-3">
+            {isSubscribed ? (
+              <div className="flex items-center justify-between rounded-xl p-4 ring-1 ring-inset ring-secondary">
+                <div className="flex items-center gap-3">
+                  <FeaturedIcon icon={CreditCard02} size="sm" color="gray" theme="modern" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium text-secondary">Karta płatnicza</span>
+                    <span className="text-sm text-tertiary">Zarządzana przez Stripe</span>
+                  </div>
+                </div>
+                <Button color="link-gray" size="sm" onClick={handleManage}>
+                  Zmień
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-tertiary">
+                Metoda płatności zostanie dodana przy wyborze planu Pro.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <hr className="h-px w-full border-none bg-border-secondary" />
+
+        {/* Billing history */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(200px,280px)_1fr] lg:gap-8">
+          <SectionLabel.Root
+            size="sm"
+            title="Historia rozliczeń"
+            description="Faktury i historia płatności."
+          />
+          <div className="flex flex-col gap-3">
+            {isSubscribed ? (
+              <>
+                <p className="text-sm text-tertiary">
+                  Przeglądaj faktury, pobieraj potwierdzenia i zarządzaj rozliczeniami w portalu Stripe.
+                </p>
+                <div>
+                  <Button color="secondary" size="sm" onClick={handleManage}>
+                    Otwórz historię rozliczeń
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-tertiary">
+                Brak historii rozliczeń. Faktury pojawią się po aktywacji subskrypcji.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

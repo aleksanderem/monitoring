@@ -140,7 +140,8 @@ export function ActiveStrategyDashboard({ session, domainId }: ActiveStrategyDas
       a.download = `seo-strategy-${new Date().toISOString().split("T")[0]}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
+    } catch (err) {
+      console.error("[PDF Export ActiveStrategy]", err);
       toast.error("Failed to export PDF");
     } finally {
       setIsExporting(false);
