@@ -25,6 +25,7 @@ import type * as aiResearch from "../aiResearch.js";
 import type * as aiStrategy from "../aiStrategy.js";
 import type * as apiUsage from "../apiUsage.js";
 import type * as auth from "../auth.js";
+import type * as backfillSupabase from "../backfillSupabase.js";
 import type * as backlinkAnalysis_queries from "../backlinkAnalysis_queries.js";
 import type * as backlinkVelocity from "../backlinkVelocity.js";
 import type * as backlinks from "../backlinks.js";
@@ -139,6 +140,7 @@ declare const fullApi: ApiFromModules<{
   aiStrategy: typeof aiStrategy;
   apiUsage: typeof apiUsage;
   auth: typeof auth;
+  backfillSupabase: typeof backfillSupabase;
   backlinkAnalysis_queries: typeof backlinkAnalysis_queries;
   backlinkVelocity: typeof backlinkVelocity;
   backlinks: typeof backlinks;

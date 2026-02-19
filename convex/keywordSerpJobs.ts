@@ -451,7 +451,7 @@ export const processSerpFetchJobInternal = internalAction({
 
           if (topCompetitors.length > 0) {
             try {
-              await ctx.runMutation(internal.keywordSerpJobs.trackCompetitorsBatch, {
+              const storedPositions = await ctx.runMutation(internal.keywordSerpJobs.trackCompetitorsBatch, {
                 domainId: job.domainId,
                 keywordId: keyword._id,
                 date: today,
@@ -463,8 +463,15 @@ export const processSerpFetchJobInternal = internalAction({
               });
 
               // Dual-write competitor positions to Supabase
-              // Note: we don't have Convex competitor IDs here (they're resolved in the mutation)
-              // so we use domain as identifier — will refine in Phase 2
+              if (storedPositions && storedPositions.length > 0) {
+                writeCompetitorPositions(storedPositions.map((sp) => ({
+                  convex_competitor_id: sp.competitorId,
+                  convex_keyword_id: sp.keywordId,
+                  date: sp.date,
+                  position: sp.position,
+                  url: sp.url,
+                }))).catch(() => {});
+              }
             } catch (error) {
               console.error(`[processSerpFetchJob] Error tracking competitors:`, error);
             }
@@ -600,6 +607,7 @@ export const computeVisibilitySnapshot = internalMutation({
 
 // Batch mutation: add/update competitors + save positions in one transaction
 // Replaces N × (addCompetitorInternal + saveCompetitorPosition) individual calls
+// Returns resolved competitor positions for Supabase dual-write
 export const trackCompetitorsBatch = internalMutation({
   args: {
     domainId: v.id("domains"),
@@ -613,7 +621,9 @@ export const trackCompetitorsBatch = internalMutation({
       })
     ),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<Array<{ competitorId: string; keywordId: string; date: string; position: number; url: string }>> => {
+    const results: Array<{ competitorId: string; keywordId: string; date: string; position: number; url: string }> = [];
+
     for (const comp of args.competitors) {
       // Check if competitor exists
       const existing = await ctx.db
@@ -663,6 +673,16 @@ export const trackCompetitorsBatch = internalMutation({
           fetchedAt: Date.now(),
         });
       }
+
+      results.push({
+        competitorId,
+        keywordId: args.keywordId,
+        date: args.date,
+        position: comp.position,
+        url: comp.url,
+      });
     }
+
+    return results;
   },
 });
