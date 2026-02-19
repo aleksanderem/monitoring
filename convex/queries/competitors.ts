@@ -1,146 +1,151 @@
 import { v } from "convex/values";
-import { query } from "../_generated/server";
-import type { Id } from "../_generated/dataModel";
+import { action } from "../_generated/server";
+import { internal } from "../_generated/api";
+import { getSupabaseAdmin } from "../lib/supabase";
 
 /**
- * Get all competitors for a domain
+ * Get all competitors for a domain with stats from Supabase
  */
-export const getCompetitorsByDomain = query({
+export const getCompetitorsByDomain = action({
   args: { domainId: v.id("domains") },
-  handler: async (ctx, args) => {
-    const competitors = await ctx.db
-      .query("competitors")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .collect();
+  handler: async (ctx, args): Promise<any[]> => {
+    const domain = await ctx.runQuery(internal.competitors_internal.verifyDomainAccess, { domainId: args.domainId });
+    if (!domain) return [];
 
-    // Get keyword count for each competitor
-    const competitorsWithStats = await Promise.all(
-      competitors.map(async (competitor) => {
-        const positions = await ctx.db
-          .query("competitorKeywordPositions")
-          .withIndex("by_competitor", (q) => q.eq("competitorId", competitor._id))
-          .collect();
+    const competitors = await ctx.runQuery(internal.competitors_internal.getCompetitorsByDomain, { domainId: args.domainId });
 
-        // Get unique keywords
-        const uniqueKeywords = new Set(positions.map((p) => p.keywordId));
+    const sb = getSupabaseAdmin();
+    if (!sb) {
+      // Graceful fallback: return competitors without position stats
+      return competitors
+        .map((c: any) => ({
+          ...c,
+          keywordCount: 0,
+          avgPosition: null,
+          lastChecked: c.lastCheckedAt,
+        }))
+        .sort((a: any, b: any) => b.createdAt - a.createdAt);
+    }
 
-        // Get latest position data
-        const latestPositions = positions
-          .sort((a, b) => b.fetchedAt - a.fetchedAt)
-          .slice(0, 100); // Sample for stats
+    const competitorIds = competitors.map((c: any) => c._id);
+    if (competitorIds.length === 0) return [];
 
-        const rankedPositions = latestPositions.filter((p) => p.position !== null);
+    // Get latest position per competitor+keyword from Supabase
+    const { data: positions } = await sb
+      .from("competitor_keyword_positions")
+      .select("convex_competitor_id, convex_keyword_id, position")
+      .in("convex_competitor_id", competitorIds);
+
+    // Build stats per competitor
+    const statsMap = new Map<string, { keywords: Set<string>; positions: number[] }>();
+    for (const row of positions || []) {
+      let stats = statsMap.get(row.convex_competitor_id);
+      if (!stats) {
+        stats = { keywords: new Set(), positions: [] };
+        statsMap.set(row.convex_competitor_id, stats);
+      }
+      stats.keywords.add(row.convex_keyword_id);
+      if (row.position !== null) {
+        stats.positions.push(row.position);
+      }
+    }
+
+    return competitors
+      .map((c: any) => {
+        const stats = statsMap.get(c._id);
+        const rankedPositions = stats?.positions || [];
         const avgPosition = rankedPositions.length > 0
-          ? rankedPositions.reduce((sum, p) => sum + (p.position || 0), 0) / rankedPositions.length
+          ? Math.round((rankedPositions.reduce((sum: number, p: number) => sum + p, 0) / rankedPositions.length) * 10) / 10
           : null;
 
         return {
-          ...competitor,
-          keywordCount: uniqueKeywords.size,
-          avgPosition: avgPosition ? Math.round(avgPosition * 10) / 10 : null,
-          lastChecked: competitor.lastCheckedAt,
+          ...c,
+          keywordCount: stats?.keywords.size || 0,
+          avgPosition,
+          lastChecked: c.lastCheckedAt,
         };
       })
-    );
-
-    return competitorsWithStats.sort((a, b) => b.createdAt - a.createdAt);
+      .sort((a: any, b: any) => b.createdAt - a.createdAt);
   },
 });
 
 /**
  * Get competitor overview - position comparison over time
  */
-export const getCompetitorOverview = query({
+export const getCompetitorOverview = action({
   args: {
     domainId: v.id("domains"),
     days: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{
+    data: Array<{
+      date: string;
+      ownAvgPosition: number | null;
+      competitors: Array<{ competitorId: string; avgPosition: number }>;
+    }>;
+    competitors: Array<{ id: string; name: string; domain: string }>;
+  } | null> => {
+    const domain = await ctx.runQuery(internal.competitors_internal.verifyDomainAccess, { domainId: args.domainId });
+    if (!domain) return null;
+
+    const sb = getSupabaseAdmin();
+    if (!sb) return null;
+
     const daysToFetch = args.days || 30;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - daysToFetch);
     const startDateStr = startDate.toISOString().split("T")[0];
 
-    // Get all competitors
-    const competitors = await ctx.db
-      .query("competitors")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .collect();
+    // Get competitors and keywords from Convex
+    const competitors = await ctx.runQuery(internal.competitors_internal.getActiveCompetitors, { domainId: args.domainId });
+    const keywords = await ctx.runQuery(internal.competitors_internal.getDomainKeywords, { domainId: args.domainId });
 
-    // Get all keywords for this domain
-    const keywords = await ctx.db
-      .query("keywords")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .collect();
+    const competitorIds = competitors.map((c: any) => c._id);
+    const keywordIds = keywords.map((k: any) => k._id);
 
-    // Get own domain's positions
-    const ownPositions = await Promise.all(
-      keywords.map(async (keyword) => {
-        const positions = await ctx.db
-          .query("keywordPositions")
-          .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-          .filter((q) => q.gte(q.field("date"), startDateStr))
-          .collect();
-        return positions.map((p) => ({ ...p, keywordId: keyword._id }));
-      })
-    );
+    // Query Supabase for competitor positions
+    const { data: compPositions } = await sb
+      .from("competitor_keyword_positions")
+      .select("convex_competitor_id, convex_keyword_id, date, position")
+      .in("convex_competitor_id", competitorIds.length > 0 ? competitorIds : ["__none__"])
+      .in("convex_keyword_id", keywordIds.length > 0 ? keywordIds : ["__none__"])
+      .gte("date", startDateStr);
 
-    // Get competitor positions
-    const competitorData = await Promise.all(
-      competitors.map(async (competitor) => {
-        const allPositions = await ctx.db
-          .query("competitorKeywordPositions")
-          .withIndex("by_competitor", (q) => q.eq("competitorId", competitor._id))
-          .filter((q) => q.gte(q.field("date"), startDateStr))
-          .collect();
-
-        return {
-          competitor,
-          positions: allPositions,
-        };
-      })
-    );
+    // Query Supabase for own positions
+    const { data: ownPositions } = await sb
+      .from("keyword_positions")
+      .select("convex_keyword_id, date, position")
+      .in("convex_keyword_id", keywordIds.length > 0 ? keywordIds : ["__none__"])
+      .gte("date", startDateStr);
 
     // Aggregate by date
     const dateMap = new Map<string, {
       date: string;
       own: number[];
-      competitors: Map<Id<"competitors">, number[]>;
+      competitors: Map<string, number[]>;
     }>();
 
     // Process own positions
-    ownPositions.flat().forEach((pos) => {
-      if (!pos.position) return;
+    for (const pos of ownPositions || []) {
+      if (pos.position === null) continue;
       if (!dateMap.has(pos.date)) {
-        dateMap.set(pos.date, {
-          date: pos.date,
-          own: [],
-          competitors: new Map(),
-        });
+        dateMap.set(pos.date, { date: pos.date, own: [], competitors: new Map() });
       }
       dateMap.get(pos.date)!.own.push(pos.position);
-    });
+    }
 
     // Process competitor positions
-    competitorData.forEach(({ competitor, positions }) => {
-      positions.forEach((pos) => {
-        if (!pos.position) return;
-        if (!dateMap.has(pos.date)) {
-          dateMap.set(pos.date, {
-            date: pos.date,
-            own: [],
-            competitors: new Map(),
-          });
-        }
-        const dayData = dateMap.get(pos.date)!;
-        if (!dayData.competitors.has(competitor._id)) {
-          dayData.competitors.set(competitor._id, []);
-        }
-        dayData.competitors.get(competitor._id)!.push(pos.position);
-      });
-    });
+    for (const pos of compPositions || []) {
+      if (pos.position === null) continue;
+      if (!dateMap.has(pos.date)) {
+        dateMap.set(pos.date, { date: pos.date, own: [], competitors: new Map() });
+      }
+      const dayData = dateMap.get(pos.date)!;
+      if (!dayData.competitors.has(pos.convex_competitor_id)) {
+        dayData.competitors.set(pos.convex_competitor_id, []);
+      }
+      dayData.competitors.get(pos.convex_competitor_id)!.push(pos.position);
+    }
 
     // Calculate averages
     const result = Array.from(dateMap.values())
@@ -150,7 +155,7 @@ export const getCompetitorOverview = query({
           : null;
 
         const competitorAvgs: Array<{
-          competitorId: Id<"competitors">;
+          competitorId: string;
           avgPosition: number;
         }> = [];
 
@@ -171,7 +176,7 @@ export const getCompetitorOverview = query({
 
     return {
       data: result,
-      competitors: competitors.map((c) => ({
+      competitors: competitors.map((c: any) => ({
         id: c._id,
         name: c.name || c.competitorDomain,
         domain: c.competitorDomain,
@@ -183,70 +188,76 @@ export const getCompetitorOverview = query({
 /**
  * Get keyword overlap/gap data for Venn diagram
  */
-export const getKeywordOverlap = query({
+export const getKeywordOverlap = action({
   args: {
     domainId: v.id("domains"),
     competitorId: v.optional(v.id("competitors")),
   },
   handler: async (ctx, args) => {
-    // Get all keywords for domain
-    const keywords = await ctx.db
-      .query("keywords")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .collect();
+    const domain = await ctx.runQuery(internal.competitors_internal.verifyDomainAccess, { domainId: args.domainId });
+    if (!domain) return { onlyOwn: 0, onlyCompetitor: 0, both: 0, totalOwn: 0, totalCompetitor: 0 };
 
-    const keywordIds = keywords.map((k) => k._id);
+    const sb = getSupabaseAdmin();
+    if (!sb) return { onlyOwn: 0, onlyCompetitor: 0, both: 0, totalOwn: 0, totalCompetitor: 0 };
 
-    // Get own positions (keywords we rank for)
-    const ownPositions = await Promise.all(
-      keywordIds.map(async (keywordId) => {
-        const latest = await ctx.db
-          .query("keywordPositions")
-          .withIndex("by_keyword", (q) => q.eq("keywordId", keywordId))
-          .order("desc")
-          .first();
-        return latest && latest.position !== null ? keywordId : null;
-      })
-    );
+    const keywords = await ctx.runQuery(internal.competitors_internal.getDomainKeywords, { domainId: args.domainId });
+    const keywordIds = keywords.map((k: any) => k._id);
 
-    const ownRankingKeywords = new Set(
-      ownPositions.filter((id): id is Id<"keywords"> => id !== null)
-    );
+    if (keywordIds.length === 0) {
+      return { onlyOwn: 0, onlyCompetitor: 0, both: 0, totalOwn: 0, totalCompetitor: 0 };
+    }
+
+    // Get latest own positions from Supabase (distinct keywords where we rank)
+    const { data: ownRows } = await sb
+      .from("keyword_positions")
+      .select("convex_keyword_id, position")
+      .in("convex_keyword_id", keywordIds)
+      .not("position", "is", null)
+      .order("date", { ascending: false });
+
+    // Deduplicate to get latest per keyword
+    const ownRankingKeywords = new Set<string>();
+    const seenOwn = new Set<string>();
+    for (const row of ownRows || []) {
+      if (!seenOwn.has(row.convex_keyword_id)) {
+        seenOwn.add(row.convex_keyword_id);
+        if (row.position !== null) {
+          ownRankingKeywords.add(row.convex_keyword_id);
+        }
+      }
+    }
 
     // Get competitor positions
-    let competitorRankingKeywords = new Set<Id<"keywords">>();
+    let competitorRankingKeywords = new Set<string>();
 
     if (args.competitorId) {
-      const competitorPositions = await ctx.db
-        .query("competitorKeywordPositions")
-        .withIndex("by_competitor", (q) => q.eq("competitorId", args.competitorId!))
-        .collect();
+      const { data: compRows } = await sb
+        .from("competitor_keyword_positions")
+        .select("convex_keyword_id, position")
+        .eq("convex_competitor_id", args.competitorId)
+        .not("position", "is", null)
+        .order("date", { ascending: false });
 
-      const latestCompetitorPositions = new Map<Id<"keywords">, typeof competitorPositions[0]>();
-      competitorPositions.forEach((pos) => {
-        const existing = latestCompetitorPositions.get(pos.keywordId);
-        if (!existing || pos.fetchedAt > existing.fetchedAt) {
-          latestCompetitorPositions.set(pos.keywordId, pos);
+      const seenComp = new Set<string>();
+      for (const row of compRows || []) {
+        if (!seenComp.has(row.convex_keyword_id)) {
+          seenComp.add(row.convex_keyword_id);
+          if (row.position !== null) {
+            competitorRankingKeywords.add(row.convex_keyword_id);
+          }
         }
-      });
-
-      latestCompetitorPositions.forEach((pos, keywordId) => {
-        if (pos.position !== null) {
-          competitorRankingKeywords.add(keywordId);
-        }
-      });
+      }
     }
 
     // Calculate overlap
-    const onlyOwn = new Set([...ownRankingKeywords].filter((k) => !competitorRankingKeywords.has(k)));
-    const onlyCompetitor = new Set([...competitorRankingKeywords].filter((k) => !ownRankingKeywords.has(k)));
-    const both = new Set([...ownRankingKeywords].filter((k) => competitorRankingKeywords.has(k)));
+    const onlyOwn = [...ownRankingKeywords].filter((k) => !competitorRankingKeywords.has(k)).length;
+    const onlyCompetitor = [...competitorRankingKeywords].filter((k) => !ownRankingKeywords.has(k)).length;
+    const both = [...ownRankingKeywords].filter((k) => competitorRankingKeywords.has(k)).length;
 
     return {
-      onlyOwn: onlyOwn.size,
-      onlyCompetitor: onlyCompetitor.size,
-      both: both.size,
+      onlyOwn,
+      onlyCompetitor,
+      both,
       totalOwn: ownRankingKeywords.size,
       totalCompetitor: competitorRankingKeywords.size,
     };
@@ -256,100 +267,122 @@ export const getKeywordOverlap = query({
 /**
  * Get keyword gap opportunities - keywords competitor ranks for but we don't (or rank poorly)
  */
-export const getCompetitorKeywordGaps = query({
+export const getCompetitorKeywordGaps = action({
   args: {
     domainId: v.id("domains"),
     competitorId: v.id("competitors"),
-    minPosition: v.optional(v.number()), // Competitor must rank at least this well
-    maxOwnPosition: v.optional(v.number()), // We must rank worse than this (or not at all)
+    minPosition: v.optional(v.number()),
+    maxOwnPosition: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const domain = await ctx.runQuery(internal.competitors_internal.verifyDomainAccess, { domainId: args.domainId });
+    if (!domain) return [];
+
+    const sb = getSupabaseAdmin();
+    if (!sb) return [];
+
     const minPosition = args.minPosition || 20;
     const maxOwnPosition = args.maxOwnPosition || 50;
 
-    // Get all keywords
-    const keywords = await ctx.db
-      .query("keywords")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .collect();
+    // Get keywords from Convex (need phrase, searchVolume, difficulty)
+    const keywords = await ctx.runQuery(internal.competitors_internal.getDomainKeywords, { domainId: args.domainId });
+    const keywordIds = keywords.map((k: any) => k._id);
+    const keywordMap = new Map(keywords.map((k: any) => [k._id, k]));
 
-    // Get competitor positions
-    const competitorPositions = await ctx.db
-      .query("competitorKeywordPositions")
-      .withIndex("by_competitor", (q) => q.eq("competitorId", args.competitorId))
-      .collect();
+    if (keywordIds.length === 0) return [];
 
-    // Get latest competitor position for each keyword
-    const latestCompetitorPositions = new Map<Id<"keywords">, {
-      position: number | null;
-      url: string | null;
-      date: string;
-    }>();
+    // Get latest competitor positions from Supabase
+    const { data: compRows } = await sb
+      .from("competitor_keyword_positions")
+      .select("convex_keyword_id, position, url, date")
+      .eq("convex_competitor_id", args.competitorId)
+      .in("convex_keyword_id", keywordIds)
+      .order("date", { ascending: false });
 
-    competitorPositions.forEach((pos) => {
-      const existing = latestCompetitorPositions.get(pos.keywordId);
-      if (!existing || pos.fetchedAt > (existing as any).fetchedAt) {
-        latestCompetitorPositions.set(pos.keywordId, {
-          position: pos.position,
-          url: pos.url,
-          date: pos.date,
+    // Deduplicate to latest per keyword
+    const latestCompPositions = new Map<string, { position: number | null; url: string | null; date: string }>();
+    for (const row of compRows || []) {
+      if (!latestCompPositions.has(row.convex_keyword_id)) {
+        latestCompPositions.set(row.convex_keyword_id, {
+          position: row.position,
+          url: row.url,
+          date: row.date,
         });
       }
-    });
+    }
 
-    // Get own positions
-    const gaps = await Promise.all(
-      keywords.map(async (keyword) => {
-        const competitorData = latestCompetitorPositions.get(keyword._id);
-        if (!competitorData || competitorData.position === null || competitorData.position > minPosition) {
-          return null;
-        }
+    // Get latest own positions from Supabase
+    const { data: ownRows } = await sb
+      .from("keyword_positions")
+      .select("convex_keyword_id, position, search_volume, difficulty")
+      .in("convex_keyword_id", keywordIds)
+      .order("date", { ascending: false });
 
-        // Get our position
-        const ownPosition = await ctx.db
-          .query("keywordPositions")
-          .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-          .order("desc")
-          .first();
+    // Deduplicate to latest per keyword
+    const latestOwnPositions = new Map<string, { position: number | null; searchVolume: number | null; difficulty: number | null }>();
+    for (const row of ownRows || []) {
+      if (!latestOwnPositions.has(row.convex_keyword_id)) {
+        latestOwnPositions.set(row.convex_keyword_id, {
+          position: row.position,
+          searchVolume: row.search_volume,
+          difficulty: row.difficulty,
+        });
+      }
+    }
 
-        const ourPosition = ownPosition?.position || null;
+    // Calculate gaps
+    const gaps: Array<{
+      keywordId: string;
+      phrase: string;
+      competitorPosition: number;
+      competitorUrl: string | null;
+      ourPosition: number | null;
+      gap: number;
+      searchVolume: number | undefined;
+      difficulty: number | undefined;
+      gapScore: number;
+    }> = [];
 
-        // Gap exists if competitor ranks well and we don't
-        if (ourPosition === null || ourPosition > maxOwnPosition) {
-          const gap = ourPosition !== null ? ourPosition - competitorData.position : 100;
+    for (const keyword of keywords) {
+      const compData = latestCompPositions.get(keyword._id);
+      if (!compData || compData.position === null || compData.position > minPosition) {
+        continue;
+      }
 
-          return {
-            keywordId: keyword._id,
-            phrase: keyword.phrase,
-            competitorPosition: competitorData.position,
-            competitorUrl: competitorData.url,
+      const ownData = latestOwnPositions.get(keyword._id);
+      const ourPosition = ownData?.position ?? null;
+
+      // Gap exists if competitor ranks well and we don't
+      if (ourPosition === null || ourPosition > maxOwnPosition) {
+        const gap = ourPosition !== null ? ourPosition - compData.position : 100;
+        const sv = ownData?.searchVolume ?? keyword.searchVolume;
+        const diff = ownData?.difficulty ?? keyword.difficulty;
+
+        gaps.push({
+          keywordId: keyword._id,
+          phrase: keyword.phrase,
+          competitorPosition: compData.position,
+          competitorUrl: compData.url,
+          ourPosition,
+          gap,
+          searchVolume: sv ?? undefined,
+          difficulty: diff ?? undefined,
+          gapScore: calculateGapScore(
+            compData.position,
             ourPosition,
-            gap,
-            searchVolume: ownPosition?.searchVolume || keyword.searchVolume,
-            difficulty: ownPosition?.difficulty || keyword.difficulty,
-            gapScore: calculateGapScore(
-              competitorData.position,
-              ourPosition,
-              ownPosition?.searchVolume || keyword.searchVolume || 0,
-              ownPosition?.difficulty || keyword.difficulty || 50
-            ),
-          };
-        }
+            sv || 0,
+            diff || 50
+          ),
+        });
+      }
+    }
 
-        return null;
-      })
-    );
-
-    return gaps
-      .filter((gap): gap is NonNullable<typeof gap> => gap !== null)
-      .sort((a, b) => b.gapScore - a.gapScore);
+    return gaps.sort((a, b) => b.gapScore - a.gapScore);
   },
 });
 
 /**
  * Calculate opportunity score for a keyword gap
- * Higher score = better opportunity
  */
 function calculateGapScore(
   competitorPosition: number,
@@ -357,19 +390,11 @@ function calculateGapScore(
   searchVolume: number,
   difficulty: number
 ): number {
-  // Competitor rank factor (better rank = higher score)
   const competitorFactor = (21 - Math.min(competitorPosition, 20)) / 20;
-
-  // Our position factor (worse position = higher score for improvement)
   const ourPositionFactor = ourPosition === null ? 1 : Math.min(ourPosition / 100, 1);
-
-  // Volume factor (logarithmic scale)
-  const volumeFactor = Math.log10(Math.max(searchVolume, 10)) / 4; // Max log10(10000) = 4
-
-  // Difficulty factor (easier = better)
+  const volumeFactor = Math.log10(Math.max(searchVolume, 10)) / 4;
   const difficultyFactor = (100 - difficulty) / 100;
 
-  // Combined score (0-100)
   const score = (
     competitorFactor * 30 +
     ourPositionFactor * 25 +

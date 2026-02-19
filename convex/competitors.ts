@@ -1,8 +1,10 @@
 import { v } from "convex/values";
-import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
+import { mutation, query, action, internalMutation, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { auth } from "./auth";
 import { requireTenantAccess } from "./permissions";
+import { getSupabaseAdmin } from "./lib/supabase";
 
 /**
  * Internal query to get competitor by ID
@@ -208,29 +210,40 @@ export const saveCompetitorPosition = internalMutation({
 });
 
 /**
- * Get competitor positions for a keyword over time
+ * Get competitor positions for a keyword over time (Supabase action)
  */
-export const getCompetitorPositions = query({
+export const getCompetitorPositions = action({
   args: {
     competitorId: v.id("competitors"),
     keywordId: v.id("keywords"),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) return [];
-    const competitor = await ctx.db.get(args.competitorId);
+    // Verify access via internal helper
+    const competitor = await ctx.runQuery(internal.competitors_internal.getCompetitorDetails, { competitorId: args.competitorId });
     if (!competitor) return [];
-    await requireTenantAccess(ctx, "domain", competitor.domainId);
 
-    const positions = await ctx.db
-      .query("competitorKeywordPositions")
-      .withIndex("by_competitor_keyword", (q) =>
-        q.eq("competitorId", args.competitorId).eq("keywordId", args.keywordId)
-      )
-      .order("desc")
-      .take(30); // Last 30 data points
+    const domain = await ctx.runQuery(internal.competitors_internal.verifyDomainAccess, { domainId: competitor.domainId });
+    if (!domain) return [];
 
-    return positions;
+    const sb = getSupabaseAdmin();
+    if (!sb) return [];
+
+    const { data } = await sb
+      .from("competitor_keyword_positions")
+      .select("convex_competitor_id, convex_keyword_id, date, position, url")
+      .eq("convex_competitor_id", args.competitorId)
+      .eq("convex_keyword_id", args.keywordId)
+      .order("date", { ascending: false })
+      .limit(30);
+
+    // Return in a shape compatible with the old Convex document format
+    return (data || []).map((row) => ({
+      competitorId: row.convex_competitor_id,
+      keywordId: row.convex_keyword_id,
+      date: row.date,
+      position: row.position,
+      url: row.url,
+    }));
   },
 });
 
@@ -273,47 +286,64 @@ export const updateCompetitor = mutation({
 });
 
 /**
- * Get all competitors with their positions for a specific keyword
+ * Get all competitors with their positions for a specific keyword (Supabase action)
  */
-export const getCompetitorsForKeyword = query({
+export const getCompetitorsForKeyword = action({
   args: {
     domainId: v.id("domains"),
     keywordId: v.id("keywords"),
   },
-  handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) return [];
-    await requireTenantAccess(ctx, "domain", args.domainId);
+  handler: async (ctx, args): Promise<any[]> => {
+    const domain = await ctx.runQuery(internal.competitors_internal.verifyDomainAccess, { domainId: args.domainId });
+    if (!domain) return [];
 
     // Get all active competitors for this domain
-    const competitors = await ctx.db
-      .query("competitors")
-      .withIndex("by_domain_status", (q) =>
-        q.eq("domainId", args.domainId).eq("status", "active")
-      )
-      .collect();
+    const competitors = await ctx.runQuery(internal.competitors_internal.getActiveCompetitors, { domainId: args.domainId });
 
-    // Get latest position for each competitor
-    const competitorsWithPositions = await Promise.all(
-      competitors.map(async (competitor) => {
-        const latestPosition = await ctx.db
-          .query("competitorKeywordPositions")
-          .withIndex("by_competitor_keyword", (q) =>
-            q.eq("competitorId", competitor._id).eq("keywordId", args.keywordId)
-          )
-          .order("desc")
-          .first();
+    if (competitors.length === 0) return [];
 
-        return {
-          ...competitor,
-          currentPosition: latestPosition?.position || null,
-          currentUrl: latestPosition?.url || null,
-          lastChecked: latestPosition?.fetchedAt || null,
-        };
-      })
-    );
+    const sb = getSupabaseAdmin();
+    if (!sb) {
+      // Fallback: return competitors without position data
+      return competitors.map((c: any) => ({
+        ...c,
+        currentPosition: null,
+        currentUrl: null,
+        lastChecked: null,
+      }));
+    }
 
-    return competitorsWithPositions;
+    const competitorIds = competitors.map((c: any) => c._id);
+
+    // Get latest positions for all competitors for this keyword
+    const { data: rows } = await sb
+      .from("competitor_keyword_positions")
+      .select("convex_competitor_id, position, url, date")
+      .in("convex_competitor_id", competitorIds)
+      .eq("convex_keyword_id", args.keywordId)
+      .order("date", { ascending: false });
+
+    // Deduplicate to latest per competitor
+    const latestByCompetitor = new Map<string, { position: number | null; url: string | null; date: string }>();
+    for (const row of rows || []) {
+      if (!latestByCompetitor.has(row.convex_competitor_id)) {
+        latestByCompetitor.set(row.convex_competitor_id, {
+          position: row.position,
+          url: row.url,
+          date: row.date,
+        });
+      }
+    }
+
+    return competitors.map((c: any) => {
+      const posData = latestByCompetitor.get(c._id);
+      return {
+        ...c,
+        currentPosition: posData?.position ?? null,
+        currentUrl: posData?.url ?? null,
+        lastChecked: posData ? new Date(posData.date).getTime() : null,
+      };
+    });
   },
 });
 

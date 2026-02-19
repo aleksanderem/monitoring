@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useAnalyticsQuery } from "@/hooks/useAnalyticsQuery";
 import {
   BarChart,
   Bar,
@@ -56,12 +56,18 @@ export function CompetitorPositionScatterChart({
   domainId,
 }: CompetitorPositionScatterChartProps) {
   const t = useTranslations("competitors");
-  const data = useQuery(
+  const { data, isLoading } = useAnalyticsQuery<Array<{
+    keyword: string;
+    yourPosition: number;
+    competitorName: string;
+    competitorPosition: number;
+    searchVolume: number;
+  }>>(
     api.competitorComparison_queries.getPositionScatterData,
     { domainId }
   );
 
-  if (data === undefined) {
+  if (isLoading) {
     return (
       <div className="relative rounded-xl border border-secondary bg-primary p-6">
         <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />

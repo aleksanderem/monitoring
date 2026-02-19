@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
+import { auth } from "./auth";
 
 /**
  * Internal query to get competitor details
@@ -118,5 +119,36 @@ export const getCompetitorsByDomain = internalQuery({
       .query("competitors")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
       .collect();
+  },
+});
+
+/**
+ * Verify the current user has access to a specific domain.
+ * Returns the domain doc if authorized, null otherwise.
+ */
+export const verifyDomainAccess = internalQuery({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+
+    const domain = await ctx.db.get(args.domainId);
+    if (!domain) return null;
+
+    const project = await ctx.db.get(domain.projectId);
+    if (!project) return null;
+
+    const team = await ctx.db.get(project.teamId);
+    if (!team) return null;
+
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (!membership || membership.organizationId !== team.organizationId) {
+      return null;
+    }
+
+    return domain;
   },
 });

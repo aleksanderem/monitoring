@@ -14,7 +14,6 @@ import type * as actions_aiKeywordResearch from "../actions/aiKeywordResearch.js
 import type * as actions_aiProvider from "../actions/aiProvider.js";
 import type * as actions_aiSeoStrategist from "../actions/aiSeoStrategist.js";
 import type * as actions_aiStrategy from "../actions/aiStrategy.js";
-import type * as actions_competitorPositions from "../actions/competitorPositions.js";
 import type * as actions_dataforseoLocations from "../actions/dataforseoLocations.js";
 import type * as actions_generateLlmsTxt from "../actions/generateLlmsTxt.js";
 import type * as actions_generatePlatformInstructions from "../actions/generatePlatformInstructions.js";
@@ -72,12 +71,14 @@ import type * as keywordPositions_internal from "../keywordPositions_internal.js
 import type * as keywordSerpJobs from "../keywordSerpJobs.js";
 import type * as keywords from "../keywords.js";
 import type * as keywords_internal from "../keywords_internal.js";
+import type * as lib_analyticsHelpers from "../lib/analyticsHelpers.js";
 import type * as lib_debugLogger from "../lib/debugLogger.js";
 import type * as lib_diagnosticCore from "../lib/diagnosticCore.js";
 import type * as lib_diagnosticCross from "../lib/diagnosticCross.js";
 import type * as lib_diagnosticIndependent from "../lib/diagnosticIndependent.js";
 import type * as lib_diagnosticTypes from "../lib/diagnosticTypes.js";
 import type * as lib_keywordValidation from "../lib/keywordValidation.js";
+import type * as lib_supabase from "../lib/supabase.js";
 import type * as limits from "../limits.js";
 import type * as linkBuilding_mutations from "../linkBuilding_mutations.js";
 import type * as linkBuilding_queries from "../linkBuilding_queries.js";
@@ -127,7 +128,6 @@ declare const fullApi: ApiFromModules<{
   "actions/aiProvider": typeof actions_aiProvider;
   "actions/aiSeoStrategist": typeof actions_aiSeoStrategist;
   "actions/aiStrategy": typeof actions_aiStrategy;
-  "actions/competitorPositions": typeof actions_competitorPositions;
   "actions/dataforseoLocations": typeof actions_dataforseoLocations;
   "actions/generateLlmsTxt": typeof actions_generateLlmsTxt;
   "actions/generatePlatformInstructions": typeof actions_generatePlatformInstructions;
@@ -185,12 +185,14 @@ declare const fullApi: ApiFromModules<{
   keywordSerpJobs: typeof keywordSerpJobs;
   keywords: typeof keywords;
   keywords_internal: typeof keywords_internal;
+  "lib/analyticsHelpers": typeof lib_analyticsHelpers;
   "lib/debugLogger": typeof lib_debugLogger;
   "lib/diagnosticCore": typeof lib_diagnosticCore;
   "lib/diagnosticCross": typeof lib_diagnosticCross;
   "lib/diagnosticIndependent": typeof lib_diagnosticIndependent;
   "lib/diagnosticTypes": typeof lib_diagnosticTypes;
   "lib/keywordValidation": typeof lib_keywordValidation;
+  "lib/supabase": typeof lib_supabase;
   limits: typeof limits;
   linkBuilding_mutations: typeof linkBuilding_mutations;
   linkBuilding_queries: typeof linkBuilding_queries;

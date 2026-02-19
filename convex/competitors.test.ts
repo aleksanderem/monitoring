@@ -364,7 +364,7 @@ describe("competitor positions", () => {
 
     // Query positions
     const asUser = t.withIdentity({ subject: tenant.userId });
-    const positions = await asUser.query(api.competitors.getCompetitorPositions, {
+    const positions = await asUser.action(api.competitors.getCompetitorPositions, {
       competitorId,
       keywordId,
     });
@@ -595,7 +595,7 @@ describe("getCompetitorsForKeyword", () => {
     });
 
     const asUser = t.withIdentity({ subject: tenant.userId });
-    const result = await asUser.query(api.competitors.getCompetitorsForKeyword, {
+    const result = await asUser.action(api.competitors.getCompetitorsForKeyword, {
       domainId: tenant.domainId,
       keywordId,
     });
@@ -633,7 +633,7 @@ describe("getCompetitorsForKeyword", () => {
     });
 
     const asUser = t.withIdentity({ subject: tenant.userId });
-    const result = await asUser.query(api.competitors.getCompetitorsForKeyword, {
+    const result = await asUser.action(api.competitors.getCompetitorsForKeyword, {
       domainId: tenant.domainId,
       keywordId,
     });
@@ -754,7 +754,7 @@ describe("competitorComparison_queries", () => {
     });
 
     const asUser = t.withIdentity({ subject: tenant.userId });
-    const scatter = await asUser.query(
+    const scatter = await asUser.action(
       api.competitorComparison_queries.getPositionScatterData,
       { domainId: tenant.domainId }
     );
@@ -775,7 +775,7 @@ describe("competitorComparison_queries", () => {
     });
 
     const asUser = t.withIdentity({ subject: tenant.userId });
-    const scatter = await asUser.query(
+    const scatter = await asUser.action(
       api.competitorComparison_queries.getPositionScatterData,
       { domainId: tenant.domainId }
     );
