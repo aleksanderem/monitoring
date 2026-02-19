@@ -289,3 +289,21 @@ competitors.ts vs both). Consolidate to single source of truth in Supabase.
 
 This is a conservative estimate for a single user with ~200 keywords.
 At SaaS scale with 100 tenants × 200 keywords, savings multiply to ~1M+ reads/day.
+
+---
+
+## 10. Migration Status (Completed 2026-02-19)
+
+All phases are complete:
+
+| Phase | Status | Commit |
+|-------|--------|--------|
+| Phase 1: Dual-write | Done | keyword + competitor positions written to both Convex and Supabase |
+| Phase 2a: Dashboard | Done | dashboard.ts queries migrated to Supabase actions |
+| Phase 2b: Domains/Reports | Done | domains.ts, domainReports.ts migrated |
+| Phase 2c: Competitors | Done | queries/competitors.ts Supabase actions, competitorComparison |
+| Phase 2d: History/Groups | Done | keywords.ts (3 functions), keywordGroups_queries.ts (5 functions) |
+| Phase 2e: Cleanup | Done | Removed 5 dead code files (813 lines), consolidated duplicates |
+
+Remaining Convex position reads are all write-adjacent (upsert checks, cascade deletes,
+denormalization repairs) or low-frequency diagnostic/admin tools — not worth migrating.
