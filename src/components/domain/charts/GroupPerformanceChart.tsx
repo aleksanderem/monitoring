@@ -1,7 +1,7 @@
 "use client";
 
-import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import { useAnalyticsQuery } from "@/hooks/useAnalyticsQuery";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { useTranslations } from "next-intl";
 import { LoadingState } from "@/components/shared/LoadingState";
@@ -16,12 +16,16 @@ interface GroupPerformanceChartProps {
 
 export function GroupPerformanceChart({ domainId, days = 30 }: GroupPerformanceChartProps) {
   const t = useTranslations('keywords');
-  const groupsPerformance = useQuery(api.keywordGroups_queries.getAllGroupsPerformance, {
-    domainId,
-    days,
-  });
+  const { data: groupsPerformance, isLoading } = useAnalyticsQuery<
+    Array<{
+      groupId: string;
+      name: string;
+      color: string | undefined;
+      history: Array<{ date: number; avgPosition: number }>;
+    }>
+  >(api.keywordGroups_queries.getAllGroupsPerformance, { domainId, days });
 
-  if (groupsPerformance === undefined) {
+  if (isLoading) {
     return <LoadingState type="card" />;
   }
 

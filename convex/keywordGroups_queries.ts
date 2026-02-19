@@ -1,8 +1,9 @@
 import { v } from "convex/values";
-import { query, QueryCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { query, action, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { auth } from "./auth";
 import { requireTenantAccess } from "./permissions";
+import { getSupabaseAdmin } from "./lib/supabase";
 
 // Get all groups for a domain
 export const getGroupsByDomain = query({
@@ -61,20 +62,13 @@ export const getGroupStats = query({
       const keyword = await ctx.db.get(membership.keywordId);
       if (!keyword) continue;
 
-      // Get latest position
-      const latestPosition = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", membership.keywordId))
-        .order("desc")
-        .first();
-
-      if (latestPosition?.position) {
-        totalPosition += latestPosition.position;
+      if (keyword.currentPosition != null) {
+        totalPosition += keyword.currentPosition;
         positionCount++;
       }
 
-      if (latestPosition?.searchVolume) {
-        totalVolume += latestPosition.searchVolume;
+      if (keyword.searchVolume) {
+        totalVolume += keyword.searchVolume;
       }
     }
 
@@ -113,20 +107,13 @@ export const getKeywordsByGroup = query({
       const keyword = await ctx.db.get(membership.keywordId);
       if (!keyword) continue;
 
-      // Get latest position
-      const latestPosition = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", membership.keywordId))
-        .order("desc")
-        .first();
-
       keywords.push({
         ...keyword,
-        currentPosition: latestPosition?.position ?? null,
-        url: latestPosition?.url ?? null,
-        searchVolume: latestPosition?.searchVolume ?? null,
-        difficulty: latestPosition?.difficulty ?? null,
-        lastUpdated: latestPosition?._creationTime ?? keyword._creationTime,
+        currentPosition: keyword.currentPosition ?? null,
+        url: keyword.currentUrl ?? null,
+        searchVolume: keyword.searchVolume ?? null,
+        difficulty: keyword.difficulty ?? null,
+        lastUpdated: keyword.positionUpdatedAt ?? keyword._creationTime,
       });
     }
 
@@ -161,92 +148,130 @@ export const getGroupsForKeyword = query({
   },
 });
 
-// Get average position history for a group (for the performance chart)
-// Helper function to fetch group performance history
-async function fetchGroupPerformanceHistory(
-  ctx: QueryCtx,
-  groupId: Id<"keywordGroups">,
-  days: number = 30
-) {
+// Internal query to resolve group -> keyword IDs (used by Supabase actions)
+export const _getGroupKeywordIds = internalQuery({
+  args: { groupId: v.id("keywordGroups") },
+  handler: async (ctx, args) => {
+    const memberships = await ctx.db
+      .query("keywordGroupMemberships")
+      .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
+      .collect();
+    return memberships.map((m) => m.keywordId as string);
+  },
+});
+
+// Internal query to get all groups for a domain (used by Supabase actions)
+export const _getGroupsByDomain = internalQuery({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    return ctx.db
+      .query("keywordGroups")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+  },
+});
+
+// Helper: fetch group performance history from Supabase
+async function fetchGroupPerformanceHistoryFromSupabase(
+  sb: ReturnType<typeof getSupabaseAdmin>,
+  keywordIds: string[],
+  days: number
+): Promise<Array<{ date: number; avgPosition: number }>> {
+  if (!sb || keywordIds.length === 0) return [];
+
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - days);
   const cutoffDateStr = cutoffDate.toISOString().split("T")[0];
 
-  const memberships = await ctx.db
-    .query("keywordGroupMemberships")
-    .withIndex("by_group", (q) => q.eq("groupId", groupId))
-    .collect();
+  const { data, error } = await sb
+    .from("keyword_positions")
+    .select("date, position")
+    .in("convex_keyword_id", keywordIds)
+    .gte("date", cutoffDateStr)
+    .not("position", "is", null);
 
-  // Build a map of date -> average position
+  if (error || !data) return [];
+
+  // Group by date and compute averages
   const datePositionsMap = new Map<string, number[]>();
-
-  for (const membership of memberships) {
-    const positions = await ctx.db
-      .query("keywordPositions")
-      .withIndex("by_keyword", (q) => q.eq("keywordId", membership.keywordId))
-      .filter((q) => q.gte(q.field("date"), cutoffDateStr))
-      .collect();
-
-    for (const position of positions) {
-      if (position.position === null) continue;
-
-      if (!datePositionsMap.has(position.date)) {
-        datePositionsMap.set(position.date, []);
-      }
-      datePositionsMap.get(position.date)!.push(position.position);
+  for (const row of data) {
+    if (row.position == null) continue;
+    if (!datePositionsMap.has(row.date)) {
+      datePositionsMap.set(row.date, []);
     }
+    datePositionsMap.get(row.date)!.push(row.position);
   }
 
-  // Calculate average position for each date
-  const history = Array.from(datePositionsMap.entries())
+  return Array.from(datePositionsMap.entries())
     .map(([date, positions]) => ({
       date: new Date(date).getTime(),
       avgPosition:
         Math.round((positions.reduce((sum, p) => sum + p, 0) / positions.length) * 10) / 10,
     }))
     .sort((a, b) => a.date - b.date);
-
-  return history;
 }
 
-export const getGroupPerformanceHistory = query({
+// Get average position history for a single group (Supabase action)
+export const getGroupPerformanceHistory = action({
   args: {
     groupId: v.id("keywordGroups"),
     days: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) return [];
-    const group = await ctx.db.get(args.groupId);
-    if (!group) return [];
-    await requireTenantAccess(ctx, "domain", group.domainId);
+  handler: async (ctx, args): Promise<Array<{ date: number; avgPosition: number }>> => {
+    const keywordIds: string[] = await ctx.runQuery(
+      internal.keywordGroups_queries._getGroupKeywordIds,
+      { groupId: args.groupId }
+    );
+    if (keywordIds.length === 0) return [];
 
-    const daysToFetch = args.days || 30;
-    return fetchGroupPerformanceHistory(ctx, args.groupId, daysToFetch);
+    const sb = getSupabaseAdmin();
+    if (!sb) return [];
+
+    return fetchGroupPerformanceHistoryFromSupabase(sb, keywordIds, args.days || 30);
   },
 });
 
-// Get performance comparison across all groups
-export const getAllGroupsPerformance = query({
+// Get performance comparison across all groups (Supabase action)
+export const getAllGroupsPerformance = action({
   args: {
     domainId: v.id("domains"),
     days: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) return [];
-    await requireTenantAccess(ctx, "domain", args.domainId);
+  handler: async (ctx, args): Promise<Array<{
+    groupId: string;
+    name: string;
+    color: string | undefined;
+    history: Array<{ date: number; avgPosition: number }>;
+  }>> => {
+    const domain = await ctx.runQuery(
+      internal.lib.analyticsHelpers.verifyDomainAccess,
+      { domainId: args.domainId }
+    );
+    if (!domain) return [];
 
-    const groups = await ctx.db
-      .query("keywordGroups")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .collect();
+    const sb = getSupabaseAdmin();
+    if (!sb) return [];
+
+    const groups: Array<{ _id: string; name: string; color?: string; domainId: string }> =
+      await ctx.runQuery(
+        internal.keywordGroups_queries._getGroupsByDomain,
+        { domainId: args.domainId }
+      );
 
     const daysToFetch = args.days || 30;
 
     const groupsPerformance = await Promise.all(
       groups.map(async (group) => {
-        const history = await fetchGroupPerformanceHistory(ctx, group._id, daysToFetch);
+        const keywordIds: string[] = await ctx.runQuery(
+          internal.keywordGroups_queries._getGroupKeywordIds,
+          { groupId: group._id as any }
+        );
+
+        const history = await fetchGroupPerformanceHistoryFromSupabase(
+          sb,
+          keywordIds,
+          daysToFetch
+        );
 
         return {
           groupId: group._id,

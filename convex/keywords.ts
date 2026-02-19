@@ -1,10 +1,11 @@
 import { v } from "convex/values";
-import { mutation, query, internalQuery, internalMutation, internalAction } from "./_generated/server";
+import { action, mutation, query, internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { auth } from "./auth";
 import { checkKeywordLimit, checkRefreshLimits } from "./limits";
 import { requirePermission, requireTenantAccess, getContextFromDomain, getContextFromKeyword } from "./permissions";
 import { isValidKeywordPhrase } from "./lib/keywordValidation";
+import { getSupabaseAdmin } from "./lib/supabase";
 
 // CTR curve based on organic search position (industry standard)
 function getCTRForPosition(position: number): number {
@@ -47,56 +48,61 @@ export const getKeywords = query({
   },
 });
 
-// Get keyword with history
-export const getKeywordWithHistory = query({
+// Get keyword with history (action — reads history from Supabase)
+export const getKeywordWithHistory = action({
   args: {
     keywordId: v.id("keywords"),
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) return null;
-    const keyword = await ctx.db.get(args.keywordId);
-    if (!keyword) {
-      return null;
-    }
-    await requireTenantAccess(ctx, "domain", keyword.domainId);
+    // Auth + fetch keyword via internal query
+    const keyword: any = await ctx.runQuery(internal.lib.analyticsHelpers.verifyKeywordAccess, {
+      keywordId: args.keywordId,
+    });
+    if (!keyword) return null;
 
     const daysToFetch = args.days || 30;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - daysToFetch);
     const startDateStr = startDate.toISOString().split("T")[0];
 
-    const positions = await ctx.db
-      .query("keywordPositions")
-      .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
-      .filter((q) => q.gte(q.field("date"), startDateStr))
-      .collect();
+    // Use denormalized fields for current/previous/change
+    const currentPosition = keyword.currentPosition ?? null;
+    const change = keyword.positionChange ?? null;
 
-    // Get latest 2 positions to calculate change
-    const allPositions = await ctx.db
-      .query("keywordPositions")
-      .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
-      .order("desc")
-      .take(2);
+    // Fetch history from Supabase
+    let history: Array<{ date: string; position: number | null; url: string | null; searchVolume?: number | null; difficulty?: number | null; cpc?: number | null; fetchedAt?: string }> = [];
+    const sb = getSupabaseAdmin();
+    if (sb) {
+      const { data, error } = await sb
+        .from("keyword_positions")
+        .select("date, position, url, search_volume, difficulty, cpc, created_at")
+        .eq("convex_keyword_id", args.keywordId)
+        .gte("date", startDateStr)
+        .order("date", { ascending: true });
 
-    const currentPosition = allPositions[0] || null;
-    const previousPosition = allPositions[1] || null;
-
-    let change = null;
-    if (currentPosition?.position && previousPosition?.position) {
-      change = previousPosition.position - currentPosition.position;
+      if (!error && data) {
+        history = data.map((row) => ({
+          date: row.date,
+          position: row.position,
+          url: row.url,
+          searchVolume: row.search_volume,
+          difficulty: row.difficulty,
+          cpc: row.cpc,
+          fetchedAt: row.created_at,
+        }));
+      }
     }
 
     return {
       ...keyword,
-      currentPosition: currentPosition?.position ?? null,
-      rankingUrl: currentPosition?.url ?? null,
-      searchVolume: currentPosition?.searchVolume,
-      difficulty: currentPosition?.difficulty,
-      lastUpdated: currentPosition?.fetchedAt,
+      currentPosition,
+      rankingUrl: keyword.currentUrl ?? null,
+      searchVolume: keyword.searchVolume,
+      difficulty: keyword.difficulty,
+      lastUpdated: keyword.positionUpdatedAt,
       change,
-      history: positions.sort((a, b) => a.date.localeCompare(b.date)),
+      history,
     };
   },
 });
@@ -1332,32 +1338,36 @@ export const createKeywordInternal = internalMutation({
 });
 
 /**
- * Get full position history for a keyword from keywordPositions table.
+ * Get full position history for a keyword (action — reads from Supabase).
  * Used in the keyword detail modal for a complete chart (not just 7-day sparkline).
  */
-export const getPositionHistory = query({
+export const getPositionHistory = action({
   args: {
     keywordId: v.id("keywords"),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) return [];
-    const keyword = await ctx.db.get(args.keywordId);
+    // Auth via internal query
+    const keyword = await ctx.runQuery(internal.lib.analyticsHelpers.verifyKeywordAccess, {
+      keywordId: args.keywordId,
+    });
     if (!keyword) return [];
-    await requireTenantAccess(ctx, "domain", keyword.domainId);
 
-    const positions = await ctx.db
-      .query("keywordPositions")
-      .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
-      .order("asc")
-      .collect();
+    const sb = getSupabaseAdmin();
+    if (!sb) return [];
 
-    return positions
-      .filter((p) => p.position != null)
-      .map((p) => ({
-        date: new Date(p.date).getTime(),
-        position: p.position as number,
-      }));
+    const { data, error } = await sb
+      .from("keyword_positions")
+      .select("date, position")
+      .eq("convex_keyword_id", args.keywordId)
+      .not("position", "is", null)
+      .order("date", { ascending: true });
+
+    if (error || !data) return [];
+
+    return data.map((row) => ({
+      date: new Date(row.date).getTime(),
+      position: row.position as number,
+    }));
   },
 });
 
@@ -1452,27 +1462,50 @@ export const getSerpResultsForKeyword = query({
   },
 });
 
-// Position aggregation: temporal comparison of keyword positions
-// Optimized: uses denormalized currentPosition (eliminates 1 query/keyword), still needs old-position query
-export const getPositionAggregation = query({
-  args: {
-    domainId: v.id("domains"),
-    days: v.optional(v.number()),
-  },
+// Internal query: get domain keywords with denormalized position data (for actions)
+export const getDomainKeywordsWithPositionData = internalQuery({
+  args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) return null;
-    await requireTenantAccess(ctx, "domain", args.domainId);
-
-    const days = args.days ?? 30;
-    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-
     const keywords = await ctx.db
       .query("keywords")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
       .collect();
 
+    return keywords.map((kw) => ({
+      _id: kw._id,
+      currentPosition: kw.currentPosition ?? null,
+      recentPositions: kw.recentPositions ?? [],
+    }));
+  },
+});
+
+// Position aggregation: temporal comparison of keyword positions
+// Hybrid: <=7d uses denormalized recentPositions, >7d uses Supabase batch query
+export const getPositionAggregation = action({
+  args: {
+    domainId: v.id("domains"),
+    days: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    // Auth via internal query
+    const domain: any = await ctx.runQuery(internal.lib.analyticsHelpers.verifyDomainAccess, {
+      domainId: args.domainId,
+    });
+    if (!domain) return null;
+
+    // Fetch keywords with denormalized data
+    const keywords: Array<{
+      _id: string;
+      currentPosition: number | null;
+      recentPositions: Array<{ date: string; position: number | null }>;
+    }> = await ctx.runQuery(internal.keywords.getDomainKeywordsWithPositionData, {
+      domainId: args.domainId,
+    });
+
     if (keywords.length === 0) return null;
+
+    const days = args.days ?? 30;
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
     let improving = 0;
     let declining = 0;
@@ -1490,8 +1523,39 @@ export const getPositionAggregation = query({
       beyond: { current: 0, previous: 0 },
     };
 
-    // For short periods (<=7 days), use recentPositions to avoid DB queries entirely
+    // For short periods (<=7 days), use denormalized recentPositions — no external query needed
     const useRecentPositions = days <= 7;
+
+    // For >7d, batch-fetch old positions from Supabase in a single query
+    let prevPositionMap = new Map<string, number>();
+    if (!useRecentPositions) {
+      const sb = getSupabaseAdmin();
+      if (sb) {
+        const keywordIds = keywords
+          .filter((kw) => kw.currentPosition != null)
+          .map((kw) => kw._id as string);
+
+        if (keywordIds.length > 0) {
+          // Get the latest position on or before cutoff for each keyword
+          const { data, error } = await sb
+            .from("keyword_positions")
+            .select("convex_keyword_id, position, date")
+            .in("convex_keyword_id", keywordIds)
+            .lte("date", cutoffDate)
+            .not("position", "is", null)
+            .order("date", { ascending: false });
+
+          if (!error && data) {
+            // Keep only the most recent entry per keyword (first seen since ordered desc)
+            for (const row of data) {
+              if (!prevPositionMap.has(row.convex_keyword_id)) {
+                prevPositionMap.set(row.convex_keyword_id, row.position as number);
+              }
+            }
+          }
+        }
+      }
+    }
 
     for (const kw of keywords) {
       const currentPos = kw.currentPosition;
@@ -1510,19 +1574,11 @@ export const getPositionAggregation = query({
       let prevPos: number | null = null;
 
       if (useRecentPositions) {
-        // Use denormalized recentPositions for 7-day comparison
         const recent = kw.recentPositions ?? [];
-        const oldEntry = recent.find((p) => p.date <= cutoffDate);
+        const oldEntry = recent.find((p: { date: string; position: number | null }) => p.date <= cutoffDate);
         prevPos = oldEntry?.position ?? null;
       } else {
-        // For longer periods, still need a DB query
-        const oldPositions = await ctx.db
-          .query("keywordPositions")
-          .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
-          .filter((q) => q.lte(q.field("date"), cutoffDate))
-          .order("desc")
-          .first();
-        prevPos = oldPositions?.position ?? null;
+        prevPos = prevPositionMap.get(kw._id as string) ?? null;
       }
 
       if (prevPos !== null) {

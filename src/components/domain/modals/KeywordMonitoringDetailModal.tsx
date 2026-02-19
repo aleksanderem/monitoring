@@ -9,6 +9,7 @@ import { KeywordPositionChart } from "../charts/KeywordPositionChart";
 import { MonthlySearchTrendChart } from "../charts/MonthlySearchTrendChart";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import { useAnalyticsQuery } from "@/hooks/useAnalyticsQuery";
 import { toast } from "sonner";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { CreateCompetitorReportModal } from "./CreateCompetitorReportModal";
@@ -34,10 +35,13 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
   const [isAddingCompetitors, setIsAddingCompetitors] = useState(false);
   const [isCompetitorReportModalOpen, setIsCompetitorReportModalOpen] = useState(false);
 
-  // Fetch full position history from keywordPositions table (not just 7-entry sparkline)
-  const fullPositionHistory = useQuery(
+  // Fetch full position history from Supabase (not just 7-entry sparkline)
+  const { data: fullPositionHistory, isLoading: isHistoryLoading } = useAnalyticsQuery<
+    Array<{ date: number; position: number }>
+  >(
     api.keywords.getPositionHistory,
-    keyword?.keywordId ? { keywordId: keyword.keywordId } : "skip"
+    { keywordId: keyword?.keywordId },
+    { enabled: !!keyword?.keywordId }
   );
 
   // Fetch SERP results for this keyword (show top 20 instead of 10)

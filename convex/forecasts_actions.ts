@@ -111,8 +111,8 @@ export const generateKeywordForecast = action({
   }> => {
     const { keywordId, metric, daysToForecast = 30 } = args;
 
-    // Get historical position data using the correct query
-    const keywordData = await ctx.runQuery(api.keywords.getKeywordWithHistory, {
+    // Get historical position data using the action (reads from Supabase)
+    const keywordData = await ctx.runAction(api.keywords.getKeywordWithHistory, {
       keywordId,
     });
 
@@ -226,7 +226,7 @@ export const detectAnomaliesForEntity = action({
 
     // Get historical data based on entity type
     if (entityType === "keyword") {
-      const keywordData = await ctx.runQuery(api.keywords.getKeywordWithHistory, {
+      const keywordData = await ctx.runAction(api.keywords.getKeywordWithHistory, {
         keywordId: entityId as any,
       });
 
