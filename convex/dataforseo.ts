@@ -8,6 +8,7 @@ import { API_COSTS, extractApiCost } from "./apiUsage";
 import { checkKeywordLimit } from "./limits";
 import { auth } from "./auth";
 import { requireTenantAccess } from "./permissions";
+import { writeKeywordPositions, type KeywordPositionRow } from "./lib/supabase";
 
 // DataForSEO API configuration
 const DATAFORSEO_API_URL = "https://api.dataforseo.com/v3";
@@ -574,6 +575,9 @@ export const fetchPositionsInternal = internalAction({
         return { success: false, error: data.status_message };
       }
 
+      // Collect positions for Supabase dual-write
+      const supabaseRows: KeywordPositionRow[] = [];
+
       for (let i = 0; i < data.tasks.length; i++) {
         const task = data.tasks[i];
         const keywordInfo = args.keywords[i];
@@ -581,6 +585,13 @@ export const fetchPositionsInternal = internalAction({
         if (task.status_code !== 20000 || !task.result?.[0]?.items) {
           await ctx.runMutation(internal.dataforseo.storePositionInternal, {
             keywordId: keywordInfo.id,
+            date: today,
+            position: null,
+            url: null,
+          });
+          supabaseRows.push({
+            convex_domain_id: args.domainId,
+            convex_keyword_id: keywordInfo.id,
             date: today,
             position: null,
             url: null,
@@ -593,14 +604,32 @@ export const fetchPositionsInternal = internalAction({
           item.type === "organic" && item.url?.includes(args.domain)
         );
 
+        const position = domainMatch?.rank_absolute || null;
+        const url = domainMatch?.url || null;
+        const searchVolume = task.result[0].search_volume;
+
         await ctx.runMutation(internal.dataforseo.storePositionInternal, {
           keywordId: keywordInfo.id,
           date: today,
-          position: domainMatch?.rank_absolute || null,
-          url: domainMatch?.url || null,
-          searchVolume: task.result[0].search_volume,
+          position,
+          url,
+          searchVolume,
+        });
+
+        supabaseRows.push({
+          convex_domain_id: args.domainId,
+          convex_keyword_id: keywordInfo.id,
+          date: today,
+          position,
+          url,
+          search_volume: searchVolume,
         });
       }
+
+      // Dual-write: batch upsert all positions to Supabase (non-blocking)
+      writeKeywordPositions(supabaseRows).catch((err) =>
+        console.warn("[Supabase dual-write] keyword positions failed:", err)
+      );
 
       // Fetch difficulty for keywords that don't have it yet (single batch query)
       const keywordsMissingDifficulty = await ctx.runQuery(

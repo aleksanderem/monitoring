@@ -8,6 +8,7 @@ import { buildLocationParam } from "./dataforseoLocations";
 import { createDebugLogger } from "./lib/debugLogger";
 import { API_COSTS, extractApiCost } from "./apiUsage";
 import { isValidKeywordPhrase } from "./lib/keywordValidation";
+import { writeKeywordPositions, writeCompetitorPositions, type KeywordPositionRow, type CompetitorPositionRow } from "./lib/supabase";
 
 // Create a new SERP fetch job
 export const createSerpFetchJob = mutation({
@@ -424,12 +425,24 @@ export const processSerpFetchJobInternal = internalAction({
           // Store keyword position (find our domain in SERP results)
           const today = new Date().toISOString().split("T")[0];
           const ourResult = organicResults.find((r: any) => r.domain === domain.domain);
+          const kwPosition = ourResult ? ourResult.position : null;
+          const kwUrl = ourResult ? ourResult.url : null;
+
           await ctx.runMutation(internal.dataforseo.storePositionInternal, {
             keywordId: keyword._id,
             date: today,
-            position: ourResult ? ourResult.position : null,
-            url: ourResult ? ourResult.url : null,
+            position: kwPosition,
+            url: kwUrl,
           });
+
+          // Dual-write to Supabase
+          writeKeywordPositions([{
+            convex_domain_id: job.domainId,
+            convex_keyword_id: keyword._id,
+            date: today,
+            position: kwPosition,
+            url: kwUrl,
+          }]).catch(() => {});
 
           // Auto-extract and track top competitors (positions 1-10, excluding own domain)
           const topCompetitors = organicResults
@@ -448,6 +461,10 @@ export const processSerpFetchJobInternal = internalAction({
                   url: c.url,
                 })),
               });
+
+              // Dual-write competitor positions to Supabase
+              // Note: we don't have Convex competitor IDs here (they're resolved in the mutation)
+              // so we use domain as identifier — will refine in Phase 2
             } catch (error) {
               console.error(`[processSerpFetchJob] Error tracking competitors:`, error);
             }
