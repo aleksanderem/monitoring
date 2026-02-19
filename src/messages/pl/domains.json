@@ -370,5 +370,36 @@
   "addingKeywords": "Dodawanie słów kluczowych...",
   "onboardingRequiredTitle": "Dokończ konfigurację",
   "onboardingRequiredDescription": "Musisz dokończyć konfigurację domeny, zanim uzyskasz dostęp do panelu. Skonfiguruj słowa kluczowe, konkurentów i ustawienia analizy.",
-  "onboardingStartSetup": "Rozpocznij konfigurację"
+  "onboardingStartSetup": "Rozpocznij konfigurację",
+
+  "hubSectionMonitoring": "Monitoring",
+  "hubSectionCompetition": "Konkurencja",
+  "hubSectionAudit": "Audyt i wnioski",
+  "hubSectionTools": "AI i narzędzia",
+
+  "moduleDescMonitoring": "Śledź pozycje słów kluczowych i zmiany w SERP",
+  "moduleDescKeywordMap": "Wizualizuj klastry słów kluczowych i mapowanie tematów",
+  "moduleDescVisibility": "Odkrywaj nowe słowa kluczowe i śledź trendy widoczności",
+  "moduleDescCompetitors": "Monitoruj pozycje i strategie konkurentów",
+  "moduleDescContentGaps": "Znajdź luki w treści, na które pozycjonuje się konkurencja",
+  "moduleDescLinkBuilding": "Odkrywaj prospekty linkowe i zarządzaj outreachem",
+  "moduleDescBacklinks": "Analizuj profil backlinków i monitoruj wzrost",
+  "moduleDescOnSite": "Audytuj techniczne SEO i optymalizację on-page",
+  "moduleDescInsights": "Analiza AI i rekomendacje do działania",
+  "moduleDescAIResearch": "Badaj słowa kluczowe i tematy z pomocą AI",
+  "moduleDescStrategy": "Buduj i realizuj strategię SEO z AI",
+  "moduleDescGenerators": "Generuj meta tagi, briefy treści i więcej",
+  "moduleDescKeywordAnalysis": "Pogłębiona analiza treści konkurentów per słowo kluczowe",
+  "moduleDescSettings": "Skonfiguruj preferencje monitorowania domeny",
+
+  "lockReasonAddKeywordsAndCheck": "Dodaj słowa kluczowe i uruchom pierwszą kontrolę pozycji",
+  "lockReasonRunSerpCheck": "Uruchom pierwszą kontrolę SERP, aby odblokować",
+  "lockReasonAddCompetitors": "Dodaj 2-3 konkurentów, aby odblokować",
+  "lockReasonRunAnalysis": "Dodaj konkurentów i uruchom analizę",
+  "lockReasonFetchBacklinks": "Pobierz dane backlinków, aby odblokować",
+  "lockReasonRunAudit": "Uruchom pierwszy audyt strony, aby odblokować",
+  "lockReasonSetContext": "Ustaw kontekst biznesowy, aby odblokować",
+  "lockReasonAddKeywords": "Dodaj słowa kluczowe, aby odblokować",
+
+  "hubLocked": "Zablokowane"
 }

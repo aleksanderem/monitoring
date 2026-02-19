@@ -370,5 +370,36 @@
   "addingKeywords": "Adding keywords...",
   "onboardingRequiredTitle": "Complete Setup First",
   "onboardingRequiredDescription": "You need to complete the domain setup before you can access the dashboard. Configure your keywords, competitors, and analysis settings.",
-  "onboardingStartSetup": "Start Setup"
+  "onboardingStartSetup": "Start Setup",
+
+  "hubSectionMonitoring": "Monitoring",
+  "hubSectionCompetition": "Competition",
+  "hubSectionAudit": "Audit & Insights",
+  "hubSectionTools": "AI & Tools",
+
+  "moduleDescMonitoring": "Track keyword positions and SERP changes over time",
+  "moduleDescKeywordMap": "Visualize keyword clusters and topic mapping",
+  "moduleDescVisibility": "Discover new keywords and track visibility trends",
+  "moduleDescCompetitors": "Monitor competitor rankings and strategies",
+  "moduleDescContentGaps": "Find content opportunities your competitors rank for",
+  "moduleDescLinkBuilding": "Discover link prospects and manage outreach",
+  "moduleDescBacklinks": "Analyze your backlink profile and monitor growth",
+  "moduleDescOnSite": "Audit technical SEO and on-page optimization",
+  "moduleDescInsights": "AI-powered analysis and actionable recommendations",
+  "moduleDescAIResearch": "Research keywords and topics with AI assistance",
+  "moduleDescStrategy": "Build and execute your SEO strategy with AI",
+  "moduleDescGenerators": "Generate meta tags, content briefs, and more",
+  "moduleDescKeywordAnalysis": "Deep-dive competitor content analysis per keyword",
+  "moduleDescSettings": "Configure domain monitoring preferences",
+
+  "lockReasonAddKeywordsAndCheck": "Add keywords and run first position check",
+  "lockReasonRunSerpCheck": "Run first SERP check to unlock",
+  "lockReasonAddCompetitors": "Add 2-3 competitors to unlock",
+  "lockReasonRunAnalysis": "Add competitors and run analysis first",
+  "lockReasonFetchBacklinks": "Fetch backlinks data to unlock",
+  "lockReasonRunAudit": "Run first site audit to unlock",
+  "lockReasonSetContext": "Set business context to unlock",
+  "lockReasonAddKeywords": "Add keywords first to unlock",
+
+  "hubLocked": "Locked"
 }
