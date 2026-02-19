@@ -213,21 +213,25 @@ export const processSerpFetchJobInternal = internalAction({
 
     const endIndex = Math.min(startIndex + CHUNK_SIZE, job.keywordIds.length);
 
-    // ── Fetch keywords for this chunk ──
+    // ── Fetch keywords for this chunk (1 batch query instead of N individual) ──
     const chunkKeywordIds = job.keywordIds.slice(startIndex, endIndex);
-    const chunkKeywords: Array<{ _id: Id<"keywords">; phrase: string }> = [];
     const skippedCount = { invalid: 0 };
 
-    for (const keywordId of chunkKeywordIds) {
-      const keyword = await ctx.runQuery(internal.keywords.getKeywordInternal, {
-        keywordId,
-      });
-      if (!keyword) {
-        console.error(`[processSerpFetchJob] Keyword ${keywordId} not found`);
-        failedCount++;
-        continue;
-      }
-      // Validate phrase before sending to API
+    const allKeywords = await ctx.runQuery(internal.keywords.getKeywordsByIdsBatch, {
+      keywordIds: chunkKeywordIds,
+    });
+
+    // Track missing keywords
+    const foundIds = new Set(allKeywords.map((k) => k._id));
+    const missingCount = chunkKeywordIds.filter((id) => !foundIds.has(id)).length;
+    if (missingCount > 0) {
+      console.error(`[processSerpFetchJob] ${missingCount} keywords not found in chunk`);
+      failedCount += missingCount;
+    }
+
+    // Filter out invalid phrases
+    const chunkKeywords: Array<{ _id: Id<"keywords">; phrase: string }> = [];
+    for (const keyword of allKeywords) {
       const validation = isValidKeywordPhrase(keyword.phrase);
       if (!validation.valid) {
         console.warn(`[processSerpFetchJob] Skipping invalid phrase "${keyword.phrase}": ${validation.reason}`);

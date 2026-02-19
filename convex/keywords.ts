@@ -1218,6 +1218,47 @@ export const getKeywordInternal = internalQuery({
 });
 
 /**
+ * Batch fetch keywords by IDs (single query instead of N individual fetches).
+ * Uses Promise.all with ctx.db.get() since Convex has no WHERE IN.
+ */
+export const getKeywordsByIdsBatch = internalQuery({
+  args: {
+    keywordIds: v.array(v.id("keywords")),
+  },
+  handler: async (ctx, args) => {
+    const results = await Promise.all(
+      args.keywordIds.map((id) => ctx.db.get(id))
+    );
+    // Filter out nulls (deleted keywords)
+    return results.filter((k): k is NonNullable<typeof k> => k !== null);
+  },
+});
+
+/**
+ * Batch update keyword checking status (single mutation instead of N individual patches).
+ */
+export const updateKeywordStatusBatch = internalMutation({
+  args: {
+    updates: v.array(v.object({
+      keywordId: v.id("keywords"),
+      status: v.union(
+        v.literal("queued"),
+        v.literal("checking"),
+        v.literal("completed"),
+        v.literal("failed")
+      ),
+    })),
+  },
+  handler: async (ctx, args) => {
+    for (const update of args.updates) {
+      await ctx.db.patch(update.keywordId, {
+        checkingStatus: update.status,
+      });
+    }
+  },
+});
+
+/**
  * Internal query to get all monitored keywords for a domain
  */
 export const getMonitoredKeywordsInternal = internalQuery({

@@ -134,6 +134,11 @@ export const generateKeywordIdeas = action({
     // 3. Gather data in parallel: page content, DataForSEO suggestions, existing keywords
     console.log(`[AI Research] Starting data gathering for ${domain.domain}...`);
 
+    // 3a. Check page content cache first (24h TTL)
+    const cachedContent = await ctx.runQuery(internal.domains.getCachedPageContent, {
+      domainId: args.domainId,
+    });
+
     const visibilityParams = {
       domain: domain.domain,
       location: domain.settings.location,
@@ -142,15 +147,17 @@ export const generateKeywordIdeas = action({
     };
 
     const [pageContentResult, dataforseoResult, discoveredKeywords, monitoredKeywords] = await Promise.all([
-      // 3a. Fetch homepage text
-      logStep(ctx, debugEnabled, args.domainId, "content_parsing",
-        { url: `https://${domain.domain}` },
-        () => fetchPageContent(domain.domain)),
+      // 3a. Fetch homepage text (skip API if cached)
+      cachedContent
+        ? Promise.resolve({ text: cachedContent, apiCost: 0 })
+        : logStep(ctx, debugEnabled, args.domainId, "content_parsing",
+            { url: `https://${domain.domain}` },
+            () => fetchPageContent(domain.domain)),
 
-      // 3b. Fetch DataForSEO keyword suggestions (ranked + Google Ads)
+      // 3b. Fetch DataForSEO keyword suggestions (ranked + Google Ads) — uses cheaper internal endpoint
       logStep(ctx, debugEnabled, args.domainId, "dataforseo_visibility",
         visibilityParams,
-        () => ctx.runAction(api.dataforseo.fetchDomainVisibility, visibilityParams))
+        () => ctx.runAction(internal.dataforseo.fetchDomainVisibilityInternal, visibilityParams))
         .catch(() => ({ success: false as const, keywords: [] as any[], totalFound: 0 })),
 
       // 3c. Already-discovered keywords
@@ -174,6 +181,14 @@ export const generateKeywordIdeas = action({
         estimatedCost: pageContentResult.apiCost,
         caller: "aiKeywordResearch",
         domainId: args.domainId,
+      });
+    }
+
+    // Cache freshly-fetched content for future calls
+    if (!cachedContent && pageContent) {
+      await ctx.runMutation(internal.domains.cachePageContent, {
+        domainId: args.domainId,
+        content: pageContent,
       });
     }
 

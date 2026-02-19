@@ -27,21 +27,38 @@ export const generateBusinessContext = action({
       return { businessDescription: "", targetCustomer: "", scraped: false };
     }
 
-    // 2. Scrape homepage content
+    // 2. Scrape homepage content (with 24h cache)
     let pageContent: string | null = null;
     try {
-      const result = await fetchPageContent(domain.domain);
-      pageContent = result.text;
+      // Check cache first
+      const cached = await ctx.runQuery(internal.domains.getCachedPageContent, {
+        domainId: args.domainId,
+      });
 
-      // Log content parsing API usage
-      if (result.apiCost > 0) {
-        await ctx.runMutation(internal.apiUsage.logApiUsage, {
-          endpoint: "/on_page/content_parsing/live",
-          taskCount: 1,
-          estimatedCost: result.apiCost,
-          caller: "aiBusinessContext",
-          domainId: args.domainId,
-        });
+      if (cached) {
+        pageContent = cached;
+      } else {
+        const result = await fetchPageContent(domain.domain);
+        pageContent = result.text;
+
+        // Log content parsing API usage
+        if (result.apiCost > 0) {
+          await ctx.runMutation(internal.apiUsage.logApiUsage, {
+            endpoint: "/on_page/content_parsing/live",
+            taskCount: 1,
+            estimatedCost: result.apiCost,
+            caller: "aiBusinessContext",
+            domainId: args.domainId,
+          });
+        }
+
+        // Cache the result for future calls
+        if (pageContent) {
+          await ctx.runMutation(internal.domains.cachePageContent, {
+            domainId: args.domainId,
+            content: pageContent,
+          });
+        }
       }
     } catch (error) {
       console.warn("[BusinessContext] Failed to scrape homepage:", error);

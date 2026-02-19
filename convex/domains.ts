@@ -1104,14 +1104,28 @@ export const initializeDomainData = internalAction({
     console.log(`[INIT] Starting automatic initialization for domain: ${args.domain} (${args.location}/${language})`);
 
     try {
-      // 1. Fetch domain visibility (discovered keywords the domain ranks for)
-      console.log(`[INIT] Fetching domain visibility and discovered keywords...`);
-      const visibilityResult = await ctx.runAction(api.dataforseo.fetchAndStoreVisibility, {
-        domainId: args.domainId,
-        domain: args.domain,
-        location: args.location,
-        language,
-      });
+      // Fetch visibility + history in parallel (no data dependency between them)
+      // Visibility: discovered keywords the domain ranks for ($0.085)
+      // History: 12 months of position distribution ($0.10)
+      // Note: history is only used in the PositionHistoryChart and ForecastSummaryCard
+      // dashboard views — could be lazy-loaded on first chart view instead of at init,
+      // but pre-fetching gives a better first-load experience.
+      console.log(`[INIT] Fetching domain visibility and history in parallel...`);
+
+      const [visibilityResult, historyResult] = await Promise.all([
+        ctx.runAction(api.dataforseo.fetchAndStoreVisibility, {
+          domainId: args.domainId,
+          domain: args.domain,
+          location: args.location,
+          language,
+        }),
+        ctx.runAction(api.dataforseo.fetchAndStoreVisibilityHistory, {
+          domainId: args.domainId,
+          domain: args.domain,
+          location: args.location,
+          language,
+        }),
+      ]);
 
       if (visibilityResult.success) {
         console.log(`[INIT] ✓ Successfully fetched ${visibilityResult.count || 0} discovered keywords`);
@@ -1119,22 +1133,13 @@ export const initializeDomainData = internalAction({
         console.error(`[INIT] ✗ Failed to fetch visibility: ${visibilityResult.error}`);
       }
 
-      // 2. Fetch visibility history (12 months of position distribution)
-      console.log(`[INIT] Fetching 12 months of visibility history...`);
-      const historyResult = await ctx.runAction(api.dataforseo.fetchAndStoreVisibilityHistory, {
-        domainId: args.domainId,
-        domain: args.domain,
-        location: args.location,
-        language,
-      });
-
       if (historyResult.success) {
         console.log(`[INIT] ✓ Successfully fetched ${historyResult.datesStored || 0} months of visibility history`);
       } else {
         console.error(`[INIT] ✗ Failed to fetch history: ${historyResult.error}`);
       }
 
-      // 3. Log completion
+      // Log completion
       const successCount = (visibilityResult.success ? 1 : 0) + (historyResult.success ? 1 : 0);
       console.log(`[INIT] Initialization complete: ${successCount}/2 tasks successful`);
 
@@ -1199,6 +1204,42 @@ export const saveBusinessContext = internalMutation({
     await ctx.db.patch(args.domainId, {
       businessDescription: args.businessDescription,
       targetCustomer: args.targetCustomer,
+    });
+  },
+});
+
+const PAGE_CONTENT_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Return cached homepage content if it exists and is less than 24 hours old.
+ */
+export const getCachedPageContent = internalQuery({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const domain = await ctx.db.get(args.domainId);
+    if (
+      domain?.cachedPageContent &&
+      domain.cachedPageContentAt &&
+      Date.now() - domain.cachedPageContentAt < PAGE_CONTENT_CACHE_TTL_MS
+    ) {
+      return domain.cachedPageContent;
+    }
+    return null;
+  },
+});
+
+/**
+ * Store scraped homepage content on the domain record for caching.
+ */
+export const cachePageContent = internalMutation({
+  args: {
+    domainId: v.id("domains"),
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.domainId, {
+      cachedPageContent: args.content,
+      cachedPageContentAt: Date.now(),
     });
   },
 });

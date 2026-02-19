@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query, internalAction, internalMutation } from "./_generated/server";
+import { mutation, query, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { auth } from "./auth";
@@ -19,6 +19,15 @@ export const analyzeCompetitorPage = internalAction({
   },
   handler: async (ctx, args) => {
     console.log(`[analyzeCompetitorPage] Analyzing ${args.url} for competitor ${args.competitorId}`);
+
+    // Check cache — skip API call if URL was analyzed within 7 days
+    const cached = await ctx.runQuery(internal.competitorAnalysis.getCachedPageAnalysis, {
+      url: args.url,
+    });
+    if (cached) {
+      console.log(`[analyzeCompetitorPage] Cache hit for ${args.url} (fetched ${new Date(cached.fetchedAt).toISOString()})`);
+      return { success: true };
+    }
 
     // Get API credentials
     const login = process.env.DATAFORSEO_LOGIN;
@@ -427,5 +436,26 @@ export const triggerCompetitorPageAnalysis = mutation({
     });
 
     return { success: true, url };
+  },
+});
+
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/**
+ * Look up a recent page analysis by URL (within 7 days).
+ * Used as a cache to avoid redundant DataForSEO API calls.
+ */
+export const getCachedPageAnalysis = internalQuery({
+  args: { url: v.string() },
+  handler: async (ctx, args) => {
+    const cutoff = Date.now() - CACHE_TTL_MS;
+    const entry = await ctx.db
+      .query("competitorPageAnalysis")
+      .withIndex("by_url", (q) => q.eq("url", args.url))
+      .order("desc")
+      .first();
+
+    if (!entry || entry.fetchedAt < cutoff) return null;
+    return entry;
   },
 });
