@@ -438,59 +438,9 @@ describe("competitor positions", () => {
 // =====================================================================
 // Competitor Stats
 // =====================================================================
-describe("getCompetitorStats", () => {
-  test("returns correct competitor and gap counts", async () => {
-    const t = convexTest(schema, modules);
-    const tenant = await createTenantHierarchy(t, {
-      email: "alice@example.com",
-      orgName: "Org A",
-      domainName: "mysite.com",
-    });
-
-    const asUser = t.withIdentity({ subject: tenant.userId });
-
-    // Add 2 active competitors
-    await asUser.mutation(api.competitors.addCompetitor, {
-      domainId: tenant.domainId,
-      competitorDomain: "rival1.com",
-    });
-    const comp2Id = await asUser.mutation(api.competitors.addCompetitor, {
-      domainId: tenant.domainId,
-      competitorDomain: "rival2.com",
-    });
-
-    // Pause one competitor
-    await asUser.mutation(api.competitors.updateCompetitor, {
-      competitorId: comp2Id,
-      status: "paused",
-    });
-
-    // Add a keyword
-    const keywordId = await t.run(async (ctx: any) => {
-      return await ctx.db.insert("keywords", {
-        domainId: tenant.domainId,
-        phrase: "test keyword",
-        status: "active" as const,
-        createdAt: Date.now(),
-      });
-    });
-
-    const stats = await asUser.query(api.competitors_queries.getCompetitorStats, {
-      domainId: tenant.domainId,
-    });
-
-    expect(stats.totalCompetitors).toBe(2);
-    expect(stats.activeCompetitors).toBe(1);
-    expect(stats.pausedCompetitors).toBe(1);
-    expect(stats.totalKeywords).toBe(1);
-    expect(stats.totalGaps).toBe(0);
-  });
-});
-
+// getCompetitors (scoped by domain)
 // =====================================================================
-// getCompetitorsByDomain (competitors_queries)
-// =====================================================================
-describe("getCompetitorsByDomain", () => {
+describe("getCompetitors scoping", () => {
   test("returns competitors scoped to the correct domain", async () => {
     const t = convexTest(schema, modules);
     const tenant = await createTenantHierarchy(t, {
@@ -537,13 +487,13 @@ describe("getCompetitorsByDomain", () => {
     });
 
     const asUser = t.withIdentity({ subject: tenant.userId });
-    const compsD1 = await asUser.query(api.competitors_queries.getCompetitorsByDomain, {
+    const compsD1 = await asUser.query(api.competitors.getCompetitors, {
       domainId: tenant.domainId,
     });
     expect(compsD1.length).toBe(1);
     expect(compsD1[0].competitorDomain).toBe("rival-for-domain1.com");
 
-    const compsD2 = await asUser.query(api.competitors_queries.getCompetitorsByDomain, {
+    const compsD2 = await asUser.query(api.competitors.getCompetitors, {
       domainId: domain2Id,
     });
     expect(compsD2.length).toBe(1);
