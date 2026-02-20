@@ -30,21 +30,68 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
 
   if (!isOpen) return null;
 
+  // Client-side validation matching server rules (convex/lib/keywordValidation.ts)
+  const validatePhrase = (phrase: string): string | null => {
+    if (phrase.length < 2) return t('validationTooShort');
+    if (phrase.length > 80) return t('validationTooLong');
+    if (/^https?:\/\//i.test(phrase)) return t('validationLooksLikeUrl');
+    if (/^[a-z0-9-]+\.[a-z]{2,}(\/\S*)?$/i.test(phrase) && !phrase.includes(" ")) return t('validationLooksLikeDomain');
+    if (/^\d+$/.test(phrase)) return t('validationJustNumbers');
+    const nonAlpha = phrase.replace(/[a-z0-9\s]/gi, "").length;
+    const nonSpace = phrase.replace(/\s/g, "").length;
+    if (nonSpace > 0 && nonAlpha / nonSpace > 0.3) return t('validationTooManySpecialChars');
+    return null;
+  };
+
   const handleSubmit = async () => {
-    const phrases = keywordsText
+    const lines = keywordsText
       .split("\n")
-      .map(line => line.trim())
+      .map(line => line.trim().toLowerCase())
       .filter(line => line.length > 0);
 
-    if (phrases.length === 0) {
+    if (lines.length === 0) {
       toast.error(t('pleaseEnterKeyword'));
+      return;
+    }
+
+    // Client-side validation + deduplication
+    const valid: string[] = [];
+    const invalid: string[] = [];
+    const seen = new Set<string>();
+
+    for (const phrase of lines) {
+      if (seen.has(phrase)) continue; // Skip duplicates within input
+      seen.add(phrase);
+      const error = validatePhrase(phrase);
+      if (error) {
+        invalid.push(phrase);
+      } else {
+        valid.push(phrase);
+      }
+    }
+
+    if (valid.length === 0) {
+      toast.error(t('allKeywordsInvalid', { count: invalid.length }));
       return;
     }
 
     try {
       setIsSubmitting(true);
-      await addKeywordsMutation({ domainId, phrases });
-      toast.success(t('addedKeywordsToMonitoring', { count: phrases.length }));
+      const addedIds = await addKeywordsMutation({ domainId, phrases: valid });
+      const addedCount = addedIds.length;
+      const skippedCount = valid.length - addedCount;
+
+      if (invalid.length > 0 || skippedCount > 0) {
+        // Some were filtered — show detailed toast
+        toast.success(t('addedKeywordsDetailed', {
+          added: addedCount,
+          skipped: skippedCount,
+          invalid: invalid.length,
+        }));
+      } else {
+        toast.success(t('addedKeywordsToMonitoring', { count: addedCount }));
+      }
+
       setKeywordsText("");
       onClose();
     } catch (error) {
@@ -90,13 +137,13 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-50"
+        className="fixed inset-0 bg-overlay/70 z-50"
         onClick={onClose}
       />
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="relative bg-primary rounded-xl border border-secondary shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+        <div className="relative bg-primary dark:bg-[#1f2530] rounded-xl border border-secondary shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
           <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-secondary">
