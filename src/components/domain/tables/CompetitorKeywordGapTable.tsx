@@ -320,7 +320,7 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
                           {Math.round(gap.difficulty)}
                         </Badge>
                       ) : (
-                        <span className="text-sm text-tertiary">—</span>
+                        <span className="text-sm text-tertiary" title={tc('notAvailable')}>—</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">

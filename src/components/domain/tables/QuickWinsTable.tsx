@@ -537,6 +537,7 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
                                                 )}
                                                 {columnVisibility.difficulty && (
                                                     <td className="px-4 py-3 text-center">
+                                                        {item.difficulty !== undefined && item.difficulty !== null ? (
                                                         <span
                                                             className={`text-sm font-medium ${
                                                                 item.difficulty < 30 ? 'text-utility-success-600' :
@@ -546,6 +547,9 @@ export function QuickWinsTable({ domainId }: QuickWinsTableProps) {
                                                         >
                                                             {item.difficulty}
                                                         </span>
+                                                        ) : (
+                                                        <span className="text-xs text-tertiary" title={tc('notAvailable')}>—</span>
+                                                        )}
                                                     </td>
                                                 )}
                                                 {columnVisibility.cpc && (
