@@ -13,6 +13,32 @@ import { writeKeywordPositions, type KeywordPositionRow } from "./lib/supabase";
 // DataForSEO API configuration
 const DATAFORSEO_API_URL = "https://api.dataforseo.com/v3";
 
+// Retry helper for transient API failures (network errors, 5xx)
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 2,
+): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      // Don't retry client errors (4xx) - only retry server errors (5xx)
+      if (response.ok || (response.status >= 400 && response.status < 500)) {
+        return response;
+      }
+      lastError = new Error(`API error: ${response.status}`);
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+    }
+    if (attempt < maxRetries) {
+      // Exponential backoff: 1s, 2s
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+    }
+  }
+  throw lastError ?? new Error("fetchWithRetry failed");
+}
+
 interface SerpResult {
   keyword: string;
   position: number | null;
@@ -104,7 +130,7 @@ export const fetchSinglePositionInternal = internalAction({
       }];
 
       const data = await debug.logStep("serp_live", serpRequest[0], async () => {
-        const response = await fetch(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
+        const response = await fetchWithRetry(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
           method: "POST",
           headers: {
             "Authorization": `Basic ${authHeader}`,
@@ -144,7 +170,7 @@ export const fetchSinglePositionInternal = internalAction({
       try {
         const svRequestBody = [{ keywords: [args.phrase], ...buildLocationParam(args.location), language_code: args.language }];
         const svData = await debug.logStep("search_volume", svRequestBody[0], async () => {
-          const keywordsDataResponse = await fetch(`${DATAFORSEO_API_URL}/keywords_data/google/search_volume/live`, {
+          const keywordsDataResponse = await fetchWithRetry(`${DATAFORSEO_API_URL}/keywords_data/google/search_volume/live`, {
             method: "POST",
             headers: {
               "Authorization": `Basic ${authHeader}`,
@@ -303,15 +329,26 @@ export const fetchPositions = action({
           depth: 30,
         }];
 
-        // Post SERP task
-        const response = await fetch(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Basic ${authHeader}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(task),
-        });
+        // Post SERP task (with retry for transient failures)
+        let response: Response;
+        try {
+          response = await fetchWithRetry(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Basic ${authHeader}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(task),
+          });
+        } catch (e) {
+          console.error(`[fetchPositions] API error for ${keywordInfo.phrase}:`, e);
+          results.push({
+            keyword: keywordInfo.phrase,
+            position: null,
+            url: null,
+          });
+          continue;
+        }
 
         if (!response.ok) {
           console.error(`[fetchPositions] API error for ${keywordInfo.phrase}:`, response.status);
@@ -546,7 +583,7 @@ export const fetchPositionsInternal = internalAction({
 
       const authHeader = btoa(`${login}:${password}`);
 
-      const response = await fetch(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
+      const response = await fetchWithRetry(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
         method: "POST",
         headers: {
           "Authorization": `Basic ${authHeader}`,
@@ -642,8 +679,8 @@ export const fetchPositionsInternal = internalAction({
       if (validKeywords.length > 0) {
         console.log(`[fetchPositionsInternal] Fetching difficulty for ${validKeywords.length} keywords`);
 
-        // Fetch keyword metrics including difficulty
-        const metricsResponse = await fetch(`${DATAFORSEO_API_URL}/keywords_data/google_ads/search_volume/live`, {
+        // Fetch keyword metrics including difficulty (with retry)
+        const metricsResponse = await fetchWithRetry(`${DATAFORSEO_API_URL}/keywords_data/google_ads/search_volume/live`, {
           method: "POST",
           headers: {
             "Authorization": `Basic ${authHeader}`,
