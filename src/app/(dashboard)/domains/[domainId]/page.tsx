@@ -100,6 +100,7 @@ import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PermissionGate } from "@/components/auth/PermissionGate";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const TAB_EZICONS: Record<string, string> = {
   "overview": "analytics-02",
@@ -243,6 +244,108 @@ function DomainLimitsSection({ domainId, currentLimits }: { domainId: Id<"domain
           {t("limitsSave")}
         </Button>
       </div>
+    </div>
+  );
+}
+
+function BusinessContextSection({ domainId, domain }: { domainId: Id<"domains">; domain: { businessDescription?: string; targetCustomer?: string; domain: string } }) {
+  const t = useTranslations("domains");
+  const [desc, setDesc] = useState(domain.businessDescription ?? "");
+  const [customer, setCustomer] = useState(domain.targetCustomer ?? "");
+  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  const saveContext = useMutation(api.domains.saveBusinessContextPublic);
+  const generateContext = useAction(api.actions.aiBusinessContext.generateBusinessContext);
+
+  // Sync if domain data loads later
+  useEffect(() => {
+    if (domain.businessDescription && !desc) setDesc(domain.businessDescription);
+    if (domain.targetCustomer && !customer) setCustomer(domain.targetCustomer);
+  }, [domain.businessDescription, domain.targetCustomer]);
+
+  const dirty =
+    desc.trim() !== (domain.businessDescription ?? "") ||
+    customer.trim() !== (domain.targetCustomer ?? "");
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveContext({ domainId, businessDescription: desc.trim(), targetCustomer: customer.trim() });
+      toast.success(t("businessContextSaved"));
+    } catch {
+      toast.error(t("businessContextSaveFailed"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const result = await generateContext({ domainId });
+      if (result.businessDescription) setDesc(result.businessDescription);
+      if (result.targetCustomer) setCustomer(result.targetCustomer);
+      toast.success(t("autoGenerateSuccess"));
+    } catch {
+      toast.error(t("autoGenerateFailed"));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-primary">{t("businessContextTitle")}</h2>
+          <p className="mt-0.5 text-sm text-tertiary">{t("businessContextDescription")}</p>
+        </div>
+        <Button
+          color="secondary"
+          size="sm"
+          iconLeading={Stars01}
+          onClick={handleGenerate}
+          isDisabled={generating}
+        >
+          {generating ? t("autoGenerating") : t("autoGenerateAI")}
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-secondary">{t("businessDescriptionLabel")}</label>
+          <textarea
+            className="w-full rounded-lg border border-secondary bg-primary px-3 py-2 text-sm text-primary placeholder:text-quaternary focus:outline-none focus:ring-2 focus:ring-brand-solid focus:border-transparent resize-none dark:bg-neutral-900 dark:border-neutral-700"
+            rows={4}
+            placeholder={t("businessDescriptionPlaceholder")}
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            disabled={generating}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-secondary">{t("targetCustomerLabel")}</label>
+          <textarea
+            className="w-full rounded-lg border border-secondary bg-primary px-3 py-2 text-sm text-primary placeholder:text-quaternary focus:outline-none focus:ring-2 focus:ring-brand-solid focus:border-transparent resize-none dark:bg-neutral-900 dark:border-neutral-700"
+            rows={3}
+            placeholder={t("targetCustomerPlaceholder")}
+            value={customer}
+            onChange={(e) => setCustomer(e.target.value)}
+            disabled={generating}
+          />
+        </div>
+      </div>
+
+      {dirty && (
+        <div className="mt-4 flex justify-end">
+          <Button color="primary" size="sm" onClick={handleSave} isDisabled={saving}>
+            {saving ? t("onboardingAdding") : t("businessContextSaveBtn")}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -757,6 +860,7 @@ export default function DomainDetailPage() {
 
             {/* Overview Tab — Module Hub */}
             <TabPanel id="overview">
+              <ErrorBoundary label="Overview">
               <div className="flex flex-col gap-8">
                 {HUB_GROUPS.map((group) => {
                   const cards = MODULE_CARDS.filter(
@@ -781,7 +885,10 @@ export default function DomainDetailPage() {
                             state={moduleReadiness[card.tabId]}
                             colors={card.colors}
                             onClick={() => setSelectedTab(card.tabId)}
+                            onNavigateToTab={(tid) => setSelectedTab(tid)}
                             data={hubData}
+                            benefitText={t(`moduleBenefit${card.tabId}`)}
+                            benefitLabel={t("moduleWhatGives")}
                           />
                         ))}
                       </div>
@@ -789,10 +896,12 @@ export default function DomainDetailPage() {
                   );
                 })}
               </div>
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Monitoring Tab */}
             <TabPanel id="monitoring">
+              <ErrorBoundary label="Monitoring">
               <div className="flex flex-col gap-8">
                 {/* Header with Add Keywords Button */}
                 <div className="flex items-center justify-between">
@@ -824,15 +933,19 @@ export default function DomainDetailPage() {
                 {/* Monitoring Table */}
                 <KeywordMonitoringTable domainId={domainId} />
               </div>
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Keyword Map Tab */}
             <TabPanel id="keyword-map">
+              <ErrorBoundary label="Keyword Map">
               <KeywordMapSection domainId={domainId} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Visibility Tab */}
             <TabPanel id="visibility">
+              <ErrorBoundary label="Visibility">
               <div className="flex flex-col gap-6">
                 {/* Header with Fetch Button */}
                 <div className="flex items-center justify-between">
@@ -883,10 +996,12 @@ export default function DomainDetailPage() {
                   <MovementTrendChart domainId={domainId} />
                 </div>
               </div>
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Backlinks Tab */}
             <TabPanel id="backlinks">
+              <ErrorBoundary label="Backlinks">
               <div className="flex flex-col gap-6">
                 {/* Header with Fetch Button */}
                 <div className="flex items-center justify-between">
@@ -1000,15 +1115,19 @@ export default function DomainDetailPage() {
                 {/* Backlink Profile Analysis */}
                 <BacklinkProfileSection domainId={domainId} />
               </div>
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Link Building Tab */}
             <TabPanel id="link-building">
+              <ErrorBoundary label="Link Building">
               <LinkBuildingSection domainId={domainId} domainName={domain.domain} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Competitors Tab */}
             <TabPanel id="competitors">
+              <ErrorBoundary label="Competitors">
               <div className="space-y-6">
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50">
@@ -1040,10 +1159,12 @@ export default function DomainDetailPage() {
 
                 <CompetitorKeywordGapTable domainId={domainId} />
               </div>
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Keyword Analysis Tab */}
             <TabPanel id="keyword-analysis">
+              <ErrorBoundary label="Keyword Analysis">
               <div className="space-y-6">
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50">
@@ -1059,40 +1180,54 @@ export default function DomainDetailPage() {
 
                 <CompetitorAnalysisReportsSection domainId={domainId} />
               </div>
+              </ErrorBoundary>
             </TabPanel>
 
             {/* On-Site Tab */}
             <TabPanel id="on-site">
+              <ErrorBoundary label="On-Site">
               <OnSiteSection domainId={domainId} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Content Gaps Tab */}
             <TabPanel id="content-gaps">
+              <ErrorBoundary label="Content Gaps">
               <ContentGapSection domainId={domainId} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Insights Tab */}
             <TabPanel id="insights">
+              <ErrorBoundary label="Insights">
               <InsightsSection domainId={domainId} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* AI Research Tab */}
             <TabPanel id="ai-research">
+              <ErrorBoundary label="AI Research">
               <AIKeywordResearchSection domainId={domainId} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Strategy Tab */}
             <TabPanel id="strategy">
+              <ErrorBoundary label="Strategy">
               <StrategySection domainId={domainId} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Generators Tab */}
             <TabPanel id="generators">
+              <ErrorBoundary label="Generators">
               <GeneratorsSection domainId={domainId} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Settings Tab */}
             <TabPanel id="settings">
+              <ErrorBoundary label="Settings">
               <div className="flex flex-col gap-6">
                 <div className="relative rounded-xl border border-secondary bg-primary p-6">
                   <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
@@ -1123,14 +1258,19 @@ export default function DomainDetailPage() {
                   </div>
                 </div>
 
+                <BusinessContextSection domainId={domainId} domain={domain} />
+
                 <DomainLimitsSection domainId={domainId} currentLimits={domain.limits} />
               </div>
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Diagnostics Tab (superAdmin only) */}
             {isSuperAdmin && (
               <TabPanel id="diagnostics">
+                <ErrorBoundary label="Diagnostics">
                 <DiagnosticSection domainId={domainId} />
+                </ErrorBoundary>
               </TabPanel>
             )}
             </div>
@@ -1142,7 +1282,7 @@ export default function DomainDetailPage() {
       <ModalOverlay isOpen={isEditModalOpen} onOpenChange={setIsEditModalOpen} isDismissable>
         <Modal>
           <Dialog className="overflow-hidden">
-            <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-160">
+            <div className="relative w-full overflow-hidden rounded-xl bg-primary dark:bg-[#0d0f13] dark:border dark:border-neutral-800 shadow-xl sm:max-w-160">
               <CloseButton
                 onClick={() => setIsEditModalOpen(false)}
                 theme="light"
