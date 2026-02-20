@@ -77,8 +77,8 @@ export function LinkBuildingProspectDetailModal({ prospect, isOpen, onClose }: L
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-[5vh]" onClick={onClose}>
-            <div className="w-full max-w-3xl rounded-2xl bg-primary shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-overlay/70 p-4 pt-[5vh]" onClick={onClose}>
+            <div className="w-full max-w-3xl rounded-2xl bg-primary dark:bg-[#1f2530] shadow-xl" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="flex items-start justify-between border-b border-secondary px-6 py-5">
                     <div className="flex items-center gap-3 min-w-0">

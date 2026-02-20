@@ -55,14 +55,14 @@ export const Modal = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div
-        className="fixed inset-0 bg-primary/60 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-overlay/70 backdrop-blur-sm transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
       <div className="flex min-h-full items-center justify-center p-4">
         <div
           className={cx(
-            "relative w-full rounded-xl bg-primary shadow-xl ring-1 ring-primary",
+            "relative w-full rounded-xl bg-primary shadow-xl ring-1 ring-primary dark:bg-[#1f2530]",
             sizeStyles[size]
           )}
           role="dialog"

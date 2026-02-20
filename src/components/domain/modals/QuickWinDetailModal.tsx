@@ -98,9 +98,9 @@ export function QuickWinDetailModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh]">
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+            <div className="fixed inset-0 bg-overlay/70 backdrop-blur-sm" onClick={onClose} />
 
-            <div className="relative z-10 w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-xl border border-secondary bg-primary shadow-xl mx-4">
+            <div className="relative z-10 w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-xl border border-secondary bg-primary dark:bg-[#1f2530] shadow-xl mx-4">
                 <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
                 {/* Header */}
                 <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-secondary bg-primary px-6 py-4">
