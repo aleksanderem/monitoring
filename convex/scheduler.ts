@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalAction, internalQuery } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id, Doc } from "./_generated/dataModel";
 
@@ -106,14 +106,69 @@ export const refreshWeeklyDomains = internalAction({
 export const triggerDailyDigests = internalAction({
   args: {},
   handler: async (ctx): Promise<{ sent: number; failed: number }> => {
-    // TODO: Implement email sending once Resend is configured
-    // 1. Get all users who want daily digests
-    // 2. Calculate top gainers/losers from keywordPositions table
-    // 3. Send digest emails
+    const orgsWithDomains = await ctx.runQuery(
+      internal.digestQueries.getActiveOrgsWithDomains
+    );
 
-    console.log("Daily digests: Email infrastructure ready but not yet configured");
+    let sent = 0;
+    let failed = 0;
 
-    return { sent: 0, failed: 0 };
+    for (const { members, domains } of orgsWithDomains) {
+      // Filter members who opted in to daily ranking reports
+      const optedIn = members.filter(
+        (m) => m.prefs?.dailyRankingReports === true && m.email
+      );
+      if (optedIn.length === 0) continue;
+
+      for (const domain of domains) {
+        const digestData = await ctx.runQuery(
+          internal.digestQueries.getDailyDigestData,
+          { domainId: domain._id }
+        );
+        if (digestData.totalKeywords === 0) continue;
+
+        for (const member of optedIn) {
+          const subject = `[doseo] Codzienny raport: ${domain.domain}`;
+          try {
+            await ctx.runAction(
+              internal.actions.sendEmail.sendDailyDigest,
+              {
+                to: member.email,
+                userName: member.name || "Użytkowniku",
+                domainName: domain.domain,
+                totalKeywords: digestData.totalKeywords,
+                avgPosition: digestData.avgPosition ?? undefined,
+                gainers: digestData.gainers,
+                losers: digestData.losers,
+              }
+            );
+            await ctx.runMutation(internal.scheduler.logNotification, {
+              type: "email",
+              recipient: member.email,
+              subject,
+              status: "sent",
+            });
+            sent++;
+          } catch (error: any) {
+            console.error(
+              `[daily-digest] Failed to send to ${member.email} for ${domain.domain}:`,
+              error
+            );
+            await ctx.runMutation(internal.scheduler.logNotification, {
+              type: "email",
+              recipient: member.email,
+              subject,
+              status: "failed",
+              error: error?.message ?? String(error),
+            });
+            failed++;
+          }
+        }
+      }
+    }
+
+    console.log(`Daily digests complete: ${sent} sent, ${failed} failed`);
+    return { sent, failed };
   },
 });
 
@@ -124,14 +179,98 @@ export const triggerDailyDigests = internalAction({
 export const triggerWeeklyReports = internalAction({
   args: {},
   handler: async (ctx): Promise<{ sent: number; failed: number }> => {
-    // TODO: Implement email sending once Resend is configured
-    // 1. Get all users who want weekly reports
-    // 2. Calculate weekly stats from keywordPositions table
-    // 3. Send report emails
+    const orgsWithDomains = await ctx.runQuery(
+      internal.digestQueries.getActiveOrgsWithDomains
+    );
 
-    console.log("Weekly reports: Email infrastructure ready but not yet configured");
+    let sent = 0;
+    let failed = 0;
 
-    return { sent: 0, failed: 0 };
+    for (const { members, domains } of orgsWithDomains) {
+      // Weekly report goes to users with frequency=weekly OR dailyRankingReports=true
+      const optedIn = members.filter(
+        (m) =>
+          (m.prefs?.frequency === "weekly" ||
+            m.prefs?.dailyRankingReports === true) &&
+          m.email
+      );
+      if (optedIn.length === 0) continue;
+
+      for (const domain of domains) {
+        const reportData = await ctx.runQuery(
+          internal.digestQueries.getWeeklyReportData,
+          { domainId: domain._id }
+        );
+        if (reportData.totalKeywords === 0) continue;
+
+        for (const member of optedIn) {
+          const subject = `[doseo] Tygodniowy raport: ${domain.domain}`;
+          try {
+            await ctx.runAction(
+              internal.actions.sendEmail.sendWeeklyReport,
+              {
+                to: member.email,
+                userName: member.name || "Użytkowniku",
+                domainName: domain.domain,
+                totalKeywords: reportData.totalKeywords,
+                top3: reportData.top3,
+                top10: reportData.top10,
+                top20: reportData.top20,
+                top50: reportData.top50,
+                improved: reportData.improved,
+                declined: reportData.declined,
+                stable: reportData.stable,
+              }
+            );
+            await ctx.runMutation(internal.scheduler.logNotification, {
+              type: "email",
+              recipient: member.email,
+              subject,
+              status: "sent",
+            });
+            sent++;
+          } catch (error: any) {
+            console.error(
+              `[weekly-report] Failed to send to ${member.email} for ${domain.domain}:`,
+              error
+            );
+            await ctx.runMutation(internal.scheduler.logNotification, {
+              type: "email",
+              recipient: member.email,
+              subject,
+              status: "failed",
+              error: error?.message ?? String(error),
+            });
+            failed++;
+          }
+        }
+      }
+    }
+
+    console.log(`Weekly reports complete: ${sent} sent, ${failed} failed`);
+    return { sent, failed };
+  },
+});
+
+// ─── Notification logging ───────────────────────────────
+
+export const logNotification = internalMutation({
+  args: {
+    type: v.union(v.literal("email"), v.literal("system")),
+    recipient: v.string(),
+    subject: v.optional(v.string()),
+    status: v.union(v.literal("sent"), v.literal("failed"), v.literal("pending")),
+    error: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("notificationLogs", {
+      type: args.type,
+      recipient: args.recipient,
+      subject: args.subject,
+      status: args.status,
+      error: args.error,
+      createdAt: Date.now(),
+    });
   },
 });
 

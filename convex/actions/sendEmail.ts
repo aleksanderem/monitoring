@@ -227,6 +227,240 @@ export const sendPasswordResetCode = internalAction({
   },
 });
 
+// ─── Daily Digest email ─────────────────────────────────
+
+export const sendDailyDigest = internalAction({
+  args: {
+    to: v.string(),
+    userName: v.string(),
+    domainName: v.string(),
+    totalKeywords: v.number(),
+    avgPosition: v.optional(v.number()),
+    gainers: v.array(
+      v.object({ phrase: v.string(), position: v.number(), change: v.number() })
+    ),
+    losers: v.array(
+      v.object({ phrase: v.string(), position: v.number(), change: v.number() })
+    ),
+  },
+  handler: async (_ctx, args) => {
+    const resend = getResend();
+    const appUrl = getAppUrl();
+
+    const avgPosDisplay =
+      args.avgPosition != null ? String(args.avgPosition) : "—";
+
+    const gainerRows = args.gainers.length
+      ? args.gainers
+          .map(
+            (g) =>
+              `<tr>
+                <td style="padding:8px 12px;border-bottom:1px solid #eaecf0;font-size:14px;color:#101828;">${g.phrase}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid #eaecf0;font-size:14px;color:#101828;text-align:center;">${g.position}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid #eaecf0;font-size:14px;color:#16a34a;text-align:center;font-weight:600;">&#9650; ${Math.abs(g.change)}</td>
+              </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="3" style="padding:12px;text-align:center;color:#98a2b3;font-size:14px;">Brak wzrostów w tym okresie</td></tr>`;
+
+    const loserRows = args.losers.length
+      ? args.losers
+          .map(
+            (l) =>
+              `<tr>
+                <td style="padding:8px 12px;border-bottom:1px solid #eaecf0;font-size:14px;color:#101828;">${l.phrase}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid #eaecf0;font-size:14px;color:#101828;text-align:center;">${l.position}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid #eaecf0;font-size:14px;color:#dc2626;text-align:center;font-weight:600;">&#9660; ${Math.abs(l.change)}</td>
+              </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="3" style="padding:12px;text-align:center;color:#98a2b3;font-size:14px;">Brak spadków w tym okresie</td></tr>`;
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#7f56d9,#9b6dff);padding:32px 40px;">
+      <h1 style="margin:0 0 4px;color:#fff;font-size:24px;font-weight:600;">doseo</h1>
+      <p style="margin:0;color:rgba(255,255,255,0.85);font-size:16px;">&#128202; Codzienny raport pozycji</p>
+    </div>
+    <div style="padding:32px 40px;">
+      <p style="margin:0 0 16px;font-size:15px;color:#475467;">Cześć, ${args.userName}! Oto podsumowanie pozycji dla <strong>${args.domainName}</strong>:</p>
+
+      <div style="display:flex;gap:16px;margin:0 0 24px;">
+        <div style="flex:1;background:#f9fafb;border-radius:8px;padding:16px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:#101828;">${args.totalKeywords}</div>
+          <div style="font-size:12px;color:#98a2b3;margin-top:4px;">Monitorowanych</div>
+        </div>
+        <div style="flex:1;background:#f9fafb;border-radius:8px;padding:16px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:#101828;">${avgPosDisplay}</div>
+          <div style="font-size:12px;color:#98a2b3;margin-top:4px;">Śr. pozycja</div>
+        </div>
+      </div>
+
+      <h3 style="margin:0 0 8px;font-size:15px;color:#16a34a;">&#9650; Największe wzrosty</h3>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+        <thead>
+          <tr style="background:#f9fafb;">
+            <th style="padding:8px 12px;text-align:left;font-size:12px;color:#98a2b3;font-weight:500;">Fraza</th>
+            <th style="padding:8px 12px;text-align:center;font-size:12px;color:#98a2b3;font-weight:500;">Pozycja</th>
+            <th style="padding:8px 12px;text-align:center;font-size:12px;color:#98a2b3;font-weight:500;">Zmiana</th>
+          </tr>
+        </thead>
+        <tbody>${gainerRows}</tbody>
+      </table>
+
+      <h3 style="margin:0 0 8px;font-size:15px;color:#dc2626;">&#9660; Największe spadki</h3>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+        <thead>
+          <tr style="background:#f9fafb;">
+            <th style="padding:8px 12px;text-align:left;font-size:12px;color:#98a2b3;font-weight:500;">Fraza</th>
+            <th style="padding:8px 12px;text-align:center;font-size:12px;color:#98a2b3;font-weight:500;">Pozycja</th>
+            <th style="padding:8px 12px;text-align:center;font-size:12px;color:#98a2b3;font-weight:500;">Zmiana</th>
+          </tr>
+        </thead>
+        <tbody>${loserRows}</tbody>
+      </table>
+
+      <a href="${appUrl}/projects"
+         style="display:inline-block;padding:12px 24px;background:#7f56d9;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500;">
+        Przejdź do panelu
+      </a>
+    </div>
+    <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
+      <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: args.to,
+      subject: `[doseo] Codzienny raport: ${args.domainName}`,
+      html,
+    });
+    if (error) {
+      console.error("[email] Daily digest failed:", error);
+      throw new Error(`Daily digest send failed: ${error.message}`);
+    }
+    console.log("[email] Daily digest sent to", args.to, "id:", data?.id);
+  },
+});
+
+// ─── Weekly Report email ────────────────────────────────
+
+export const sendWeeklyReport = internalAction({
+  args: {
+    to: v.string(),
+    userName: v.string(),
+    domainName: v.string(),
+    totalKeywords: v.number(),
+    top3: v.number(),
+    top10: v.number(),
+    top20: v.number(),
+    top50: v.number(),
+    improved: v.number(),
+    declined: v.number(),
+    stable: v.number(),
+  },
+  handler: async (_ctx, args) => {
+    const resend = getResend();
+    const appUrl = getAppUrl();
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#16a34a,#22c55e);padding:32px 40px;">
+      <h1 style="margin:0 0 4px;color:#fff;font-size:24px;font-weight:600;">doseo</h1>
+      <p style="margin:0;color:rgba(255,255,255,0.85);font-size:16px;">&#128200; Tygodniowy raport SEO</p>
+    </div>
+    <div style="padding:32px 40px;">
+      <p style="margin:0 0 16px;font-size:15px;color:#475467;">Cześć, ${args.userName}! Oto tygodniowe podsumowanie dla <strong>${args.domainName}</strong>:</p>
+
+      <h3 style="margin:0 0 12px;font-size:15px;color:#101828;">Dystrybucja pozycji</h3>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+        <thead>
+          <tr style="background:#f9fafb;">
+            <th style="padding:8px 12px;text-align:left;font-size:12px;color:#98a2b3;font-weight:500;">Zakres</th>
+            <th style="padding:8px 12px;text-align:center;font-size:12px;color:#98a2b3;font-weight:500;">Liczba słów</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:8px 12px;border-bottom:1px solid #eaecf0;font-size:14px;color:#101828;">Top 3</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #eaecf0;font-size:14px;color:#101828;text-align:center;font-weight:600;">${args.top3}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;border-bottom:1px solid #eaecf0;font-size:14px;color:#101828;">Top 10</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #eaecf0;font-size:14px;color:#101828;text-align:center;font-weight:600;">${args.top10}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;border-bottom:1px solid #eaecf0;font-size:14px;color:#101828;">Top 20</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #eaecf0;font-size:14px;color:#101828;text-align:center;font-weight:600;">${args.top20}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;border-bottom:1px solid #eaecf0;font-size:14px;color:#101828;">Top 50</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #eaecf0;font-size:14px;color:#101828;text-align:center;font-weight:600;">${args.top50}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin:0 0 12px;font-size:15px;color:#101828;">Zmiany pozycji</h3>
+      <div style="display:flex;gap:12px;margin:0 0 24px;">
+        <div style="flex:1;background:#f0fdf4;border-radius:8px;padding:16px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:#16a34a;">${args.improved}</div>
+          <div style="font-size:12px;color:#16a34a;margin-top:4px;">Wzrosty</div>
+        </div>
+        <div style="flex:1;background:#fef2f2;border-radius:8px;padding:16px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:#dc2626;">${args.declined}</div>
+          <div style="font-size:12px;color:#dc2626;margin-top:4px;">Spadki</div>
+        </div>
+        <div style="flex:1;background:#f9fafb;border-radius:8px;padding:16px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:#475467;">${args.stable}</div>
+          <div style="font-size:12px;color:#475467;margin-top:4px;">Bez zmian</div>
+        </div>
+      </div>
+
+      <p style="margin:0 0 16px;font-size:14px;color:#98a2b3;">Łącznie monitorowanych słów kluczowych: <strong style="color:#101828;">${args.totalKeywords}</strong></p>
+
+      <a href="${appUrl}/projects"
+         style="display:inline-block;padding:12px 24px;background:#16a34a;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500;">
+        Przejdź do panelu
+      </a>
+    </div>
+    <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
+      <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: args.to,
+      subject: `[doseo] Tygodniowy raport: ${args.domainName}`,
+      html,
+    });
+    if (error) {
+      console.error("[email] Weekly report failed:", error);
+      throw new Error(`Weekly report send failed: ${error.message}`);
+    }
+    console.log("[email] Weekly report sent to", args.to, "id:", data?.id);
+  },
+});
+
 // ─── Subscription confirmation email ─────────────────────
 
 export const sendSubscriptionConfirmation = internalAction({
