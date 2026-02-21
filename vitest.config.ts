@@ -21,7 +21,10 @@ export default defineConfig({
           setupFiles: ["./src/test/setup.ts"],
         },
         resolve: {
-          alias: { "@": path.resolve(__dirname, "src") },
+          alias: {
+            "@": path.resolve(__dirname, "src"),
+            "@convex": path.resolve(__dirname, "convex"),
+          },
         },
       },
     ],
