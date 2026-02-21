@@ -22,6 +22,7 @@ import {
   Download01,
   Trash01,
 } from "@untitledui/icons";
+import { exportToCsv } from "@/utils/exportCsv";
 import { useTranslations } from "next-intl";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { useRowSelection } from "@/hooks/useRowSelection";
@@ -386,6 +387,32 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
               </div>
             )}
           </div>
+
+          {/* Export All button */}
+          <Button
+            size="sm"
+            color="secondary"
+            iconLeading={Download01}
+            onClick={() => {
+              if (!backlinks || backlinks.items.length === 0) return;
+              const headers = ["Referring Domain", "URL From", "URL To", "Anchor", "Type", "Link Type", "Rank", "Spam Score", "Last Seen"];
+              const rows = filteredAndSortedBacklinks.map((b) => [
+                b.domainFrom || "",
+                b.urlFrom,
+                b.urlTo,
+                b.anchor || "",
+                b.itemType || "",
+                b.dofollow ? "dofollow" : "nofollow",
+                b.rank,
+                b.backlink_spam_score,
+                b.lastSeen || "",
+              ]);
+              exportToCsv(`backlinks-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+              toast.success(`Exported ${rows.length} backlinks`);
+            }}
+          >
+            Export All
+          </Button>
         </div>
       </div>
 

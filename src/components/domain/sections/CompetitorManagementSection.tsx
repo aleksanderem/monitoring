@@ -8,12 +8,14 @@ import { Button } from "@/components/base/buttons/button";
 import { Dialog, Modal, ModalOverlay, DialogTrigger } from "@/components/application/modals/modal";
 import { CloseButton } from "@/components/base/buttons/close-button";
 import { Input } from "@/components/base/input/input";
-import { Plus, Trash01, Edit05, Target04, Link03 } from "@untitledui/icons";
+import { Plus, Trash01, Edit05, Target04, Link03, Download01, Upload01 } from "@untitledui/icons";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Heading } from "react-aria-components";
 import { AddCompetitorModal } from "../modals/AddCompetitorModal";
+import { CompetitorImportModal } from "../modals/CompetitorImportModal";
 import { PermissionGate } from "@/components/auth/PermissionGate";
+import { exportToCsv } from "@/utils/exportCsv";
 
 interface CompetitorManagementSectionProps {
   domainId: Id<"domains">;
@@ -23,6 +25,7 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
   const t = useTranslations('competitors');
   const tc = useTranslations('common');
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [editingCompetitor, setEditingCompetitor] = useState<{ id: Id<"competitors">; name: string } | null>(null);
   const [editName, setEditName] = useState("");
   const [selectedCompetitors, setSelectedCompetitors] = useState<Set<Id<"competitors">>>(new Set());
@@ -143,6 +146,31 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
             </Button>
           </PermissionGate>
         )}
+        {activeCompetitors.length > 0 && (
+          <Button
+            onClick={() => {
+              const headers = ["Competitor Domain", "Name", "Status", "Last Checked"];
+              const rows = activeCompetitors.map((c) => [
+                c.competitorDomain,
+                c.name,
+                c.status,
+                c.lastCheckedAt ? new Date(c.lastCheckedAt).toISOString().slice(0, 10) : "",
+              ]);
+              exportToCsv(`competitors-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+              toast.success(`Exported ${rows.length} competitors`);
+            }}
+            size="sm"
+            color="secondary"
+            iconLeading={Download01}
+          >
+            Export
+          </Button>
+        )}
+        <PermissionGate permission="competitors.add">
+          <Button onClick={() => setShowImportDialog(true)} size="sm" color="secondary" iconLeading={Upload01}>
+            Import CSV
+          </Button>
+        </PermissionGate>
         <PermissionGate permission="competitors.add">
           <Button onClick={() => setShowAddDialog(true)} size="sm" color="primary" iconLeading={Plus}>
             {t('competitorMgmtAddCompetitor')}
@@ -287,6 +315,13 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
           })}
         </div>
       )}
+
+      {/* Competitor Import Modal */}
+      <CompetitorImportModal
+        domainId={domainId}
+        isOpen={showImportDialog}
+        onClose={() => setShowImportDialog(false)}
+      />
 
       {/* Add Competitor Dialog (shared 3-tab modal) */}
       <AddCompetitorModal

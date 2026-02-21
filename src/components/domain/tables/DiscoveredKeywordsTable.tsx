@@ -17,6 +17,7 @@ import {
   Plus,
   Trash01,
   MinusCircle,
+  Download01,
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -31,6 +32,7 @@ import { KeywordDetailModal } from "../modals/KeywordDetailModal";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { BulkActionBar } from "@/components/patterns/BulkActionBar";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { exportToCsv } from "@/utils/exportCsv";
 
 interface DiscoveredKeywordsTableProps {
   domainId: Id<"domains">;
@@ -338,6 +340,33 @@ export function DiscoveredKeywordsTable({ domainId }: DiscoveredKeywordsTablePro
                 </div>
               )}
             </div>
+
+            {/* Export button */}
+            <Button
+              size="sm"
+              color="secondary"
+              iconLeading={Download01}
+              onClick={() => {
+                if (!keywords || keywords.length === 0) return;
+                const headers = ["Keyword", "Position", "Search Volume", "Difficulty", "CPC", "Traffic", "URL", "Intent", "Status"];
+                const rows = sortedAndFilteredKeywords.map((kw: any) => [
+                  kw.keyword,
+                  kw.bestPosition,
+                  kw.searchVolume,
+                  kw.difficulty,
+                  kw.cpc,
+                  kw.traffic,
+                  kw.url,
+                  kw.intent || "",
+                  kw.status,
+                ]);
+                exportToCsv(`discovered-keywords-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+                toast.success(`Exported ${rows.length} keywords`);
+              }}
+              disabled={!keywords || keywords.length === 0}
+            >
+              Export
+            </Button>
           </div>
         </div>
 

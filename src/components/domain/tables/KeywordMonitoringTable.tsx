@@ -20,6 +20,8 @@ import {
   Plus,
   DotsVertical,
   Stars01,
+  Download01,
+  Upload01,
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -31,9 +33,11 @@ import { KeywordPositionChart } from "../charts/KeywordPositionChart";
 import { AddKeywordsModal } from "../modals/AddKeywordsModal";
 import { KeywordMonitoringDetailModal } from "../modals/KeywordMonitoringDetailModal";
 import { RefreshConfirmModal } from "../modals/RefreshConfirmModal";
+import { KeywordImportModal } from "../modals/KeywordImportModal";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { BulkActionBar } from "@/components/patterns/BulkActionBar";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { exportToCsv } from "@/utils/exportCsv";
 
 interface KeywordMonitoringTableProps {
   domainId: Id<"domains">;
@@ -88,6 +92,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [refreshModalOpen, setRefreshModalOpen] = useState(false);
   const [refreshModalAction, setRefreshModalAction] = useState<"refresh" | "serp">("refresh");
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   // Column visibility state - load from localStorage on mount
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(() => {
@@ -429,6 +434,42 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     >
                       <SearchLg className="h-4 w-4" />
                       {activeSerpJob && activeSerpJob.status !== "completed" ? t('fetching') : t('fetchSerpData')}
+                    </button>
+                    <div className="my-1 border-t border-secondary" />
+                    <button
+                      onClick={() => { setImportModalOpen(true); setShowActionsMenu(false); }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-primary hover:bg-secondary/50 transition-colors"
+                    >
+                      <Upload01 className="h-4 w-4" />
+                      Import from CSV
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        if (!keywords || keywords.length === 0) {
+                          toast.error("No keywords to export");
+                          return;
+                        }
+                        const headers = ["Keyword", "Position", "Previous Position", "Change", "Search Volume", "Difficulty", "CPC", "URL", "Status"];
+                        const rows = keywords.map((kw: any) => [
+                          kw.phrase,
+                          kw.currentPosition,
+                          kw.previousPosition,
+                          kw.change,
+                          kw.searchVolume,
+                          kw.difficulty,
+                          kw.latestCpc,
+                          kw.url,
+                          kw.status,
+                        ]);
+                        exportToCsv(`keywords-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+                        toast.success(`Exported ${keywords.length} keywords`);
+                      }}
+                      disabled={!keywords || keywords.length === 0}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-primary hover:bg-secondary/50 transition-colors disabled:opacity-50"
+                    >
+                      <Download01 className="h-4 w-4" />
+                      Export to CSV
                     </button>
                   </div>
                 </>
@@ -911,6 +952,13 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
         keyword={selectedKeyword}
         isOpen={!!selectedKeyword}
         onClose={() => setSelectedKeyword(null)}
+      />
+
+      {/* Keyword Import Modal */}
+      <KeywordImportModal
+        domainId={domainId}
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
       />
 
       {/* Refresh Confirm Modal */}
