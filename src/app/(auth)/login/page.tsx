@@ -7,9 +7,13 @@ import { Button } from "@/components/base/buttons/button";
 import { Form } from "@/components/base/form/form";
 import { Input } from "@/components/base/input/input";
 import { AppLogo } from "@/components/foundations/logo/app-logo";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { OAuthDivider } from "@/components/auth/oauth-divider";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { usePageTitle } from "@/hooks/usePageTitle";
+
+const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
 
 export default function LoginPage() {
   const t = useTranslations("auth");
@@ -46,6 +50,13 @@ export default function LoginPage() {
           {t("welcomeBack")}
         </p>
       </div>
+
+      {GOOGLE_AUTH_ENABLED && (
+        <div className="flex flex-col gap-6">
+          <GoogleSignInButton />
+          <OAuthDivider />
+        </div>
+      )}
 
       <Form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <div className="flex flex-col gap-5">

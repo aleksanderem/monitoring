@@ -10,10 +10,14 @@ import { Input } from "@/components/base/input/input";
 import { PinInput } from "@/components/base/pin-input/pin-input";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { AppLogo } from "@/components/foundations/logo/app-logo";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { OAuthDivider } from "@/components/auth/oauth-divider";
 import { cx } from "@/utils/cx";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { usePageTitle } from "@/hooks/usePageTitle";
+
+const GOOGLE_AUTH_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
 
 const FEATURES = [
   { icon: "📊", key: "featureTracking" },
@@ -196,6 +200,13 @@ export default function RegisterPage() {
           {error && (
             <div className="rounded-xl border border-error-300 bg-error-50 p-4">
               <p className="text-sm font-medium text-error-700">{error}</p>
+            </div>
+          )}
+
+          {GOOGLE_AUTH_ENABLED && (
+            <div className="flex flex-col gap-6">
+              <GoogleSignInButton />
+              <OAuthDivider />
             </div>
           )}
 
