@@ -70,7 +70,7 @@ Completed: 2026-02-21. Full cascade deletion across 40+ tables with 7-day grace 
 
 ## Tier 1 — Core Product Completeness (incomplete features that users will notice)
 
-### R08 [~] Email Notifications System
+### R08 [x] Email Notifications System
 Break the monolithic "notifications" item into proper implementation. Infrastructure exists (Resend configured, notification preferences table, cron stubs) but most emails aren't sent.
 
 Phase 1 — Activate existing stubs: ~~DONE~~
@@ -92,11 +92,11 @@ Phase 3 — Billing & team emails: ~~DONE (via R03)~~
 - ~~Cancellation confirmation~~
 - ~~Degradation notice (read-only mode)~~
 
-Phase 4 — Email hygiene:
-- Unsubscribe links in all non-transactional emails
-- Email delivery logging to notificationLogs table
+Phase 4 — Email hygiene: ~~DONE~~
+- ~~Unsubscribe links in all non-transactional emails~~
+- ~~Email delivery logging to notificationLogs table~~
 
-Progress: Phase 1 completed 2026-02-21 (digestQueries.ts, sendDailyDigest/sendWeeklyReport, crons activated, preference filtering). Commit: 800f23a. Phase 2 completed 2026-02-21 (5 alert email templates, alertEvaluation.ts wired with notifyVia routing). Phase 3 done via R03 (transactional billing emails). Phase 4 remaining.
+Completed: All 4 phases done. Phase 1: 2026-02-21 (800f23a). Phase 2: 2026-02-21 (97eebeb). Phase 3: via R03. Phase 4: 2026-02-22 — unsubscribe footer on 9 non-transactional templates, logNotification calls on all 15 templates with category field, 42 new tests.
 
 Scope: convex/scheduler.ts, convex/crons.ts, convex/actions/sendEmail.ts, notification preferences logic.
 
@@ -183,7 +183,7 @@ Scope: convex/alertRules.ts (new), alert evaluation in cron jobs, alert UI, emai
 
 Completed: 2026-02-21. CRUD mutations/queries with RBAC. 5 pure evaluator functions with cooldown deduplication. Daily 4:30 AM UTC cron. AlertsSection UI with rules/history tabs. Default rules created on domain creation. alerts.view and alerts.manage permissions. 59 translation keys (en/pl). 34 new tests. Plan: `2026-02-21-R13-custom-alert-rules-*.md`. Commit: a7675b5.
 
-### R14 [~] Onboarding Wizard
+### R14 [x] Onboarding Wizard
 First-time user flow: create org → add first domain → add first keywords → trigger first check → see first results. Progress indicators. Skip/later options. Empty states across all pages that guide toward the wizard.
 
 Scope: wizard components, empty state components across dashboard.
@@ -207,12 +207,12 @@ Scope: all page components, integration tests for each state.
 
 Progress: ErrorBoundary wrapped all 16 tab panels + dashboard layout (commit: 53987f7). Skeleton colors fixed for dark mode (commit: 07a4b43). Missing difficulty values handled with info tooltip (commit: 25376ac). Retry logic with exponential backoff on 4 critical API paths. Remaining: systematic audit of ALL pages (not just tabs), slow network throttle testing, ensure every component has loading/empty/error states.
 
-### R17 [ ] Search & Command Palette
+### R17 [x] Search & Command Palette
 Global search (Cmd+K) to navigate between domains, projects, keywords. Shell exists with hardcoded navigation but actual search doesn't work. Search across all entities with recent items.
 
 Scope: CommandPalette component completion, search index in convex.
 
-### R18 [~] Bulk Keyword Management
+### R18 [x] Bulk Keyword Management
 Select multiple keywords across tables. Bulk actions: delete, move to group, change tags, pause/resume monitoring, refresh positions. Selection UI exists but bulk operations incomplete.
 
 Scope: keyword table components, convex bulk mutation endpoints.
@@ -236,7 +236,7 @@ Active sessions list with device info. Logout from all devices. Login history. P
 
 Scope: convex/sessions.ts (new), settings security tab, session tracking middleware.
 
-### R22 [~] Internationalization Completion
+### R22 [x] Internationalization Completion
 i18n framework works (next-intl with EN/PL) but translation coverage may be incomplete. Audit all strings. Add locale-aware date/number formatting. Missing translation warnings in dev. Consider adding DE/ES for broader market.
 
 Scope: all translation files, locale formatting utilities, translation audit script.
