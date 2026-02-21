@@ -71,6 +71,12 @@ export default function LoginPage() {
           />
         </div>
 
+        <div className="flex justify-end">
+          <Button href="/forgot-password" color="link-color" size="sm">
+            {t("forgotPassword")}
+          </Button>
+        </div>
+
         <Button type="submit" size="lg" isLoading={isLoading}>
           {t("signIn")}
         </Button>

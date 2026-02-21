@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import {
@@ -19,6 +20,7 @@ import {
   Speedometer02,
   Shield01,
   CreditCard02,
+  Lock01,
   LayersTwo01,
   LayersThree01,
   Zap,
@@ -1584,6 +1586,179 @@ function LimitsSection() {
   );
 }
 
+// ─── Security section ────────────────────────────────────────────────
+
+type SecurityStep = "idle" | "sending" | "code" | "resetting";
+
+function SecuritySection() {
+  const t = useTranslations("settings");
+  const tAuth = useTranslations("auth");
+  const { signIn } = useAuthActions();
+  const currentUser = useQuery(api.auth.getCurrentUser);
+
+  const [securityStep, setSecurityStep] = useState<SecurityStep>("idle");
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  const handleSendCode = useCallback(async () => {
+    if (!currentUser?.email) return;
+    setSecurityStep("sending");
+    try {
+      await signIn("password", { email: currentUser.email, flow: "reset" });
+      setSecurityStep("code");
+      setCooldown(60);
+      toast.success(tAuth("codeSent", { email: currentUser.email }));
+    } catch {
+      toast.error(tAuth("invalidCredentials"));
+      setSecurityStep("idle");
+    }
+  }, [signIn, currentUser?.email, tAuth]);
+
+  const handleResend = useCallback(async () => {
+    if (cooldown > 0 || !currentUser?.email) return;
+    try {
+      await signIn("password", { email: currentUser.email, flow: "reset" });
+      setCooldown(60);
+      toast.success(tAuth("codeSent", { email: currentUser.email }));
+    } catch {
+      toast.error(tAuth("invalidCredentials"));
+    }
+  }, [signIn, currentUser?.email, cooldown, tAuth]);
+
+  const handleResetPassword = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      if (!currentUser?.email) return;
+      const formData = new FormData(e.currentTarget);
+      const code = formData.get("code") as string;
+      const newPassword = formData.get("newPassword") as string;
+      const confirmPassword = formData.get("confirmPassword") as string;
+
+      if (newPassword !== confirmPassword) {
+        toast.error(tAuth("passwordsDoNotMatch"));
+        return;
+      }
+
+      setSecurityStep("resetting");
+      try {
+        await signIn("password", {
+          email: currentUser.email,
+          code,
+          newPassword,
+          flow: "reset-verification",
+        });
+        toast.success(t("passwordChanged"));
+        setSecurityStep("idle");
+      } catch {
+        toast.error(tAuth("invalidCode"));
+        setSecurityStep("code");
+      }
+    },
+    [signIn, currentUser?.email, t, tAuth]
+  );
+
+  return (
+    <Section title={t("securityTitle")} description={t("securityDescription")}>
+      {securityStep === "idle" && (
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-tertiary">{t("changePasswordDescription")}</p>
+          <div>
+            <Button
+              color="primary"
+              size="sm"
+              onClick={handleSendCode}
+            >
+              {t("changePassword")}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {securityStep === "sending" && (
+        <div className="flex items-center gap-2 text-sm text-tertiary">
+          <span>{tAuth("sendingCode")}</span>
+        </div>
+      )}
+
+      {(securityStep === "code" || securityStep === "resetting") && (
+        <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
+          <Input
+            isRequired
+            hideRequiredIndicator
+            label={tAuth("resetCode")}
+            type="text"
+            name="code"
+            placeholder={tAuth("enterResetCode")}
+            size="md"
+            isDisabled={securityStep === "resetting"}
+            autoComplete="one-time-code"
+          />
+          <Input
+            isRequired
+            hideRequiredIndicator
+            label={tAuth("newPassword")}
+            type="password"
+            name="newPassword"
+            placeholder="••••••••"
+            size="md"
+            isDisabled={securityStep === "resetting"}
+          />
+          <Input
+            isRequired
+            hideRequiredIndicator
+            label={tAuth("confirmPassword")}
+            type="password"
+            name="confirmPassword"
+            placeholder="••••••••"
+            size="md"
+            isDisabled={securityStep === "resetting"}
+          />
+          <p className="text-xs text-tertiary">{tAuth("passwordRequirements")}</p>
+          <div className="flex items-center gap-4">
+            <Button
+              type="submit"
+              color="primary"
+              size="sm"
+              isLoading={securityStep === "resetting"}
+            >
+              {t("changePassword")}
+            </Button>
+            <Button
+              type="button"
+              color="tertiary"
+              size="sm"
+              onClick={() => setSecurityStep("idle")}
+              isDisabled={securityStep === "resetting"}
+            >
+              {t("cancelRole")}
+            </Button>
+          </div>
+          <div>
+            {cooldown > 0 ? (
+              <span className="text-xs text-tertiary">
+                {tAuth("resendIn", { seconds: cooldown.toString() })}
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResend}
+                className="text-xs text-brand-600 hover:text-brand-500"
+              >
+                {tAuth("resendCode")}
+              </button>
+            )}
+          </div>
+        </form>
+      )}
+    </Section>
+  );
+}
+
 // ─── Main page ──────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -1600,6 +1775,7 @@ export default function SettingsPage() {
     { id: "members", label: t("tabMembers"), icon: Users01 },
     { id: "roles", label: t("tabRoles"), icon: Shield01 },
     { id: "limits", label: t("tabLimits"), icon: Speedometer02 },
+    { id: "security", label: t("tabSecurity"), icon: Lock01 },
   ];
 
   return (
@@ -1672,6 +1848,10 @@ export default function SettingsPage() {
 
               <TabPanel id="limits" className="w-full">
                 <LimitsSection />
+              </TabPanel>
+
+              <TabPanel id="security" className="w-full">
+                <SecuritySection />
               </TabPanel>
             </div>
           </div>

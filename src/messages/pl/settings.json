@@ -183,5 +183,11 @@
   "planUnlimited": "Bez limitu",
   "planModules": "Dostępne moduły",
   "planDomainsPerProject": "Domeny na projekt",
-  "planKeywordsPerDomain": "Słowa kluczowe na domenę"
+  "planKeywordsPerDomain": "Słowa kluczowe na domenę",
+  "tabSecurity": "Bezpieczeństwo",
+  "securityTitle": "Hasło",
+  "securityDescription": "Zmień hasło do konta.",
+  "changePassword": "Zmień hasło",
+  "changePasswordDescription": "Wyślemy kod weryfikacyjny na Twój email, aby potwierdzić zmianę.",
+  "passwordChanged": "Hasło zostało zmienione"
 }

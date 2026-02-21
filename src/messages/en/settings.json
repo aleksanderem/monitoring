@@ -183,5 +183,11 @@
   "planUnlimited": "Unlimited",
   "planModules": "Available modules",
   "planDomainsPerProject": "Domains per project",
-  "planKeywordsPerDomain": "Keywords per domain"
+  "planKeywordsPerDomain": "Keywords per domain",
+  "tabSecurity": "Security",
+  "securityTitle": "Password",
+  "securityDescription": "Change your account password.",
+  "changePassword": "Change password",
+  "changePasswordDescription": "We'll send a verification code to your email to confirm the change.",
+  "passwordChanged": "Password changed successfully"
 }

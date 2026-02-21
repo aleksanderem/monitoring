@@ -172,17 +172,15 @@ export const sendTeamInvitation = internalAction({
   },
 });
 
-// ─── Password reset email ────────────────────────────────
+// ─── Password reset code email ──────────────────────────
 
-export const sendPasswordReset = internalAction({
+export const sendPasswordResetCode = internalAction({
   args: {
     to: v.string(),
-    resetToken: v.string(),
+    code: v.string(),
   },
   handler: async (_ctx, args) => {
     const resend = getResend();
-    const appUrl = getAppUrl();
-    const resetUrl = `${appUrl}/reset-password?token=${args.resetToken}`;
 
     const html = `
 <!DOCTYPE html>
@@ -198,18 +196,14 @@ export const sendPasswordReset = internalAction({
     </div>
     <div style="padding:32px 40px;">
       <h2 style="margin:0 0 16px;font-size:20px;color:#101828;">Reset hasła</h2>
-      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#475467;">
-        Otrzymaliśmy prośbę o zresetowanie hasła do Twojego konta.
+      <p style="margin:0 0 8px;font-size:15px;line-height:1.6;color:#475467;">
+        Twój kod weryfikacyjny:
       </p>
-      <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#475467;">
-        Kliknij poniżej, aby ustawić nowe hasło:
-      </p>
-      <a href="${resetUrl}"
-         style="display:inline-block;padding:12px 24px;background:#7f56d9;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500;">
-        Ustaw nowe hasło
-      </a>
-      <p style="margin:32px 0 0;font-size:13px;color:#98a2b3;">
-        Link jest ważny przez 1 godzinę. Jeśli nie prosiłeś o reset hasła, zignoruj tego maila.
+      <div style="margin:16px 0 24px;padding:16px 24px;background:#f9fafb;border-radius:8px;border:1px solid #eaecf0;text-align:center;">
+        <span style="font-size:32px;font-family:'Courier New',monospace;font-weight:700;letter-spacing:4px;color:#101828;">${args.code}</span>
+      </div>
+      <p style="margin:0 0 0;font-size:13px;color:#98a2b3;">
+        Kod jest ważny przez 1 godzinę. Jeśli nie prosiłeś o reset hasła, zignoruj tego maila.
       </p>
     </div>
     <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
@@ -222,14 +216,14 @@ export const sendPasswordReset = internalAction({
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: args.to,
-      subject: "Reset hasła — doseo",
+      subject: "Kod resetowania hasła — doseo",
       html,
     });
     if (error) {
-      console.error("[email] Password reset email failed:", error);
+      console.error("[email] Password reset code email failed:", error);
       return;
     }
-    console.log("[email] Password reset sent to", args.to, "id:", data?.id);
+    console.log("[email] Password reset code sent to", args.to, "id:", data?.id);
   },
 });
 
