@@ -2080,22 +2080,26 @@ export function ModuleHubCard({
             {state.lockReason && (LOCK_PREREQS[state.lockReason] ?? []).length > 0 && (
               <div className="flex flex-wrap items-center justify-center gap-1.5 px-6">
                 {(LOCK_PREREQS[state.lockReason] ?? []).map((mid) => (
-                  <button
+                  <div
                     key={mid}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={(e) => { e.stopPropagation(); onNavigateToTab?.(mid); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onNavigateToTab?.(mid); } }}
                     className="inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-black/70"
                   >
                     <EzIcon name={MODULE_ICONS[mid] ?? "settings-05"} size={12} color="#ffffff" strokeColor="#ffffff" />
                     {loc(`shell.${mid}`, data?.locale)}
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
             {benefitText && (
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={(e) => { e.stopPropagation(); setLockHighlight(state.lockReason ? LOCK_PREREQS[state.lockReason] : undefined); setActive(true); }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setLockHighlight(state.lockReason ? LOCK_PREREQS[state.lockReason] : undefined); setActive(true); } }}
                 className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[11px] font-bold text-neutral-800 shadow-lg transition-colors hover:bg-neutral-100"
               >
                 <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -2104,7 +2108,7 @@ export function ModuleHubCard({
                   <circle cx="6.5" cy="3.75" r="0.75" fill="currentColor" />
                 </svg>
                 {loc("lockMoreInfo", data?.locale)}
-              </button>
+              </div>
             )}
           </div>
         )}

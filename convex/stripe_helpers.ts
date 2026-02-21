@@ -95,7 +95,7 @@ export const activateSubscription = internalMutation({
     // Send subscription confirmation email to org owner
     const members = await ctx.db
       .query("organizationMembers")
-      .withIndex("by_org", (q) => q.eq("organizationId", org._id))
+      .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
       .collect();
     const owner = members.find((m) => m.role === "owner");
     if (owner) {
