@@ -93,6 +93,7 @@ import { AIKeywordResearchSection } from "@/components/domain/sections/AIKeyword
 import { StrategySection } from "@/components/domain/sections/StrategySection";
 import { DiagnosticSection } from "@/components/domain/sections/DiagnosticSection";
 import { GeneratorsSection } from "@/components/domain/sections/GeneratorsSection";
+import { AlertsSection } from "@/components/domain/sections/AlertsSection";
 import { OnboardingChecklist } from "@/components/domain/onboarding/OnboardingChecklist";
 import { getCountryFlag, getLanguageFlag } from "@/lib/countryFlags";
 import { EzIcon } from "@/components/foundations/ez-icon";
@@ -118,6 +119,7 @@ const TAB_EZICONS: Record<string, string> = {
   "strategy": "strategy",
   "generators": "code",
   "diagnostics": "stethoscope",
+  "alerts": "alert-02",
   "settings": "settings-05",
 };
 
@@ -146,6 +148,7 @@ const MODULE_CARDS: {
   { tabId: "strategy", titleKey: "tabStrategy", descriptionKey: "moduleDescStrategy", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
   { tabId: "keyword-analysis", titleKey: "tabKeywordAnalysis", descriptionKey: "moduleDescKeywordAnalysis", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
   { tabId: "generators", titleKey: "tabGenerators", descriptionKey: "moduleDescGenerators", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
+  { tabId: "alerts", titleKey: "tabAlerts", descriptionKey: "moduleDescAlerts", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
   { tabId: "settings", titleKey: "tabSettings", descriptionKey: "moduleDescSettings", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
 ];
 
@@ -393,6 +396,7 @@ export default function DomainDetailPage() {
       { id: "strategy", label: t('tabStrategy'), icon: Stars01, badge: strategyBadge, locked: moduleReadiness.strategy?.locked, lockReason: moduleReadiness.strategy?.lockReason },
     ] : []),
     { id: "generators", label: t('tabGenerators'), icon: CodeBrowser },
+    { id: "alerts", label: t('tabAlerts'), icon: Activity },
     { id: "settings", label: t('tabSettings'), icon: Settings01 },
     ...(isSuperAdmin ? [{ id: "diagnostics", label: t('tabDiagnostics'), icon: Settings01 }] : []),
   ];
@@ -1222,6 +1226,13 @@ export default function DomainDetailPage() {
             <TabPanel id="generators">
               <ErrorBoundary label="Generators">
               <GeneratorsSection domainId={domainId} />
+              </ErrorBoundary>
+            </TabPanel>
+
+            {/* Alerts Tab */}
+            <TabPanel id="alerts">
+              <ErrorBoundary label="Alerts">
+              <AlertsSection domainId={domainId} />
               </ErrorBoundary>
             </TabPanel>
 

@@ -52,6 +52,13 @@ crons.weekly(
   internal.scheduler.analyzeContentGapsWeekly
 );
 
+// Evaluate custom alert rules daily at 4 AM UTC (after anomaly detection)
+crons.daily(
+  "evaluate-alert-rules-daily",
+  { hourUTC: 4, minuteUTC: 30 },
+  internal.alertEvaluation.evaluateAlertRules
+);
+
 // Check grace periods for past_due subscriptions daily at 5 AM UTC
 crons.daily(
   "check-grace-periods",

@@ -2025,4 +2025,53 @@ export default defineSchema({
   })
     .index("by_domain_type", ["domainId", "type"])
     .index("by_domain", ["domainId"]),
+
+  // =================================================================
+  // Custom Alert Rules (R13)
+  // =================================================================
+
+  alertRules: defineTable({
+    domainId: v.id("domains"),
+    name: v.string(),
+    ruleType: v.union(
+      v.literal("position_drop"),
+      v.literal("top_n_exit"),
+      v.literal("new_competitor"),
+      v.literal("backlink_lost"),
+      v.literal("visibility_drop")
+    ),
+    isActive: v.boolean(),
+    threshold: v.number(),
+    topN: v.optional(v.number()), // Only for top_n_exit: 3, 10, 20, 50, 100
+    cooldownMinutes: v.number(), // Default 1440 (24h)
+    notifyVia: v.array(v.union(v.literal("in_app"), v.literal("email"))),
+    lastTriggeredAt: v.optional(v.number()),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_domain_active", ["domainId", "isActive"])
+    .index("by_domain_type", ["domainId", "ruleType"]),
+
+  alertEvents: defineTable({
+    ruleId: v.id("alertRules"),
+    domainId: v.id("domains"),
+    ruleType: v.string(), // Denormalized for filtering
+    triggeredAt: v.number(),
+    data: v.object({
+      keywordId: v.optional(v.id("keywords")),
+      keywordPhrase: v.optional(v.string()),
+      previousValue: v.optional(v.number()),
+      currentValue: v.optional(v.number()),
+      competitorDomain: v.optional(v.string()),
+      details: v.optional(v.string()),
+    }),
+    status: v.union(v.literal("active"), v.literal("acknowledged")),
+    acknowledgedAt: v.optional(v.number()),
+    acknowledgedBy: v.optional(v.id("users")),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_rule", ["ruleId"])
+    .index("by_domain_status", ["domainId", "status"]),
 });
