@@ -73,28 +73,30 @@ Completed: 2026-02-21. Full cascade deletion across 40+ tables with 7-day grace 
 ### R08 [~] Email Notifications System
 Break the monolithic "notifications" item into proper implementation. Infrastructure exists (Resend configured, notification preferences table, cron stubs) but most emails aren't sent.
 
-Phase 1 — Activate existing stubs:
-- Daily digest email (keyword movements, top gainers/losers) — cron exists but commented out
-- Weekly report email (position summary, visibility trend) — cron exists but commented out
-- Respect user notification preferences when sending (preferences stored but not checked)
+Phase 1 — Activate existing stubs: ~~DONE~~
+- ~~Daily digest email (keyword movements, top gainers/losers) — cron exists but commented out~~
+- ~~Weekly report email (position summary, visibility trend) — cron exists but commented out~~
+- ~~Respect user notification preferences when sending (preferences stored but not checked)~~
 
-Phase 2 — New alert emails:
-- Position drop alert (keyword drops > configurable threshold)
-- Limit/quota warning (approaching keyword/domain/API limits at 80%)
-- Competitor alert (competitor started ranking for your keyword)
-- Calendar event reminders (events system exists, no email on due date)
+Phase 2 — New alert emails: ~~DONE~~
+- ~~Position drop alert (keyword drops > configurable threshold)~~
+- ~~Top N exit alert (keyword exits top 3/10/20/50)~~
+- ~~Competitor alert (competitor started ranking for your keyword)~~
+- ~~Backlink lost alert (significant backlink losses)~~
+- ~~Visibility drop alert (visibility score drops > threshold %)~~
+- Alert emails wired into alertEvaluation.ts via notifyVia field
 
-Phase 3 — Billing & team emails:
-- Payment failed notification with retry link
-- Invoice/receipt email after successful charge
-- Trial expiration reminders (3 days, 1 day before)
-- Member joined organization notification
-- Role changed notification
+Phase 3 — Billing & team emails: ~~DONE (via R03)~~
+- ~~Payment failed notification with retry link~~
+- ~~Trial expiration reminders (3 days, 1 day before)~~
+- ~~Cancellation confirmation~~
+- ~~Degradation notice (read-only mode)~~
 
 Phase 4 — Email hygiene:
 - Unsubscribe links in all non-transactional emails
-- Preference-based filtering (check user prefs before sending)
 - Email delivery logging to notificationLogs table
+
+Progress: Phase 1 completed 2026-02-21 (digestQueries.ts, sendDailyDigest/sendWeeklyReport, crons activated, preference filtering). Commit: 800f23a. Phase 2 completed 2026-02-21 (5 alert email templates, alertEvaluation.ts wired with notifyVia routing). Phase 3 done via R03 (transactional billing emails). Phase 4 remaining.
 
 Scope: convex/scheduler.ts, convex/crons.ts, convex/actions/sendEmail.ts, notification preferences logic.
 
@@ -158,12 +160,12 @@ Scope: import wizard component, convex import mutations, export utility function
 
 Completed: 2026-02-21. CSV/Excel parser with papaparse+xlsx. Column mapping wizard (ImportWizardModal). Keyword and competitor import modals. Export buttons on keyword monitoring, backlinks, discovered keywords, competitor tables. exportToCsv with UTF-8 BOM, exportToExcel multi-sheet. 18 new tests. Plan: `2026-02-21-R11-csv-import-export-*.md`. Commit: 825e343.
 
-### R12 [~] "Add to Monitoring" & Cross-Feature Flows
+### R12 [x] "Add to Monitoring" & Cross-Feature Flows
 Keywords discovered in content gap analysis and competitor tables have "Add to Monitoring" buttons with TODO comments. Complete the full flow: select keywords → confirm → create keyword records → trigger first position check. Also wire up SERP features display (component exists but disabled).
 
 Scope: AllKeywordsTable.tsx, CompetitorKeywordGapTable.tsx, SERPFeaturesBadges.tsx (re-enable), convex keyword mutations.
 
-Progress: "Add Keywords" button with manual input and AI suggestions implemented (commit: 8428b6d). Add to Monitor functionality in tooltips working (commit: dee7e01). Remaining: complete end-to-end flow from content gap/competitor tables, re-enable SERP features badges display.
+Completed: 2026-02-21. AllKeywordsTable wired to addKeyword mutation with position refresh. CompetitorKeywordGapTable per-row Plus button wired to addKeywords + refreshPositions. SERPFeaturesBadges re-enabled in KeywordMonitoringTable. 19 integration tests. Plan: `2026-02-21-R12-R08-implementation.md`. Commit: 965f035.
 
 ### R13 [x] Custom Alert Rules
 Users can't configure alerts today. Anomaly detection runs automatically but with no configurable thresholds. Agencies need to set rules per client domain.
@@ -635,12 +637,12 @@ Total items: 35.
 | Tier | Total | Done | In Progress | Not Started |
 |------|-------|------|-------------|-------------|
 | Tier 0 — Blockers | 7 | 7 (R01-R07) | 0 | 0 |
-| Tier 1 — Core | 8 | 3 (R11, R13, R15) | 4 (R08, R09, R12, R14) | 1 (R10) |
+| Tier 1 — Core | 8 | 4 (R11, R12, R13, R15) | 3 (R08, R09, R14) | 1 (R10) |
 | Tier 2 — Polish | 7 | 0 | 4 (R16, R18, R19, R22) | 3 (R17, R20, R21) |
 | Tier 3 — Growth | 13 | 0 | 0 | 13 (R23-R35) |
-| **Total** | **35** | **10** | **8** | **17** |
+| **Total** | **35** | **11** | **7** | **17** |
 
-Tier 0 complete! All blockers resolved. Critical path: finish Tier 1 in-progress items (R08 emails, R09 AI reports, R12 cross-feature flows, R14 onboarding) and R10 (GSC).
+Tier 0 complete! R12 done. R08 Phases 1-3 done (Phase 4 email hygiene remaining). Critical path: finish R08 Phase 4, R09 AI reports, R14 onboarding, R10 GSC.
 
 ### Work completed outside roadmap items
 
@@ -682,6 +684,8 @@ Record every status change here with date and brief notes. Most recent entries f
 | 2026-02-21 | R22 | [ ] → [~] | i18n PL/EN working, coverage audit pending |
 | 2026-02-21 | R18 | [ ] → [~] | Bulk refresh works, other bulk ops pending |
 | 2026-02-21 | R14 | [ ] → [~] | Onboarding flow exists, full wizard UX pending |
+| 2026-02-21 | R12 | [~] → [x] | Cross-feature flows wired, SERP badges re-enabled. 19 tests. Commit: 965f035 |
+| 2026-02-21 | R08 | [~] → [~] | Phase 1-2 done: daily digest, weekly report, 5 alert email templates wired to alertEvaluation. Commits: 800f23a |
 | 2026-02-21 | R12 | [ ] → [~] | Add Keywords button works, cross-feature flows pending |
 | 2026-02-21 | R09 | [ ] → [~] | Custom report editor + AI Strategy pattern built |
 | 2026-02-21 | R08 | [ ] → [~] | Resend configured, transactional emails, 110 tests |

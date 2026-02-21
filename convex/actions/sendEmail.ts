@@ -766,3 +766,259 @@ export const sendDegradationNotice = internalAction({
     console.log("[email] Degradation notice sent to", args.to, "id:", data?.id);
   },
 });
+
+// ─── Position Drop Alert ─────────────────────────────────
+
+export const sendPositionDropAlert = internalAction({
+  args: {
+    to: v.string(),
+    domainName: v.string(),
+    keywordPhrase: v.string(),
+    previousPosition: v.number(),
+    currentPosition: v.number(),
+  },
+  handler: async (_ctx, args) => {
+    const resend = getResend();
+    const appUrl = getAppUrl();
+    const drop = args.previousPosition - args.currentPosition;
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+    <div style="background:#dc2626;padding:32px 40px;">
+      <h1 style="margin:0;color:#fff;font-size:24px;font-weight:600;">doseo</h1>
+    </div>
+    <div style="padding:32px 40px;">
+      <h2 style="margin:0 0 16px;font-size:20px;color:#101828;">Spadek pozycji: ${args.keywordPhrase}</h2>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#475467;">
+        Fraza <strong>"${args.keywordPhrase}"</strong> dla domeny <strong>${args.domainName}</strong> spadła o <strong>${Math.abs(drop)} pozycji</strong>.
+      </p>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+        <tr>
+          <td style="padding:12px 16px;background:#fef2f2;border-radius:8px 0 0 8px;font-size:14px;color:#991b1b;">Poprzednia: <strong>${args.previousPosition}</strong></td>
+          <td style="padding:12px 16px;background:#fef2f2;border-radius:0 8px 8px 0;font-size:14px;color:#991b1b;">Obecna: <strong>${args.currentPosition}</strong></td>
+        </tr>
+      </table>
+      <a href="${appUrl}" style="display:inline-block;padding:12px 24px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500;">Sprawdź szczegóły</a>
+    </div>
+    <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
+      <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: args.to,
+      subject: `Spadek pozycji: "${args.keywordPhrase}" — doseo`,
+      html,
+    });
+    if (error) { console.error("[email] Position drop alert failed:", error); return; }
+    console.log("[email] Position drop alert sent to", args.to, "id:", data?.id);
+  },
+});
+
+// ─── Top N Exit Alert ────────────────────────────────────
+
+export const sendTopNExitAlert = internalAction({
+  args: {
+    to: v.string(),
+    domainName: v.string(),
+    keywordPhrase: v.string(),
+    previousPosition: v.number(),
+    currentPosition: v.number(),
+    topN: v.number(),
+  },
+  handler: async (_ctx, args) => {
+    const resend = getResend();
+    const appUrl = getAppUrl();
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+    <div style="background:#f59e0b;padding:32px 40px;">
+      <h1 style="margin:0;color:#fff;font-size:24px;font-weight:600;">doseo</h1>
+    </div>
+    <div style="padding:32px 40px;">
+      <h2 style="margin:0 0 16px;font-size:20px;color:#101828;">Wypadnięcie z Top ${args.topN}</h2>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#475467;">
+        Fraza <strong>"${args.keywordPhrase}"</strong> dla domeny <strong>${args.domainName}</strong> wypadła z Top ${args.topN}.
+      </p>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+        <tr>
+          <td style="padding:12px 16px;background:#fffbeb;border-radius:8px 0 0 8px;font-size:14px;color:#92400e;">Poprzednia: <strong>${args.previousPosition}</strong></td>
+          <td style="padding:12px 16px;background:#fffbeb;border-radius:0 8px 8px 0;font-size:14px;color:#92400e;">Obecna: <strong>${args.currentPosition}</strong></td>
+        </tr>
+      </table>
+      <a href="${appUrl}" style="display:inline-block;padding:12px 24px;background:#f59e0b;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500;">Sprawdź szczegóły</a>
+    </div>
+    <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
+      <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: args.to,
+      subject: `Wypadnięcie z Top ${args.topN}: "${args.keywordPhrase}" — doseo`,
+      html,
+    });
+    if (error) { console.error("[email] Top N exit alert failed:", error); return; }
+    console.log("[email] Top N exit alert sent to", args.to, "id:", data?.id);
+  },
+});
+
+// ─── New Competitor Alert ────────────────────────────────
+
+export const sendNewCompetitorAlert = internalAction({
+  args: {
+    to: v.string(),
+    domainName: v.string(),
+    competitorDomain: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const resend = getResend();
+    const appUrl = getAppUrl();
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+    <div style="background:#2563eb;padding:32px 40px;">
+      <h1 style="margin:0;color:#fff;font-size:24px;font-weight:600;">doseo</h1>
+    </div>
+    <div style="padding:32px 40px;">
+      <h2 style="margin:0 0 16px;font-size:20px;color:#101828;">Nowy konkurent w SERP</h2>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#475467;">
+        Nowa domena <strong>${args.competitorDomain}</strong> pojawiła się w Top 10 wyników dla fraz monitorowanych na <strong>${args.domainName}</strong>.
+      </p>
+      <a href="${appUrl}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500;">Sprawdź szczegóły</a>
+    </div>
+    <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
+      <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: args.to,
+      subject: `Nowy konkurent: ${args.competitorDomain} — doseo`,
+      html,
+    });
+    if (error) { console.error("[email] New competitor alert failed:", error); return; }
+    console.log("[email] New competitor alert sent to", args.to, "id:", data?.id);
+  },
+});
+
+// ─── Backlink Lost Alert ─────────────────────────────────
+
+export const sendBacklinkLostAlert = internalAction({
+  args: {
+    to: v.string(),
+    domainName: v.string(),
+    lostCount: v.number(),
+  },
+  handler: async (_ctx, args) => {
+    const resend = getResend();
+    const appUrl = getAppUrl();
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+    <div style="background:#dc2626;padding:32px 40px;">
+      <h1 style="margin:0;color:#fff;font-size:24px;font-weight:600;">doseo</h1>
+    </div>
+    <div style="padding:32px 40px;">
+      <h2 style="margin:0 0 16px;font-size:20px;color:#101828;">Utrata backlinków</h2>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#475467;">
+        Domena <strong>${args.domainName}</strong> straciła <strong>${args.lostCount}</strong> backlinków w ostatnim okresie.
+      </p>
+      <a href="${appUrl}" style="display:inline-block;padding:12px 24px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500;">Sprawdź szczegóły</a>
+    </div>
+    <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
+      <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: args.to,
+      subject: `Utrata backlinków: ${args.domainName} — doseo`,
+      html,
+    });
+    if (error) { console.error("[email] Backlink lost alert failed:", error); return; }
+    console.log("[email] Backlink lost alert sent to", args.to, "id:", data?.id);
+  },
+});
+
+// ─── Visibility Drop Alert ───────────────────────────────
+
+export const sendVisibilityDropAlert = internalAction({
+  args: {
+    to: v.string(),
+    domainName: v.string(),
+    previousValue: v.number(),
+    currentValue: v.number(),
+  },
+  handler: async (_ctx, args) => {
+    const resend = getResend();
+    const appUrl = getAppUrl();
+    const dropPct = Math.round(((args.previousValue - args.currentValue) / args.previousValue) * 100);
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+    <div style="background:#dc2626;padding:32px 40px;">
+      <h1 style="margin:0;color:#fff;font-size:24px;font-weight:600;">doseo</h1>
+    </div>
+    <div style="padding:32px 40px;">
+      <h2 style="margin:0 0 16px;font-size:20px;color:#101828;">Spadek widoczności: -${dropPct}%</h2>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#475467;">
+        Widoczność domeny <strong>${args.domainName}</strong> spadła o <strong>${dropPct}%</strong>.
+      </p>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+        <tr>
+          <td style="padding:12px 16px;background:#fef2f2;border-radius:8px 0 0 8px;font-size:14px;color:#991b1b;">Poprzednia: <strong>${args.previousValue}</strong></td>
+          <td style="padding:12px 16px;background:#fef2f2;border-radius:0 8px 8px 0;font-size:14px;color:#991b1b;">Obecna: <strong>${args.currentValue}</strong></td>
+        </tr>
+      </table>
+      <a href="${appUrl}" style="display:inline-block;padding:12px 24px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500;">Sprawdź szczegóły</a>
+    </div>
+    <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
+      <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: args.to,
+      subject: `Spadek widoczności: ${args.domainName} (-${dropPct}%) — doseo`,
+      html,
+    });
+    if (error) { console.error("[email] Visibility drop alert failed:", error); return; }
+    console.log("[email] Visibility drop alert sent to", args.to, "id:", data?.id);
+  },
+});

@@ -116,7 +116,7 @@ export const triggerDailyDigests = internalAction({
     for (const { members, domains } of orgsWithDomains) {
       // Filter members who opted in to daily ranking reports
       const optedIn = members.filter(
-        (m) => m.prefs?.dailyRankingReports === true && m.email
+        (m: { prefs: any; email: string }) => m.prefs?.dailyRankingReports === true && m.email
       );
       if (optedIn.length === 0) continue;
 
@@ -189,7 +189,7 @@ export const triggerWeeklyReports = internalAction({
     for (const { members, domains } of orgsWithDomains) {
       // Weekly report goes to users with frequency=weekly OR dailyRankingReports=true
       const optedIn = members.filter(
-        (m) =>
+        (m: { prefs: any; email: string }) =>
           (m.prefs?.frequency === "weekly" ||
             m.prefs?.dailyRankingReports === true) &&
           m.email
