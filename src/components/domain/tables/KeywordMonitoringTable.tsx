@@ -38,6 +38,7 @@ import { useRowSelection } from "@/hooks/useRowSelection";
 import { BulkActionBar } from "@/components/patterns/BulkActionBar";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { exportToCsv } from "@/utils/exportCsv";
+import { SERPFeaturesBadges } from "./SERPFeaturesBadges";
 
 interface KeywordMonitoringTableProps {
   domainId: Id<"domains">;
@@ -57,6 +58,7 @@ interface ColumnVisibility {
   etv: boolean;
   competition: boolean;
   intent: boolean;
+  serp: boolean;
   actions: boolean;
 }
 
@@ -117,6 +119,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
       etv: true,
       competition: false,
       intent: false,
+      serp: true,
       actions: true,
     };
   });
@@ -674,6 +677,11 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     {t('columnIntent')}
                   </th>
                 )}
+                {columnVisibility.serp && (
+                  <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
+                    SERP
+                  </th>
+                )}
                 {columnVisibility.actions && (
                   <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
                     {tc('actions')}
@@ -828,6 +836,11 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                           ) : (
                             <span className="text-xs text-tertiary">—</span>
                           )}
+                        </td>
+                      )}
+                      {columnVisibility.serp && (
+                        <td className="px-4 py-3 text-center">
+                          <SERPFeaturesBadges keywordId={keyword.keywordId} />
                         </td>
                       )}
                       {columnVisibility.actions && (
