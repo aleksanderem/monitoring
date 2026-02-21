@@ -6,7 +6,7 @@
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { getFunctionName } from "convex/server";
 
@@ -92,11 +92,17 @@ vi.mock("motion/react", () => {
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+const mockSignIn = vi.fn().mockResolvedValue(undefined);
+vi.mock("@convex-dev/auth/react", () => ({
+  useAuthActions: () => ({ signIn: mockSignIn }),
+}));
+
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
 
 import { useQuery, useMutation, useAction } from "convex/react";
+import { toast } from "sonner";
 import { renderWithProviders } from "@/test/helpers/render-with-providers";
 import {
   USER_PREFERENCES,
@@ -161,6 +167,7 @@ function setupActionMap() {
 function baseQueries(overrides: QueryMap = {}): QueryMap {
   return {
     "users:getCurrentUser": { ...CURRENT_USER, joinedAt: Date.now() - 90 * 24 * 60 * 60 * 1000 },
+    "auth:getCurrentUser": { ...CURRENT_USER, joinedAt: Date.now() - 90 * 24 * 60 * 60 * 1000 },
     "userSettings:getUserPreferences": USER_PREFERENCES,
     "userSettings:getNotificationPreferences": NOTIFICATION_PREFERENCES_ALL_ON,
     "users:getAPIKeys": API_KEYS,
@@ -193,6 +200,8 @@ beforeEach(async () => {
   vi.mocked(useQuery).mockImplementation((() => undefined) as any);
   vi.mocked(useMutation).mockReturnValue(vi.fn() as any);
   vi.mocked(useAction).mockReturnValue(vi.fn() as any);
+  mockSignIn.mockClear();
+  mockSignIn.mockResolvedValue(undefined);
   localStorage.clear();
 
   const mod = await import("@/app/(dashboard)/settings/page");
@@ -569,6 +578,190 @@ describe("Settings Flows", () => {
   });
 
   // ── Cross-cutting ────────────────────────────────────────────────────
+
+  // ── Security Tab ──────────────────────────────────────────────────
+
+  describe("Security Tab", () => {
+    async function navigateToSecurity(user: ReturnType<typeof userEvent.setup>) {
+      const securityTab = screen.getAllByRole("tab", { name: /Security/i })[0];
+      await user.click(securityTab);
+    }
+
+    it("shows change password button on security tab", async () => {
+      const user = userEvent.setup();
+      setupQueries(baseQueries());
+      renderWithProviders(<SettingsPage />);
+      await navigateToSecurity(user);
+
+      expect(screen.getByRole("button", { name: /change password/i })).toBeInTheDocument();
+    });
+
+    it("shows security description text", async () => {
+      const user = userEvent.setup();
+      setupQueries(baseQueries());
+      renderWithProviders(<SettingsPage />);
+      await navigateToSecurity(user);
+
+      expect(screen.getByText(/send a verification code/i)).toBeInTheDocument();
+    });
+
+    it("calls signIn with reset flow when change password clicked", async () => {
+      const user = userEvent.setup();
+      setupQueries(baseQueries());
+      renderWithProviders(<SettingsPage />);
+      await navigateToSecurity(user);
+
+      await user.click(screen.getByRole("button", { name: /change password/i }));
+
+      await waitFor(() => {
+        expect(mockSignIn).toHaveBeenCalledWith("password", {
+          email: "test@example.com",
+          flow: "reset",
+        });
+      });
+    });
+
+    it("shows code and password fields after sending code", async () => {
+      const user = userEvent.setup();
+      setupQueries(baseQueries());
+      renderWithProviders(<SettingsPage />);
+      await navigateToSecurity(user);
+
+      await user.click(screen.getByRole("button", { name: /change password/i }));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/code/i)).toBeInTheDocument();
+      });
+      expect(screen.getByLabelText(/new password/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/confirm password/i)).toBeInTheDocument();
+    });
+
+    it("calls signIn with reset-verification flow on valid password change", async () => {
+      const user = userEvent.setup();
+      setupQueries(baseQueries());
+      renderWithProviders(<SettingsPage />);
+      await navigateToSecurity(user);
+
+      // Step 1: send code
+      await user.click(screen.getByRole("button", { name: /change password/i }));
+      await waitFor(() => expect(screen.getByLabelText(/code/i)).toBeInTheDocument());
+      mockSignIn.mockClear();
+
+      // Step 2: enter code + new password
+      await user.type(screen.getByLabelText(/code/i), "123456");
+      await user.type(screen.getByLabelText(/new password/i), "NewPass123");
+      await user.type(screen.getByLabelText(/confirm password/i), "NewPass123");
+
+      // Find the submit button (Change password button in the form)
+      const submitButtons = screen.getAllByRole("button", { name: /change password/i });
+      await user.click(submitButtons[0]);
+
+      await waitFor(() => {
+        expect(mockSignIn).toHaveBeenCalledWith("password", {
+          email: "test@example.com",
+          code: "123456",
+          newPassword: "NewPass123",
+          flow: "reset-verification",
+        });
+      });
+    });
+
+    it("shows success toast and returns to idle after successful password change", async () => {
+      const user = userEvent.setup();
+      setupQueries(baseQueries());
+      renderWithProviders(<SettingsPage />);
+      await navigateToSecurity(user);
+
+      await user.click(screen.getByRole("button", { name: /change password/i }));
+      await waitFor(() => expect(screen.getByLabelText(/code/i)).toBeInTheDocument());
+
+      await user.type(screen.getByLabelText(/code/i), "123456");
+      await user.type(screen.getByLabelText(/new password/i), "NewPass123");
+      await user.type(screen.getByLabelText(/confirm password/i), "NewPass123");
+
+      const submitButtons = screen.getAllByRole("button", { name: /change password/i });
+      await user.click(submitButtons[0]);
+
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalled();
+      });
+
+      // Should return to idle state showing the description text again
+      await waitFor(() => {
+        expect(screen.getByText(/send a verification code/i)).toBeInTheDocument();
+      });
+    });
+
+    it("shows error on password mismatch without calling signIn", async () => {
+      const user = userEvent.setup();
+      setupQueries(baseQueries());
+      renderWithProviders(<SettingsPage />);
+      await navigateToSecurity(user);
+
+      await user.click(screen.getByRole("button", { name: /change password/i }));
+      await waitFor(() => expect(screen.getByLabelText(/code/i)).toBeInTheDocument());
+      mockSignIn.mockClear();
+
+      await user.type(screen.getByLabelText(/code/i), "123456");
+      await user.type(screen.getByLabelText(/new password/i), "NewPass123");
+      await user.type(screen.getByLabelText(/confirm password/i), "DifferentPass1");
+
+      const submitButtons = screen.getAllByRole("button", { name: /change password/i });
+      await user.click(submitButtons[0]);
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalled();
+      });
+      expect(mockSignIn).not.toHaveBeenCalled();
+    });
+
+    it("shows error toast on invalid code and stays on code step", async () => {
+      const user = userEvent.setup();
+      setupQueries(baseQueries());
+      renderWithProviders(<SettingsPage />);
+      await navigateToSecurity(user);
+
+      await user.click(screen.getByRole("button", { name: /change password/i }));
+      await waitFor(() => expect(screen.getByLabelText(/code/i)).toBeInTheDocument());
+      mockSignIn.mockClear();
+      mockSignIn.mockRejectedValueOnce(new Error("Invalid code"));
+
+      await user.type(screen.getByLabelText(/code/i), "000000");
+      await user.type(screen.getByLabelText(/new password/i), "NewPass123");
+      await user.type(screen.getByLabelText(/confirm password/i), "NewPass123");
+
+      const submitButtons = screen.getAllByRole("button", { name: /change password/i });
+      await user.click(submitButtons[0]);
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalled();
+      });
+
+      // Should stay on code step
+      expect(screen.getByLabelText(/code/i)).toBeInTheDocument();
+    });
+
+    it("returns to idle state when cancel button is clicked", async () => {
+      const user = userEvent.setup();
+      setupQueries(baseQueries());
+      renderWithProviders(<SettingsPage />);
+      await navigateToSecurity(user);
+
+      await user.click(screen.getByRole("button", { name: /change password/i }));
+      await waitFor(() => expect(screen.getByLabelText(/code/i)).toBeInTheDocument());
+
+      const cancelButton = screen.getByRole("button", { name: /cancel/i });
+      await user.click(cancelButton);
+
+      // Should return to idle showing change password button
+      await waitFor(() => {
+        const changeBtn = screen.getByRole("button", { name: /change password/i });
+        expect(changeBtn).toBeInTheDocument();
+      });
+    });
+  });
+
+  // ── Tab switching ─────────────────────────────────────────────────
 
   describe("Tab switching", () => {
     it("switches visible content between tabs", async () => {
