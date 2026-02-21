@@ -7,7 +7,7 @@
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, within, fireEvent } from "@testing-library/react";
+import { screen, within, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { getFunctionName } from "convex/server";
 
@@ -694,9 +694,10 @@ describe("KeywordMonitoringTable — Data Flow Tests", () => {
       expect(callArgs.keywordIds).toHaveLength(3);
     });
 
-    it("calls deleteKeywords mutation for selected rows on bulk delete", async () => {
+    it("calls bulkDeleteKeywords mutation for selected rows on bulk delete (with confirmation modal)", async () => {
       const user = userEvent.setup();
       const mutationMap = setupMutationMock();
+      mutationMap.get("keywords:bulkDeleteKeywords")?.mockResolvedValue(2);
 
       setupQueryMock({
         "keywords:getKeywordMonitoring": KEYWORD_MONITORING_LIST,
@@ -712,16 +713,23 @@ describe("KeywordMonitoringTable — Data Flow Tests", () => {
 
       expect(screen.getByText("2 selected")).toBeInTheDocument();
 
-      // Click bulk delete
+      // Click bulk delete — opens confirmation modal
       const deleteBtn = screen.getByRole("button", { name: /Delete selected/i });
       await user.click(deleteBtn);
 
-      const deleteFn = mutationMap.get("keywords:deleteKeywords");
-      expect(deleteFn).toBeDefined();
-      expect(deleteFn).toHaveBeenCalled();
+      // Confirm in the modal
+      await waitFor(() => {
+        expect(screen.getByText(/Are you sure you want to delete 2 keywords/)).toBeInTheDocument();
+      });
+      const deleteButtons = screen.getAllByRole("button", { name: /Delete/i });
+      const confirmBtn = deleteButtons[deleteButtons.length - 1];
+      await user.click(confirmBtn);
 
-      const callArgs = deleteFn!.mock.calls[0][0];
-      expect(callArgs.keywordIds).toHaveLength(2);
+      await waitFor(() => {
+        const deleteFn = mutationMap.get("keywords:bulkDeleteKeywords");
+        expect(deleteFn).toBeDefined();
+        expect(deleteFn).toHaveBeenCalled();
+      });
     });
 
     it("calls createSerpFetchJob mutation for selected rows on bulk SERP fetch", async () => {
