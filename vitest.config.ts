@@ -18,12 +18,25 @@ export default defineConfig({
           name: "frontend",
           environment: "jsdom",
           include: ["src/**/*.test.{ts,tsx}"],
+          exclude: ["src/test/e2e/**"],
           setupFiles: ["./src/test/setup.ts"],
         },
         resolve: {
           alias: {
             "@": path.resolve(__dirname, "src"),
             "@convex": path.resolve(__dirname, "convex"),
+          },
+        },
+      },
+      {
+        test: {
+          name: "e2e",
+          environment: "node",
+          include: ["src/test/e2e/**/*.test.ts"],
+        },
+        resolve: {
+          alias: {
+            "@": path.resolve(__dirname, "src"),
           },
         },
       },
