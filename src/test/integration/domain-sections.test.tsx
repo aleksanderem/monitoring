@@ -116,6 +116,21 @@ vi.mock("@/components/domain/modals/AddCompetitorModal", () => ({
     isOpen ? <div data-testid="add-competitor-modal">Add Competitor</div> : null,
 }));
 
+vi.mock("@/hooks/useDateRange", () => ({
+  useDateRange: () => ({
+    dateRange: { from: new Date("2025-01-01"), to: new Date("2025-12-31") },
+    setDateRange: vi.fn(),
+    comparisonRange: null,
+    setComparisonRange: vi.fn(),
+    preset: "1y",
+    setPreset: vi.fn(),
+  }),
+}));
+
+vi.mock("@/components/common/DateRangePicker", () => ({
+  DateRangePicker: () => <div data-testid="date-range-picker">DateRangePicker</div>,
+}));
+
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
@@ -126,6 +141,7 @@ import { BacklinksSummaryStats } from "@/components/domain/sections/BacklinksSum
 import { VisibilityStats } from "@/components/domain/sections/VisibilityStats";
 import { ContentGapSection } from "@/components/domain/sections/ContentGapSection";
 import { CompetitorManagementSection } from "@/components/domain/sections/CompetitorManagementSection";
+import { BacklinksHistoryChart } from "@/components/domain/charts/BacklinksHistoryChart";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -437,5 +453,50 @@ describe("CompetitorManagementSection", () => {
     // Bulk delete button should now appear with count
     const deleteButton = screen.getByRole("button", { name: /Delete.*2/i });
     expect(deleteButton).toBeInTheDocument();
+  });
+});
+
+// ===========================================================================
+// BacklinksHistoryChart
+// ===========================================================================
+
+const BACKLINKS_HISTORY_DATA = [
+  { date: "2025-03-01", backlinks: 100 },
+  { date: "2025-04-01", backlinks: 150 },
+  { date: "2025-05-01", backlinks: 220 },
+  { date: "2025-06-01", backlinks: 310 },
+  { date: "2025-07-01", backlinks: 400 },
+];
+
+describe("BacklinksHistoryChart", () => {
+  it("renders chart container and title when data is provided", () => {
+    setupQueries({
+      "backlinks:getBacklinksHistory": BACKLINKS_HISTORY_DATA,
+    });
+
+    renderWithProviders(<BacklinksHistoryChart domainId={DOMAIN_ID} />);
+
+    expect(screen.getByText("Backlinks Over Time")).toBeInTheDocument();
+    // The chart container should be in the document
+    expect(screen.getByTestId("date-range-picker")).toBeInTheDocument();
+  });
+
+  it("shows empty state when data array is empty", () => {
+    setupQueries({
+      "backlinks:getBacklinksHistory": [],
+    });
+
+    renderWithProviders(<BacklinksHistoryChart domainId={DOMAIN_ID} />);
+
+    expect(screen.getByText("Backlinks Over Time")).toBeInTheDocument();
+    expect(screen.getByText("No historical data available")).toBeInTheDocument();
+  });
+
+  it("shows loading skeleton when data is undefined", () => {
+    // Default mock returns undefined
+    renderWithProviders(<BacklinksHistoryChart domainId={DOMAIN_ID} />);
+
+    const skeletons = document.querySelectorAll(".animate-pulse");
+    expect(skeletons.length).toBeGreaterThanOrEqual(1);
   });
 });

@@ -627,3 +627,606 @@ describe("CompetitorKeywordGapTable — Competitor Selection", () => {
     expect(screen.getByText("71.2")).toBeInTheDocument();
   });
 });
+
+// ===========================================================================
+// 5. KeywordMonitoringTable — Sorting
+// ===========================================================================
+
+describe("KeywordMonitoringTable — Sorting", () => {
+  // Keywords with controlled positions for predictable sort order
+  const SORT_KEYWORDS = [
+    makeKeyword({ keywordId: "kw_a", phrase: "alpha keyword", currentPosition: 15, searchVolume: 3000, difficulty: 80 }),
+    makeKeyword({ keywordId: "kw_b", phrase: "beta keyword", currentPosition: 3, searchVolume: 500, difficulty: 20 }),
+    makeKeyword({ keywordId: "kw_c", phrase: "gamma keyword", currentPosition: 8, searchVolume: 1200, difficulty: 55 }),
+  ];
+
+  it("default sort is position ascending — lowest position first", () => {
+    setupQueryMock({
+      "keywords:getKeywordMonitoring": SORT_KEYWORDS,
+      "keywordSerpJobs:getActiveJobForDomain": null,
+    });
+
+    renderWithProviders(<KeywordMonitoringTable domainId={DOMAIN_ID} />);
+
+    // Default sort: currentPosition asc → 3, 8, 15
+    const rows = screen.getAllByRole("row").filter((row) => row.closest("tbody"));
+    const firstRowText = rows[0].textContent!;
+    const lastRowText = rows[rows.length - 1].textContent!;
+    expect(firstRowText).toContain("beta keyword");
+    expect(lastRowText).toContain("alpha keyword");
+  });
+
+  it("clicking Position header toggles to descending sort", async () => {
+    const user = userEvent.setup();
+
+    setupQueryMock({
+      "keywords:getKeywordMonitoring": SORT_KEYWORDS,
+      "keywordSerpJobs:getActiveJobForDomain": null,
+    });
+
+    renderWithProviders(<KeywordMonitoringTable domainId={DOMAIN_ID} />);
+
+    // Click Position column header to toggle from asc → desc
+    const positionHeader = screen.getByText("Position").closest("th")!;
+    await user.click(positionHeader);
+
+    // After toggle to desc → 15, 8, 3
+    const rows = screen.getAllByRole("row").filter((row) => row.closest("tbody"));
+    expect(rows[0].textContent).toContain("alpha keyword");
+    expect(rows[rows.length - 1].textContent).toContain("beta keyword");
+  });
+
+  it("clicking a different column header sorts by that column ascending", async () => {
+    const user = userEvent.setup();
+
+    setupQueryMock({
+      "keywords:getKeywordMonitoring": SORT_KEYWORDS,
+      "keywordSerpJobs:getActiveJobForDomain": null,
+    });
+
+    renderWithProviders(<KeywordMonitoringTable domainId={DOMAIN_ID} />);
+
+    // Click Volume header
+    const volumeHeader = screen.getByText("Volume").closest("th")!;
+    await user.click(volumeHeader);
+
+    // Volume ascending: 500, 1200, 3000 → beta, gamma, alpha
+    const rows = screen.getAllByRole("row").filter((row) => row.closest("tbody"));
+    expect(rows[0].textContent).toContain("beta keyword");
+    expect(rows[rows.length - 1].textContent).toContain("alpha keyword");
+  });
+});
+
+// ===========================================================================
+// 6. KeywordMonitoringTable — Position Range Filtering
+// ===========================================================================
+
+describe("KeywordMonitoringTable — Position Range Filtering", () => {
+  const FILTER_KEYWORDS = [
+    makeKeyword({ keywordId: "kw_top3", phrase: "top three kw", currentPosition: 2, status: "rising" }),
+    makeKeyword({ keywordId: "kw_top10", phrase: "top ten kw", currentPosition: 7, status: "stable" }),
+    makeKeyword({ keywordId: "kw_top20", phrase: "top twenty kw", currentPosition: 18, status: "falling" }),
+    makeKeyword({ keywordId: "kw_below50", phrase: "below fifty kw", currentPosition: 65, status: "falling" }),
+    makeKeyword({ keywordId: "kw_unknown", phrase: "unknown pos kw", currentPosition: null, change: null, status: "new" }),
+  ];
+
+  it("filters to Top 3 positions only", async () => {
+    const user = userEvent.setup();
+
+    setupQueryMock({
+      "keywords:getKeywordMonitoring": FILTER_KEYWORDS,
+      "keywordSerpJobs:getActiveJobForDomain": null,
+    });
+
+    renderWithProviders(<KeywordMonitoringTable domainId={DOMAIN_ID} />);
+
+    // Open filters panel
+    const filtersButton = screen.getByRole("button", { name: /Filters/i });
+    await user.click(filtersButton);
+
+    // Select "Top 3" from the position filter select
+    const positionSelect = screen.getAllByRole("combobox").find((el) => {
+      const options = within(el).queryAllByRole("option");
+      return options.some((o) => o.textContent === "Top 3");
+    })!;
+    await user.selectOptions(positionSelect, "top3");
+
+    // Only the keyword with position 2 should be visible
+    expect(screen.getByText("top three kw")).toBeInTheDocument();
+    expect(screen.queryByText("top ten kw")).not.toBeInTheDocument();
+    expect(screen.queryByText("below fifty kw")).not.toBeInTheDocument();
+  });
+
+  it("filters to Below 50 positions only", async () => {
+    const user = userEvent.setup();
+
+    setupQueryMock({
+      "keywords:getKeywordMonitoring": FILTER_KEYWORDS,
+      "keywordSerpJobs:getActiveJobForDomain": null,
+    });
+
+    renderWithProviders(<KeywordMonitoringTable domainId={DOMAIN_ID} />);
+
+    // Open filters panel
+    const filtersButton = screen.getByRole("button", { name: /Filters/i });
+    await user.click(filtersButton);
+
+    const positionSelect = screen.getAllByRole("combobox").find((el) => {
+      const options = within(el).queryAllByRole("option");
+      return options.some((o) => o.textContent === "Below 50");
+    })!;
+    await user.selectOptions(positionSelect, "below50");
+
+    expect(screen.getByText("below fifty kw")).toBeInTheDocument();
+    expect(screen.queryByText("top three kw")).not.toBeInTheDocument();
+    expect(screen.queryByText("top ten kw")).not.toBeInTheDocument();
+  });
+
+  it("Clear All resets filters", async () => {
+    const user = userEvent.setup();
+
+    setupQueryMock({
+      "keywords:getKeywordMonitoring": FILTER_KEYWORDS,
+      "keywordSerpJobs:getActiveJobForDomain": null,
+    });
+
+    renderWithProviders(<KeywordMonitoringTable domainId={DOMAIN_ID} />);
+
+    // Open filters and select Top 3
+    const filtersButton = screen.getByRole("button", { name: /Filters/i });
+    await user.click(filtersButton);
+
+    const positionSelect = screen.getAllByRole("combobox").find((el) => {
+      const options = within(el).queryAllByRole("option");
+      return options.some((o) => o.textContent === "Top 3");
+    })!;
+    await user.selectOptions(positionSelect, "top3");
+
+    // Only 1 keyword visible
+    expect(screen.queryByText("top ten kw")).not.toBeInTheDocument();
+
+    // Click Clear All
+    const clearButton = screen.getByRole("button", { name: /Clear All/i });
+    await user.click(clearButton);
+
+    // All keywords should be visible again
+    expect(screen.getByText("top three kw")).toBeInTheDocument();
+    expect(screen.getByText("top ten kw")).toBeInTheDocument();
+    expect(screen.getByText("below fifty kw")).toBeInTheDocument();
+  });
+});
+
+// ===========================================================================
+// 7. KeywordMonitoringTable — Search / Filter by Keyword Phrase
+// ===========================================================================
+
+describe("KeywordMonitoringTable — Search by Keyword Phrase", () => {
+  const SEARCH_KEYWORDS = [
+    makeKeyword({ keywordId: "kw_s1", phrase: "seo audit tool" }),
+    makeKeyword({ keywordId: "kw_s2", phrase: "keyword tracker" }),
+    makeKeyword({ keywordId: "kw_s3", phrase: "seo monitoring dashboard" }),
+    makeKeyword({ keywordId: "kw_s4", phrase: "rank checker free" }),
+  ];
+
+  it("typing in search box filters table rows by phrase", async () => {
+    const user = userEvent.setup();
+
+    setupQueryMock({
+      "keywords:getKeywordMonitoring": SEARCH_KEYWORDS,
+      "keywordSerpJobs:getActiveJobForDomain": null,
+    });
+
+    renderWithProviders(<KeywordMonitoringTable domainId={DOMAIN_ID} />);
+
+    // All keywords visible initially
+    expect(screen.getByText("seo audit tool")).toBeInTheDocument();
+    expect(screen.getByText("keyword tracker")).toBeInTheDocument();
+
+    // Type in search
+    const searchInput = screen.getByPlaceholderText("Search keywords...");
+    await user.click(searchInput);
+    await user.type(searchInput, "seo");
+
+    // Only "seo" matches visible
+    expect(screen.getByText("seo audit tool")).toBeInTheDocument();
+    expect(screen.getByText("seo monitoring dashboard")).toBeInTheDocument();
+    expect(screen.queryByText("keyword tracker")).not.toBeInTheDocument();
+    expect(screen.queryByText("rank checker free")).not.toBeInTheDocument();
+  });
+
+  it("search is case-insensitive", async () => {
+    const user = userEvent.setup();
+
+    setupQueryMock({
+      "keywords:getKeywordMonitoring": SEARCH_KEYWORDS,
+      "keywordSerpJobs:getActiveJobForDomain": null,
+    });
+
+    renderWithProviders(<KeywordMonitoringTable domainId={DOMAIN_ID} />);
+
+    const searchInput = screen.getByPlaceholderText("Search keywords...");
+    await user.click(searchInput);
+    await user.type(searchInput, "SEO");
+
+    expect(screen.getByText("seo audit tool")).toBeInTheDocument();
+    expect(screen.getByText("seo monitoring dashboard")).toBeInTheDocument();
+    expect(screen.queryByText("keyword tracker")).not.toBeInTheDocument();
+  });
+});
+
+// ===========================================================================
+// 8. KeywordMonitoringTable — Expand Row
+// ===========================================================================
+
+describe("KeywordMonitoringTable — Expand Row", () => {
+  it("clicking expand button shows position history section", async () => {
+    const user = userEvent.setup();
+
+    const EXPAND_KEYWORDS = [
+      makeKeyword({
+        keywordId: "kw_expand_1",
+        phrase: "expandable keyword",
+        positionHistory: [
+          { date: Date.now() - 86400000, position: 10 },
+          { date: Date.now(), position: 5 },
+        ],
+      }),
+    ];
+
+    setupQueryMock({
+      "keywords:getKeywordMonitoring": EXPAND_KEYWORDS,
+      "keywordSerpJobs:getActiveJobForDomain": null,
+    });
+
+    renderWithProviders(<KeywordMonitoringTable domainId={DOMAIN_ID} />);
+
+    // Position History should not be visible initially
+    expect(screen.queryByText("Position History")).not.toBeInTheDocument();
+
+    // The expand/collapse button is inside the keyword cell — find it by its SVG icon
+    // It's the first button inside the keyword's td that has an onClick with toggleRowExpansion
+    const keywordCell = screen.getByText("expandable keyword").closest("td")!;
+    const expandButton = within(keywordCell).getByRole("button");
+    await user.click(expandButton);
+
+    // After expanding, "Position History" heading should appear
+    expect(screen.getByText("Position History")).toBeInTheDocument();
+  });
+
+  it("clicking expand button again collapses the row", async () => {
+    const user = userEvent.setup();
+
+    const EXPAND_KEYWORDS = [
+      makeKeyword({
+        keywordId: "kw_collapse_1",
+        phrase: "collapsible keyword",
+        positionHistory: [
+          { date: Date.now() - 86400000, position: 10 },
+          { date: Date.now(), position: 5 },
+        ],
+      }),
+    ];
+
+    setupQueryMock({
+      "keywords:getKeywordMonitoring": EXPAND_KEYWORDS,
+      "keywordSerpJobs:getActiveJobForDomain": null,
+    });
+
+    renderWithProviders(<KeywordMonitoringTable domainId={DOMAIN_ID} />);
+
+    // Expand
+    const keywordCell = screen.getByText("collapsible keyword").closest("td")!;
+    const expandButton = within(keywordCell).getByRole("button");
+    await user.click(expandButton);
+    expect(screen.getByText("Position History")).toBeInTheDocument();
+
+    // Collapse
+    await user.click(expandButton);
+    expect(screen.queryByText("Position History")).not.toBeInTheDocument();
+  });
+});
+
+// ===========================================================================
+// 9. KeywordMonitoringTable — Bulk Select
+// ===========================================================================
+
+describe("KeywordMonitoringTable — Bulk Select", () => {
+  const BULK_KEYWORDS = [
+    makeKeyword({ keywordId: "kw_bulk_1", phrase: "bulk keyword one", currentPosition: 5 }),
+    makeKeyword({ keywordId: "kw_bulk_2", phrase: "bulk keyword two", currentPosition: 10 }),
+    makeKeyword({ keywordId: "kw_bulk_3", phrase: "bulk keyword three", currentPosition: 15 }),
+  ];
+
+  it("checking a row checkbox shows BulkActionBar with count", async () => {
+    const user = userEvent.setup();
+
+    setupQueryMock({
+      "keywords:getKeywordMonitoring": BULK_KEYWORDS,
+      "keywordSerpJobs:getActiveJobForDomain": null,
+    });
+
+    renderWithProviders(<KeywordMonitoringTable domainId={DOMAIN_ID} />);
+
+    // BulkActionBar should not be visible initially (selectedCount === 0 → returns null)
+    expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
+
+    // Find the row checkboxes (tbody checkboxes, not the header "select all")
+    const checkboxes = screen.getAllByRole("checkbox");
+    // First checkbox is the header "select all", rest are row checkboxes
+    const rowCheckboxes = checkboxes.filter((cb) => cb.closest("tbody"));
+    expect(rowCheckboxes.length).toBe(3);
+
+    // Check the first row
+    await user.click(rowCheckboxes[0]);
+
+    // BulkActionBar should now be visible with "1 selected"
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+  });
+
+  it("checking multiple rows updates selected count", async () => {
+    const user = userEvent.setup();
+
+    setupQueryMock({
+      "keywords:getKeywordMonitoring": BULK_KEYWORDS,
+      "keywordSerpJobs:getActiveJobForDomain": null,
+    });
+
+    renderWithProviders(<KeywordMonitoringTable domainId={DOMAIN_ID} />);
+
+    const rowCheckboxes = screen.getAllByRole("checkbox").filter((cb) => cb.closest("tbody"));
+
+    await user.click(rowCheckboxes[0]);
+    await user.click(rowCheckboxes[1]);
+
+    expect(screen.getByText("2 selected")).toBeInTheDocument();
+  });
+
+  it("BulkActionBar shows refresh, SERP fetch, and delete actions", async () => {
+    const user = userEvent.setup();
+
+    setupQueryMock({
+      "keywords:getKeywordMonitoring": BULK_KEYWORDS,
+      "keywordSerpJobs:getActiveJobForDomain": null,
+    });
+
+    renderWithProviders(<KeywordMonitoringTable domainId={DOMAIN_ID} />);
+
+    // Select a row to show BulkActionBar
+    const rowCheckboxes = screen.getAllByRole("checkbox").filter((cb) => cb.closest("tbody"));
+    await user.click(rowCheckboxes[0]);
+
+    // BulkActionBar should show the three action buttons
+    expect(screen.getByRole("button", { name: /Refresh selected/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Fetch SERP for selected/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Delete selected/i })).toBeInTheDocument();
+  });
+
+  it("header checkbox selects all visible rows", async () => {
+    const user = userEvent.setup();
+
+    setupQueryMock({
+      "keywords:getKeywordMonitoring": BULK_KEYWORDS,
+      "keywordSerpJobs:getActiveJobForDomain": null,
+    });
+
+    renderWithProviders(<KeywordMonitoringTable domainId={DOMAIN_ID} />);
+
+    // Find the header "select all" checkbox (in thead)
+    const headerCheckbox = screen.getAllByRole("checkbox").find((cb) => cb.closest("thead"))!;
+    await user.click(headerCheckbox);
+
+    // All 3 should be selected
+    expect(screen.getByText("3 selected")).toBeInTheDocument();
+  });
+});
+
+// ===========================================================================
+// 10. CompetitorKeywordGapTable — Sorting by Gap Score / Volume
+// ===========================================================================
+
+describe("CompetitorKeywordGapTable — Sorting", () => {
+  function setupGapMocks() {
+    mockUseAnalyticsQuery.mockImplementation((...args: unknown[]) => {
+      const actionRef = args[0];
+      try {
+        const name = getFunctionName(actionRef as any);
+        if (name.includes("getCompetitorsByDomain")) {
+          return { data: COMPETITORS_LIST, isLoading: false, error: null, refetch: vi.fn() };
+        }
+        if (name.includes("getCompetitorKeywordGaps")) {
+          return { data: GAP_DATA, isLoading: false, error: null, refetch: vi.fn() };
+        }
+      } catch {
+        // fall through
+      }
+      return { data: undefined, isLoading: false, error: null, refetch: vi.fn() };
+    });
+  }
+
+  async function selectCompetitorForGaps(user: ReturnType<typeof userEvent.setup>) {
+    const selectTrigger = screen.getByRole("button", { name: /Select competitor/i });
+    await user.click(selectTrigger);
+    const listbox = await screen.findByRole("listbox");
+    const option = within(listbox).getByText("Competitor One");
+    await user.click(option);
+    await waitFor(() => {
+      expect(screen.getByText("machine learning basics")).toBeInTheDocument();
+    });
+  }
+
+  it("clicking Score header toggles sort order", async () => {
+    const user = userEvent.setup();
+    setupGapMocks();
+
+    renderWithProviders(<CompetitorKeywordGapTable domainId={DOMAIN_ID} />);
+    await selectCompetitorForGaps(user);
+
+    // Default sort is gapScore desc: 82.5, 71.2, 65.0
+    const rows = screen.getAllByRole("row").filter((row) => row.closest("tbody"));
+    expect(rows[0].textContent).toContain("machine learning basics");
+
+    // Click Score header to toggle to asc
+    const gapScoreHeader = screen.getByText("Score").closest("th")!;
+    await user.click(gapScoreHeader);
+
+    // After toggling to asc: 65.0, 71.2, 82.5
+    const rowsAfter = screen.getAllByRole("row").filter((row) => row.closest("tbody"));
+    expect(rowsAfter[0].textContent).toContain("python data science");
+  });
+
+  it("clicking Search Volume header sorts by volume", async () => {
+    const user = userEvent.setup();
+    setupGapMocks();
+
+    renderWithProviders(<CompetitorKeywordGapTable domainId={DOMAIN_ID} />);
+    await selectCompetitorForGaps(user);
+
+    // Click Search Volume header — switches to volume desc
+    const volumeHeader = screen.getByText("Search Volume").closest("th")!;
+    await user.click(volumeHeader);
+
+    // Volume desc: 8000 (neural network), 5000 (machine learning), 3200 (python)
+    const rows = screen.getAllByRole("row").filter((row) => row.closest("tbody"));
+    expect(rows[0].textContent).toContain("neural network tutorial");
+    expect(rows[2].textContent).toContain("python data science");
+  });
+});
+
+// ===========================================================================
+// 11. CompetitorKeywordGapTable — Search / Filter
+// ===========================================================================
+
+describe("CompetitorKeywordGapTable — Search Filter", () => {
+  it("typing in search input filters gap keywords", async () => {
+    const user = userEvent.setup();
+
+    mockUseAnalyticsQuery.mockImplementation((...args: unknown[]) => {
+      const actionRef = args[0];
+      try {
+        const name = getFunctionName(actionRef as any);
+        if (name.includes("getCompetitorsByDomain")) {
+          return { data: COMPETITORS_LIST, isLoading: false, error: null, refetch: vi.fn() };
+        }
+        if (name.includes("getCompetitorKeywordGaps")) {
+          return { data: GAP_DATA, isLoading: false, error: null, refetch: vi.fn() };
+        }
+      } catch {
+        // fall through
+      }
+      return { data: undefined, isLoading: false, error: null, refetch: vi.fn() };
+    });
+
+    renderWithProviders(<CompetitorKeywordGapTable domainId={DOMAIN_ID} />);
+
+    // Select competitor
+    const selectTrigger = screen.getByRole("button", { name: /Select competitor/i });
+    await user.click(selectTrigger);
+    const listbox = await screen.findByRole("listbox");
+    await user.click(within(listbox).getByText("Competitor One"));
+    await waitFor(() => {
+      expect(screen.getByText("machine learning basics")).toBeInTheDocument();
+    });
+
+    // All 3 keywords visible
+    expect(screen.getByText("python data science")).toBeInTheDocument();
+    expect(screen.getByText("neural network tutorial")).toBeInTheDocument();
+
+    // Type in search
+    const searchInput = screen.getByPlaceholderText("Search keywords...");
+    await user.type(searchInput, "neural");
+
+    // Only "neural network tutorial" should remain
+    expect(screen.getByText("neural network tutorial")).toBeInTheDocument();
+    expect(screen.queryByText("machine learning basics")).not.toBeInTheDocument();
+    expect(screen.queryByText("python data science")).not.toBeInTheDocument();
+  });
+});
+
+// ===========================================================================
+// 12. CompetitorKeywordGapTable — Bulk Selection
+// ===========================================================================
+
+describe("CompetitorKeywordGapTable — Bulk Selection", () => {
+  it("selecting all rows shows bulk action bar with Add to Monitoring button", async () => {
+    const user = userEvent.setup();
+
+    mockUseAnalyticsQuery.mockImplementation((...args: unknown[]) => {
+      const actionRef = args[0];
+      try {
+        const name = getFunctionName(actionRef as any);
+        if (name.includes("getCompetitorsByDomain")) {
+          return { data: COMPETITORS_LIST, isLoading: false, error: null, refetch: vi.fn() };
+        }
+        if (name.includes("getCompetitorKeywordGaps")) {
+          return { data: GAP_DATA, isLoading: false, error: null, refetch: vi.fn() };
+        }
+      } catch {
+        // fall through
+      }
+      return { data: undefined, isLoading: false, error: null, refetch: vi.fn() };
+    });
+
+    renderWithProviders(<CompetitorKeywordGapTable domainId={DOMAIN_ID} />);
+
+    // Select competitor
+    const selectTrigger = screen.getByRole("button", { name: /Select competitor/i });
+    await user.click(selectTrigger);
+    const listbox = await screen.findByRole("listbox");
+    await user.click(within(listbox).getByText("Competitor One"));
+    await waitFor(() => {
+      expect(screen.getByText("machine learning basics")).toBeInTheDocument();
+    });
+
+    // No bulk action bar initially
+    expect(screen.queryByText("Add to monitoring")).not.toBeInTheDocument();
+
+    // Click the select-all checkbox (first checkbox in thead)
+    const theadCheckbox = screen.getAllByRole("checkbox").find((cb) => cb.closest("thead"))!;
+    await user.click(theadCheckbox);
+
+    // Bulk action bar should now appear with "Add to monitoring" button
+    await waitFor(() => {
+      expect(screen.getByText("Add to monitoring")).toBeInTheDocument();
+    });
+  });
+
+  it("selecting individual row checkbox shows count in bulk bar", async () => {
+    const user = userEvent.setup();
+
+    mockUseAnalyticsQuery.mockImplementation((...args: unknown[]) => {
+      const actionRef = args[0];
+      try {
+        const name = getFunctionName(actionRef as any);
+        if (name.includes("getCompetitorsByDomain")) {
+          return { data: COMPETITORS_LIST, isLoading: false, error: null, refetch: vi.fn() };
+        }
+        if (name.includes("getCompetitorKeywordGaps")) {
+          return { data: GAP_DATA, isLoading: false, error: null, refetch: vi.fn() };
+        }
+      } catch {
+        // fall through
+      }
+      return { data: undefined, isLoading: false, error: null, refetch: vi.fn() };
+    });
+
+    renderWithProviders(<CompetitorKeywordGapTable domainId={DOMAIN_ID} />);
+
+    // Select competitor
+    const selectTrigger = screen.getByRole("button", { name: /Select competitor/i });
+    await user.click(selectTrigger);
+    const listbox = await screen.findByRole("listbox");
+    await user.click(within(listbox).getByText("Competitor One"));
+    await waitFor(() => {
+      expect(screen.getByText("machine learning basics")).toBeInTheDocument();
+    });
+
+    // Click one row checkbox
+    const rowCheckboxes = screen.getAllByRole("checkbox").filter((cb) => cb.closest("tbody"));
+    await user.click(rowCheckboxes[0]);
+
+    // Bulk action bar should show "1 selected"
+    await waitFor(() => {
+      expect(screen.getByText("1 selected")).toBeInTheDocument();
+    });
+  });
+});
