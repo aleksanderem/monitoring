@@ -285,28 +285,6 @@ export const triggerWeeklyReports = internalAction({
   },
 });
 
-// ─── Notification logging ───────────────────────────────
-
-export const logNotification = internalMutation({
-  args: {
-    type: v.union(v.literal("email"), v.literal("system")),
-    recipient: v.string(),
-    subject: v.optional(v.string()),
-    status: v.union(v.literal("sent"), v.literal("failed"), v.literal("pending")),
-    error: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    await ctx.db.insert("notificationLogs", {
-      type: args.type,
-      recipient: args.recipient,
-      subject: args.subject,
-      status: args.status,
-      error: args.error,
-      createdAt: Date.now(),
-    });
-  },
-});
-
 // =================================================================
 // Backlink Velocity Calculation
 // =================================================================

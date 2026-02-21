@@ -32,18 +32,6 @@ export default defineConfig({
         test: {
           name: "e2e",
           environment: "node",
-          include: ["src/test/e2e/**/*.test.ts"],
-        },
-        resolve: {
-          alias: {
-            "@": path.resolve(__dirname, "src"),
-          },
-        },
-      },
-      {
-        test: {
-          name: "e2e",
-          environment: "node",
           include: ["src/test/e2e/**/*.test.{ts,tsx}"],
           testTimeout: 30000,
         },

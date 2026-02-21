@@ -2,6 +2,7 @@
 
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { Resend } from "resend";
 
 const FROM_EMAIL = "doseo <noreply@kolabogroup.pl>";
@@ -14,6 +15,14 @@ function getResend() {
 
 function getAppUrl() {
   return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+}
+
+function unsubscribeFooter(appUrl: string): string {
+  return `<div style="margin-top:32px;padding-top:16px;border-top:1px solid #eaecf0;text-align:center;">
+    <a href="${appUrl}/settings?tab=notifications" style="color:#98a2b3;font-size:12px;text-decoration:none;">
+      Zarządzaj preferencjami email
+    </a>
+  </div>`;
 }
 
 // ─── Generic send ────────────────────────────────────────
@@ -48,7 +57,7 @@ export const sendWelcome = internalAction({
     to: v.string(),
     userName: v.string(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
     const appUrl = getAppUrl();
 
@@ -95,9 +104,26 @@ export const sendWelcome = internalAction({
     });
     if (error) {
       console.error("[email] Welcome email failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject: "Witaj w doseo!",
+        status: "failed" as const,
+        category: "transactional" as const,
+        metadata: { templateName: "sendWelcome" },
+        error: error.message,
+      });
       return;
     }
     console.log("[email] Welcome sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject: "Witaj w doseo!",
+      status: "sent" as const,
+      category: "transactional" as const,
+      metadata: { templateName: "sendWelcome" },
+    });
   },
 });
 
@@ -111,7 +137,7 @@ export const sendTeamInvitation = internalAction({
     token: v.string(),
     customMessage: v.optional(v.string()),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
     const appUrl = getAppUrl();
     const inviteUrl = `${appUrl}/invite?token=${args.token}`;
@@ -158,17 +184,35 @@ export const sendTeamInvitation = internalAction({
 </body>
 </html>`;
 
+    const subject = `Zaproszenie do zespołu ${args.teamName} — doseo`;
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: args.to,
-      subject: `Zaproszenie do zespołu ${args.teamName} — doseo`,
+      subject,
       html,
     });
     if (error) {
       console.error("[email] Invitation email failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject,
+        status: "failed" as const,
+        category: "transactional" as const,
+        metadata: { templateName: "sendTeamInvitation" },
+        error: error.message,
+      });
       return;
     }
     console.log("[email] Invitation sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject,
+      status: "sent" as const,
+      category: "transactional" as const,
+      metadata: { templateName: "sendTeamInvitation" },
+    });
   },
 });
 
@@ -179,7 +223,7 @@ export const sendPasswordResetCode = internalAction({
     to: v.string(),
     code: v.string(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
 
     const html = `
@@ -221,9 +265,26 @@ export const sendPasswordResetCode = internalAction({
     });
     if (error) {
       console.error("[email] Password reset code email failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject: "Kod resetowania hasła — doseo",
+        status: "failed" as const,
+        category: "transactional" as const,
+        metadata: { templateName: "sendPasswordResetCode" },
+        error: error.message,
+      });
       return;
     }
     console.log("[email] Password reset code sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject: "Kod resetowania hasła — doseo",
+      status: "sent" as const,
+      category: "transactional" as const,
+      metadata: { templateName: "sendPasswordResetCode" },
+    });
   },
 });
 
@@ -243,7 +304,7 @@ export const sendDailyDigest = internalAction({
       v.object({ phrase: v.string(), position: v.number(), change: v.number() })
     ),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
     const appUrl = getAppUrl();
 
@@ -335,21 +396,40 @@ export const sendDailyDigest = internalAction({
     <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
       <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
     </div>
+    ${unsubscribeFooter(appUrl)}
   </div>
 </body>
 </html>`;
 
+    const subject = `[doseo] Codzienny raport: ${args.domainName}`;
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: args.to,
-      subject: `[doseo] Codzienny raport: ${args.domainName}`,
+      subject,
       html,
     });
     if (error) {
       console.error("[email] Daily digest failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject,
+        status: "failed" as const,
+        category: "digest" as const,
+        metadata: { templateName: "sendDailyDigest" },
+        error: error.message,
+      });
       throw new Error(`Daily digest send failed: ${error.message}`);
     }
     console.log("[email] Daily digest sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject,
+      status: "sent" as const,
+      category: "digest" as const,
+      metadata: { templateName: "sendDailyDigest" },
+    });
   },
 });
 
@@ -369,7 +449,7 @@ export const sendWeeklyReport = internalAction({
     declined: v.number(),
     stable: v.number(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
     const appUrl = getAppUrl();
 
@@ -443,21 +523,40 @@ export const sendWeeklyReport = internalAction({
     <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
       <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
     </div>
+    ${unsubscribeFooter(appUrl)}
   </div>
 </body>
 </html>`;
 
+    const subject = `[doseo] Tygodniowy raport: ${args.domainName}`;
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: args.to,
-      subject: `[doseo] Tygodniowy raport: ${args.domainName}`,
+      subject,
       html,
     });
     if (error) {
       console.error("[email] Weekly report failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject,
+        status: "failed" as const,
+        category: "digest" as const,
+        metadata: { templateName: "sendWeeklyReport" },
+        error: error.message,
+      });
       throw new Error(`Weekly report send failed: ${error.message}`);
     }
     console.log("[email] Weekly report sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject,
+      status: "sent" as const,
+      category: "digest" as const,
+      metadata: { templateName: "sendWeeklyReport" },
+    });
   },
 });
 
@@ -469,7 +568,7 @@ export const sendSubscriptionConfirmation = internalAction({
     planName: v.string(),
     billingCycle: v.string(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
     const appUrl = getAppUrl();
     const cycleLabel = args.billingCycle === "yearly" ? "roczny" : "miesięczny";
@@ -506,17 +605,35 @@ export const sendSubscriptionConfirmation = internalAction({
 </body>
 </html>`;
 
+    const subject = `Plan ${args.planName} aktywowany — doseo`;
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: args.to,
-      subject: `Plan ${args.planName} aktywowany — doseo`,
+      subject,
       html,
     });
     if (error) {
       console.error("[email] Subscription email failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject,
+        status: "failed" as const,
+        category: "transactional" as const,
+        metadata: { templateName: "sendSubscriptionConfirmation" },
+        error: error.message,
+      });
       return;
     }
     console.log("[email] Subscription confirmation sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject,
+      status: "sent" as const,
+      category: "transactional" as const,
+      metadata: { templateName: "sendSubscriptionConfirmation" },
+    });
   },
 });
 
@@ -528,7 +645,7 @@ export const sendPaymentFailedNotice = internalAction({
     orgName: v.string(),
     portalUrl: v.string(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
     const appUrl = getAppUrl();
 
@@ -563,21 +680,40 @@ export const sendPaymentFailedNotice = internalAction({
     <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
       <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
     </div>
+    ${unsubscribeFooter(appUrl)}
   </div>
 </body>
 </html>`;
 
+    const subject = "Płatność nie powiodła się — doseo";
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: args.to,
-      subject: "Płatność nie powiodła się — doseo",
+      subject,
       html,
     });
     if (error) {
       console.error("[email] Payment failed notice failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject,
+        status: "failed" as const,
+        category: "billing" as const,
+        metadata: { templateName: "sendPaymentFailedNotice" },
+        error: error.message,
+      });
       return;
     }
     console.log("[email] Payment failed notice sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject,
+      status: "sent" as const,
+      category: "billing" as const,
+      metadata: { templateName: "sendPaymentFailedNotice" },
+    });
   },
 });
 
@@ -589,7 +725,7 @@ export const sendTrialReminder = internalAction({
     orgName: v.string(),
     daysLeft: v.number(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
     const appUrl = getAppUrl();
     const daysLabel = args.daysLeft === 1 ? "1 dzień" : `${args.daysLeft} dni`;
@@ -625,21 +761,40 @@ export const sendTrialReminder = internalAction({
     <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
       <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
     </div>
+    ${unsubscribeFooter(appUrl)}
   </div>
 </body>
 </html>`;
 
+    const subject = `Trial kończy się za ${daysLabel} — doseo`;
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: args.to,
-      subject: `Trial kończy się za ${daysLabel} — doseo`,
+      subject,
       html,
     });
     if (error) {
       console.error("[email] Trial reminder failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject,
+        status: "failed" as const,
+        category: "billing" as const,
+        metadata: { templateName: "sendTrialReminder" },
+        error: error.message,
+      });
       return;
     }
     console.log("[email] Trial reminder sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject,
+      status: "sent" as const,
+      category: "billing" as const,
+      metadata: { templateName: "sendTrialReminder" },
+    });
   },
 });
 
@@ -651,7 +806,7 @@ export const sendCancellationConfirmation = internalAction({
     orgName: v.string(),
     planName: v.string(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
     const appUrl = getAppUrl();
 
@@ -693,17 +848,35 @@ export const sendCancellationConfirmation = internalAction({
 </body>
 </html>`;
 
+    const subject = `Subskrypcja anulowana — doseo`;
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: args.to,
-      subject: `Subskrypcja anulowana — doseo`,
+      subject,
       html,
     });
     if (error) {
       console.error("[email] Cancellation email failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject,
+        status: "failed" as const,
+        category: "transactional" as const,
+        metadata: { templateName: "sendCancellationConfirmation" },
+        error: error.message,
+      });
       return;
     }
     console.log("[email] Cancellation confirmation sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject,
+      status: "sent" as const,
+      category: "transactional" as const,
+      metadata: { templateName: "sendCancellationConfirmation" },
+    });
   },
 });
 
@@ -715,7 +888,7 @@ export const sendDegradationNotice = internalAction({
     orgName: v.string(),
     portalUrl: v.string(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
 
     const html = `
@@ -753,17 +926,35 @@ export const sendDegradationNotice = internalAction({
 </body>
 </html>`;
 
+    const subject = "Konto w trybie tylko do odczytu — doseo";
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: args.to,
-      subject: "Konto w trybie tylko do odczytu — doseo",
+      subject,
       html,
     });
     if (error) {
       console.error("[email] Degradation notice failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject,
+        status: "failed" as const,
+        category: "transactional" as const,
+        metadata: { templateName: "sendDegradationNotice" },
+        error: error.message,
+      });
       return;
     }
     console.log("[email] Degradation notice sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject,
+      status: "sent" as const,
+      category: "transactional" as const,
+      metadata: { templateName: "sendDegradationNotice" },
+    });
   },
 });
 
@@ -777,7 +968,7 @@ export const sendPositionDropAlert = internalAction({
     previousPosition: v.number(),
     currentPosition: v.number(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
     const appUrl = getAppUrl();
     const drop = args.previousPosition - args.currentPosition;
@@ -807,18 +998,40 @@ export const sendPositionDropAlert = internalAction({
     <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
       <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
     </div>
+    ${unsubscribeFooter(appUrl)}
   </div>
 </body>
 </html>`;
 
+    const subject = `Spadek pozycji: "${args.keywordPhrase}" — doseo`;
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: args.to,
-      subject: `Spadek pozycji: "${args.keywordPhrase}" — doseo`,
+      subject,
       html,
     });
-    if (error) { console.error("[email] Position drop alert failed:", error); return; }
+    if (error) {
+      console.error("[email] Position drop alert failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject,
+        status: "failed" as const,
+        category: "alert" as const,
+        metadata: { templateName: "sendPositionDropAlert" },
+        error: error.message,
+      });
+      return;
+    }
     console.log("[email] Position drop alert sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject,
+      status: "sent" as const,
+      category: "alert" as const,
+      metadata: { templateName: "sendPositionDropAlert" },
+    });
   },
 });
 
@@ -833,7 +1046,7 @@ export const sendTopNExitAlert = internalAction({
     currentPosition: v.number(),
     topN: v.number(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
     const appUrl = getAppUrl();
 
@@ -862,18 +1075,40 @@ export const sendTopNExitAlert = internalAction({
     <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
       <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
     </div>
+    ${unsubscribeFooter(appUrl)}
   </div>
 </body>
 </html>`;
 
+    const subject = `Wypadnięcie z Top ${args.topN}: "${args.keywordPhrase}" — doseo`;
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: args.to,
-      subject: `Wypadnięcie z Top ${args.topN}: "${args.keywordPhrase}" — doseo`,
+      subject,
       html,
     });
-    if (error) { console.error("[email] Top N exit alert failed:", error); return; }
+    if (error) {
+      console.error("[email] Top N exit alert failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject,
+        status: "failed" as const,
+        category: "alert" as const,
+        metadata: { templateName: "sendTopNExitAlert" },
+        error: error.message,
+      });
+      return;
+    }
     console.log("[email] Top N exit alert sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject,
+      status: "sent" as const,
+      category: "alert" as const,
+      metadata: { templateName: "sendTopNExitAlert" },
+    });
   },
 });
 
@@ -885,7 +1120,7 @@ export const sendNewCompetitorAlert = internalAction({
     domainName: v.string(),
     competitorDomain: v.string(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
     const appUrl = getAppUrl();
 
@@ -908,18 +1143,40 @@ export const sendNewCompetitorAlert = internalAction({
     <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
       <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
     </div>
+    ${unsubscribeFooter(appUrl)}
   </div>
 </body>
 </html>`;
 
+    const subject = `Nowy konkurent: ${args.competitorDomain} — doseo`;
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: args.to,
-      subject: `Nowy konkurent: ${args.competitorDomain} — doseo`,
+      subject,
       html,
     });
-    if (error) { console.error("[email] New competitor alert failed:", error); return; }
+    if (error) {
+      console.error("[email] New competitor alert failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject,
+        status: "failed" as const,
+        category: "alert" as const,
+        metadata: { templateName: "sendNewCompetitorAlert" },
+        error: error.message,
+      });
+      return;
+    }
     console.log("[email] New competitor alert sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject,
+      status: "sent" as const,
+      category: "alert" as const,
+      metadata: { templateName: "sendNewCompetitorAlert" },
+    });
   },
 });
 
@@ -931,7 +1188,7 @@ export const sendBacklinkLostAlert = internalAction({
     domainName: v.string(),
     lostCount: v.number(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
     const appUrl = getAppUrl();
 
@@ -954,18 +1211,40 @@ export const sendBacklinkLostAlert = internalAction({
     <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
       <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
     </div>
+    ${unsubscribeFooter(appUrl)}
   </div>
 </body>
 </html>`;
 
+    const subject = `Utrata backlinków: ${args.domainName} — doseo`;
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: args.to,
-      subject: `Utrata backlinków: ${args.domainName} — doseo`,
+      subject,
       html,
     });
-    if (error) { console.error("[email] Backlink lost alert failed:", error); return; }
+    if (error) {
+      console.error("[email] Backlink lost alert failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject,
+        status: "failed" as const,
+        category: "alert" as const,
+        metadata: { templateName: "sendBacklinkLostAlert" },
+        error: error.message,
+      });
+      return;
+    }
     console.log("[email] Backlink lost alert sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject,
+      status: "sent" as const,
+      category: "alert" as const,
+      metadata: { templateName: "sendBacklinkLostAlert" },
+    });
   },
 });
 
@@ -978,7 +1257,7 @@ export const sendVisibilityDropAlert = internalAction({
     previousValue: v.number(),
     currentValue: v.number(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const resend = getResend();
     const appUrl = getAppUrl();
     const dropPct = Math.round(((args.previousValue - args.currentValue) / args.previousValue) * 100);
@@ -1008,17 +1287,39 @@ export const sendVisibilityDropAlert = internalAction({
     <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #eaecf0;">
       <p style="margin:0;font-size:12px;color:#98a2b3;">doseo — SEO monitoring & strategy platform</p>
     </div>
+    ${unsubscribeFooter(appUrl)}
   </div>
 </body>
 </html>`;
 
+    const subject = `Spadek widoczności: ${args.domainName} (-${dropPct}%) — doseo`;
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: args.to,
-      subject: `Spadek widoczności: ${args.domainName} (-${dropPct}%) — doseo`,
+      subject,
       html,
     });
-    if (error) { console.error("[email] Visibility drop alert failed:", error); return; }
+    if (error) {
+      console.error("[email] Visibility drop alert failed:", error);
+      await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+        type: "email" as const,
+        recipient: args.to,
+        subject,
+        status: "failed" as const,
+        category: "alert" as const,
+        metadata: { templateName: "sendVisibilityDropAlert" },
+        error: error.message,
+      });
+      return;
+    }
     console.log("[email] Visibility drop alert sent to", args.to, "id:", data?.id);
+    await ctx.scheduler.runAfter(0, internal.scheduler.logNotification, {
+      type: "email" as const,
+      recipient: args.to,
+      subject,
+      status: "sent" as const,
+      category: "alert" as const,
+      metadata: { templateName: "sendVisibilityDropAlert" },
+    });
   },
 });
