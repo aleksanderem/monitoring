@@ -52,4 +52,18 @@ crons.weekly(
   internal.scheduler.analyzeContentGapsWeekly
 );
 
+// Check grace periods for past_due subscriptions daily at 5 AM UTC
+crons.daily(
+  "check-grace-periods",
+  { hourUTC: 5, minuteUTC: 0 },
+  internal.stripe_helpers.checkGracePeriods
+);
+
+// Send trial reminder emails daily at 7 AM UTC
+crons.daily(
+  "check-trial-reminders",
+  { hourUTC: 7, minuteUTC: 0 },
+  internal.stripe_helpers.checkTrialReminders
+);
+
 export default crons;

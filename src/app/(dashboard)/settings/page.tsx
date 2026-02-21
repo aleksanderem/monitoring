@@ -1069,8 +1069,21 @@ function PlanUsageSection() {
 
   const createCheckout = useAction(api.stripe.createCheckoutSession);
   const createPortal = useAction(api.stripe.createBillingPortalSession);
+  const createPaymentUpdate = useAction(api.stripe.createPaymentMethodUpdateSession);
+  const fetchInvoices = useAction(api.stripe.getInvoices);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [invoices, setInvoices] = useState<Array<{
+    id: string;
+    number: string | null;
+    date: number;
+    amount: number;
+    currency: string;
+    status: string | null;
+    hostedUrl: string | null;
+    pdfUrl: string | null;
+  }> | null>(null);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
 
   const subscriptionStatus = firstOrg?.subscriptionStatus;
   const subscriptionEnd = firstOrg?.subscriptionPeriodEnd;
@@ -1095,6 +1108,34 @@ function PlanUsageSection() {
       window.location.href = url;
     } catch {
       toast.error("Nie udało się otworzyć portalu rozliczeniowego");
+    }
+  }
+
+  async function handlePaymentUpdate() {
+    try {
+      const url = await createPaymentUpdate();
+      window.location.href = url;
+    } catch {
+      // Fallback to general portal if flow_data not supported
+      try {
+        const url = await createPortal();
+        window.location.href = url;
+      } catch {
+        toast.error("Nie udało się otworzyć aktualizacji płatności");
+      }
+    }
+  }
+
+  async function loadInvoices() {
+    if (invoicesLoading || invoices !== null) return;
+    setInvoicesLoading(true);
+    try {
+      const data = await fetchInvoices();
+      setInvoices(data);
+    } catch {
+      setInvoices([]);
+    } finally {
+      setInvoicesLoading(false);
     }
   }
 
@@ -1231,9 +1272,24 @@ function PlanUsageSection() {
       )}
 
       {/* Past due warning */}
-      {subscriptionStatus === "past_due" && (
+      {subscriptionStatus === "past_due" && !firstOrg?.degraded && (
         <div className="rounded-lg border border-warning-300 bg-warning-50 p-3 text-sm font-medium text-fg-warning-primary dark:bg-warning-50/10">
           Płatność zaległa. Zaktualizuj metodę płatności, aby uniknąć przerwy w usłudze.
+        </div>
+      )}
+
+      {/* Degraded (read-only) warning */}
+      {firstOrg?.degraded && (
+        <div className="rounded-lg border border-error-300 bg-error-50 p-4 dark:bg-error-50/10">
+          <p className="text-sm font-semibold text-fg-error-primary">Konto w trybie tylko do odczytu</p>
+          <p className="mt-1 text-sm text-fg-error-secondary">
+            Okres karencji minął. Zaktualizuj metodę płatności, aby przywrócić pełny dostęp.
+          </p>
+          <div className="mt-3">
+            <Button color="error" size="sm" onClick={handlePaymentUpdate}>
+              Zaktualizuj metodę płatności
+            </Button>
+          </div>
         </div>
       )}
 
@@ -1433,7 +1489,7 @@ function PlanUsageSection() {
                     <span className="text-sm text-tertiary">Zarządzana przez Stripe</span>
                   </div>
                 </div>
-                <Button color="link-gray" size="sm" onClick={handleManage}>
+                <Button color="link-gray" size="sm" onClick={handlePaymentUpdate}>
                   Zmień
                 </Button>
               </div>
@@ -1455,16 +1511,70 @@ function PlanUsageSection() {
             description="Faktury i historia płatności."
           />
           <div className="flex flex-col gap-3">
-            {isSubscribed ? (
+            {isSubscribed || subscriptionStatus === "canceled" ? (
               <>
-                <p className="text-sm text-tertiary">
-                  Przeglądaj faktury, pobieraj potwierdzenia i zarządzaj rozliczeniami w portalu Stripe.
-                </p>
-                <div>
-                  <Button color="secondary" size="sm" onClick={handleManage}>
-                    Otwórz historię rozliczeń
-                  </Button>
-                </div>
+                {invoices === null && !invoicesLoading && (
+                  <div>
+                    <Button color="secondary" size="sm" onClick={loadInvoices}>
+                      Załaduj faktury
+                    </Button>
+                  </div>
+                )}
+                {invoicesLoading && (
+                  <p className="text-sm text-tertiary">Ładowanie faktur...</p>
+                )}
+                {invoices !== null && invoices.length === 0 && (
+                  <p className="text-sm text-tertiary">Brak faktur.</p>
+                )}
+                {invoices !== null && invoices.length > 0 && (
+                  <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-secondary">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-secondary bg-secondary">
+                          <th className="px-4 py-2.5 font-medium text-secondary">Numer</th>
+                          <th className="px-4 py-2.5 font-medium text-secondary">Data</th>
+                          <th className="px-4 py-2.5 font-medium text-secondary">Kwota</th>
+                          <th className="px-4 py-2.5 font-medium text-secondary">Status</th>
+                          <th className="px-4 py-2.5 font-medium text-secondary"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {invoices.map((inv) => (
+                          <tr key={inv.id} className="border-b border-secondary last:border-0">
+                            <td className="px-4 py-2.5 text-primary">{inv.number ?? "—"}</td>
+                            <td className="px-4 py-2.5 text-tertiary">
+                              {new Date(inv.date * 1000).toLocaleDateString("pl-PL")}
+                            </td>
+                            <td className="px-4 py-2.5 text-primary tabular-nums">
+                              {(inv.amount / 100).toFixed(2)} {inv.currency.toUpperCase()}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <Badge
+                                size="sm"
+                                type="pill-color"
+                                color={inv.status === "paid" ? "success" : inv.status === "open" ? "warning" : "gray"}
+                              >
+                                {inv.status === "paid" ? "Opłacona" : inv.status === "open" ? "Otwarta" : inv.status ?? "—"}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-2.5 text-right">
+                              {inv.hostedUrl && (
+                                <a
+                                  href={inv.hostedUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm font-medium text-brand-600 hover:text-brand-700"
+                                >
+                                  Zobacz
+                                </a>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </>
             ) : (
               <p className="text-sm text-tertiary">

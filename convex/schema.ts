@@ -67,6 +67,12 @@ export default defineSchema({
     subscriptionStatus: v.optional(v.string()),
     subscriptionPeriodEnd: v.optional(v.number()),
     billingCycle: v.optional(v.string()),
+    gracePeriodEnd: v.optional(v.number()),
+    degraded: v.optional(v.boolean()),
+    trialRemindersSent: v.optional(v.object({
+      threeDays: v.optional(v.boolean()),
+      oneDay: v.optional(v.boolean()),
+    })),
   }).index("by_slug", ["slug"]),
 
   // Teams within organizations
