@@ -74,3 +74,41 @@ export const ONBOARDING_INCOMPLETE = {
     firstCheckComplete: false,
   },
 };
+
+// Domain with all settings populated (location, language, searchEngine)
+export const DOMAIN_WITH_SETTINGS = {
+  ...DOMAIN_DETAIL,
+  _id: "domain_settings_1" as any,
+  domain: "configured-site.com",
+  settings: {
+    refreshFrequency: "weekly" as const,
+    searchEngine: "google.com",
+    location: "United States",
+    language: "en",
+  },
+};
+
+// Domain with tags for filtering tests
+export const DOMAIN_WITH_TAGS = {
+  ...DOMAIN_ACTIVE,
+  _id: "domain_tagged_1" as any,
+  domain: "tagged-site.pl",
+  tags: ["ecommerce", "pl", "priority"],
+  keywordCount: 78,
+};
+
+// Extended domain list for search/filter testing
+export const DOMAIN_LIST_EXTENDED = [
+  DOMAIN_ACTIVE,
+  DOMAIN_SETUP,
+  DOMAIN_SECOND,
+  DOMAIN_WITH_TAGS,
+  {
+    ...DOMAIN_ACTIVE,
+    _id: "domain_4" as any,
+    domain: "shop.example.pl",
+    projectName: "E-commerce Project",
+    tags: ["ecommerce"],
+    keywordCount: 230,
+  },
+];

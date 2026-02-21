@@ -119,3 +119,106 @@ export const KEYWORD_MONITORING_LIST_LARGE = Array.from({ length: 52 }, (_, i) =
     searchVolume: Math.floor(Math.random() * 5000) + 100,
   })
 );
+
+// Keyword currently being checked (spinner state)
+export const KEYWORD_CHECKING = makeKeyword({
+  keywordId: "kw_checking" as any,
+  phrase: "checking keyword",
+  checkingStatus: "checking",
+  currentPosition: 15,
+});
+
+// Keyword queued for check
+export const KEYWORD_QUEUED = makeKeyword({
+  keywordId: "kw_queued" as any,
+  phrase: "queued keyword",
+  checkingStatus: "queued",
+  currentPosition: 22,
+});
+
+// Keyword with null position (unknown/new)
+export const KEYWORD_NULL_POSITION = makeKeyword({
+  keywordId: "kw_null" as any,
+  phrase: "unknown position keyword",
+  currentPosition: null,
+  previousPosition: null,
+  change: null,
+  status: "new",
+  positionHistory: [],
+  isNew: true,
+  isUp: false,
+  isDown: false,
+});
+
+// Keyword with high position (top 3)
+export const KEYWORD_TOP3 = makeKeyword({
+  keywordId: "kw_top3" as any,
+  phrase: "top ranking keyword",
+  currentPosition: 2,
+  previousPosition: 4,
+  change: 2,
+  status: "rising",
+  searchVolume: 8000,
+  difficulty: 72,
+});
+
+// Keyword proposed by AI
+export const KEYWORD_AI_PROPOSED = makeKeyword({
+  keywordId: "kw_ai" as any,
+  phrase: "ai suggested seo term",
+  currentPosition: 18,
+  previousPosition: null,
+  change: null,
+  status: "new",
+  isNew: true,
+  proposedBy: "ai",
+});
+
+// Keyword with sparkline data (recentPositions)
+export const KEYWORD_WITH_SPARKLINE = makeKeyword({
+  keywordId: "kw_sparkline" as any,
+  phrase: "sparkline keyword",
+  currentPosition: 7,
+  positionHistory: Array.from({ length: 7 }, (_, i) => ({
+    date: now - (6 - i) * day,
+    position: 12 - i,
+  })),
+});
+
+// Mixed list for filter/sort testing
+export const KEYWORD_LIST_MIXED = [
+  KEYWORD_TOP3,
+  makeKeyword({
+    keywordId: "kw_top10" as any,
+    phrase: "seo analysis platform",
+    currentPosition: 8,
+    previousPosition: 12,
+    change: 4,
+    status: "rising",
+    searchVolume: 3200,
+  }),
+  makeKeyword({
+    keywordId: "kw_mid" as any,
+    phrase: "SEO tools comparison",
+    currentPosition: 25,
+    previousPosition: 20,
+    change: -5,
+    status: "falling",
+    searchVolume: 1500,
+    isUp: false,
+    isDown: true,
+  }),
+  makeKeyword({
+    keywordId: "kw_low" as any,
+    phrase: "best rank tracking software",
+    currentPosition: 55,
+    previousPosition: 55,
+    change: 0,
+    status: "stable",
+    searchVolume: 600,
+    isUp: false,
+    isDown: false,
+  }),
+  KEYWORD_NULL_POSITION,
+  KEYWORD_CHECKING,
+];
