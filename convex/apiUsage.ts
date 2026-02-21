@@ -1,20 +1,48 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, query } from "./_generated/server";
 
-// Cost constants per task (approximate USD)
+// Fallback cost constants per task (used only when API response lacks cost field)
+// Based on DataForSEO pricing as of 2026-02:
+//   SERP Live: $0.002 base (10 results) + 75% per additional page → ~$0.0155 for depth=100
+//   Labs: $0.01 per task + $0.0001 per item (most endpoints)
+//   Labs Historical Rank: $0.10 per task + $0.001 per item
+//   Keywords Data: ~$0.05 per task
 export const API_COSTS = {
-  SERP_LIVE_ADVANCED: 0.003,
-  KEYWORDS_DATA_SEARCH_VOLUME: 0.0005,
-  KEYWORDS_DATA_GOOGLE_ADS: 0.0005,
-  LABS_DOMAIN_INTERSECTION: 0.005,
-  LABS_HISTORICAL_SERPS: 0.003,
-  LABS_KEYWORDS_FOR_SITE: 0.003,
-  LABS_RANKED_KEYWORDS: 0.003,
-  LABS_HISTORICAL_RANK_OVERVIEW: 0.003,
-  LABS_COMPETITORS_DOMAIN: 0.003,
-  ON_PAGE_INSTANT_PAGES: 0.005,
+  SERP_LIVE_ADVANCED: 0.005,        // depth=30 (default) → $0.005
+  KEYWORDS_DATA_SEARCH_VOLUME: 0.05, // $0.05 per task (up to 700 kw)
+  KEYWORDS_DATA_GOOGLE_ADS: 0.075,   // $0.075 per task live (up to 1000 kw)
+  LABS_DOMAIN_INTERSECTION: 0.01,
+  LABS_HISTORICAL_SERPS: 0.01,
+  LABS_KEYWORDS_FOR_SITE: 0.01,
+  LABS_RANKED_KEYWORDS: 0.01,
+  LABS_HISTORICAL_RANK_OVERVIEW: 0.10, // most expensive Labs endpoint
+  LABS_COMPETITORS_DOMAIN: 0.01,
+  ON_PAGE_INSTANT_PAGES: 0.01,
   ON_PAGE_CONTENT_PARSING: 0.001,
 } as const;
+
+/**
+ * Calculate SERP API cost based on depth.
+ * DataForSEO pricing: $0.002 for first page (10 results),
+ * each subsequent page costs 75% of base ($0.0015).
+ */
+export function serpCostForDepth(depth: number): number {
+  const pages = Math.ceil(depth / 10);
+  if (pages <= 1) return 0.002;
+  return 0.002 + (pages - 1) * 0.0015;
+}
+
+/**
+ * Extract the actual cost from a DataForSEO API response.
+ * The response always includes a top-level `cost` (total USD) field.
+ * Falls back to the provided estimate if the field is missing.
+ */
+export function extractApiCost(apiResponse: any, fallbackEstimate: number): number {
+  if (apiResponse && typeof apiResponse.cost === "number") {
+    return apiResponse.cost;
+  }
+  return fallbackEstimate;
+}
 
 // Internal mutation to log a single API call
 export const logApiUsage = internalMutation({

@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { API_COSTS, extractApiCost } from "./apiUsage";
 
 /**
  * Create a new competitor analysis report for a keyword
@@ -230,33 +231,89 @@ export const analyzeReportInternal = internalAction({
         throw new Error("Report not found");
       }
 
-      // Analyze each competitor page using DataForSEO Instant Pages API
+      // Check cache for each competitor page (batch cache lookups)
+      const cacheResults = await Promise.all(
+        report.competitorPages.map((compPage) =>
+          ctx.runQuery(internal.competitorAnalysis.getCachedPageAnalysis, { url: compPage.url })
+        )
+      );
+
+      // Split into cached vs uncached pages
+      const uncachedPages: typeof report.competitorPages = [];
+      const cachedMap = new Map<string, NonNullable<typeof cacheResults[0]>>();
+      for (let i = 0; i < report.competitorPages.length; i++) {
+        const cached = cacheResults[i];
+        if (cached) {
+          cachedMap.set(report.competitorPages[i].url, cached);
+          console.log(`[analyzeReport] Cache hit for ${report.competitorPages[i].url}`);
+        } else {
+          uncachedPages.push(report.competitorPages[i]);
+        }
+      }
+
+      // Fetch uncached pages in parallel
+      const analysisResults = await Promise.allSettled(
+        uncachedPages.map((compPage) => analyzePageWithDataForSEO(compPage.url))
+      );
+
+      // Build fresh analysis map from API results
+      const freshMap = new Map<string, Awaited<ReturnType<typeof analyzePageWithDataForSEO>>>();
+      for (let i = 0; i < uncachedPages.length; i++) {
+        const result = analysisResults[i];
+        if (result.status === "rejected") {
+          console.error(`[analyzeReport] Failed to analyze ${uncachedPages[i].url}:`, result.reason);
+        } else {
+          freshMap.set(uncachedPages[i].url, result.value);
+        }
+      }
+
+      // Process all pages: cached reuse existing record, fresh ones get stored
       const pageAnalyses = [];
       for (const compPage of report.competitorPages) {
-        try {
-          // Call DataForSEO to analyze the page
-          const analysis = await analyzePageWithDataForSEO(compPage.url);
-
-          // Store the analysis in competitorPageAnalysis table
-          const pageAnalysisId = await ctx.runMutation(
-            internal.competitorAnalysis.storeCompetitorPageAnalysis,
-            {
-              competitorId: undefined, // This is keyword-specific, not tied to a tracked competitor
-              keywordId: report.keywordId,
-              url: compPage.url,
-              position: compPage.position,
-              ...analysis,
-            }
-          );
-
+        const cached = cachedMap.get(compPage.url);
+        if (cached) {
+          // Reuse cached analysis — no API call, no storage needed
           pageAnalyses.push({
             ...compPage,
-            pageAnalysisId,
-            analysis,
+            pageAnalysisId: cached._id,
+            analysis: {
+              wordCount: cached.wordCount,
+              htags: cached.htags,
+              imagesCount: cached.imagesCount,
+            },
           });
-        } catch (error) {
-          console.error(`[analyzeReport] Failed to analyze ${compPage.url}:`, error);
+          continue;
         }
+
+        const analysis = freshMap.get(compPage.url);
+        if (!analysis) continue; // Failed fetch — skip
+
+        // Log API usage for fresh fetches
+        await ctx.runMutation(internal.apiUsage.logApiUsage, {
+          endpoint: "/on_page/instant_pages",
+          taskCount: 1,
+          estimatedCost: analysis._apiCost,
+          caller: "analyzeReportInternal",
+          domainId: report.domainId,
+        });
+
+        // Store the analysis in competitorPageAnalysis table
+        const pageAnalysisId = await ctx.runMutation(
+          internal.competitorAnalysis.storeCompetitorPageAnalysis,
+          {
+            competitorId: undefined, // This is keyword-specific, not tied to a tracked competitor
+            keywordId: report.keywordId,
+            url: compPage.url,
+            position: compPage.position,
+            ...analysis,
+          }
+        );
+
+        pageAnalyses.push({
+          ...compPage,
+          pageAnalysisId,
+          analysis,
+        });
       }
 
       // Calculate average metrics
@@ -370,6 +427,7 @@ async function analyzePageWithDataForSEO(url: string) {
     loadTime: result.page_timing?.time_to_interactive,
     pageSize: result.page_metrics?.page_size,
     onpageScore: result.onpage_score,
+    _apiCost: extractApiCost(data, API_COSTS.ON_PAGE_INSTANT_PAGES),
   };
 }
 

@@ -114,6 +114,8 @@ export default defineSchema({
     businessDescription: v.optional(v.string()),
     targetCustomer: v.optional(v.string()),
     activeStrategyId: v.optional(v.id("aiStrategySessions")),
+    cachedPageContent: v.optional(v.string()),
+    cachedPageContentAt: v.optional(v.number()),
   }).index("by_project", ["projectId"]),
 
   // Keywords within domains
@@ -1514,7 +1516,8 @@ export default defineSchema({
   })
     .index("by_competitor", ["competitorId"])
     .index("by_keyword", ["keywordId"])
-    .index("by_competitor_keyword", ["competitorId", "keywordId"]),
+    .index("by_competitor_keyword", ["competitorId", "keywordId"])
+    .index("by_url", ["url"]),
 
   // =================================================================
   // Competitor Analysis Reports (Keyword-Specific)

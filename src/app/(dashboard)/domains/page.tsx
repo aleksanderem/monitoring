@@ -217,9 +217,10 @@ export default function DomainsPage() {
                 placeholder={t('searchDomains')}
                 icon={SearchLg}
                 value={searchQuery}
-                onChange={(value) => {
-                  // Handle both string and potential object/event cases
-                  const stringValue = typeof value === 'string' ? value : '';
+                onChange={(valueOrEvent: string | React.ChangeEvent<HTMLInputElement>) => {
+                  const stringValue = typeof valueOrEvent === 'string'
+                    ? valueOrEvent
+                    : valueOrEvent?.target?.value ?? '';
                   setSearchQuery(stringValue);
                 }}
               />

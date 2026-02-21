@@ -6,6 +6,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useTranslations } from "next-intl";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useAnalyticsQuery } from "@/hooks/useAnalyticsQuery";
 import {
   Area,
   AreaChart,
@@ -60,9 +61,17 @@ export default function PublicSharePage() {
 
   const reportData = useQuery(api.reports.getPublicReportData, {
     token,
-    from: dateRange.from.getTime(),
-    to: dateRange.to.getTime(),
   });
+
+  // Fetch historical chart data from Supabase via action
+  const fromStr = dateRange.from.toISOString().split("T")[0];
+  const toStr = dateRange.to.toISOString().split("T")[0];
+  const { data: chartDataResult } = useAnalyticsQuery<{
+    domains: Array<{
+      domainId: string;
+      chartData: Array<{ date: string; avgPosition: number; keywordCount: number }>;
+    }>;
+  }>(api.reports.getPublicReportChartData, { token, from: fromStr, to: toStr });
 
   // Loading state
   if (reportData === undefined) {
@@ -109,8 +118,19 @@ export default function PublicSharePage() {
     );
   }
 
-  const domain = reportData.domains[0];
-  if (!domain) return null;
+  const rawDomain = reportData.domains[0];
+  if (!rawDomain) return null;
+
+  // Merge Supabase chart data if available, fall back to recentPositions-based chart from query
+  const supabaseChart = chartDataResult?.domains?.find(
+    (d) => d.domainId === rawDomain._id
+  )?.chartData;
+  const domain = {
+    ...rawDomain,
+    chartData: supabaseChart && supabaseChart.length > 0
+      ? supabaseChart
+      : rawDomain.chartData,
+  };
 
   const orgLogoUrl = reportData.orgLogoUrl || null;
 

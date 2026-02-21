@@ -215,112 +215,141 @@ export const processKeywordCheckJobInternal = internalAction({
     let failedCount = job.failedKeywords || 0;
 
     const endIndex = Math.min(startIndex + CHUNK_SIZE, job.keywordIds.length);
+    const chunkKeywordIds = job.keywordIds.slice(startIndex, endIndex);
 
-    // Process this chunk of keywords
-    for (let i = startIndex; i < endIndex; i++) {
-      const keywordId = job.keywordIds[i];
-
-      // Check if job was cancelled (every 5 keywords to reduce query overhead)
-      if ((i - startIndex) % 5 === 0 && i !== startIndex) {
-        const currentJob = await ctx.runQuery(internal.keywordCheckJobs.getJobInternal, {
-          jobId: args.jobId,
-        });
-
-        if (currentJob?.status === "cancelled") {
-          console.log(`[processKeywordCheckJob] Job ${args.jobId} cancelled during processing`);
-          return;
-        }
-      }
-
-      // Get keyword
-      const keyword = await ctx.runQuery(internal.keywordCheckJobs.getKeywordInternal, {
-        keywordId,
+    // Phase 1: Check cancellation before processing chunk
+    if (startIndex > 0) {
+      const currentJob = await ctx.runQuery(internal.keywordCheckJobs.getJobInternal, {
+        jobId: args.jobId,
       });
-
-      if (!keyword) {
-        console.error(`[processKeywordCheckJob] Keyword ${keywordId} not found`);
-        failedCount++;
-        processedCount++;
-        continue;
+      if (currentJob?.status === "cancelled") {
+        console.log(`[processKeywordCheckJob] Job ${args.jobId} cancelled before chunk`);
+        return;
       }
+    }
 
-      console.log(`[processKeywordCheckJob] Processing keyword ${keyword.phrase} (${processedCount + 1}/${job.totalKeywords})`);
+    // Phase 2: Batch fetch all keyword data for this chunk (1 query instead of N)
+    const keywords = await ctx.runQuery(internal.keywords.getKeywordsByIdsBatch, {
+      keywordIds: chunkKeywordIds,
+    });
 
-      // Update job current keyword
+    // Build a set of found keyword IDs for tracking missing ones
+    const foundKeywordIds = new Set(keywords.map((k) => k._id));
+    const missingCount = chunkKeywordIds.filter((id) => !foundKeywordIds.has(id)).length;
+    if (missingCount > 0) {
+      console.error(`[processKeywordCheckJob] ${missingCount} keywords not found in chunk`);
+      failedCount += missingCount;
+      processedCount += missingCount;
+    }
+
+    // Phase 3: Batch set all to "checking" (1 mutation instead of N)
+    await ctx.runMutation(internal.keywords.updateKeywordStatusBatch, {
+      updates: keywords.map((k) => ({ keywordId: k._id, status: "checking" as const })),
+    });
+
+    // Update job's current keyword to first in chunk
+    if (keywords.length > 0) {
       await ctx.runMutation(internal.keywordCheckJobs.updateJobCurrentKeywordInternal, {
         jobId: args.jobId,
-        currentKeywordId: keywordId,
+        currentKeywordId: keywords[0]._id,
       });
+    }
 
-      // Mark keyword as checking
-      await ctx.runMutation(internal.keywordCheckJobs.updateKeywordStatusInternal, {
-        keywordId,
-        status: "checking",
-      });
+    // Phase 4: Split keywords into first-time (need history) vs regular (batch API call)
+    const firstTimeKeywords = keywords.filter(
+      (k) => !k.positionUpdatedAt && !(k.recentPositions?.length)
+    );
+    const regularKeywords = keywords.filter(
+      (k) => k.positionUpdatedAt || (k.recentPositions?.length)
+    );
 
+    const keywordResults = new Map<string, boolean>(); // keywordId -> success
+    const failedPhrases: string[] = [];
+
+    // Phase 4a: Process first-time keywords individually (they need fetchSinglePositionInternal with history)
+    for (const keyword of firstTimeKeywords) {
       try {
-        // Check if keyword has position history via denormalized data (zero extra queries)
-        const needsHistory = !keyword.positionUpdatedAt && !(keyword.recentPositions?.length);
-
-        if (needsHistory) {
-          console.log(`[processKeywordCheckJob] First-time check for ${keyword.phrase}, fetching with history`);
-          const result = await ctx.runAction(internal.dataforseo.fetchSinglePositionInternal, {
-            keywordId,
-            phrase: keyword.phrase,
-            domain: domain.domain,
-            location: domain.settings.location,
-            language: domain.settings.language,
-            fetchHistoryIfEmpty: true,
-          });
-
-          if (!result.success) {
-            throw new Error(result.error || "Failed to fetch position");
-          }
-        } else {
-          console.log(`[processKeywordCheckJob] Regular check for ${keyword.phrase}`);
-          const result = await ctx.runAction(internal.dataforseo.fetchPositionsInternal, {
-            domainId: job.domainId,
-            keywords: [{ id: keywordId, phrase: keyword.phrase }],
-            domain: domain.domain,
-            searchEngine: domain.settings.searchEngine,
-            location: domain.settings.location,
-            language: domain.settings.language,
-          });
-
-          if (!result.success) {
-            throw new Error(result.error || "Failed to fetch positions");
-          }
-        }
-
-        // Mark keyword as completed
-        await ctx.runMutation(internal.keywordCheckJobs.updateKeywordStatusInternal, {
-          keywordId,
-          status: "completed",
+        console.log(`[processKeywordCheckJob] First-time check for ${keyword.phrase}, fetching with history`);
+        const result = await ctx.runAction(internal.dataforseo.fetchSinglePositionInternal, {
+          keywordId: keyword._id,
+          phrase: keyword.phrase,
+          domain: domain.domain,
+          location: domain.settings.location,
+          language: domain.settings.language,
+          fetchHistoryIfEmpty: true,
         });
-
-        processedCount++;
+        keywordResults.set(keyword._id, result.success);
+        if (!result.success) {
+          console.error(`[processKeywordCheckJob] First-time check failed for ${keyword.phrase}: ${result.error}`);
+          failedPhrases.push(keyword.phrase);
+        }
       } catch (error) {
         console.error(`[processKeywordCheckJob] Error checking keyword ${keyword.phrase}:`, error);
+        keywordResults.set(keyword._id, false);
+        failedPhrases.push(keyword.phrase);
+      }
+    }
 
-        // Mark keyword as failed
-        await ctx.runMutation(internal.keywordCheckJobs.updateKeywordStatusInternal, {
-          keywordId,
-          status: "failed",
+    // Phase 4b: Batch API call for all regular keywords (1 action instead of N)
+    if (regularKeywords.length > 0) {
+      try {
+        console.log(`[processKeywordCheckJob] Batch checking ${regularKeywords.length} regular keywords`);
+        const result = await ctx.runAction(internal.dataforseo.fetchPositionsInternal, {
+          domainId: job.domainId,
+          keywords: regularKeywords.map((k) => ({ id: k._id, phrase: k.phrase })),
+          domain: domain.domain,
+          searchEngine: domain.settings.searchEngine,
+          location: domain.settings.location,
+          language: domain.settings.language,
         });
 
+        // If the batch call succeeds, mark all regular keywords as successful
+        // If it fails, mark all as failed
+        for (const keyword of regularKeywords) {
+          keywordResults.set(keyword._id, result.success);
+        }
+        if (!result.success) {
+          console.error(`[processKeywordCheckJob] Batch fetch failed: ${result.error}`);
+          for (const keyword of regularKeywords) {
+            failedPhrases.push(keyword.phrase);
+          }
+        }
+      } catch (error) {
+        console.error(`[processKeywordCheckJob] Error in batch fetch:`, error);
+        for (const keyword of regularKeywords) {
+          keywordResults.set(keyword._id, false);
+          failedPhrases.push(keyword.phrase);
+        }
+      }
+    }
+
+    // Phase 5: Batch set all to "completed"/"failed" based on results (1 mutation instead of N)
+    const statusUpdates = keywords.map((k) => ({
+      keywordId: k._id,
+      status: (keywordResults.get(k._id) ? "completed" : "failed") as "completed" | "failed",
+    }));
+    await ctx.runMutation(internal.keywords.updateKeywordStatusBatch, {
+      updates: statusUpdates,
+    });
+
+    // Count results
+    for (const [, success] of keywordResults) {
+      if (success) {
+        processedCount++;
+      } else {
         failedCount++;
         processedCount++;
       }
-
-      // Update job progress
-      await ctx.runMutation(internal.keywordCheckJobs.updateJobProgressInternal, {
-        jobId: args.jobId,
-        processedKeywords: processedCount,
-        failedKeywords: failedCount,
-      });
-
-      console.log(`[processKeywordCheckJob] Progress: ${processedCount}/${job.totalKeywords}, failed: ${failedCount}`);
     }
+
+    // Phase 6: Update progress once for the whole chunk (1 mutation instead of N)
+    await ctx.runMutation(internal.keywordCheckJobs.updateJobProgressInternal, {
+      jobId: args.jobId,
+      processedKeywords: processedCount,
+      failedKeywords: failedCount,
+    });
+
+    console.log(`[processKeywordCheckJob] Chunk done: ${processedCount}/${job.totalKeywords}, failed: ${failedCount}`);
 
     // If there are more keywords, schedule next chunk
     if (endIndex < job.keywordIds.length) {
@@ -339,11 +368,23 @@ export const processKeywordCheckJobInternal = internalAction({
       completedAt: Date.now(),
     });
 
+    // Build detailed notification message including failed keyword names
+    let notificationMessage = `Checked ${processedCount} keywords`;
+    if (failedCount > 0) {
+      const MAX_SHOWN = 5;
+      const shownPhrases = failedPhrases.slice(0, MAX_SHOWN).map(p => `"${p}"`).join(", ");
+      const moreCount = failedPhrases.length - MAX_SHOWN;
+      notificationMessage += `, ${failedCount} failed: ${shownPhrases}`;
+      if (moreCount > 0) {
+        notificationMessage += ` and ${moreCount} more`;
+      }
+    }
+
     await ctx.runMutation(internal.notifications.createJobNotification, {
       domainId: job.domainId,
       type: failedCount > 0 ? "job_failed" : "job_completed",
       title: "Keyword position check completed",
-      message: `Checked ${processedCount} keywords${failedCount > 0 ? `, ${failedCount} failed` : ""}`,
+      message: notificationMessage,
       jobType: "keyword_check",
       jobId: args.jobId,
     });
@@ -542,6 +583,33 @@ export const cleanupStuckJobs = internalMutation({
           .collect();
 
         for (const keyword of keywords) {
+          await ctx.db.patch(keyword._id, {
+            checkingStatus: undefined,
+            checkJobId: undefined,
+          });
+        }
+      }
+    }
+
+    // Safety net: find orphaned keywords stuck in "checking" with no active job
+    // This handles edge cases where cancellation or job failure left keywords behind
+    const cancelledJobs = await ctx.db
+      .query("keywordCheckJobs")
+      .withIndex("by_status", (q) => q.eq("status", "cancelled"))
+      .collect();
+
+    for (const job of cancelledJobs) {
+      // Only process recently cancelled jobs (within last hour) to bound the work
+      if (now - (job.completedAt || job.createdAt) > 60 * 60 * 1000) continue;
+
+      const orphanedKeywords = await ctx.db
+        .query("keywords")
+        .withIndex("by_check_job", (q) => q.eq("checkJobId", job._id))
+        .collect();
+
+      if (orphanedKeywords.length > 0) {
+        console.log(`[cleanupStuckJobs] Clearing ${orphanedKeywords.length} orphaned keywords from cancelled job ${job._id}`);
+        for (const keyword of orphanedKeywords) {
           await ctx.db.patch(keyword._id, {
             checkingStatus: undefined,
             checkJobId: undefined,

@@ -112,6 +112,7 @@ export function DomainSetupWizard({
         } catch (error: any) {
           toast.error(t('failedToStartSerp'));
           console.error(error);
+          // SERP job is non-blocking — still advance to competitors step
         }
       }
       setCurrentStep(3);
@@ -126,6 +127,7 @@ export function DomainSetupWizard({
 
       const newGapIds: Id<"competitorContentGapJobs">[] = [];
       const newBlIds: Id<"competitorBacklinksJobs">[] = [];
+      const errors: string[] = [];
 
       for (const competitorId of competitorIds) {
         try {
@@ -133,20 +135,33 @@ export function DomainSetupWizard({
           newGapIds.push(gapId);
         } catch (error: any) {
           console.error("Failed to create gap job:", error);
+          errors.push(`Content gap: ${error.message || "unknown error"}`);
         }
         try {
           const blId = await createBlJob({ domainId, competitorId });
           newBlIds.push(blId);
         } catch (error: any) {
           console.error("Failed to create backlinks job:", error);
+          errors.push(`Backlinks: ${error.message || "unknown error"}`);
         }
+      }
+
+      if (errors.length > 0 && newGapIds.length === 0 && newBlIds.length === 0) {
+        // All jobs failed — don't advance, show error
+        toast.error(t('wizard.allJobsFailed'));
+        return;
+      }
+
+      if (errors.length > 0) {
+        // Partial failure — advance but warn
+        toast.warning(t('wizard.someJobsFailed', { count: errors.length }));
       }
 
       setGapJobIds(newGapIds);
       setBacklinkJobIds(newBlIds);
       setCurrentStep(4);
     },
-    [domainId, createGapJob, createBlJob]
+    [domainId, createGapJob, createBlJob, t]
   );
 
   // Step 4 complete -> mark onboarding done -> close
@@ -196,7 +211,7 @@ export function DomainSetupWizard({
 
       {/* Wizard container */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-4xl rounded-xl bg-primary shadow-xl ring-1 ring-primary">
+        <div className="relative w-full max-w-4xl rounded-xl bg-primary dark:bg-[#1f2530] shadow-xl ring-1 ring-primary">
           {/* Close button */}
           <button
             onClick={onClose}

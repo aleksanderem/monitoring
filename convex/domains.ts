@@ -20,6 +20,7 @@ export const getDomains = query({
       .collect();
 
     // Get keyword count and average position for each domain
+    // Uses denormalized currentPosition on keywords — no keywordPositions reads
     const domainsWithStats = await Promise.all(
       domains.map(async (domain) => {
         const keywords = await ctx.db
@@ -28,24 +29,16 @@ export const getDomains = query({
           .filter((q) => q.eq(q.field("status"), "active"))
           .collect();
 
-        // Calculate average position
         let totalPosition = 0;
         let positionCount = 0;
 
-        await Promise.all(
-          keywords.map(async (keyword) => {
-            const latestPosition = await ctx.db
-              .query("keywordPositions")
-              .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-              .order("desc")
-              .first();
-
-            if (latestPosition?.position) {
-              totalPosition += latestPosition.position;
-              positionCount++;
-            }
-          })
-        );
+        for (const keyword of keywords) {
+          const pos = keyword.currentPosition;
+          if (pos != null && pos > 0) {
+            totalPosition += pos;
+            positionCount++;
+          }
+        }
 
         const avgPosition =
           positionCount > 0 ? Math.round((totalPosition / positionCount) * 10) / 10 : null;
@@ -614,6 +607,7 @@ export const getBacklinks = query({
 });
 
 // Get position distribution for a domain (for histogram chart)
+// Uses denormalized currentPosition on keywords — no keywordPositions reads
 export const getPositionDistribution = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
@@ -627,7 +621,6 @@ export const getPositionDistribution = query({
       .filter((q) => q.eq(q.field("status"), "active"))
       .collect();
 
-    // Count keywords in each position bucket
     const buckets = {
       "1-3": 0,
       "4-10": 0,
@@ -638,20 +631,14 @@ export const getPositionDistribution = query({
     };
 
     for (const keyword of keywords) {
-      const latestPosition = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .order("desc")
-        .first();
-
-      if (latestPosition?.position) {
-        const pos = latestPosition.position;
-        if (pos >= 1 && pos <= 3) buckets["1-3"]++;
-        else if (pos >= 4 && pos <= 10) buckets["4-10"]++;
-        else if (pos >= 11 && pos <= 20) buckets["11-20"]++;
-        else if (pos >= 21 && pos <= 50) buckets["21-50"]++;
-        else if (pos >= 51 && pos <= 100) buckets["51-100"]++;
-        else if (pos > 100) buckets["100+"]++;
+      const pos = keyword.currentPosition;
+      if (pos != null && pos > 0) {
+        if (pos <= 3) buckets["1-3"]++;
+        else if (pos <= 10) buckets["4-10"]++;
+        else if (pos <= 20) buckets["11-20"]++;
+        else if (pos <= 50) buckets["21-50"]++;
+        else if (pos <= 100) buckets["51-100"]++;
+        else buckets["100+"]++;
       }
     }
 
@@ -1104,14 +1091,28 @@ export const initializeDomainData = internalAction({
     console.log(`[INIT] Starting automatic initialization for domain: ${args.domain} (${args.location}/${language})`);
 
     try {
-      // 1. Fetch domain visibility (discovered keywords the domain ranks for)
-      console.log(`[INIT] Fetching domain visibility and discovered keywords...`);
-      const visibilityResult = await ctx.runAction(api.dataforseo.fetchAndStoreVisibility, {
-        domainId: args.domainId,
-        domain: args.domain,
-        location: args.location,
-        language,
-      });
+      // Fetch visibility + history in parallel (no data dependency between them)
+      // Visibility: discovered keywords the domain ranks for ($0.085)
+      // History: 12 months of position distribution ($0.10)
+      // Note: history is only used in the PositionHistoryChart and ForecastSummaryCard
+      // dashboard views — could be lazy-loaded on first chart view instead of at init,
+      // but pre-fetching gives a better first-load experience.
+      console.log(`[INIT] Fetching domain visibility and history in parallel...`);
+
+      const [visibilityResult, historyResult] = await Promise.all([
+        ctx.runAction(api.dataforseo.fetchAndStoreVisibility, {
+          domainId: args.domainId,
+          domain: args.domain,
+          location: args.location,
+          language,
+        }),
+        ctx.runAction(api.dataforseo.fetchAndStoreVisibilityHistory, {
+          domainId: args.domainId,
+          domain: args.domain,
+          location: args.location,
+          language,
+        }),
+      ]);
 
       if (visibilityResult.success) {
         console.log(`[INIT] ✓ Successfully fetched ${visibilityResult.count || 0} discovered keywords`);
@@ -1119,22 +1120,13 @@ export const initializeDomainData = internalAction({
         console.error(`[INIT] ✗ Failed to fetch visibility: ${visibilityResult.error}`);
       }
 
-      // 2. Fetch visibility history (12 months of position distribution)
-      console.log(`[INIT] Fetching 12 months of visibility history...`);
-      const historyResult = await ctx.runAction(api.dataforseo.fetchAndStoreVisibilityHistory, {
-        domainId: args.domainId,
-        domain: args.domain,
-        location: args.location,
-        language,
-      });
-
       if (historyResult.success) {
         console.log(`[INIT] ✓ Successfully fetched ${historyResult.datesStored || 0} months of visibility history`);
       } else {
         console.error(`[INIT] ✗ Failed to fetch history: ${historyResult.error}`);
       }
 
-      // 3. Log completion
+      // Log completion
       const successCount = (visibilityResult.success ? 1 : 0) + (historyResult.success ? 1 : 0);
       console.log(`[INIT] Initialization complete: ${successCount}/2 tasks successful`);
 
@@ -1199,6 +1191,42 @@ export const saveBusinessContext = internalMutation({
     await ctx.db.patch(args.domainId, {
       businessDescription: args.businessDescription,
       targetCustomer: args.targetCustomer,
+    });
+  },
+});
+
+const PAGE_CONTENT_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Return cached homepage content if it exists and is less than 24 hours old.
+ */
+export const getCachedPageContent = internalQuery({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const domain = await ctx.db.get(args.domainId);
+    if (
+      domain?.cachedPageContent &&
+      domain.cachedPageContentAt &&
+      Date.now() - domain.cachedPageContentAt < PAGE_CONTENT_CACHE_TTL_MS
+    ) {
+      return domain.cachedPageContent;
+    }
+    return null;
+  },
+});
+
+/**
+ * Store scraped homepage content on the domain record for caching.
+ */
+export const cachePageContent = internalMutation({
+  args: {
+    domainId: v.id("domains"),
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.domainId, {
+      cachedPageContent: args.content,
+      cachedPageContentAt: Date.now(),
     });
   },
 });

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useState, useEffect, useMemo } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
@@ -45,8 +45,10 @@ import { Plus } from "@untitledui/icons";
 import { Tabs, TabList, Tab, TabPanel } from "@/components/application/tabs/tabs";
 import { MetricsChart04 } from "@/components/application/metrics/metrics";
 import { toast } from "sonner";
-import { PositionHistoryChart } from "@/components/domain/charts/PositionHistoryChart";
-import { ExecutiveSummary } from "@/components/domain/sections/ExecutiveSummary";
+import { ModuleHubCard } from "@/components/domain/cards/ModuleHubCard";
+import type { ModuleHubData } from "@/components/domain/cards/ModuleHubCard";
+import { useModuleReadiness } from "@/hooks/useModuleReadiness";
+import { CanvasRevealEffect } from "@/components/ui/canvas-reveal-effect";
 import { PositionDistributionChart } from "@/components/domain/charts/PositionDistributionChart";
 import { MovementTrendChart } from "@/components/domain/charts/MovementTrendChart";
 import { MonitoringStats } from "@/components/domain/sections/MonitoringStats";
@@ -78,7 +80,6 @@ import { CompetitorKeywordBarsChart } from "@/components/domain/charts/Competito
 import { CompetitorBacklinkRadarChart } from "@/components/domain/charts/CompetitorBacklinkRadarChart";
 import { BacklinkQualityComparisonChart } from "@/components/domain/charts/BacklinkQualityComparisonChart";
 import { CompetitorKeywordGapTable } from "@/components/domain/tables/CompetitorKeywordGapTable";
-import { ForecastSummaryCard } from "@/components/domain/cards/ForecastSummaryCard";
 import { CompetitorAnalysisReportsSection } from "@/components/domain/sections/CompetitorAnalysisReportsSection";
 import { KeywordMapSection } from "@/components/domain/sections/KeywordMapSection";
 import { BacklinkProfileSection } from "@/components/domain/sections/BacklinkProfileSection";
@@ -99,6 +100,7 @@ import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PermissionGate } from "@/components/auth/PermissionGate";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const TAB_EZICONS: Record<string, string> = {
   "overview": "analytics-02",
@@ -118,6 +120,36 @@ const TAB_EZICONS: Record<string, string> = {
   "diagnostics": "stethoscope",
   "settings": "settings-05",
 };
+
+// Module Hub card configuration
+const MODULE_CARDS: {
+  tabId: string;
+  titleKey: string;
+  descriptionKey: string;
+  colors: [number, number, number][];
+  group: string;
+}[] = [
+  // Monitoring group — blue
+  { tabId: "monitoring", titleKey: "tabMonitoring", descriptionKey: "moduleDescMonitoring", colors: [[59,130,246],[37,99,235]], group: "hubSectionMonitoring" },
+  { tabId: "keyword-map", titleKey: "tabKeywordMap", descriptionKey: "moduleDescKeywordMap", colors: [[59,130,246],[37,99,235]], group: "hubSectionMonitoring" },
+  { tabId: "visibility", titleKey: "tabVisibility", descriptionKey: "moduleDescVisibility", colors: [[59,130,246],[37,99,235]], group: "hubSectionMonitoring" },
+  // Competition group — indigo
+  { tabId: "competitors", titleKey: "tabCompetitors", descriptionKey: "moduleDescCompetitors", colors: [[99,102,241],[79,70,229]], group: "hubSectionCompetition" },
+  { tabId: "content-gaps", titleKey: "tabContentGaps", descriptionKey: "moduleDescContentGaps", colors: [[99,102,241],[79,70,229]], group: "hubSectionCompetition" },
+  { tabId: "link-building", titleKey: "tabLinkBuilding", descriptionKey: "moduleDescLinkBuilding", colors: [[99,102,241],[79,70,229]], group: "hubSectionCompetition" },
+  // Audit group — slate-blue
+  { tabId: "backlinks", titleKey: "tabBacklinks", descriptionKey: "moduleDescBacklinks", colors: [[71,85,105],[51,65,85]], group: "hubSectionAudit" },
+  { tabId: "on-site", titleKey: "tabOnSite", descriptionKey: "moduleDescOnSite", colors: [[71,85,105],[51,65,85]], group: "hubSectionAudit" },
+  { tabId: "insights", titleKey: "tabInsights", descriptionKey: "moduleDescInsights", colors: [[71,85,105],[51,65,85]], group: "hubSectionAudit" },
+  // Tools group — slate
+  { tabId: "ai-research", titleKey: "tabAIResearch", descriptionKey: "moduleDescAIResearch", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
+  { tabId: "strategy", titleKey: "tabStrategy", descriptionKey: "moduleDescStrategy", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
+  { tabId: "keyword-analysis", titleKey: "tabKeywordAnalysis", descriptionKey: "moduleDescKeywordAnalysis", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
+  { tabId: "generators", titleKey: "tabGenerators", descriptionKey: "moduleDescGenerators", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
+  { tabId: "settings", titleKey: "tabSettings", descriptionKey: "moduleDescSettings", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
+];
+
+const HUB_GROUPS = ["hubSectionMonitoring", "hubSectionCompetition", "hubSectionAudit", "hubSectionTools"];
 
 // Helper to format date
 function formatDate(timestamp: number) {
@@ -216,8 +248,111 @@ function DomainLimitsSection({ domainId, currentLimits }: { domainId: Id<"domain
   );
 }
 
+function BusinessContextSection({ domainId, domain }: { domainId: Id<"domains">; domain: { businessDescription?: string; targetCustomer?: string; domain: string } }) {
+  const t = useTranslations("domains");
+  const [desc, setDesc] = useState(domain.businessDescription ?? "");
+  const [customer, setCustomer] = useState(domain.targetCustomer ?? "");
+  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  const saveContext = useMutation(api.domains.saveBusinessContextPublic);
+  const generateContext = useAction(api.actions.aiBusinessContext.generateBusinessContext);
+
+  // Sync if domain data loads later
+  useEffect(() => {
+    if (domain.businessDescription && !desc) setDesc(domain.businessDescription);
+    if (domain.targetCustomer && !customer) setCustomer(domain.targetCustomer);
+  }, [domain.businessDescription, domain.targetCustomer]);
+
+  const dirty =
+    desc.trim() !== (domain.businessDescription ?? "") ||
+    customer.trim() !== (domain.targetCustomer ?? "");
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveContext({ domainId, businessDescription: desc.trim(), targetCustomer: customer.trim() });
+      toast.success(t("businessContextSaved"));
+    } catch {
+      toast.error(t("businessContextSaveFailed"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const result = await generateContext({ domainId });
+      if (result.businessDescription) setDesc(result.businessDescription);
+      if (result.targetCustomer) setCustomer(result.targetCustomer);
+      toast.success(t("autoGenerateSuccess"));
+    } catch {
+      toast.error(t("autoGenerateFailed"));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+      <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-primary">{t("businessContextTitle")}</h2>
+          <p className="mt-0.5 text-sm text-tertiary">{t("businessContextDescription")}</p>
+        </div>
+        <Button
+          color="secondary"
+          size="sm"
+          iconLeading={Stars01}
+          onClick={handleGenerate}
+          isDisabled={generating}
+        >
+          {generating ? t("autoGenerating") : t("autoGenerateAI")}
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-secondary">{t("businessDescriptionLabel")}</label>
+          <textarea
+            className="w-full rounded-lg border border-secondary bg-primary px-3 py-2 text-sm text-primary placeholder:text-quaternary focus:outline-none focus:ring-2 focus:ring-brand-solid focus:border-transparent resize-none dark:bg-neutral-900 dark:border-neutral-700"
+            rows={4}
+            placeholder={t("businessDescriptionPlaceholder")}
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            disabled={generating}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-secondary">{t("targetCustomerLabel")}</label>
+          <textarea
+            className="w-full rounded-lg border border-secondary bg-primary px-3 py-2 text-sm text-primary placeholder:text-quaternary focus:outline-none focus:ring-2 focus:ring-brand-solid focus:border-transparent resize-none dark:bg-neutral-900 dark:border-neutral-700"
+            rows={3}
+            placeholder={t("targetCustomerPlaceholder")}
+            value={customer}
+            onChange={(e) => setCustomer(e.target.value)}
+            disabled={generating}
+          />
+        </div>
+      </div>
+
+      {dirty && (
+        <div className="mt-4 flex justify-end">
+          <Button color="primary" size="sm" onClick={handleSave} isDisabled={saving}>
+            {saving ? t("onboardingAdding") : t("businessContextSaveBtn")}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DomainDetailPage() {
   const t = useTranslations('domains');
+  const locale = useLocale();
 
   const isSuperAdmin = useQuery(api.admin.checkIsSuperAdmin);
   const params = useParams();
@@ -239,22 +374,23 @@ export default function DomainDetailPage() {
   })();
 
   const { hasModule, can } = usePermissions();
+  const moduleReadiness = useModuleReadiness(domainId);
 
   const tabs = [
     { id: "overview", label: t('tabOverview'), icon: BarChart03 },
-    { id: "monitoring", label: t('tabMonitoring'), icon: Activity },
-    { id: "keyword-map", label: t('tabKeywordMap'), icon: Target04 },
-    { id: "visibility", label: t('tabVisibility'), icon: TrendUp02 },
-    ...(hasModule("backlinks") ? [{ id: "backlinks", label: t('tabBacklinks'), icon: Link03 }] : []),
-    ...(hasModule("link_building") ? [{ id: "link-building", label: t('tabLinkBuilding'), icon: LinkExternal02 }] : []),
-    ...(hasModule("competitors") ? [{ id: "competitors", label: t('tabCompetitors'), icon: Users01 }] : []),
+    { id: "monitoring", label: t('tabMonitoring'), icon: Activity, locked: moduleReadiness.monitoring?.locked, lockReason: moduleReadiness.monitoring?.lockReason },
+    { id: "keyword-map", label: t('tabKeywordMap'), icon: Target04, locked: moduleReadiness["keyword-map"]?.locked, lockReason: moduleReadiness["keyword-map"]?.lockReason },
+    { id: "visibility", label: t('tabVisibility'), icon: TrendUp02, locked: moduleReadiness.visibility?.locked, lockReason: moduleReadiness.visibility?.lockReason },
+    ...(hasModule("backlinks") ? [{ id: "backlinks", label: t('tabBacklinks'), icon: Link03, locked: moduleReadiness.backlinks?.locked, lockReason: moduleReadiness.backlinks?.lockReason }] : []),
+    ...(hasModule("link_building") ? [{ id: "link-building", label: t('tabLinkBuilding'), icon: LinkExternal02, locked: moduleReadiness["link-building"]?.locked, lockReason: moduleReadiness["link-building"]?.lockReason }] : []),
+    ...(hasModule("competitors") ? [{ id: "competitors", label: t('tabCompetitors'), icon: Users01, locked: moduleReadiness.competitors?.locked, lockReason: moduleReadiness.competitors?.lockReason }] : []),
     { id: "keyword-analysis", label: t('tabKeywordAnalysis'), icon: FileSearch02 },
-    ...(hasModule("seo_audit") ? [{ id: "on-site", label: t('tabOnSite'), icon: FileCheck02 }] : []),
-    ...(hasModule("competitors") ? [{ id: "content-gaps", label: t('tabContentGaps'), icon: Lightbulb02 }] : []),
-    { id: "insights", label: t('tabInsights'), icon: Lightning01 },
+    ...(hasModule("seo_audit") ? [{ id: "on-site", label: t('tabOnSite'), icon: FileCheck02, locked: moduleReadiness["on-site"]?.locked, lockReason: moduleReadiness["on-site"]?.lockReason }] : []),
+    ...(hasModule("competitors") ? [{ id: "content-gaps", label: t('tabContentGaps'), icon: Lightbulb02, locked: moduleReadiness["content-gaps"]?.locked, lockReason: moduleReadiness["content-gaps"]?.lockReason }] : []),
+    { id: "insights", label: t('tabInsights'), icon: Lightning01, locked: moduleReadiness.insights?.locked, lockReason: moduleReadiness.insights?.lockReason },
     ...(hasModule("ai_strategy") ? [
-      { id: "ai-research", label: t('tabAIResearch'), icon: Stars01 },
-      { id: "strategy", label: t('tabStrategy'), icon: Stars01, badge: strategyBadge },
+      { id: "ai-research", label: t('tabAIResearch'), icon: Stars01, locked: moduleReadiness["ai-research"]?.locked, lockReason: moduleReadiness["ai-research"]?.lockReason },
+      { id: "strategy", label: t('tabStrategy'), icon: Stars01, badge: strategyBadge, locked: moduleReadiness.strategy?.locked, lockReason: moduleReadiness.strategy?.lockReason },
     ] : []),
     { id: "generators", label: t('tabGenerators'), icon: CodeBrowser },
     { id: "settings", label: t('tabSettings'), icon: Settings01 },
@@ -320,6 +456,19 @@ export default function DomainDetailPage() {
       setWizardAutoOpened(true);
     }
   }, [onboardingStatus, wizardAutoOpened]);
+
+  // Personalization data for module hub cards
+  const hubData: ModuleHubData = useMemo(() => ({
+    domain: domain?.domain,
+    keywords: keywords?.slice(0, 5).map((k) => k.phrase),
+    keywordCount: onboardingStatus?.counts.monitoredKeywords ?? keywords?.length,
+    competitorCount: onboardingStatus?.counts.activeCompetitors,
+    gapCount: onboardingStatus?.counts.contentGaps,
+    searchEngine: domain?.settings.searchEngine,
+    location: domain?.settings.location,
+    language: domain?.settings.language,
+    locale,
+  }), [domain, keywords, onboardingStatus, locale]);
 
   const [isFetchingBacklinks, setIsFetchingBacklinks] = useState(false);
   const [isFetchingVisibility, setIsFetchingVisibility] = useState(false);
@@ -513,36 +662,48 @@ export default function DomainDetailPage() {
   return (
     <main className="flex w-full flex-col gap-3 bg-secondary_subtle pt-8 pb-12 shadow-none lg:gap-8 lg:bg-primary lg:pt-12 lg:pb-24">
       <div className="mx-auto flex w-full max-w-container flex-col gap-5 px-4 lg:px-8">
-        {/* Breadcrumbs / Back button */}
-        <div className="relative flex flex-col gap-4 border-b border-secondary pb-4">
-          <div className="max-lg:hidden">
-            <Breadcrumbs type="button">
-              <Breadcrumbs.Item href="/" icon={HomeLine} />
-              <Breadcrumbs.Item href="/domains">{t('domains')}</Breadcrumbs.Item>
-              <Breadcrumbs.Item href="#">{domain.domain}</Breadcrumbs.Item>
-            </Breadcrumbs>
-          </div>
-          <div className="flex lg:hidden">
-            <Button href="/domains" color="link-gray" size="md" iconLeading={ArrowLeft}>
-              {t('back')}
-            </Button>
-          </div>
+        {/* Domain header banner with canvas effect */}
+        <div className="relative overflow-hidden rounded-2xl border border-secondary bg-white dark:bg-neutral-900">
+          {/* Canvas background */}
+          <CanvasRevealEffect
+            animationSpeed={0.3}
+            colors={[[59,130,246],[37,99,235]]}
+            dotSize={2}
+            showGradient={false}
+          />
+          {/* Gradient overlay for readability */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/95 via-white/80 to-white/40 dark:from-neutral-900/95 dark:via-neutral-900/80 dark:to-neutral-900/40" />
 
-          {/* Page header */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                <Globe01 className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-primary lg:text-display-xs">
-                  {domain.domain}
-                </h1>
-                <p className="text-md text-tertiary">
-                  {getCountryFlag(domain.settings.location)} {domain.settings.location} · {getLanguageFlag(domain.settings.language)} {domain.settings.language} · {domain.settings.searchEngine} · {domain.settings.refreshFrequency}
-                </p>
-              </div>
+          {/* Content */}
+          <div className="relative z-10 flex flex-col gap-4 p-5 lg:p-6">
+            <div className="max-lg:hidden">
+              <Breadcrumbs type="button">
+                <Breadcrumbs.Item href="/" icon={HomeLine} />
+                <Breadcrumbs.Item href="/domains">{t('domains')}</Breadcrumbs.Item>
+                <Breadcrumbs.Item href="#">{domain.domain}</Breadcrumbs.Item>
+              </Breadcrumbs>
             </div>
+            <div className="flex lg:hidden">
+              <Button href="/domains" color="link-gray" size="md" iconLeading={ArrowLeft}>
+                {t('back')}
+              </Button>
+            </div>
+
+            {/* Page header */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/25">
+                  <Globe01 className="h-6 w-6" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-semibold text-primary lg:text-display-xs">
+                    {domain.domain}
+                  </h1>
+                  <p className="text-md text-tertiary">
+                    {getCountryFlag(domain.settings.location)} {domain.settings.location} · {getLanguageFlag(domain.settings.language)} {domain.settings.language} · {domain.settings.searchEngine} · {domain.settings.refreshFrequency}
+                  </p>
+                </div>
+              </div>
 
             <div className="flex gap-2">
               {onboardingStatus?.isCompleted !== false ? (
@@ -611,6 +772,9 @@ export default function DomainDetailPage() {
               )}
             </div>
           </div>
+          {/* /content */}
+          </div>
+        {/* /banner */}
         </div>
       </div>
 
@@ -647,9 +811,23 @@ export default function DomainDetailPage() {
             <div className="sticky top-20 self-start max-lg:hidden">
               <TabList size="sm" type="line" items={tabs} className="w-auto items-start">
                 {(item: any) => (
-                  <Tab id={item.id} badge={item.badge}>
-                    <EzIcon name={TAB_EZICONS[item.id] || "settings-05"} size={18} color="#94a3b8" strokeColor="#94a3b8" />
-                    {item.label}
+                  <Tab
+                    id={item.id}
+                    badge={item.badge}
+                    isDisabled={item.locked}
+                    className={item.locked ? "opacity-50 cursor-not-allowed" : undefined}
+                  >
+                    <span className="relative inline-flex">
+                      <EzIcon name={TAB_EZICONS[item.id] || "settings-05"} size={18} color="#94a3b8" strokeColor="#94a3b8" />
+                      {item.locked && (
+                        <span className="absolute -right-1 -bottom-1 flex h-3 w-3 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
+                          <EzIcon name="lock-01" size={8} color="#9ca3af" strokeColor="#9ca3af" />
+                        </span>
+                      )}
+                    </span>
+                    <span title={item.locked ? t(item.lockReason) : undefined}>
+                      {item.label}
+                    </span>
                   </Tab>
                 )}
               </TabList>
@@ -659,37 +837,71 @@ export default function DomainDetailPage() {
               {/* Mobile Horizontal Navigation */}
               <TabList size="sm" type="line" items={tabs} className="lg:hidden">
                 {(item: any) => (
-                  <Tab id={item.id} badge={item.badge}>
-                    <EzIcon name={TAB_EZICONS[item.id] || "settings-05"} size={18} color="#94a3b8" strokeColor="#94a3b8" />
-                    {item.label}
+                  <Tab
+                    id={item.id}
+                    badge={item.badge}
+                    isDisabled={item.locked}
+                    className={item.locked ? "opacity-50 cursor-not-allowed" : undefined}
+                  >
+                    <span className="relative inline-flex">
+                      <EzIcon name={TAB_EZICONS[item.id] || "settings-05"} size={18} color="#94a3b8" strokeColor="#94a3b8" />
+                      {item.locked && (
+                        <span className="absolute -right-1 -bottom-1 flex h-3 w-3 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
+                          <EzIcon name="lock-01" size={8} color="#9ca3af" strokeColor="#9ca3af" />
+                        </span>
+                      )}
+                    </span>
+                    <span title={item.locked ? t(item.lockReason) : undefined}>
+                      {item.label}
+                    </span>
                   </Tab>
                 )}
               </TabList>
 
-            {/* Overview Tab */}
+            {/* Overview Tab — Module Hub */}
             <TabPanel id="overview">
+              <ErrorBoundary label="Overview">
               <div className="flex flex-col gap-8">
-                {/* Position History Chart */}
-                <PositionHistoryChart domainId={domainId} />
-
-                {/* Executive Summary Metrics */}
-                <ExecutiveSummary domainId={domainId} />
-
-                {/* Forecast Summary Card */}
-                <ForecastSummaryCard domainId={domainId} />
-
-                {/* Placeholder for future sections */}
-                <div className="relative rounded-xl border border-secondary bg-primary p-6">
-                  <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
-                  <p className="text-sm text-tertiary">
-                    {t('additionalAnalytics')}
-                  </p>
-                </div>
+                {HUB_GROUPS.map((group) => {
+                  const cards = MODULE_CARDS.filter(
+                    (c) => c.group === group && moduleReadiness[c.tabId]?.visible
+                  );
+                  if (cards.length === 0) return null;
+                  return (
+                    <div key={group} className="flex flex-col gap-3">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-quaternary">
+                        {t(group)}
+                      </h3>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {cards.map((card) => (
+                          <ModuleHubCard
+                            key={card.tabId}
+                            tabId={card.tabId}
+                            title={t(card.titleKey)}
+                            description={moduleReadiness[card.tabId]?.locked
+                              ? t(moduleReadiness[card.tabId].lockReason)
+                              : t(card.descriptionKey)}
+                            icon={TAB_EZICONS[card.tabId] || "settings-05"}
+                            state={moduleReadiness[card.tabId]}
+                            colors={card.colors}
+                            onClick={() => setSelectedTab(card.tabId)}
+                            onNavigateToTab={(tid) => setSelectedTab(tid)}
+                            data={hubData}
+                            benefitText={t(`moduleBenefit${card.tabId}`)}
+                            benefitLabel={t("moduleWhatGives")}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Monitoring Tab */}
             <TabPanel id="monitoring">
+              <ErrorBoundary label="Monitoring">
               <div className="flex flex-col gap-8">
                 {/* Header with Add Keywords Button */}
                 <div className="flex items-center justify-between">
@@ -721,15 +933,19 @@ export default function DomainDetailPage() {
                 {/* Monitoring Table */}
                 <KeywordMonitoringTable domainId={domainId} />
               </div>
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Keyword Map Tab */}
             <TabPanel id="keyword-map">
+              <ErrorBoundary label="Keyword Map">
               <KeywordMapSection domainId={domainId} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Visibility Tab */}
             <TabPanel id="visibility">
+              <ErrorBoundary label="Visibility">
               <div className="flex flex-col gap-6">
                 {/* Header with Fetch Button */}
                 <div className="flex items-center justify-between">
@@ -780,10 +996,12 @@ export default function DomainDetailPage() {
                   <MovementTrendChart domainId={domainId} />
                 </div>
               </div>
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Backlinks Tab */}
             <TabPanel id="backlinks">
+              <ErrorBoundary label="Backlinks">
               <div className="flex flex-col gap-6">
                 {/* Header with Fetch Button */}
                 <div className="flex items-center justify-between">
@@ -897,15 +1115,19 @@ export default function DomainDetailPage() {
                 {/* Backlink Profile Analysis */}
                 <BacklinkProfileSection domainId={domainId} />
               </div>
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Link Building Tab */}
             <TabPanel id="link-building">
+              <ErrorBoundary label="Link Building">
               <LinkBuildingSection domainId={domainId} domainName={domain.domain} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Competitors Tab */}
             <TabPanel id="competitors">
+              <ErrorBoundary label="Competitors">
               <div className="space-y-6">
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50">
@@ -937,10 +1159,12 @@ export default function DomainDetailPage() {
 
                 <CompetitorKeywordGapTable domainId={domainId} />
               </div>
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Keyword Analysis Tab */}
             <TabPanel id="keyword-analysis">
+              <ErrorBoundary label="Keyword Analysis">
               <div className="space-y-6">
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50">
@@ -956,40 +1180,54 @@ export default function DomainDetailPage() {
 
                 <CompetitorAnalysisReportsSection domainId={domainId} />
               </div>
+              </ErrorBoundary>
             </TabPanel>
 
             {/* On-Site Tab */}
             <TabPanel id="on-site">
+              <ErrorBoundary label="On-Site">
               <OnSiteSection domainId={domainId} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Content Gaps Tab */}
             <TabPanel id="content-gaps">
+              <ErrorBoundary label="Content Gaps">
               <ContentGapSection domainId={domainId} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Insights Tab */}
             <TabPanel id="insights">
+              <ErrorBoundary label="Insights">
               <InsightsSection domainId={domainId} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* AI Research Tab */}
             <TabPanel id="ai-research">
+              <ErrorBoundary label="AI Research">
               <AIKeywordResearchSection domainId={domainId} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Strategy Tab */}
             <TabPanel id="strategy">
+              <ErrorBoundary label="Strategy">
               <StrategySection domainId={domainId} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Generators Tab */}
             <TabPanel id="generators">
+              <ErrorBoundary label="Generators">
               <GeneratorsSection domainId={domainId} />
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Settings Tab */}
             <TabPanel id="settings">
+              <ErrorBoundary label="Settings">
               <div className="flex flex-col gap-6">
                 <div className="relative rounded-xl border border-secondary bg-primary p-6">
                   <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
@@ -1020,14 +1258,19 @@ export default function DomainDetailPage() {
                   </div>
                 </div>
 
+                <BusinessContextSection domainId={domainId} domain={domain} />
+
                 <DomainLimitsSection domainId={domainId} currentLimits={domain.limits} />
               </div>
+              </ErrorBoundary>
             </TabPanel>
 
             {/* Diagnostics Tab (superAdmin only) */}
             {isSuperAdmin && (
               <TabPanel id="diagnostics">
+                <ErrorBoundary label="Diagnostics">
                 <DiagnosticSection domainId={domainId} />
+                </ErrorBoundary>
               </TabPanel>
             )}
             </div>
@@ -1039,7 +1282,7 @@ export default function DomainDetailPage() {
       <ModalOverlay isOpen={isEditModalOpen} onOpenChange={setIsEditModalOpen} isDismissable>
         <Modal>
           <Dialog className="overflow-hidden">
-            <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-160">
+            <div className="relative w-full overflow-hidden rounded-xl bg-primary dark:bg-[#0d0f13] dark:border dark:border-neutral-800 shadow-xl sm:max-w-160">
               <CloseButton
                 onClick={() => setIsEditModalOpen(false)}
                 theme="light"

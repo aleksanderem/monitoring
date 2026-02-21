@@ -707,6 +707,7 @@
     --color-border-error_subtle: var(--color-error-300);
     --color-border-disabled: var(--color-gray-300);
     --color-border-disabled_subtle: var(--color-gray-200);
+    --color-border-subtle: var(--color-gray-100);
     --color-border-brand: var(--color-brand-500);
     --color-border-brand_alt: var(--color-brand-600);
 
@@ -871,6 +872,7 @@
     --border-color-disabled_subtle: var(--color-border-disabled_subtle);
     --border-color-error: var(--color-border-error);
     --border-color-error_subtle: var(--color-border-error_subtle);
+    --border-color-subtle: var(--color-border-subtle);
     --border-color-brand: var(--color-border-brand);
     --border-color-brand_alt: var(--color-border-brand_alt);
     --border-color-brand-solid: var(--color-bg-brand-solid);
@@ -881,6 +883,7 @@
     --ring-color-secondary: var(--color-border-secondary);
     --ring-color-secondary_alt: var(--color-border-secondary_alt);
     --ring-color-tertiary: var(--color-border-tertiary);
+    --ring-color-subtle: var(--color-border-subtle);
     --ring-color-error: var(--color-border-error);
     --ring-color-error_subtle: var(--color-border-error_subtle);
     --ring-color-disabled: var(--color-border-disabled);
@@ -896,6 +899,7 @@
     --outline-color-secondary: var(--color-border-secondary);
     --outline-color-secondary_alt: var(--color-border-secondary_alt);
     --outline-color-tertiary: var(--color-border-tertiary);
+    --outline-color-subtle: var(--color-border-subtle);
     --outline-color-error: var(--color-border-error);
     --outline-color-error_subtle: var(--color-border-error_subtle);
     --outline-color-disabled: var(--color-border-disabled);
@@ -1125,9 +1129,10 @@
 
         /* BORDER COLORS */
         --color-border-primary: var(--color-gray-700);
-        --color-border-secondary: var(--color-gray-800);
+        --color-border-secondary: #343b4a;
         --color-border-secondary_alt: var(--color-gray-800);
         --color-border-tertiary: var(--color-gray-800);
+        --color-border-subtle: #161a21;
         --color-border-brand: var(--color-brand-400);
         --color-border-brand_alt: var(--color-gray-700);
         --color-border-error: var(--color-error-400);
@@ -1188,7 +1193,7 @@
         --color-bg-secondary_alt: var(--color-bg-primary);
         --color-bg-brand-solid: var(--color-brand-600);
         --color-bg-brand-solid_hover: var(--color-brand-500);
-        --color-bg-overlay: var(--color-gray-800);
+        --color-bg-overlay: #1f2530;
         --color-bg-brand-section: var(--color-bg-secondary);
         --color-bg-brand-section_subtle: var(--color-bg-primary);
 
@@ -1296,6 +1301,7 @@
         --border-color-secondary_alt: var(--color-border-secondary_alt);
         --border-color-tertiary: var(--color-border-tertiary);
         --border-color-disabled: var(--color-border-disabled);
+        --border-color-subtle: var(--color-border-subtle);
         --border-color-brand: var(--color-border-brand);
         --border-color-brand-solid: var(--color-bg-brand-solid);
         --border-color-brand-solid_hover: var(--color-bg-brand-solid_hover);
@@ -1309,6 +1315,7 @@
         --ring-color-secondary: var(--color-border-secondary);
         --ring-color-secondary_alt: var(--color-border-secondary_alt);
         --ring-color-tertiary: var(--color-border-tertiary);
+        --ring-color-subtle: var(--color-border-subtle);
         --ring-color-brand: var(--color-border-brand);
         --ring-color-brand-solid: var(--color-bg-brand-solid);
         --ring-color-brand-solid_hover: var(--color-bg-brand-solid_hover);
@@ -1324,6 +1331,7 @@
         --outline-color-secondary: var(--color-border-secondary);
         --outline-color-secondary_alt: var(--color-border-secondary_alt);
         --outline-color-tertiary: var(--color-border-tertiary);
+        --outline-color-subtle: var(--color-border-subtle);
         --outline-color-disabled: var(--color-border-disabled);
         --outline-color-disabled_subtle: var(--color-border-disabled_subtle);
         --outline-color-brand: var(--color-border-brand);

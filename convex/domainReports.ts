@@ -253,7 +253,7 @@ export const collectReportDataInternal = internalQuery({
       else positionDistribution.pos100plus++;
     }
 
-    // Monitoring stats
+    // Monitoring stats — uses denormalized fields on keywords (zero keywordPositions reads)
     const sevenDaysAgoStr = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     let totalPosition = 0;
     let positionCount = 0;
@@ -266,40 +266,31 @@ export const collectReportDataInternal = internalQuery({
     const atRisk: Array<{ phrase: string; currentPosition: number; drop: number }> = [];
 
     for (const kw of activeKeywords.slice(0, 100)) {
-      const latestPos = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
-        .order("desc")
-        .first();
+      const currentPos = kw.currentPosition;
+      if (currentPos == null || currentPos <= 0) continue;
 
-      if (!latestPos?.position) continue;
-
-      totalPosition += latestPos.position;
+      totalPosition += currentPos;
       positionCount++;
 
       // Near page 1
-      if (latestPos.position >= 11 && latestPos.position <= 20) {
-        nearPage1.push({ phrase: kw.phrase, position: latestPos.position, searchVolume: latestPos.searchVolume ?? null });
+      if (currentPos >= 11 && currentPos <= 20) {
+        nearPage1.push({ phrase: kw.phrase, position: currentPos, searchVolume: kw.searchVolume ?? null });
       }
 
-      const oldPos = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", kw._id))
-        .filter((q) => q.lte(q.field("date"), sevenDaysAgoStr))
-        .order("desc")
-        .first();
+      // Use recentPositions for 7-day comparison
+      const recent = kw.recentPositions ?? [];
+      const oldEntry = recent.find((p) => p.date <= sevenDaysAgoStr);
+      if (!oldEntry?.position) continue;
 
-      if (!oldPos?.position) continue;
-
-      const change = oldPos.position - latestPos.position;
+      const change = oldEntry.position - currentPos;
       if (change > 0) {
         gainers++;
-        topPerformersGainers.push({ phrase: kw.phrase, oldPosition: oldPos.position, newPosition: latestPos.position, change });
+        topPerformersGainers.push({ phrase: kw.phrase, oldPosition: oldEntry.position, newPosition: currentPos, change });
       } else if (change < 0) {
         losers++;
-        topPerformersLosers.push({ phrase: kw.phrase, oldPosition: oldPos.position, newPosition: latestPos.position, change });
+        topPerformersLosers.push({ phrase: kw.phrase, oldPosition: oldEntry.position, newPosition: currentPos, change });
         if (change < -5) {
-          atRisk.push({ phrase: kw.phrase, currentPosition: latestPos.position, drop: Math.abs(change) });
+          atRisk.push({ phrase: kw.phrase, currentPosition: currentPos, drop: Math.abs(change) });
         }
       } else {
         stable++;

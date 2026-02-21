@@ -1,23 +1,151 @@
-import { query } from "./_generated/server";
+import { action, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { auth } from "./auth";
-import { Id } from "./_generated/dataModel";
+import { getSupabaseAdmin } from "./lib/supabase";
+import type { Id } from "./_generated/dataModel";
 
-// Get dashboard statistics for the current user's organization
-export const getStats = query({
+// ─── Types ────────────────────────────────────────────────────
+
+interface KeywordMeta {
+  id: string;
+  phrase: string;
+  domainId: string;
+  creationTime: number;
+}
+
+interface DomainMeta {
+  id: string;
+  domain: string;
+}
+
+interface UserKeywordMeta {
+  keywords: KeywordMeta[];
+  domains: DomainMeta[];
+  projectsCount: number;
+}
+
+interface StatsResult {
+  totalKeywords: number;
+  avgPosition: number | null;
+  positionChanges: number;
+  domainsCount: number;
+  projectsCount: number;
+  hasProjects: boolean;
+  hasDomains: boolean;
+  hasKeywords: boolean;
+}
+
+interface DistributionBucket {
+  range: string;
+  count: number;
+}
+
+interface KeywordChange {
+  keyword: string;
+  domain: string;
+  oldPosition: number;
+  newPosition: number;
+  change: number;
+  domainId: string;
+}
+
+interface ChangesResult {
+  gainers: KeywordChange[];
+  losers: KeywordChange[];
+}
+
+interface ActivityItem {
+  type: "keyword_added" | "domain_checked" | "position_change";
+  message: string;
+  timestamp: number;
+  keywordId?: string;
+  domainId?: string;
+}
+
+// ─── Internal helpers ─────────────────────────────────────────
+
+/**
+ * Get keyword and domain metadata for the current user's active keywords.
+ * Returns { keywords, domains, projectsCount } so actions can join with Supabase position data.
+ */
+export const _getUserKeywordMeta = internalQuery({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<UserKeywordMeta | null> => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) {
-      return null;
-    }
+    if (!userId) return null;
 
-    // Get user's first organization
     const membership = await ctx.db
       .query("organizationMembers")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
+    if (!membership) return null;
 
-    if (!membership) {
+    const teams = await ctx.db
+      .query("teams")
+      .withIndex("by_organization", (q) =>
+        q.eq("organizationId", membership.organizationId)
+      )
+      .collect();
+
+    const domains: Array<{ id: string; domain: string }> = [];
+    let projectsCount = 0;
+
+    for (const team of teams) {
+      const projects = await ctx.db
+        .query("projects")
+        .withIndex("by_team", (q) => q.eq("teamId", team._id))
+        .collect();
+      projectsCount += projects.length;
+
+      for (const project of projects) {
+        const domainDocs = await ctx.db
+          .query("domains")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect();
+        domains.push(...domainDocs.map((d) => ({ id: d._id, domain: d.domain })));
+      }
+    }
+
+    const keywords: Array<{
+      id: string;
+      phrase: string;
+      domainId: string;
+      creationTime: number;
+    }> = [];
+    for (const domain of domains) {
+      const kwDocs = await ctx.db
+        .query("keywords")
+        .withIndex("by_domain", (q) => q.eq("domainId", domain.id as Id<"domains">))
+        .filter((q) => q.eq(q.field("status"), "active"))
+        .collect();
+      keywords.push(
+        ...kwDocs.map((k) => ({
+          id: k._id,
+          phrase: k.phrase,
+          domainId: k.domainId,
+          creationTime: k._creationTime,
+        }))
+      );
+    }
+
+    return { keywords, domains, projectsCount };
+  },
+});
+
+// ─── Dashboard actions (Supabase-backed) ──────────────────────
+
+// Get dashboard statistics for the current user's organization
+export const getStats = action({
+  args: {},
+  handler: async (ctx): Promise<StatsResult | null> => {
+    const meta: UserKeywordMeta | null = await ctx.runQuery(internal.dashboard._getUserKeywordMeta);
+    if (!meta) {
+      return null;
+    }
+
+    const { keywords, domains, projectsCount } = meta;
+
+    if (domains.length === 0) {
       return {
         totalKeywords: 0,
         avgPosition: null,
@@ -30,143 +158,145 @@ export const getStats = query({
       };
     }
 
-    // Get all teams in the organization
-    const teams = await ctx.db
-      .query("teams")
-      .withIndex("by_organization", (q) => q.eq("organizationId", membership.organizationId))
-      .collect();
-
-    // Get all projects in those teams
-    let allProjects: any[] = [];
-    for (const team of teams) {
-      const projects = await ctx.db
-        .query("projects")
-        .withIndex("by_team", (q) => q.eq("teamId", team._id))
-        .collect();
-      allProjects = [...allProjects, ...projects];
+    const sb = getSupabaseAdmin();
+    if (!sb) {
+      // Graceful degradation: return metadata-only stats
+      return {
+        totalKeywords: keywords.length,
+        avgPosition: null,
+        positionChanges: 0,
+        domainsCount: domains.length,
+        projectsCount,
+        hasProjects: projectsCount > 0,
+        hasDomains: domains.length > 0,
+        hasKeywords: keywords.length > 0,
+      };
     }
 
-    // Get all domains in those projects
-    let allDomains: any[] = [];
-    for (const project of allProjects) {
-      const domains = await ctx.db
-        .query("domains")
-        .withIndex("by_project", (q) => q.eq("projectId", project._id))
-        .collect();
-      allDomains = [...allDomains, ...domains];
+    const domainIds = domains.map((d) => d.id);
+
+    // Fetch latest positions for all user keywords
+    const today = new Date();
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 14); // 14 days for 2-position comparison
+    const cutoffDate = sevenDaysAgo.toISOString().split("T")[0];
+
+    const { data, error } = await sb
+      .from("keyword_positions")
+      .select("convex_keyword_id, position, date")
+      .in("convex_domain_id", domainIds)
+      .gte("date", cutoffDate)
+      .order("date", { ascending: false });
+
+    if (error || !data) {
+      return {
+        totalKeywords: keywords.length,
+        avgPosition: null,
+        positionChanges: 0,
+        domainsCount: domains.length,
+        projectsCount,
+        hasProjects: projectsCount > 0,
+        hasDomains: domains.length > 0,
+        hasKeywords: keywords.length > 0,
+      };
     }
 
-    // Get all keywords in those domains
-    let allKeywords: any[] = [];
-    for (const domain of allDomains) {
-      const keywords = await ctx.db
-        .query("keywords")
-        .withIndex("by_domain", (q) => q.eq("domainId", domain._id))
-        .filter((q) => q.eq(q.field("status"), "active"))
-        .collect();
-      allKeywords = [...allKeywords, ...keywords];
+    // Deduplicate to latest 2 per keyword
+    const positionsByKeyword = new Map<string, Array<{ position: number | null; date: string }>>();
+    for (const row of data) {
+      const existing = positionsByKeyword.get(row.convex_keyword_id);
+      if (!existing) {
+        positionsByKeyword.set(row.convex_keyword_id, [{ position: row.position, date: row.date }]);
+      } else if (existing.length < 2) {
+        existing.push({ position: row.position, date: row.date });
+      }
     }
 
-    // Get latest positions and calculate stats
     let totalPositions = 0;
     let positionCount = 0;
     let positionChanges = 0;
+    const sevenDaysAgoStr = new Date(
+      today.getTime() - 7 * 24 * 60 * 60 * 1000
+    )
+      .toISOString()
+      .split("T")[0];
 
-    const today = new Date();
-    const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
-
-    for (const keyword of allKeywords) {
-      // Get latest two positions
-      const positions = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .order("desc")
-        .take(2);
-
+    for (const [, positions] of positionsByKeyword) {
       if (positions.length > 0 && positions[0].position !== null) {
         totalPositions += positions[0].position;
         positionCount++;
 
-        // Check for position change in last 7 days
-        if (positions.length > 1 && positions[1].position !== null) {
+        if (
+          positions.length > 1 &&
+          positions[1].position !== null &&
+          positions[0].date >= sevenDaysAgoStr
+        ) {
           const change = positions[1].position - positions[0].position;
-          if (change !== 0 && positions[0].date >= sevenDaysAgoStr) {
+          if (change !== 0) {
             positionChanges++;
           }
         }
       }
     }
 
-    const avgPosition = positionCount > 0 ? totalPositions / positionCount : null;
+    const avgPosition =
+      positionCount > 0 ? Math.round((totalPositions / positionCount) * 10) / 10 : null;
 
     return {
-      totalKeywords: allKeywords.length,
-      avgPosition: avgPosition ? Math.round(avgPosition * 10) / 10 : null,
+      totalKeywords: keywords.length,
+      avgPosition,
       positionChanges,
-      domainsCount: allDomains.length,
-      projectsCount: allProjects.length,
-      hasProjects: allProjects.length > 0,
-      hasDomains: allDomains.length > 0,
-      hasKeywords: allKeywords.length > 0,
+      domainsCount: domains.length,
+      projectsCount,
+      hasProjects: projectsCount > 0,
+      hasDomains: domains.length > 0,
+      hasKeywords: keywords.length > 0,
     };
   },
 });
 
 // Get position distribution for histogram chart
-export const getPositionDistribution = query({
+export const getPositionDistribution = action({
   args: {},
-  handler: async (ctx) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) {
-      return [];
+  handler: async (ctx): Promise<DistributionBucket[]> => {
+    const emptyBuckets: DistributionBucket[] = [
+      { range: "1-3", count: 0 },
+      { range: "4-10", count: 0 },
+      { range: "11-20", count: 0 },
+      { range: "21-50", count: 0 },
+      { range: "51-100", count: 0 },
+      { range: "100+", count: 0 },
+    ];
+
+    const meta: UserKeywordMeta | null = await ctx.runQuery(
+      internal.dashboard._getUserKeywordMeta
+    );
+    if (!meta) return emptyBuckets;
+
+    const domainIds = meta.domains.map((d) => d.id);
+    if (domainIds.length === 0) return emptyBuckets;
+
+    const sb = getSupabaseAdmin();
+    if (!sb) return emptyBuckets;
+
+    // Fetch all positions for the user's domains, ordered by date desc
+    const { data, error } = await sb
+      .from("keyword_positions")
+      .select("convex_keyword_id, position, date")
+      .in("convex_domain_id", domainIds)
+      .order("date", { ascending: false });
+
+    if (error || !data) return emptyBuckets;
+
+    // Deduplicate to latest per keyword
+    const latestByKeyword = new Map<string, number | null>();
+    for (const row of data) {
+      if (!latestByKeyword.has(row.convex_keyword_id)) {
+        latestByKeyword.set(row.convex_keyword_id, row.position);
+      }
     }
 
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .first();
-
-    if (!membership) {
-      return [];
-    }
-
-    const teams = await ctx.db
-      .query("teams")
-      .withIndex("by_organization", (q) => q.eq("organizationId", membership.organizationId))
-      .collect();
-
-    let allProjects: any[] = [];
-    for (const team of teams) {
-      const projects = await ctx.db
-        .query("projects")
-        .withIndex("by_team", (q) => q.eq("teamId", team._id))
-        .collect();
-      allProjects = [...allProjects, ...projects];
-    }
-
-    let allDomains: any[] = [];
-    for (const project of allProjects) {
-      const domains = await ctx.db
-        .query("domains")
-        .withIndex("by_project", (q) => q.eq("projectId", project._id))
-        .collect();
-      allDomains = [...allDomains, ...domains];
-    }
-
-    let allKeywords: any[] = [];
-    for (const domain of allDomains) {
-      const keywords = await ctx.db
-        .query("keywords")
-        .withIndex("by_domain", (q) => q.eq("domainId", domain._id))
-        .filter((q) => q.eq(q.field("status"), "active"))
-        .collect();
-      allKeywords = [...allKeywords, ...keywords];
-    }
-
-    // Count keywords in each position bucket
-    const buckets = {
+    const buckets: Record<string, number> = {
       "1-3": 0,
       "4-10": 0,
       "11-20": 0,
@@ -175,15 +305,8 @@ export const getPositionDistribution = query({
       "100+": 0,
     };
 
-    for (const keyword of allKeywords) {
-      const positions = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .order("desc")
-        .take(1);
-
-      if (positions.length > 0 && positions[0].position !== null) {
-        const pos = positions[0].position;
+    for (const [, pos] of latestByKeyword) {
+      if (pos !== null) {
         if (pos >= 1 && pos <= 3) buckets["1-3"]++;
         else if (pos >= 4 && pos <= 10) buckets["4-10"]++;
         else if (pos >= 11 && pos <= 20) buckets["11-20"]++;
@@ -205,83 +328,85 @@ export const getPositionDistribution = query({
 });
 
 // Get recent position changes (top gainers and losers)
-export const getRecentChanges = query({
+export const getRecentChanges = action({
   args: {},
-  handler: async (ctx) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) {
+  handler: async (ctx): Promise<ChangesResult> => {
+    const meta: UserKeywordMeta | null = await ctx.runQuery(internal.dashboard._getUserKeywordMeta);
+    if (!meta || meta.domains.length === 0) {
       return { gainers: [], losers: [] };
     }
 
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .first();
-
-    if (!membership) {
+    const sb = getSupabaseAdmin();
+    if (!sb) {
       return { gainers: [], losers: [] };
     }
 
-    const teams = await ctx.db
-      .query("teams")
-      .withIndex("by_organization", (q) => q.eq("organizationId", membership.organizationId))
-      .collect();
+    const domainIds = meta.domains.map((d) => d.id);
 
-    let allProjects: any[] = [];
-    for (const team of teams) {
-      const projects = await ctx.db
-        .query("projects")
-        .withIndex("by_team", (q) => q.eq("teamId", team._id))
-        .collect();
-      allProjects = [...allProjects, ...projects];
+    // Fetch positions from last 14 days to get at least 2 data points
+    const cutoffDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+
+    const { data, error } = await sb
+      .from("keyword_positions")
+      .select("convex_keyword_id, convex_domain_id, position, date")
+      .in("convex_domain_id", domainIds)
+      .gte("date", cutoffDate)
+      .order("date", { ascending: false });
+
+    if (error || !data) {
+      return { gainers: [], losers: [] };
     }
 
-    let allDomains: any[] = [];
-    for (const project of allProjects) {
-      const domains = await ctx.db
-        .query("domains")
-        .withIndex("by_project", (q) => q.eq("projectId", project._id))
-        .collect();
-      allDomains = [...allDomains, ...domains];
+    // Group latest 2 positions per keyword
+    const positionsByKeyword = new Map<
+      string,
+      Array<{ position: number | null; date: string; domainId: string }>
+    >();
+    for (const row of data) {
+      const existing = positionsByKeyword.get(row.convex_keyword_id);
+      if (!existing) {
+        positionsByKeyword.set(row.convex_keyword_id, [
+          { position: row.position, date: row.date, domainId: row.convex_domain_id },
+        ]);
+      } else if (existing.length < 2) {
+        existing.push({
+          position: row.position,
+          date: row.date,
+          domainId: row.convex_domain_id,
+        });
+      }
     }
 
-    type KeywordChange = {
-      keyword: string;
-      domain: string;
-      oldPosition: number;
-      newPosition: number;
-      change: number;
-      domainId: Id<"domains">;
-    };
+    // Build lookup maps for keyword phrases and domain names
+    const keywordMap = new Map<string, string>();
+    for (const kw of meta.keywords) {
+      keywordMap.set(kw.id, kw.phrase);
+    }
+    const domainMap = new Map<string, string>();
+    for (const d of meta.domains) {
+      domainMap.set(d.id, d.domain);
+    }
 
     const changes: KeywordChange[] = [];
 
-    for (const domain of allDomains) {
-      const keywords = await ctx.db
-        .query("keywords")
-        .withIndex("by_domain", (q) => q.eq("domainId", domain._id))
-        .filter((q) => q.eq(q.field("status"), "active"))
-        .collect();
-
-      for (const keyword of keywords) {
-        const positions = await ctx.db
-          .query("keywordPositions")
-          .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-          .order("desc")
-          .take(2);
-
-        if (positions.length >= 2 && positions[0].position !== null && positions[1].position !== null) {
-          const change = positions[1].position - positions[0].position; // Positive = improvement (lower position number)
-          if (change !== 0) {
-            changes.push({
-              keyword: keyword.phrase,
-              domain: domain.domain,
-              oldPosition: positions[1].position,
-              newPosition: positions[0].position,
-              change,
-              domainId: domain._id,
-            });
-          }
+    for (const [keywordId, positions] of positionsByKeyword) {
+      if (
+        positions.length >= 2 &&
+        positions[0].position !== null &&
+        positions[1].position !== null
+      ) {
+        const change = positions[1].position - positions[0].position;
+        if (change !== 0) {
+          changes.push({
+            keyword: keywordMap.get(keywordId) ?? "Unknown",
+            domain: domainMap.get(positions[0].domainId) ?? "Unknown",
+            oldPosition: positions[1].position,
+            newPosition: positions[0].position,
+            change,
+            domainId: positions[0].domainId,
+          });
         }
       }
     }
@@ -299,110 +424,94 @@ export const getRecentChanges = query({
 });
 
 // Get recent activity feed
-export const getRecentActivity = query({
+export const getRecentActivity = action({
   args: {},
-  handler: async (ctx) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) {
+  handler: async (ctx): Promise<ActivityItem[]> => {
+    const meta: UserKeywordMeta | null = await ctx.runQuery(internal.dashboard._getUserKeywordMeta);
+    if (!meta || meta.domains.length === 0) {
       return [];
     }
 
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .first();
+    const domainIds = meta.domains.map((d) => d.id);
 
-    if (!membership) {
-      return [];
+    // Build lookup maps
+    const keywordMap = new Map<string, { phrase: string; domainId: string }>();
+    for (const kw of meta.keywords) {
+      keywordMap.set(kw.id, { phrase: kw.phrase, domainId: kw.domainId });
     }
-
-    const teams = await ctx.db
-      .query("teams")
-      .withIndex("by_organization", (q) => q.eq("organizationId", membership.organizationId))
-      .collect();
-
-    let allProjects: any[] = [];
-    for (const team of teams) {
-      const projects = await ctx.db
-        .query("projects")
-        .withIndex("by_team", (q) => q.eq("teamId", team._id))
-        .collect();
-      allProjects = [...allProjects, ...projects];
+    const domainMap = new Map<string, string>();
+    for (const d of meta.domains) {
+      domainMap.set(d.id, d.domain);
     }
-
-    type ActivityItem = {
-      type: "keyword_added" | "domain_checked" | "position_change";
-      message: string;
-      timestamp: number;
-      keywordId?: Id<"keywords">;
-      domainId?: Id<"domains">;
-    };
 
     const activities: ActivityItem[] = [];
 
-    // Get recently added keywords
-    for (const project of allProjects) {
-      const domains = await ctx.db
-        .query("domains")
-        .withIndex("by_project", (q) => q.eq("projectId", project._id))
-        .collect();
-
-      for (const domain of domains) {
-        const keywords = await ctx.db
-          .query("keywords")
-          .withIndex("by_domain", (q) => q.eq("domainId", domain._id))
-          .order("desc")
-          .take(20);
-
-        for (const keyword of keywords) {
-          activities.push({
-            type: "keyword_added",
-            message: `Added keyword "${keyword.phrase}" to ${domain.domain}`,
-            timestamp: keyword._creationTime,
-            keywordId: keyword._id,
-            domainId: domain._id,
-          });
-        }
-      }
+    // Recently added keywords (from Convex metadata)
+    for (const kw of meta.keywords) {
+      const domainName = domainMap.get(kw.domainId) ?? "Unknown";
+      activities.push({
+        type: "keyword_added",
+        message: `Added keyword "${kw.phrase}" to ${domainName}`,
+        timestamp: kw.creationTime,
+        keywordId: kw.id,
+        domainId: kw.domainId,
+      });
     }
 
-    // Get recent position changes
-    const recentChanges = await ctx.db
-      .query("keywordPositions")
-      .order("desc")
-      .take(50);
+    // Recent position changes from Supabase
+    const sb = getSupabaseAdmin();
+    if (sb) {
+      const cutoffDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
 
-    for (const positionRecord of recentChanges) {
-      const keyword = await ctx.db.get(positionRecord.keywordId);
-      if (!keyword) continue;
+      const { data, error } = await sb
+        .from("keyword_positions")
+        .select("convex_keyword_id, convex_domain_id, position, date")
+        .in("convex_domain_id", domainIds)
+        .gte("date", cutoffDate)
+        .order("date", { ascending: false });
 
-      const domain = await ctx.db.get(keyword.domainId);
-      if (!domain) continue;
+      if (data && !error) {
+        // Group latest 2 per keyword to detect changes
+        const positionsByKeyword = new Map<
+          string,
+          Array<{ position: number | null; date: string }>
+        >();
+        for (const row of data) {
+          const existing = positionsByKeyword.get(row.convex_keyword_id);
+          if (!existing) {
+            positionsByKeyword.set(row.convex_keyword_id, [
+              { position: row.position, date: row.date },
+            ]);
+          } else if (existing.length < 2) {
+            existing.push({ position: row.position, date: row.date });
+          }
+        }
 
-      // Check if this domain belongs to user's organization
-      const project = await ctx.db.get(domain.projectId);
-      if (!project) continue;
+        for (const [keywordId, positions] of positionsByKeyword) {
+          if (
+            positions.length >= 2 &&
+            positions[0].position !== null &&
+            positions[1].position !== null
+          ) {
+            const change = positions[1].position - positions[0].position;
+            if (change !== 0) {
+              const kwMeta = keywordMap.get(keywordId);
+              const phrase = kwMeta?.phrase ?? "Unknown";
+              const domainName = kwMeta
+                ? domainMap.get(kwMeta.domainId) ?? "Unknown"
+                : "Unknown";
 
-      const team = await ctx.db.get(project.teamId);
-      if (!team || team.organizationId !== membership.organizationId) continue;
-
-      // Get previous position to detect changes
-      const positions = await ctx.db
-        .query("keywordPositions")
-        .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-        .order("desc")
-        .take(2);
-
-      if (positions.length >= 2 && positions[0].position !== null && positions[1].position !== null) {
-        const change = positions[1].position - positions[0].position;
-        if (change !== 0) {
-          activities.push({
-            type: "position_change",
-            message: `"${keyword.phrase}" ${change > 0 ? "improved" : "dropped"} ${Math.abs(change)} positions on ${domain.domain}`,
-            timestamp: positionRecord._creationTime,
-            keywordId: keyword._id,
-            domainId: domain._id,
-          });
+              activities.push({
+                type: "position_change",
+                message: `"${phrase}" ${change > 0 ? "improved" : "dropped"} ${Math.abs(change)} positions on ${domainName}`,
+                timestamp: new Date(positions[0].date).getTime(),
+                keywordId,
+                domainId: kwMeta?.domainId,
+              });
+            }
+          }
         }
       }
     }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useAnalyticsQuery } from "@/hooks/useAnalyticsQuery";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
@@ -27,12 +27,19 @@ const OWN_DOMAIN_COLOR = { className: "text-utility-gray-700", color: "#374151" 
 
 export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverviewChartProps) {
   const t = useTranslations('competitors');
-  const overview = useQuery(api.queries.competitors.getCompetitorOverview, {
+  const { data: overview, isLoading } = useAnalyticsQuery<{
+    data: Array<{
+      date: string;
+      ownAvgPosition: number | null;
+      competitors: Array<{ competitorId: string; avgPosition: number }>;
+    }>;
+    competitors: Array<{ id: string; name: string; domain: string }>;
+  } | null>(api.queries.competitors.getCompetitorOverview, {
     domainId,
     days,
   });
 
-  if (overview === undefined) {
+  if (isLoading) {
     return <LoadingState type="card" />;
   }
 

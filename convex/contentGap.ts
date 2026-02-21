@@ -4,7 +4,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { buildLocationParam } from "./dataforseoLocations";
 import { createDebugLogger } from "./lib/debugLogger";
-import { API_COSTS } from "./apiUsage";
+import { API_COSTS, extractApiCost } from "./apiUsage";
 
 // Sanitize a number that may be NaN/undefined/null to a safe default
 function safeNum(val: number | null | undefined, fallback: number): number {
@@ -126,7 +126,7 @@ export const analyzeContentGap = internalAction({
     await ctx.runMutation(internal.apiUsage.logApiUsage, {
       endpoint: "/dataforseo_labs/google/domain_intersection/live",
       taskCount: 1,
-      estimatedCost: API_COSTS.LABS_DOMAIN_INTERSECTION,
+      estimatedCost: extractApiCost(data, API_COSTS.LABS_DOMAIN_INTERSECTION),
       caller: "analyzeContentGap",
       domainId: args.domainId,
       metadata: JSON.stringify({ competitor: competitor.competitorDomain }),
@@ -187,52 +187,67 @@ export const analyzeContentGap = internalAction({
 
     // Batch create missing keywords (in chunks of 100 to stay within Convex limits)
     const CHUNK_SIZE = 100;
+    let keywordCreateErrors = 0;
     for (let i = 0; i < itemsNeedingKeyword.length; i += CHUNK_SIZE) {
       const chunk = itemsNeedingKeyword.slice(i, i + CHUNK_SIZE);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const created: (Id<"keywords"> | null)[] = await ctx.runMutation(internal.contentGap.createKeywordsBatch, {
-        domainId: args.domainId,
+      try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        keywords: chunk.map((item: any) => ({
-          phrase: (item.keyword_data?.keyword || "").toLowerCase().trim(),
-          searchVolume: item.keyword_data?.keyword_info?.search_volume || undefined,
-          difficulty: item.keyword_data?.keyword_properties?.keyword_difficulty || undefined,
-        })),
-      });
+        const created: (Id<"keywords"> | null)[] = await ctx.runMutation(internal.contentGap.createKeywordsBatch, {
+          domainId: args.domainId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          keywords: chunk.map((item: any) => ({
+            phrase: (item.keyword_data?.keyword || "").toLowerCase().trim(),
+            searchVolume: item.keyword_data?.keyword_info?.search_volume || undefined,
+            difficulty: item.keyword_data?.keyword_properties?.keyword_difficulty || undefined,
+          })),
+        });
 
-      // Map created keywords back to items
-      for (let j = 0; j < created.length; j++) {
-        if (created[j]) {
-          itemsWithKeyword.push({
-            item: chunk[j],
-            keywordId: created[j] as Id<"keywords">,
-          });
+        // Map created keywords back to items
+        for (let j = 0; j < created.length; j++) {
+          if (created[j]) {
+            itemsWithKeyword.push({
+              item: chunk[j],
+              keywordId: created[j] as Id<"keywords">,
+            });
+          }
         }
+      } catch (e) {
+        keywordCreateErrors += chunk.length;
+        console.error(`[analyzeContentGap] Failed to create keyword batch at offset ${i}:`, e);
       }
     }
 
     // Batch store content gap opportunities (in chunks)
     let stored = 0;
+    let storeErrors = 0;
     for (let i = 0; i < itemsWithKeyword.length; i += CHUNK_SIZE) {
       const chunk = itemsWithKeyword.slice(i, i + CHUNK_SIZE);
-      const count = await ctx.runMutation(internal.contentGap.storeContentGapOpportunitiesBatch, {
-        domainId: args.domainId,
-        competitorId: args.competitorId,
-        opportunities: chunk.map(({ item, keywordId }) => ({
-          keywordId,
-          keyword: item.keyword_data?.keyword || "",
-          searchVolume: item.keyword_data?.keyword_info?.search_volume || 0,
-          difficulty: item.keyword_data?.keyword_properties?.keyword_difficulty || 0,
-          competitorPosition: item.first_domain_serp_element?.rank_absolute || item.first_domain_serp_element?.rank_group || 0,
-          competitorUrl: item.first_domain_serp_element?.url || "",
-          estimatedTrafficValue: Math.round((item.keyword_data?.keyword_info?.search_volume || 0) * 0.3),
-        })),
-      });
-      stored += count;
+      try {
+        const count = await ctx.runMutation(internal.contentGap.storeContentGapOpportunitiesBatch, {
+          domainId: args.domainId,
+          competitorId: args.competitorId,
+          opportunities: chunk.map(({ item, keywordId }) => ({
+            keywordId,
+            keyword: item.keyword_data?.keyword || "",
+            searchVolume: item.keyword_data?.keyword_info?.search_volume || 0,
+            difficulty: item.keyword_data?.keyword_properties?.keyword_difficulty || 0,
+            competitorPosition: item.first_domain_serp_element?.rank_absolute || item.first_domain_serp_element?.rank_group || 0,
+            competitorUrl: item.first_domain_serp_element?.url || "",
+            estimatedTrafficValue: Math.round((item.keyword_data?.keyword_info?.search_volume || 0) * 0.3),
+          })),
+        });
+        stored += count;
+      } catch (e) {
+        storeErrors += chunk.length;
+        console.error(`[analyzeContentGap] Failed to store gap batch at offset ${i}:`, e);
+      }
     }
 
+    if (keywordCreateErrors > 0 || storeErrors > 0) {
+      console.warn(`[analyzeContentGap] Partial failure: ${keywordCreateErrors} keyword creates failed, ${storeErrors} opportunity stores failed`);
+    }
     console.log(`[analyzeContentGap] Stored ${stored} content gap opportunities`);
-    return { opportunitiesFound: stored };
+    return { opportunitiesFound: stored, partialFailure: keywordCreateErrors > 0 || storeErrors > 0 };
   },
 });
 

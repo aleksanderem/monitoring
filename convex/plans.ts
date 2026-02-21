@@ -118,9 +118,10 @@ export const updatePlan = mutation({
     if (!plan) throw new Error("Plan nie istnieje");
 
     if (args.key && args.key !== plan.key) {
+      const newKey = args.key;
       const existing = await ctx.db
         .query("plans")
-        .withIndex("by_key", (q) => q.eq("key", args.key))
+        .withIndex("by_key", (q) => q.eq("key", newKey))
         .unique();
       if (existing) throw new Error("Plan z takim kluczem już istnieje");
     }

@@ -38,11 +38,11 @@ export function PagesIssueModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-[5vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-overlay/70 p-4 pt-[5vh]"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-3xl rounded-2xl bg-primary shadow-xl"
+        className="w-full max-w-3xl rounded-2xl bg-primary dark:bg-[#1f2530] shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

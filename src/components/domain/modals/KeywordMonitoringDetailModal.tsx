@@ -9,6 +9,7 @@ import { KeywordPositionChart } from "../charts/KeywordPositionChart";
 import { MonthlySearchTrendChart } from "../charts/MonthlySearchTrendChart";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import { useAnalyticsQuery } from "@/hooks/useAnalyticsQuery";
 import { toast } from "sonner";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { CreateCompetitorReportModal } from "./CreateCompetitorReportModal";
@@ -34,10 +35,13 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
   const [isAddingCompetitors, setIsAddingCompetitors] = useState(false);
   const [isCompetitorReportModalOpen, setIsCompetitorReportModalOpen] = useState(false);
 
-  // Fetch full position history from keywordPositions table (not just 7-entry sparkline)
-  const fullPositionHistory = useQuery(
+  // Fetch full position history from Supabase (not just 7-entry sparkline)
+  const { data: fullPositionHistory, isLoading: isHistoryLoading } = useAnalyticsQuery<
+    Array<{ date: number; position: number }>
+  >(
     api.keywords.getPositionHistory,
-    keyword?.keywordId ? { keywordId: keyword.keywordId } : "skip"
+    { keywordId: keyword?.keywordId },
+    { enabled: !!keyword?.keywordId }
   );
 
   // Fetch SERP results for this keyword (show top 20 instead of 10)
@@ -92,13 +96,13 @@ export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: Keywo
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-overlay/70 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
       <div className="relative z-10 w-full max-w-6xl max-h-[90vh] overflow-y-auto mx-4">
-        <div className="relative rounded-xl border border-secondary bg-primary shadow-xl">
+        <div className="relative rounded-xl border border-secondary bg-primary dark:bg-[#1f2530] shadow-xl">
           <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
           {/* Header */}
           <div className="flex items-center justify-between border-b border-secondary p-6">

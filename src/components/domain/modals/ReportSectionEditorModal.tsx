@@ -250,7 +250,7 @@ export function ReportSectionEditorModal({
     <ModalOverlay isOpen={isOpen} onOpenChange={handleOpenChange} isDismissable>
       <Modal>
         <Dialog className="overflow-hidden">
-          <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-md">
+          <div className="relative w-full overflow-hidden rounded-xl bg-primary dark:bg-[#1f2530] shadow-xl sm:max-w-md">
             <CloseButton
               onClick={onClose}
               theme="light"

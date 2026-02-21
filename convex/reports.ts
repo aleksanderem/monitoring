@@ -1,7 +1,9 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { action, internalQuery, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { auth } from "./auth";
 import { requirePermission, getOrgFromProject, requireTenantAccess } from "./permissions";
+import { getSupabaseAdmin } from "./lib/supabase";
 
 // Generate random token
 function generateToken(): string {
@@ -51,7 +53,7 @@ export const getReportByToken = query({
       report.settings.domainsIncluded.map((id) => ctx.db.get(id))
     );
 
-    // Get keywords for each domain
+    // Get keywords for each domain — uses denormalized fields (no keywordPositions reads)
     const domainsWithKeywords = await Promise.all(
       domains.filter(Boolean).map(async (domain) => {
         const keywords = await ctx.db
@@ -60,37 +62,20 @@ export const getReportByToken = query({
           .filter((q) => q.eq(q.field("status"), "active"))
           .collect();
 
-        // Get latest position for each keyword
-        const keywordsWithPositions = await Promise.all(
-          keywords.map(async (keyword) => {
-            const positions = await ctx.db
-              .query("keywordPositions")
-              .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-              .order("desc")
-              .take(2);
-
-            const current = positions[0];
-            const previous = positions[1];
-
-            return {
-              _id: keyword._id,
-              phrase: keyword.phrase,
-              position: current?.position ?? null,
-              url: current?.url ?? null,
-              searchVolume: report.settings.showSearchVolume
-                ? current?.searchVolume
-                : undefined,
-              difficulty: report.settings.showDifficulty
-                ? current?.difficulty
-                : undefined,
-              change:
-                current?.position && previous?.position
-                  ? previous.position - current.position
-                  : null,
-              lastUpdated: current?.fetchedAt,
-            };
-          })
-        );
+        const keywordsWithPositions = keywords.map((keyword) => ({
+          _id: keyword._id,
+          phrase: keyword.phrase,
+          position: keyword.currentPosition ?? null,
+          url: keyword.currentUrl ?? null,
+          searchVolume: report.settings.showSearchVolume
+            ? keyword.searchVolume ?? undefined
+            : undefined,
+          difficulty: report.settings.showDifficulty
+            ? keyword.difficulty ?? undefined
+            : undefined,
+          change: keyword.positionChange ?? null,
+          lastUpdated: keyword.positionUpdatedAt ?? undefined,
+        }));
 
         return {
           ...domain,
@@ -392,8 +377,6 @@ export const createShareLink = mutation({
 export const getPublicReportData = query({
   args: {
     token: v.string(),
-    from: v.optional(v.number()),
-    to: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const report = await ctx.db
@@ -472,47 +455,29 @@ export const getPublicReportData = query({
           };
         });
 
-        // Fetch position history for chart + trackingSince in a single pass
+        // trackingSince: use earliest keyword creation time (no keywordPositions reads)
         let trackingSince: number | null = null;
-        const positionHistory: Array<{
-          date: string;
-          position: number;
-        }> = [];
-
-        for (const keyword of keywords) {
-          const positions = await ctx.db
-            .query("keywordPositions")
-            .withIndex("by_keyword", (q) => q.eq("keywordId", keyword._id))
-            .collect();
-
-          for (const pos of positions) {
-            const posTime = pos.fetchedAt ?? pos._creationTime;
-
-            // Track earliest record
-            if (trackingSince === null || posTime < trackingSince) {
-              trackingSince = posTime;
-            }
-
-            // Collect for chart within date range
-            if (pos.position !== null && args.from && args.to
-              && posTime >= args.from && posTime <= args.to) {
-              positionHistory.push({
-                date: pos.date,
-                position: pos.position,
-              });
-            }
+        for (const kw of keywords) {
+          const kwTime = kw.createdAt ?? kw._creationTime;
+          if (trackingSince === null || kwTime < trackingSince) {
+            trackingSince = kwTime;
           }
         }
 
-        // Aggregate position history into daily averages for the chart
+        // Chart data built from denormalized recentPositions (last 7 entries per keyword).
+        // For full historical range, frontend can use getPublicReportChartData action.
         const dailyMap = new Map<string, { sum: number; count: number }>();
-        for (const entry of positionHistory) {
-          const existing = dailyMap.get(entry.date);
-          if (existing) {
-            existing.sum += entry.position;
-            existing.count += 1;
-          } else {
-            dailyMap.set(entry.date, { sum: entry.position, count: 1 });
+        for (const kw of keywords) {
+          const recent = kw.recentPositions ?? [];
+          for (const entry of recent) {
+            if (entry.position == null) continue;
+            const existing = dailyMap.get(entry.date);
+            if (existing) {
+              existing.sum += entry.position;
+              existing.count += 1;
+            } else {
+              dailyMap.set(entry.date, { sum: entry.position, count: 1 });
+            }
           }
         }
 
@@ -590,5 +555,97 @@ export const regenerateToken = mutation({
     const newToken = generateToken();
     await ctx.db.patch(args.reportId, { token: newToken });
     return newToken;
+  },
+});
+
+// ─── Internal query: get report by token (for actions, no auth required) ─────
+
+export const getReportByTokenInternal = internalQuery({
+  args: { token: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("reports")
+      .withIndex("by_token", (q) => q.eq("token", args.token))
+      .unique();
+  },
+});
+
+// ─── Supabase-backed position history for public report charts ──────────────
+// Called by the frontend separately from getPublicReportData.
+// No auth required (public via token), but validates the token exists.
+export const getPublicReportChartData = action({
+  args: {
+    token: v.string(),
+    from: v.string(),  // YYYY-MM-DD
+    to: v.string(),    // YYYY-MM-DD
+  },
+  handler: async (ctx, args): Promise<{
+    domains: Array<{
+      domainId: string;
+      chartData: Array<{ date: string; avgPosition: number; keywordCount: number }>;
+    }>;
+  } | null> => {
+    // Validate token
+    const report = await ctx.runQuery(internal.reports.getReportByTokenInternal, {
+      token: args.token,
+    });
+    if (!report) return null;
+    if (report.expiresAt && report.expiresAt < Date.now()) return null;
+
+    const sb = getSupabaseAdmin();
+    if (!sb) {
+      // Supabase not configured — return empty chart data
+      return {
+        domains: report.settings.domainsIncluded.map((id: string) => ({
+          domainId: id,
+          chartData: [],
+        })),
+      };
+    }
+
+    const results: Array<{
+      domainId: string;
+      chartData: Array<{ date: string; avgPosition: number; keywordCount: number }>;
+    }> = [];
+
+    for (const domainId of report.settings.domainsIncluded) {
+      const { data, error } = await sb
+        .from("keyword_positions")
+        .select("date, position")
+        .eq("convex_domain_id", domainId)
+        .gte("date", args.from)
+        .lte("date", args.to)
+        .not("position", "is", null);
+
+      if (error) {
+        console.warn("[Reports] Supabase chart query failed:", error.message);
+        results.push({ domainId, chartData: [] });
+        continue;
+      }
+
+      // Aggregate into daily averages
+      const dailyMap = new Map<string, { sum: number; count: number }>();
+      for (const row of data ?? []) {
+        const existing = dailyMap.get(row.date);
+        if (existing) {
+          existing.sum += row.position;
+          existing.count += 1;
+        } else {
+          dailyMap.set(row.date, { sum: row.position, count: 1 });
+        }
+      }
+
+      const chartData = Array.from(dailyMap.entries())
+        .map(([date, { sum, count }]) => ({
+          date,
+          avgPosition: Math.round((sum / count) * 10) / 10,
+          keywordCount: count,
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      results.push({ domainId, chartData });
+    }
+
+    return { domains: results };
   },
 });

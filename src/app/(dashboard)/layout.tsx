@@ -20,6 +20,7 @@ import { SidebarUsageIndicator } from "@/components/domain/SidebarUsageIndicator
 import { AlertFullWidth } from "@/components/application/alerts/alerts";
 import { PermissionsProvider } from "@/contexts/PermissionsContext";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useTranslations } from "next-intl";
 import type { Id } from "../../../convex/_generated/dataModel";
 
@@ -131,7 +132,9 @@ export default function DashboardLayout({
               actionType="button"
             />
           )}
-          {children}
+          <ErrorBoundary label="Page">
+            {children}
+          </ErrorBoundary>
         </main>
 
         {/* Global job status indicator */}

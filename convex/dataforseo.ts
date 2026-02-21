@@ -4,13 +4,40 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { buildLocationParam } from "./dataforseoLocations";
 import { createDebugLogger } from "./lib/debugLogger";
-import { API_COSTS } from "./apiUsage";
+import { API_COSTS, extractApiCost } from "./apiUsage";
 import { checkKeywordLimit } from "./limits";
 import { auth } from "./auth";
 import { requireTenantAccess } from "./permissions";
+import { writeKeywordPositions, type KeywordPositionRow } from "./lib/supabase";
 
 // DataForSEO API configuration
 const DATAFORSEO_API_URL = "https://api.dataforseo.com/v3";
+
+// Retry helper for transient API failures (network errors, 5xx)
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 2,
+): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      // Don't retry client errors (4xx) - only retry server errors (5xx)
+      if (response.ok || (response.status >= 400 && response.status < 500)) {
+        return response;
+      }
+      lastError = new Error(`API error: ${response.status}`);
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+    }
+    if (attempt < maxRetries) {
+      // Exponential backoff: 1s, 2s
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+    }
+  }
+  throw lastError ?? new Error("fetchWithRetry failed");
+}
 
 interface SerpResult {
   keyword: string;
@@ -99,11 +126,11 @@ export const fetchSinglePositionInternal = internalAction({
         language_code: args.language,
         device: "desktop",
         os: "windows",
-        depth: 100,
+        depth: 30,
       }];
 
       const data = await debug.logStep("serp_live", serpRequest[0], async () => {
-        const response = await fetch(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
+        const response = await fetchWithRetry(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
           method: "POST",
           headers: {
             "Authorization": `Basic ${authHeader}`,
@@ -123,7 +150,7 @@ export const fetchSinglePositionInternal = internalAction({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/serp/google/organic/live/advanced",
         taskCount: 1,
-        estimatedCost: API_COSTS.SERP_LIVE_ADVANCED,
+        estimatedCost: extractApiCost(data, API_COSTS.SERP_LIVE_ADVANCED),
         caller: "fetchSinglePositionInternal",
       });
 
@@ -143,7 +170,7 @@ export const fetchSinglePositionInternal = internalAction({
       try {
         const svRequestBody = [{ keywords: [args.phrase], ...buildLocationParam(args.location), language_code: args.language }];
         const svData = await debug.logStep("search_volume", svRequestBody[0], async () => {
-          const keywordsDataResponse = await fetch(`${DATAFORSEO_API_URL}/keywords_data/google/search_volume/live`, {
+          const keywordsDataResponse = await fetchWithRetry(`${DATAFORSEO_API_URL}/keywords_data/google/search_volume/live`, {
             method: "POST",
             headers: {
               "Authorization": `Basic ${authHeader}`,
@@ -161,7 +188,7 @@ export const fetchSinglePositionInternal = internalAction({
           await ctx.runMutation(internal.apiUsage.logApiUsage, {
             endpoint: "/keywords_data/google/search_volume/live",
             taskCount: 1,
-            estimatedCost: API_COSTS.KEYWORDS_DATA_SEARCH_VOLUME,
+            estimatedCost: extractApiCost(svData, API_COSTS.KEYWORDS_DATA_SEARCH_VOLUME),
             caller: "fetchSinglePositionInternal",
           });
           if (svData.tasks?.[0]?.result?.[0]) {
@@ -205,173 +232,6 @@ export const fetchSinglePositionInternal = internalAction({
   },
 });
 
-// Fetch position for a single keyword
-export const fetchSinglePosition = action({
-  args: {
-    keywordId: v.id("keywords"),
-    phrase: v.string(),
-    domain: v.string(),
-    location: v.string(),
-    language: v.string(),
-    fetchHistoryIfEmpty: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args): Promise<{ success: boolean; error?: string; position?: number | null; historyDates?: string[]; fetchHistoryIfEmpty?: boolean }> => {
-    const login = process.env.DATAFORSEO_LOGIN;
-    const password = process.env.DATAFORSEO_PASSWORD;
-    const today = new Date().toISOString().split("T")[0];
-
-    if (!login || !password) {
-      // Mock data for dev mode
-      const position = Math.random() > 0.05 ? Math.floor(Math.random() * 50) + 1 : null;
-
-      await ctx.runMutation(internal.dataforseo.storePositionInternal, {
-        keywordId: args.keywordId,
-        date: today,
-        position,
-        url: position ? `https://${args.domain}/page-${Math.floor(Math.random() * 10)}` : null,
-        searchVolume: Math.floor(Math.random() * 10000),
-        difficulty: Math.floor(Math.random() * 100),
-      });
-
-      // Fetch history directly (inline, not via runAction)
-      let historyDates: string[] = [];
-      if (args.fetchHistoryIfEmpty) {
-        const now = new Date();
-        for (let i = 1; i <= 6; i++) {
-          const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          historyDates.push(date.toISOString().split("T")[0]);
-        }
-
-        const basePosition = Math.floor(Math.random() * 30) + 5;
-        for (const date of historyDates) {
-          const variance = Math.floor(Math.random() * 10) - 5;
-          const histPosition = Math.random() > 0.1
-            ? Math.max(1, basePosition + variance)
-            : null;
-
-          await ctx.runMutation(internal.dataforseo.storePositionInternal, {
-            keywordId: args.keywordId,
-            date,
-            position: histPosition,
-            url: histPosition ? `https://${args.domain}/page` : null,
-            searchVolume: Math.floor(Math.random() * 5000) + 500,
-          });
-        }
-      }
-
-      return { success: true, position, historyDates, fetchHistoryIfEmpty: args.fetchHistoryIfEmpty };
-    }
-
-    try {
-      const authHeader = btoa(`${login}:${password}`);
-
-      const response = await fetch(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Basic ${authHeader}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify([{
-          keyword: args.phrase,
-          ...buildLocationParam(args.location),
-          language_code: args.language,
-          device: "desktop",
-          os: "windows",
-          depth: 100,
-        }]),
-      });
-
-      if (!response.ok) {
-        return { success: false, error: `API error: ${response.status}` };
-      }
-
-      const data = await response.json();
-
-      await ctx.runMutation(internal.apiUsage.logApiUsage, {
-        endpoint: "/serp/google/organic/live/advanced",
-        taskCount: 1,
-        estimatedCost: 1 * API_COSTS.SERP_LIVE_ADVANCED,
-        caller: "fetchSinglePosition",
-      });
-
-      if (data.status_code !== 20000 || !data.tasks?.[0]?.result?.[0]?.items) {
-        return { success: false, error: data.status_message || "No results" };
-      }
-
-      const items = data.tasks[0].result[0].items;
-      const domainMatch = items.find((item: any) =>
-        item.type === "organic" && item.url?.includes(args.domain)
-      );
-
-      const position = domainMatch?.rank_absolute || null;
-
-      // Get keyword difficulty from Keywords Data API
-      let difficulty: number | undefined;
-      try {
-        const keywordsDataResponse = await fetch(`${DATAFORSEO_API_URL}/keywords_data/google/search_volume/live`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Basic ${authHeader}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify([{
-            keywords: [args.phrase],
-            ...buildLocationParam(args.location),
-            language_code: args.language,
-          }]),
-        });
-
-        if (keywordsDataResponse.ok) {
-          const keywordsData = await keywordsDataResponse.json();
-
-          await ctx.runMutation(internal.apiUsage.logApiUsage, {
-            endpoint: "/keywords_data/google/search_volume/live",
-            taskCount: 1,
-            estimatedCost: 1 * API_COSTS.KEYWORDS_DATA_SEARCH_VOLUME,
-            caller: "fetchSinglePosition",
-          });
-
-          if (keywordsData.status_code === 20000 && keywordsData.tasks?.[0]?.result?.[0]) {
-            difficulty = keywordsData.tasks[0].result[0].keyword_info?.keyword_difficulty;
-          }
-        }
-      } catch (e) {
-        console.log("Failed to fetch keyword difficulty:", e);
-      }
-
-      await ctx.runMutation(internal.dataforseo.storePositionInternal, {
-        keywordId: args.keywordId,
-        date: today,
-        position,
-        url: domainMatch?.url || null,
-        searchVolume: data.tasks[0].result[0].search_volume,
-        difficulty,
-      });
-
-      // Fetch history if requested (always, for testing)
-      if (args.fetchHistoryIfEmpty) {
-        console.log("Calling fetchHistoricalPositionsInternal...");
-        await ctx.runAction(internal.dataforseo.fetchHistoricalPositionsInternal, {
-          keywordId: args.keywordId,
-          phrase: args.phrase,
-          domain: args.domain,
-          location: args.location,
-          language: args.language,
-          months: 6,
-        });
-        console.log("fetchHistoricalPositionsInternal completed");
-      }
-
-      return { success: true, position };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to fetch position"
-      };
-    }
-  },
-});
-
 // Check if keyword has historical positions
 export const checkKeywordHasHistory = internalQuery({
   args: { keywordId: v.id("keywords") },
@@ -381,6 +241,18 @@ export const checkKeywordHasHistory = internalQuery({
       .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
       .take(3);
     return positions.length >= 2;
+  },
+});
+
+// Internal query: return dates that already have stored positions for a keyword
+export const getExistingPositionDates = internalQuery({
+  args: { keywordId: v.id("keywords") },
+  handler: async (ctx, args): Promise<string[]> => {
+    const positions = await ctx.db
+      .query("keywordPositions")
+      .withIndex("by_keyword", (q) => q.eq("keywordId", args.keywordId))
+      .collect();
+    return positions.map((p) => p.date);
   },
 });
 
@@ -454,18 +326,29 @@ export const fetchPositions = action({
           language_code: args.language,
           device: "desktop",
           os: "windows",
-          depth: 100,
+          depth: 30,
         }];
 
-        // Post SERP task
-        const response = await fetch(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Basic ${authHeader}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(task),
-        });
+        // Post SERP task (with retry for transient failures)
+        let response: Response;
+        try {
+          response = await fetchWithRetry(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Basic ${authHeader}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(task),
+          });
+        } catch (e) {
+          console.error(`[fetchPositions] API error for ${keywordInfo.phrase}:`, e);
+          results.push({
+            keyword: keywordInfo.phrase,
+            position: null,
+            url: null,
+          });
+          continue;
+        }
 
         if (!response.ok) {
           console.error(`[fetchPositions] API error for ${keywordInfo.phrase}:`, response.status);
@@ -482,7 +365,7 @@ export const fetchPositions = action({
         await ctx.runMutation(internal.apiUsage.logApiUsage, {
           endpoint: "/serp/google/organic/live/advanced",
           taskCount: 1,
-          estimatedCost: 1 * API_COSTS.SERP_LIVE_ADVANCED,
+          estimatedCost: extractApiCost(data, API_COSTS.SERP_LIVE_ADVANCED),
           caller: "fetchPositions",
           domainId: args.domainId,
         });
@@ -695,12 +578,12 @@ export const fetchPositionsInternal = internalAction({
         language_code: args.language,
         device: "desktop",
         os: "windows",
-        depth: 100,
+        depth: 30,
       }));
 
       const authHeader = btoa(`${login}:${password}`);
 
-      const response = await fetch(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
+      const response = await fetchWithRetry(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
         method: "POST",
         headers: {
           "Authorization": `Basic ${authHeader}`,
@@ -719,7 +602,7 @@ export const fetchPositionsInternal = internalAction({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/serp/google/organic/live/advanced",
         taskCount: tasks.length,
-        estimatedCost: tasks.length * API_COSTS.SERP_LIVE_ADVANCED,
+        estimatedCost: extractApiCost(data, tasks.length * API_COSTS.SERP_LIVE_ADVANCED),
         caller: "fetchPositionsInternal",
         domainId: args.domainId,
         metadata: JSON.stringify({ keywordCount: args.keywords.length }),
@@ -728,6 +611,9 @@ export const fetchPositionsInternal = internalAction({
       if (data.status_code !== 20000) {
         return { success: false, error: data.status_message };
       }
+
+      // Collect positions for Supabase dual-write
+      const supabaseRows: KeywordPositionRow[] = [];
 
       for (let i = 0; i < data.tasks.length; i++) {
         const task = data.tasks[i];
@@ -740,6 +626,13 @@ export const fetchPositionsInternal = internalAction({
             position: null,
             url: null,
           });
+          supabaseRows.push({
+            convex_domain_id: args.domainId,
+            convex_keyword_id: keywordInfo.id,
+            date: today,
+            position: null,
+            url: null,
+          });
           continue;
         }
 
@@ -748,32 +641,46 @@ export const fetchPositionsInternal = internalAction({
           item.type === "organic" && item.url?.includes(args.domain)
         );
 
+        const position = domainMatch?.rank_absolute || null;
+        const url = domainMatch?.url || null;
+        const searchVolume = task.result[0].search_volume;
+
         await ctx.runMutation(internal.dataforseo.storePositionInternal, {
           keywordId: keywordInfo.id,
           date: today,
-          position: domainMatch?.rank_absolute || null,
-          url: domainMatch?.url || null,
-          searchVolume: task.result[0].search_volume,
+          position,
+          url,
+          searchVolume,
+        });
+
+        supabaseRows.push({
+          convex_domain_id: args.domainId,
+          convex_keyword_id: keywordInfo.id,
+          date: today,
+          position,
+          url,
+          search_volume: searchVolume,
         });
       }
 
-      // Fetch difficulty for keywords that don't have it yet
-      const keywordsNeedingDifficulty = await Promise.all(
-        args.keywords.map(async (kw) => {
-          const keyword = await ctx.runQuery(internal.dataforseo.getKeywordInternal, {
-            keywordId: kw.id,
-          });
-          return keyword && keyword.difficulty === undefined ? kw : null;
-        })
+      // Dual-write: batch upsert all positions to Supabase (non-blocking)
+      writeKeywordPositions(supabaseRows).catch((err) =>
+        console.warn("[Supabase dual-write] keyword positions failed:", err)
       );
 
-      const validKeywords = keywordsNeedingDifficulty.filter((kw): kw is { id: Id<"keywords">; phrase: string } => kw !== null);
+      // Fetch difficulty for keywords that don't have it yet (single batch query)
+      const keywordsMissingDifficulty = await ctx.runQuery(
+        internal.dataforseo.getKeywordsMissingDifficulty,
+        { keywordIds: args.keywords.map(kw => kw.id) }
+      );
+      const missingDifficultySet = new Set(keywordsMissingDifficulty);
+      const validKeywords = args.keywords.filter(kw => missingDifficultySet.has(kw.id));
 
       if (validKeywords.length > 0) {
         console.log(`[fetchPositionsInternal] Fetching difficulty for ${validKeywords.length} keywords`);
 
-        // Fetch keyword metrics including difficulty
-        const metricsResponse = await fetch(`${DATAFORSEO_API_URL}/keywords_data/google_ads/search_volume/live`, {
+        // Fetch keyword metrics including difficulty (with retry)
+        const metricsResponse = await fetchWithRetry(`${DATAFORSEO_API_URL}/keywords_data/google_ads/search_volume/live`, {
           method: "POST",
           headers: {
             "Authorization": `Basic ${authHeader}`,
@@ -793,7 +700,7 @@ export const fetchPositionsInternal = internalAction({
           await ctx.runMutation(internal.apiUsage.logApiUsage, {
             endpoint: "/keywords_data/google_ads/search_volume/live",
             taskCount: 1,
-            estimatedCost: API_COSTS.KEYWORDS_DATA_GOOGLE_ADS,
+            estimatedCost: extractApiCost(metricsData, API_COSTS.KEYWORDS_DATA_GOOGLE_ADS),
             caller: "fetchPositionsInternal",
             domainId: args.domainId,
             metadata: JSON.stringify({ keywordsQueried: validKeywords.length }),
@@ -801,16 +708,22 @@ export const fetchPositionsInternal = internalAction({
 
           if (metricsData.status_code === 20000 && metricsData.tasks?.[0]?.result) {
             const results = metricsData.tasks[0].result;
-
+            // Batch store all difficulty updates in a single mutation
+            const updates: Array<{ keywordId: Id<"keywords">; searchVolume?: number; difficulty?: number }> = [];
             for (const result of results) {
               const keywordInfo = validKeywords.find(kw => kw.phrase === result.keyword);
               if (keywordInfo) {
-                await ctx.runMutation(internal.dataforseo.updateKeywordMetricsInternal, {
+                updates.push({
                   keywordId: keywordInfo.id,
                   searchVolume: result.search_volume,
                   difficulty: result.competition ? Math.round(result.competition * 100) : undefined,
                 });
               }
+            }
+            if (updates.length > 0) {
+              await ctx.runMutation(internal.dataforseo.updateKeywordMetricsBatch, {
+                updates,
+              });
             }
           }
         }
@@ -827,136 +740,6 @@ export const fetchPositionsInternal = internalAction({
   },
 });
 
-// Batch fetch historical positions for multiple keywords
-export const fetchHistoricalBatch = internalAction({
-  args: {
-    keywords: v.array(v.object({
-      keywordId: v.id("keywords"),
-      phrase: v.string(),
-    })),
-    domain: v.string(),
-    location: v.string(),
-    language: v.string(),
-    months: v.number(),
-  },
-  handler: async (ctx, args): Promise<void> => {
-    const login = process.env.DATAFORSEO_LOGIN;
-    const password = process.env.DATAFORSEO_PASSWORD;
-
-    // Generate dates for the past X months
-    const dates: string[] = [];
-    const now = new Date();
-    for (let i = 0; i < args.months; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      dates.push(date.toISOString().split("T")[0]);
-    }
-
-    if (!login || !password) {
-      // Mock data for dev mode
-      for (const kw of args.keywords) {
-        const basePosition = Math.floor(Math.random() * 30) + 5;
-
-        for (let idx = 0; idx < dates.length; idx++) {
-          const date = dates[idx];
-          const variance = Math.floor(Math.random() * 10) - 5;
-          const position = Math.random() > 0.1
-            ? Math.max(1, basePosition + (args.months - idx) * 2 + variance)
-            : null;
-
-          await ctx.runMutation(internal.dataforseo.storePositionInternal, {
-            keywordId: kw.keywordId,
-            date,
-            position,
-            url: position ? `https://${args.domain}/page` : null,
-            searchVolume: Math.floor(Math.random() * 5000) + 500,
-          });
-        }
-      }
-      return;
-    }
-
-    try {
-      const authHeader = btoa(`${login}:${password}`);
-
-      // Build mega-batch: all keywords × all dates
-      const tasks: any[] = [];
-      const taskMapping: Array<{ keywordId: Id<"keywords">; date: string }> = [];
-
-      for (const kw of args.keywords) {
-        for (const date of dates) {
-          tasks.push({
-            keyword: kw.phrase,
-            ...buildLocationParam(args.location),
-            language_code: args.language,
-            date_from: date,
-            date_to: date,
-          });
-          taskMapping.push({ keywordId: kw.keywordId, date });
-        }
-      }
-
-      // Single batched request for ALL keywords × ALL dates
-      const response = await fetch(`${DATAFORSEO_API_URL}/dataforseo_labs/google/historical_serps/live`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Basic ${authHeader}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(tasks),
-      });
-
-      if (!response.ok) {
-        console.error("Historical SERPs batch API error:", response.status);
-        return;
-      }
-
-      const data = await response.json();
-
-      // Log historical SERPs batch API usage
-      await ctx.runMutation(internal.apiUsage.logApiUsage, {
-        endpoint: "/dataforseo_labs/google/historical_serps/live",
-        taskCount: tasks.length,
-        estimatedCost: tasks.length * API_COSTS.LABS_HISTORICAL_SERPS,
-        caller: "fetchHistoricalBatch",
-        metadata: JSON.stringify({ keywords: args.keywords.length, dates: dates.length }),
-      });
-
-      if (data.status_code !== 20000) {
-        console.error("Historical SERPs batch error:", data.status_message);
-        return;
-      }
-
-      // Process each task result
-      for (let i = 0; i < data.tasks.length; i++) {
-        const task = data.tasks[i];
-        const mapping = taskMapping[i];
-
-        if (task.status_code !== 20000 || !task.result?.[0]?.items) {
-          continue;
-        }
-
-        const items = task.result[0].items;
-        const serpItems = items[0]?.ranked_serp_element || [];
-
-        const domainMatch = serpItems.find((item: any) =>
-          item.serp_item?.type === "organic" &&
-          item.serp_item?.url?.includes(args.domain)
-        );
-
-        await ctx.runMutation(internal.dataforseo.storePositionInternal, {
-          keywordId: mapping.keywordId,
-          date: mapping.date,
-          position: domainMatch?.serp_item?.rank_absolute || null,
-          url: domainMatch?.serp_item?.url || null,
-          searchVolume: task.result[0].search_volume,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching historical batch:", error);
-    }
-  },
-});
-
 // Internal query to get domain
 export const getDomainInternal = internalQuery({
   args: { domainId: v.id("domains") },
@@ -965,27 +748,37 @@ export const getDomainInternal = internalQuery({
   },
 });
 
-// Internal query to get keyword
-export const getKeywordInternal = internalQuery({
-  args: { keywordId: v.id("keywords") },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.keywordId);
+// Internal batch query: return keyword IDs that are missing difficulty data
+export const getKeywordsMissingDifficulty = internalQuery({
+  args: { keywordIds: v.array(v.id("keywords")) },
+  handler: async (ctx, args): Promise<Id<"keywords">[]> => {
+    const missing: Id<"keywords">[] = [];
+    for (const id of args.keywordIds) {
+      const kw = await ctx.db.get(id);
+      if (kw && kw.difficulty === undefined) {
+        missing.push(id);
+      }
+    }
+    return missing;
   },
 });
 
-// Internal mutation to update keyword metrics
-export const updateKeywordMetricsInternal = internalMutation({
+// Internal batch mutation: update difficulty/searchVolume for multiple keywords at once
+export const updateKeywordMetricsBatch = internalMutation({
   args: {
-    keywordId: v.id("keywords"),
-    searchVolume: v.optional(v.number()),
-    difficulty: v.optional(v.number()),
+    updates: v.array(v.object({
+      keywordId: v.id("keywords"),
+      searchVolume: v.optional(v.number()),
+      difficulty: v.optional(v.number()),
+    })),
   },
   handler: async (ctx, args) => {
-    const updates: any = {};
-    if (args.searchVolume !== undefined) updates.searchVolume = args.searchVolume;
-    if (args.difficulty !== undefined) updates.difficulty = args.difficulty;
-
-    await ctx.db.patch(args.keywordId, updates);
+    for (const update of args.updates) {
+      const patches: any = {};
+      if (update.searchVolume !== undefined) patches.searchVolume = update.searchVolume;
+      if (update.difficulty !== undefined) patches.difficulty = update.difficulty;
+      await ctx.db.patch(update.keywordId, patches);
+    }
   },
 });
 
@@ -1059,20 +852,30 @@ export const fetchHistoricalPositionsInternal = internalAction({
     const password = process.env.DATAFORSEO_PASSWORD;
 
     // Generate dates for the past X months (1st of each month)
-    const dates: string[] = [];
+    const allDates: string[] = [];
     const now = new Date();
     for (let i = 0; i < args.months; i++) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      dates.push(date.toISOString().split("T")[0]);
+      allDates.push(date.toISOString().split("T")[0]);
     }
-    console.log("Generated dates:", dates);
+
+    // Dedup: skip dates that already have stored positions
+    const existingDates = await ctx.runQuery(internal.dataforseo.getExistingPositionDates, {
+      keywordId: args.keywordId,
+    });
+    const existingSet = new Set(existingDates);
+    const dates = allDates.filter((d) => !existingSet.has(d));
+
+    if (dates.length === 0) {
+      console.log(`All ${allDates.length} dates already have positions for keyword ${args.phrase}, skipping`);
+      return;
+    }
+    console.log(`Fetching ${dates.length} missing dates (${allDates.length - dates.length} already stored) for keyword ${args.phrase}`);
 
     if (!login || !password) {
-      console.log("No credentials - using MOCK data");
       // Mock data for dev mode
       const basePosition = Math.floor(Math.random() * 30) + 5;
 
-      console.log("Starting to store", dates.length, "historical positions");
       for (let idx = 0; idx < dates.length; idx++) {
         const date = dates[idx];
         const variance = Math.floor(Math.random() * 10) - 5;
@@ -1130,7 +933,7 @@ export const fetchHistoricalPositionsInternal = internalAction({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/dataforseo_labs/google/historical_serps/live",
         taskCount: tasks.length,
-        estimatedCost: tasks.length * API_COSTS.LABS_HISTORICAL_SERPS,
+        estimatedCost: extractApiCost(data, tasks.length * API_COSTS.LABS_HISTORICAL_SERPS),
         caller: "fetchHistoricalPositionsInternal",
       });
 
@@ -1246,7 +1049,7 @@ export const suggestKeywords = action({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/dataforseo_labs/google/keywords_for_site/live",
         taskCount: 1,
-        estimatedCost: 1 * API_COSTS.LABS_KEYWORDS_FOR_SITE,
+        estimatedCost: extractApiCost(data, API_COSTS.LABS_KEYWORDS_FOR_SITE),
         caller: "suggestKeywords",
       });
 
@@ -1266,121 +1069,6 @@ export const suggestKeywords = action({
       return {
         success: false,
         error: error instanceof Error ? error.message : "Failed to suggest keywords"
-      };
-    }
-  },
-});
-
-// Fetch historical SERP positions for a keyword
-export const fetchHistoricalPositions = action({
-  args: {
-    keywordId: v.id("keywords"),
-    phrase: v.string(),
-    domain: v.string(),
-    location: v.string(),
-    language: v.string(),
-    months: v.optional(v.number()), // How many months of history (default 6)
-  },
-  handler: async (ctx, args): Promise<{ success: boolean; error?: string; positions?: Array<{ date: string; position: number | null }> }> => {
-    const login = process.env.DATAFORSEO_LOGIN;
-    const password = process.env.DATAFORSEO_PASSWORD;
-    const months = args.months || 6;
-
-    // Generate dates for the past X months (1st of each month)
-    const dates: string[] = [];
-    const now = new Date();
-    for (let i = 0; i < months; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      dates.push(date.toISOString().split("T")[0]);
-    }
-
-    if (!login || !password) {
-      // Mock data for dev mode - generate realistic historical positions
-      const basePosition = Math.floor(Math.random() * 30) + 5;
-      const mockPositions = dates.map((date, idx) => {
-        // Simulate gradual improvement over time
-        const variance = Math.floor(Math.random() * 10) - 5;
-        const position = Math.max(1, basePosition + (months - idx) * 2 + variance);
-        return {
-          date,
-          position: Math.random() > 0.1 ? position : null, // 10% chance not ranking
-        };
-      });
-
-      // Store mock historical positions
-      for (const pos of mockPositions) {
-        await ctx.runMutation(internal.dataforseo.storePositionInternal, {
-          keywordId: args.keywordId,
-          date: pos.date,
-          position: pos.position,
-          url: pos.position ? `https://${args.domain}/page` : null,
-          searchVolume: Math.floor(Math.random() * 5000) + 500,
-        });
-      }
-
-      return { success: true, positions: mockPositions };
-    }
-
-    try {
-      const authHeader = btoa(`${login}:${password}`);
-      const positions: Array<{ date: string; position: number | null }> = [];
-
-      // Fetch historical data for each date
-      for (const date of dates) {
-        const response = await fetch(`${DATAFORSEO_API_URL}/serp/google/organic/live/advanced`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Basic ${authHeader}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify([{
-            keyword: args.phrase,
-            ...buildLocationParam(args.location),
-            language_code: args.language,
-            device: "desktop",
-            os: "windows",
-            depth: 100,
-            datetime: `${date} 00:00:00 +00:00`,
-          }]),
-        });
-
-        if (!response.ok) {
-          console.error(`Failed to fetch historical data for ${date}`);
-          continue;
-        }
-
-        const data = await response.json();
-
-        if (data.status_code === 20000 && data.tasks?.[0]?.result?.[0]?.items) {
-          const items = data.tasks[0].result[0].items;
-          const domainMatch = items.find((item: any) =>
-            item.type === "organic" && item.url?.includes(args.domain)
-          );
-
-          const position = domainMatch?.rank_absolute || null;
-          positions.push({ date, position });
-
-          // Store historical position
-          await ctx.runMutation(internal.dataforseo.storePositionInternal, {
-            keywordId: args.keywordId,
-            date,
-            position,
-            url: domainMatch?.url || null,
-            searchVolume: data.tasks[0].result[0].search_volume,
-          });
-        } else {
-          positions.push({ date, position: null });
-        }
-
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-
-      return { success: true, positions };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to fetch historical data"
       };
     }
   },
@@ -1553,7 +1241,7 @@ export const fetchDomainVisibility = action({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/dataforseo_labs/google/historical_rank_overview/live",
         taskCount: 1,
-        estimatedCost: 1 * API_COSTS.LABS_HISTORICAL_RANK_OVERVIEW,
+        estimatedCost: extractApiCost(data, API_COSTS.LABS_HISTORICAL_RANK_OVERVIEW),
         caller: "fetchDomainVisibility",
       });
 
@@ -1643,7 +1331,7 @@ export const fetchDomainVisibility = action({
           await ctx.runMutation(internal.apiUsage.logApiUsage, {
             endpoint: "/dataforseo_labs/google/keywords_for_site/live",
             taskCount: 1,
-            estimatedCost: 1 * API_COSTS.LABS_KEYWORDS_FOR_SITE,
+            estimatedCost: extractApiCost(kwData, API_COSTS.LABS_KEYWORDS_FOR_SITE),
             caller: "fetchDomainVisibility",
           });
 
@@ -2065,7 +1753,7 @@ export const fetchDomainVisibilityInternal = internalAction({
         await ctx.runMutation(internal.apiUsage.logApiUsage, {
           endpoint: "/dataforseo_labs/google/ranked_keywords/live",
           taskCount: 1,
-          estimatedCost: 1 * API_COSTS.LABS_RANKED_KEYWORDS,
+          estimatedCost: extractApiCost(rankedData, API_COSTS.LABS_RANKED_KEYWORDS),
           caller: "fetchDomainVisibilityInternal",
         });
 
@@ -2088,7 +1776,7 @@ export const fetchDomainVisibilityInternal = internalAction({
             await ctx.runMutation(internal.apiUsage.logApiUsage, {
               endpoint: "/dataforseo_labs/google/ranked_keywords/live",
               taskCount: 1,
-              estimatedCost: 1 * API_COSTS.LABS_RANKED_KEYWORDS,
+              estimatedCost: extractApiCost(retryData, API_COSTS.LABS_RANKED_KEYWORDS),
               caller: "fetchDomainVisibilityInternal_retry",
             });
             rankedTask = retryData?.tasks?.[0];
@@ -2232,7 +1920,7 @@ export const fetchDomainVisibilityInternal = internalAction({
         await ctx.runMutation(internal.apiUsage.logApiUsage, {
           endpoint: "/keywords_data/google_ads/keywords_for_site/live",
           taskCount: 1,
-          estimatedCost: 1 * API_COSTS.KEYWORDS_DATA_GOOGLE_ADS,
+          estimatedCost: extractApiCost(googleAdsData, API_COSTS.KEYWORDS_DATA_GOOGLE_ADS),
           caller: "fetchDomainVisibilityInternal",
         });
 
@@ -2255,7 +1943,7 @@ export const fetchDomainVisibilityInternal = internalAction({
             await ctx.runMutation(internal.apiUsage.logApiUsage, {
               endpoint: "/keywords_data/google_ads/keywords_for_site/live",
               taskCount: 1,
-              estimatedCost: 1 * API_COSTS.KEYWORDS_DATA_GOOGLE_ADS,
+              estimatedCost: extractApiCost(retryData, API_COSTS.KEYWORDS_DATA_GOOGLE_ADS),
               caller: "fetchDomainVisibilityInternal_retry",
             });
             googleAdsTask = retryData?.tasks?.[0];
@@ -2377,7 +2065,7 @@ export const fetchKeywordData = action({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/keywords_data/google_ads/search_volume/live",
         taskCount: 1,
-        estimatedCost: 1 * API_COSTS.KEYWORDS_DATA_GOOGLE_ADS,
+        estimatedCost: extractApiCost(responseData, API_COSTS.KEYWORDS_DATA_GOOGLE_ADS),
         caller: "fetchKeywordData",
       });
 
@@ -2536,7 +2224,7 @@ export const fetchAndStoreVisibilityHistory = action({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/dataforseo_labs/google/historical_rank_overview/live",
         taskCount: 1,
-        estimatedCost: 1 * API_COSTS.LABS_HISTORICAL_RANK_OVERVIEW,
+        estimatedCost: extractApiCost(data, API_COSTS.LABS_HISTORICAL_RANK_OVERVIEW),
         caller: "fetchAndStoreVisibilityHistory",
         domainId: args.domainId,
       });
@@ -2559,7 +2247,7 @@ export const fetchAndStoreVisibilityHistory = action({
           await ctx.runMutation(internal.apiUsage.logApiUsage, {
             endpoint: "/dataforseo_labs/google/historical_rank_overview/live",
             taskCount: 1,
-            estimatedCost: 1 * API_COSTS.LABS_HISTORICAL_RANK_OVERVIEW,
+            estimatedCost: extractApiCost(data, API_COSTS.LABS_HISTORICAL_RANK_OVERVIEW),
             caller: "fetchAndStoreVisibilityHistory_retry",
             domainId: args.domainId,
           });
@@ -2787,7 +2475,7 @@ export const fetchKeywordPositionHistory = action({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/dataforseo_labs/google/historical_serps/live",
         taskCount: 1,
-        estimatedCost: 1 * API_COSTS.LABS_HISTORICAL_SERPS,
+        estimatedCost: extractApiCost(data, API_COSTS.LABS_HISTORICAL_SERPS),
         caller: "fetchKeywordPositionHistory",
       });
 
@@ -3372,7 +3060,7 @@ export const fetchOnsiteAnalysisInternal = internalAction({
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/on_page/instant_pages",
         taskCount: 1,
-        estimatedCost: 1 * API_COSTS.ON_PAGE_INSTANT_PAGES,
+        estimatedCost: extractApiCost(data, API_COSTS.ON_PAGE_INSTANT_PAGES),
         caller: "fetchOnsiteAnalysisInternal",
       });
 
@@ -3865,7 +3553,7 @@ export const bulkFetchSerpResults = action({
             language_code: domain.settings.language,
             device: "desktop",
             os: "windows",
-            depth: 100, // Get top 100 results
+            depth: 30, // Get top 100 results
           };
 
           const response = await fetch(

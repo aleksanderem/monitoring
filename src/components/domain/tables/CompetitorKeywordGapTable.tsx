@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useAnalyticsQuery } from "@/hooks/useAnalyticsQuery";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Select } from "@/components/base/select/select";
@@ -31,17 +32,35 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
   const addKeywords = useMutation(api.keywords.addKeywords);
   const selection = useRowSelection();
 
-  const competitors = useQuery(api.queries.competitors.getCompetitorsByDomain, { domainId });
-  const gaps = useQuery(
+  const { data: competitors } = useAnalyticsQuery<Array<{
+    _id: Id<"competitors">;
+    competitorDomain: string;
+    name: string;
+    status: string;
+    keywordCount: number;
+    avgPosition: number | null;
+    lastChecked: number | undefined;
+    createdAt: number;
+  }>>(api.queries.competitors.getCompetitorsByDomain, { domainId });
+  const { data: gaps } = useAnalyticsQuery<Array<{
+    keywordId: string;
+    phrase: string;
+    competitorPosition: number;
+    competitorUrl: string | null;
+    ourPosition: number | null;
+    gap: number;
+    searchVolume: number | undefined;
+    difficulty: number | undefined;
+    gapScore: number;
+  }>>(
     api.queries.competitors.getCompetitorKeywordGaps,
-    selectedCompetitor
-      ? {
-          domainId,
-          competitorId: selectedCompetitor,
-          minPosition: 20,
-          maxOwnPosition: 50,
-        }
-      : "skip"
+    {
+      domainId,
+      competitorId: selectedCompetitor!,
+      minPosition: 20,
+      maxOwnPosition: 50,
+    },
+    { enabled: !!selectedCompetitor }
   );
 
   // Filter and sort gaps
@@ -301,7 +320,7 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
                           {Math.round(gap.difficulty)}
                         </Badge>
                       ) : (
-                        <span className="text-sm text-tertiary">—</span>
+                        <span className="text-sm text-tertiary" title={tc('notAvailable')}>—</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">

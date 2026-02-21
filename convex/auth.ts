@@ -1,6 +1,7 @@
 import { convexAuth } from "@convex-dev/auth/server";
 import { Password } from "@convex-dev/auth/providers/Password";
 import { query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
 export const { auth, signIn, signOut, store } = convexAuth({
@@ -73,6 +74,14 @@ export const { auth, signIn, signOut, store } = convexAuth({
         await ctx.db.patch(orgId, {
           planId: defaultPlan._id,
           limits: defaultPlan.limits,
+        });
+      }
+
+      // Schedule welcome email
+      if (email && email !== "user") {
+        await ctx.scheduler.runAfter(0, internal.actions.sendEmail.sendWelcome, {
+          to: email,
+          userName: name,
         });
       }
     },

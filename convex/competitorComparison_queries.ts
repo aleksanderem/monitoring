@@ -1,45 +1,71 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { query, action } from "./_generated/server";
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { auth } from "./auth";
 import { requireTenantAccess } from "./permissions";
+import { getSupabaseAdmin } from "./lib/supabase";
 
 /**
  * Get position scatter data: your position vs competitor position per keyword.
  * Each data point is a keyword-competitor pair where both sides have a ranking.
+ * Migrated to Supabase action.
  */
-export const getPositionScatterData = query({
+export const getPositionScatterData = action({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) return [];
-    await requireTenantAccess(ctx, "domain", args.domainId);
+    const domain = await ctx.runQuery(internal.competitors_internal.verifyDomainAccess, { domainId: args.domainId });
+    if (!domain) return [];
 
-    // Get active keywords with denormalized positions
-    const keywords = await ctx.db
-      .query("keywords")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .collect();
+    const sb = getSupabaseAdmin();
+    if (!sb) return [];
 
-    // Get active competitors
-    const competitors = await ctx.db
-      .query("competitors")
-      .withIndex("by_domain_status", (q) =>
-        q.eq("domainId", args.domainId).eq("status", "active")
-      )
-      .collect();
+    // Get active keywords with denormalized positions from Convex
+    const keywords = await ctx.runQuery(internal.competitors_internal.getDomainKeywords, { domainId: args.domainId });
+    const competitors = await ctx.runQuery(internal.competitors_internal.getActiveCompetitors, { domainId: args.domainId });
 
     if (competitors.length === 0 || keywords.length === 0) return [];
 
-    // Build keyword map for quick lookup
+    // Build keyword map for quick lookup (only keywords where we have a position)
     const keywordMap = new Map(
       keywords
-        .filter((k) => k.currentPosition != null)
-        .map((k) => [k._id, k])
+        .filter((k: any) => k.currentPosition != null)
+        .map((k: any) => [k._id, k])
     );
 
-    // Fetch all competitor positions in one batch per competitor
+    const keywordIds = [...keywordMap.keys()];
+    if (keywordIds.length === 0) return [];
+
+    const competitorIds = competitors.map((c: any) => c._id);
+
+    // Get latest competitor positions from Supabase
+    const { data: compRows } = await sb
+      .from("competitor_keyword_positions")
+      .select("convex_competitor_id, convex_keyword_id, position, date")
+      .in("convex_competitor_id", competitorIds)
+      .in("convex_keyword_id", keywordIds)
+      .not("position", "is", null)
+      .order("date", { ascending: false });
+
+    // Build competitor name map
+    const competitorNameMap = new Map(
+      competitors.map((c: any) => [c._id, c.name || c.competitorDomain])
+    );
+
+    // Deduplicate to latest per competitor+keyword
+    const latestByKey = new Map<string, { competitorId: string; keywordId: string; position: number }>();
+    for (const row of compRows || []) {
+      const key = `${row.convex_competitor_id}:${row.convex_keyword_id}`;
+      if (!latestByKey.has(key)) {
+        latestByKey.set(key, {
+          competitorId: row.convex_competitor_id,
+          keywordId: row.convex_keyword_id,
+          position: row.position,
+        });
+      }
+    }
+
+    // Match with our keywords
     const result: Array<{
       keyword: string;
       yourPosition: number;
@@ -48,43 +74,17 @@ export const getPositionScatterData = query({
       searchVolume: number;
     }> = [];
 
-    for (const competitor of competitors) {
-      const positions = await ctx.db
-        .query("competitorKeywordPositions")
-        .withIndex("by_competitor", (q) =>
-          q.eq("competitorId", competitor._id)
-        )
-        .collect();
+    for (const [, compData] of latestByKey) {
+      const keyword = keywordMap.get(compData.keywordId);
+      if (!keyword || keyword.currentPosition == null) continue;
 
-      // Get latest position per keyword
-      const latestByKeyword = new Map<
-        Id<"keywords">,
-        { position: number | null; fetchedAt: number }
-      >();
-      for (const pos of positions) {
-        const existing = latestByKeyword.get(pos.keywordId);
-        if (!existing || pos.fetchedAt > existing.fetchedAt) {
-          latestByKeyword.set(pos.keywordId, {
-            position: pos.position,
-            fetchedAt: pos.fetchedAt,
-          });
-        }
-      }
-
-      // Match with our keywords
-      for (const [keywordId, compData] of latestByKeyword) {
-        if (compData.position == null) continue;
-        const keyword = keywordMap.get(keywordId);
-        if (!keyword || keyword.currentPosition == null) continue;
-
-        result.push({
-          keyword: keyword.phrase,
-          yourPosition: keyword.currentPosition,
-          competitorName: competitor.name || competitor.competitorDomain,
-          competitorPosition: compData.position,
-          searchVolume: keyword.searchVolume ?? 0,
-        });
-      }
+      result.push({
+        keyword: keyword.phrase,
+        yourPosition: keyword.currentPosition,
+        competitorName: competitorNameMap.get(compData.competitorId) || "Unknown",
+        competitorPosition: compData.position,
+        searchVolume: keyword.searchVolume ?? 0,
+      });
     }
 
     return result;
@@ -94,6 +94,7 @@ export const getPositionScatterData = query({
 /**
  * Get backlink radar data: normalized metrics for radar chart comparison.
  * Metrics: totalBacklinks, referringDomains, dofollowRatio, avgDomainRank, freshBacklinksRatio
+ * NOTE: This does NOT read competitorKeywordPositions, so it stays as a query.
  */
 export const getBacklinkRadarData = query({
   args: { domainId: v.id("domains") },
@@ -210,7 +211,7 @@ export const getBacklinkRadarData = query({
 
 /**
  * Get backlink quality comparison: grouped by domain rank tiers.
- * High DR (60+), Medium DR (30-59), Low DR (0-29)
+ * NOTE: This does NOT read competitorKeywordPositions, so it stays as a query.
  */
 export const getBacklinkQualityComparison = query({
   args: { domainId: v.id("domains") },
@@ -275,9 +276,7 @@ export const getBacklinkQualityComparison = query({
 
 /**
  * Get top keywords with position bars for your domain + each competitor.
- * Top N by search volume (default 15).
- * Uses SERP results for competitor positions (same source as keyword map),
- * with recentPositions fallback for own domain when SERP is missing.
+ * NOTE: This uses SERP results, NOT competitorKeywordPositions. Stays as a query.
  */
 export const getKeywordPositionBars = query({
   args: {

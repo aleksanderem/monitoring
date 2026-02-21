@@ -6,8 +6,9 @@ import { auth } from "./auth";
 import { checkRefreshLimits } from "./limits";
 import { buildLocationParam } from "./dataforseoLocations";
 import { createDebugLogger } from "./lib/debugLogger";
-import { API_COSTS } from "./apiUsage";
+import { API_COSTS, extractApiCost } from "./apiUsage";
 import { isValidKeywordPhrase } from "./lib/keywordValidation";
+import { writeKeywordPositions, writeCompetitorPositions, type KeywordPositionRow, type CompetitorPositionRow } from "./lib/supabase";
 
 // Create a new SERP fetch job
 export const createSerpFetchJob = mutation({
@@ -213,21 +214,25 @@ export const processSerpFetchJobInternal = internalAction({
 
     const endIndex = Math.min(startIndex + CHUNK_SIZE, job.keywordIds.length);
 
-    // ── Fetch keywords for this chunk ──
+    // ── Fetch keywords for this chunk (1 batch query instead of N individual) ──
     const chunkKeywordIds = job.keywordIds.slice(startIndex, endIndex);
-    const chunkKeywords: Array<{ _id: Id<"keywords">; phrase: string }> = [];
     const skippedCount = { invalid: 0 };
 
-    for (const keywordId of chunkKeywordIds) {
-      const keyword = await ctx.runQuery(internal.keywords.getKeywordInternal, {
-        keywordId,
-      });
-      if (!keyword) {
-        console.error(`[processSerpFetchJob] Keyword ${keywordId} not found`);
-        failedCount++;
-        continue;
-      }
-      // Validate phrase before sending to API
+    const allKeywords = await ctx.runQuery(internal.keywords.getKeywordsByIdsBatch, {
+      keywordIds: chunkKeywordIds,
+    });
+
+    // Track missing keywords
+    const foundIds = new Set(allKeywords.map((k) => k._id));
+    const missingCount = chunkKeywordIds.filter((id) => !foundIds.has(id)).length;
+    if (missingCount > 0) {
+      console.error(`[processSerpFetchJob] ${missingCount} keywords not found in chunk`);
+      failedCount += missingCount;
+    }
+
+    // Filter out invalid phrases
+    const chunkKeywords: Array<{ _id: Id<"keywords">; phrase: string }> = [];
+    for (const keyword of allKeywords) {
       const validation = isValidKeywordPhrase(keyword.phrase);
       if (!validation.valid) {
         console.warn(`[processSerpFetchJob] Skipping invalid phrase "${keyword.phrase}": ${validation.reason}`);
@@ -309,7 +314,7 @@ export const processSerpFetchJobInternal = internalAction({
             language_code: domain.settings.language,
             device: "desktop",
             os: "windows",
-            depth: 100,
+            depth: 30,
           };
 
           let data = await callSerpApi(task);
@@ -318,7 +323,7 @@ export const processSerpFetchJobInternal = internalAction({
           await ctx.runMutation(internal.apiUsage.logApiUsage, {
             endpoint: "/serp/google/organic/live/advanced",
             taskCount: 1,
-            estimatedCost: API_COSTS.SERP_LIVE_ADVANCED,
+            estimatedCost: extractApiCost(data, API_COSTS.SERP_LIVE_ADVANCED),
             caller: "processSerpFetchJob",
             domainId: job.domainId,
           });
@@ -420,12 +425,24 @@ export const processSerpFetchJobInternal = internalAction({
           // Store keyword position (find our domain in SERP results)
           const today = new Date().toISOString().split("T")[0];
           const ourResult = organicResults.find((r: any) => r.domain === domain.domain);
+          const kwPosition = ourResult ? ourResult.position : null;
+          const kwUrl = ourResult ? ourResult.url : null;
+
           await ctx.runMutation(internal.dataforseo.storePositionInternal, {
             keywordId: keyword._id,
             date: today,
-            position: ourResult ? ourResult.position : null,
-            url: ourResult ? ourResult.url : null,
+            position: kwPosition,
+            url: kwUrl,
           });
+
+          // Dual-write to Supabase
+          writeKeywordPositions([{
+            convex_domain_id: job.domainId,
+            convex_keyword_id: keyword._id,
+            date: today,
+            position: kwPosition,
+            url: kwUrl,
+          }]).catch(() => {});
 
           // Auto-extract and track top competitors (positions 1-10, excluding own domain)
           const topCompetitors = organicResults
@@ -434,7 +451,7 @@ export const processSerpFetchJobInternal = internalAction({
 
           if (topCompetitors.length > 0) {
             try {
-              await ctx.runMutation(internal.keywordSerpJobs.trackCompetitorsBatch, {
+              const storedPositions = await ctx.runMutation(internal.keywordSerpJobs.trackCompetitorsBatch, {
                 domainId: job.domainId,
                 keywordId: keyword._id,
                 date: today,
@@ -444,6 +461,17 @@ export const processSerpFetchJobInternal = internalAction({
                   url: c.url,
                 })),
               });
+
+              // Dual-write competitor positions to Supabase
+              if (storedPositions && storedPositions.length > 0) {
+                writeCompetitorPositions(storedPositions.map((sp) => ({
+                  convex_competitor_id: sp.competitorId,
+                  convex_keyword_id: sp.keywordId,
+                  date: sp.date,
+                  position: sp.position,
+                  url: sp.url,
+                }))).catch(() => {});
+              }
             } catch (error) {
               console.error(`[processSerpFetchJob] Error tracking competitors:`, error);
             }
@@ -579,6 +607,7 @@ export const computeVisibilitySnapshot = internalMutation({
 
 // Batch mutation: add/update competitors + save positions in one transaction
 // Replaces N × (addCompetitorInternal + saveCompetitorPosition) individual calls
+// Returns resolved competitor positions for Supabase dual-write
 export const trackCompetitorsBatch = internalMutation({
   args: {
     domainId: v.id("domains"),
@@ -592,7 +621,9 @@ export const trackCompetitorsBatch = internalMutation({
       })
     ),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<Array<{ competitorId: string; keywordId: string; date: string; position: number; url: string }>> => {
+    const results: Array<{ competitorId: string; keywordId: string; date: string; position: number; url: string }> = [];
+
     for (const comp of args.competitors) {
       // Check if competitor exists
       const existing = await ctx.db
@@ -642,6 +673,16 @@ export const trackCompetitorsBatch = internalMutation({
           fetchedAt: Date.now(),
         });
       }
+
+      results.push({
+        competitorId,
+        keywordId: args.keywordId,
+        date: args.date,
+        position: comp.position,
+        url: comp.url,
+      });
     }
+
+    return results;
   },
 });

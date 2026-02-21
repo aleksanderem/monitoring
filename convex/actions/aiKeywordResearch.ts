@@ -134,6 +134,11 @@ export const generateKeywordIdeas = action({
     // 3. Gather data in parallel: page content, DataForSEO suggestions, existing keywords
     console.log(`[AI Research] Starting data gathering for ${domain.domain}...`);
 
+    // 3a. Check page content cache first (24h TTL)
+    const cachedContent = await ctx.runQuery(internal.domains.getCachedPageContent, {
+      domainId: args.domainId,
+    });
+
     const visibilityParams = {
       domain: domain.domain,
       location: domain.settings.location,
@@ -141,16 +146,18 @@ export const generateKeywordIdeas = action({
       limit: 200,
     };
 
-    const [pageContent, dataforseoResult, discoveredKeywords, monitoredKeywords] = await Promise.all([
-      // 3a. Fetch homepage text
-      logStep(ctx, debugEnabled, args.domainId, "content_parsing",
-        { url: `https://${domain.domain}` },
-        () => fetchPageContent(domain.domain)),
+    const [pageContentResult, dataforseoResult, discoveredKeywords, monitoredKeywords] = await Promise.all([
+      // 3a. Fetch homepage text (skip API if cached)
+      cachedContent
+        ? Promise.resolve({ text: cachedContent, apiCost: 0 })
+        : logStep(ctx, debugEnabled, args.domainId, "content_parsing",
+            { url: `https://${domain.domain}` },
+            () => fetchPageContent(domain.domain)),
 
-      // 3b. Fetch DataForSEO keyword suggestions (ranked + Google Ads)
+      // 3b. Fetch DataForSEO keyword suggestions (ranked + Google Ads) — uses cheaper internal endpoint
       logStep(ctx, debugEnabled, args.domainId, "dataforseo_visibility",
         visibilityParams,
-        () => ctx.runAction(api.dataforseo.fetchDomainVisibility, visibilityParams))
+        () => ctx.runAction(internal.dataforseo.fetchDomainVisibilityInternal, visibilityParams))
         .catch(() => ({ success: false as const, keywords: [] as any[], totalFound: 0 })),
 
       // 3c. Already-discovered keywords
@@ -165,14 +172,23 @@ export const generateKeywordIdeas = action({
       }),
     ]);
 
-    // Log content parsing API usage (if page content was fetched)
-    if (pageContent) {
+    // Extract text and log content parsing API usage
+    const pageContent = pageContentResult?.text ?? null;
+    if (pageContentResult?.apiCost > 0) {
       await ctx.runMutation(internal.apiUsage.logApiUsage, {
         endpoint: "/on_page/content_parsing/live",
         taskCount: 1,
-        estimatedCost: 0.001,
+        estimatedCost: pageContentResult.apiCost,
         caller: "aiKeywordResearch",
         domainId: args.domainId,
+      });
+    }
+
+    // Cache freshly-fetched content for future calls
+    if (!cachedContent && pageContent) {
+      await ctx.runMutation(internal.domains.cachePageContent, {
+        domainId: args.domainId,
+        content: pageContent,
       });
     }
 

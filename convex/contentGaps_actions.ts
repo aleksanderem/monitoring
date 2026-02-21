@@ -90,8 +90,97 @@ export const upsertGap = internalMutation({
 });
 
 /**
+ * Batch upsert: create or update multiple content gaps in a single mutation.
+ */
+export const upsertGapsBatch = internalMutation({
+  args: {
+    gaps: v.array(
+      v.object({
+        domainId: v.id("domains"),
+        keywordId: v.id("keywords"),
+        competitorId: v.id("competitors"),
+        opportunityScore: v.number(),
+        competitorPosition: v.number(),
+        yourPosition: v.union(v.number(), v.null()),
+        searchVolume: v.number(),
+        difficulty: v.number(),
+        competitorUrl: v.string(),
+        estimatedTrafficValue: v.number(),
+        priority: v.union(
+          v.literal("high"),
+          v.literal("medium"),
+          v.literal("low")
+        ),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const ids: Id<"contentGaps">[] = [];
+
+    for (const gap of args.gaps) {
+      const existingGaps = await ctx.db
+        .query("contentGaps")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", gap.keywordId))
+        .collect();
+
+      const existingGap = existingGaps.find(
+        (g) => g.competitorId === gap.competitorId
+      );
+
+      if (existingGap) {
+        const newStatus =
+          gap.yourPosition !== null && gap.yourPosition <= 10
+            ? ("ranking" as const)
+            : existingGap.status;
+
+        await ctx.db.patch(existingGap._id, {
+          opportunityScore: gap.opportunityScore,
+          competitorPosition: gap.competitorPosition,
+          yourPosition: gap.yourPosition,
+          searchVolume: gap.searchVolume,
+          difficulty: gap.difficulty,
+          competitorUrl: gap.competitorUrl,
+          estimatedTrafficValue: gap.estimatedTrafficValue,
+          priority: gap.priority,
+          status: newStatus,
+          lastChecked: now,
+        });
+        ids.push(existingGap._id);
+      } else {
+        const initialStatus =
+          gap.yourPosition !== null && gap.yourPosition <= 10
+            ? ("ranking" as const)
+            : ("identified" as const);
+
+        const gapId = await ctx.db.insert("contentGaps", {
+          domainId: gap.domainId,
+          keywordId: gap.keywordId,
+          competitorId: gap.competitorId,
+          opportunityScore: gap.opportunityScore,
+          competitorPosition: gap.competitorPosition,
+          yourPosition: gap.yourPosition,
+          searchVolume: gap.searchVolume,
+          difficulty: gap.difficulty,
+          competitorUrl: gap.competitorUrl,
+          estimatedTrafficValue: gap.estimatedTrafficValue,
+          priority: gap.priority,
+          status: initialStatus,
+          identifiedAt: now,
+          lastChecked: now,
+        });
+        ids.push(gapId);
+      }
+    }
+
+    return ids;
+  },
+});
+
+/**
  * Main gap analysis engine
- * Analyzes all keywords vs all competitors to identify content gaps
+ * Analyzes all keywords vs all competitors to identify content gaps.
+ * Uses batch queries to reduce N×M round-trips to ~3 total.
  */
 export const analyzeContentGaps = action({
   args: { domainId: v.id("domains") },
@@ -128,55 +217,66 @@ export const analyzeContentGaps = action({
       };
     }
 
-    let gapsCreated = 0;
-    let gapsUpdated = 0;
-    const gapIds: Id<"contentGaps">[] = [];
+    const keywordIds = activeKeywords.map((k: any) => k._id);
+    const competitorIds = activeCompetitors.map((c: any) => c._id);
 
-    // For each keyword, compare with each competitor
+    type UserPosEntry = { keywordId: string; position: number | null; url: string | null; date: string };
+    type CompPosEntry = { competitorId: string; keywordId: string; position: number | null; url: string | null; date: string };
+
+    // Batch query 1: fetch all user positions for all keywords (1 round-trip)
+    const allUserPositions: UserPosEntry[] = await ctx.runQuery(
+      internal.keywordPositions_internal.getLatestPositionsBatch,
+      { keywordIds }
+    );
+    const userPosMap = new Map<string, UserPosEntry>(
+      allUserPositions.map((p) => [p.keywordId, p])
+    );
+
+    // Batch query 2: fetch all competitor positions (1 round-trip)
+    const allCompPositions: CompPosEntry[] = await ctx.runQuery(
+      internal.competitorKeywordPositions_internal.getLatestCompetitorPositionsBatch,
+      { competitorIds, keywordIds }
+    );
+    const compPosMap = new Map<string, CompPosEntry>(
+      allCompPositions.map((p) => [`${p.competitorId}:${p.keywordId}`, p])
+    );
+
+    // Build gap array in memory (0 round-trips)
+    const gaps: Array<{
+      domainId: Id<"domains">;
+      keywordId: Id<"keywords">;
+      competitorId: Id<"competitors">;
+      opportunityScore: number;
+      competitorPosition: number;
+      yourPosition: number | null;
+      searchVolume: number;
+      difficulty: number;
+      competitorUrl: string;
+      estimatedTrafficValue: number;
+      priority: "high" | "medium" | "low";
+    }> = [];
+
     for (const keyword of activeKeywords) {
-      // Get your latest position for this keyword
-      const yourPositions = await ctx.runQuery(
-        internal.keywordPositions_internal.getLatestPosition,
-        { keywordId: keyword._id }
-      );
-      const yourPosition = yourPositions?.position ?? null;
+      const userPos = userPosMap.get(keyword._id);
+      const yourPosition: number | null = userPos?.position ?? null;
 
       for (const competitor of activeCompetitors) {
-        // Get competitor's latest position for this keyword
-        const competitorPositions = await ctx.runQuery(
-          internal.competitorKeywordPositions_internal.getLatestPosition,
-          {
-            competitorId: competitor._id,
-            keywordId: keyword._id,
-          }
-        );
+        const compPos = compPosMap.get(`${competitor._id}:${keyword._id}`);
+        const competitorPosition = compPos?.position ?? null;
+        const competitorUrl = compPos?.url ?? "";
 
-        const competitorPosition = competitorPositions?.position ?? null;
-        const competitorUrl = competitorPositions?.url ?? "";
+        if (competitorPosition === null) continue;
 
-        // Only create gap if competitor ranks
-        if (competitorPosition === null) {
-          continue;
-        }
+        const yourPos = yourPosition ?? 100;
+        if (competitorPosition >= yourPos) continue;
 
-        // Check if there's actually a gap (competitor ranks better than you)
-        const yourPos = yourPosition ?? 100; // Treat not ranking as position 100
-        const compPos = competitorPosition;
-
-        if (compPos >= yourPos) {
-          // No gap - you're already ranking as well or better
-          continue;
-        }
-
-        // Calculate enhanced opportunity score
         const volume = keyword.searchVolume ?? 100;
         const difficulty = keyword.difficulty ?? 50;
 
-        // Enhanced scoring algorithm (from spec)
-        const baseScore = ((100 - compPos) / 100) * 100;
+        const baseScore = ((100 - competitorPosition) / 100) * 100;
         const volumeWeight = Math.log10(volume + 1) / 6;
         const difficultyPenalty = difficulty / 100;
-        const positionGapBonus = yourPosition ? (yourPos - compPos) / 100 : 0.5;
+        const positionGapBonus = yourPosition ? (yourPos - competitorPosition) / 100 : 0.5;
 
         const opportunityScore = Math.round(
           baseScore * 0.4 +
@@ -185,10 +285,8 @@ export const analyzeContentGaps = action({
             positionGapBonus * 100 * 0.1
         );
 
-        // Clamp to 0-100 range
         const clampedScore = Math.max(0, Math.min(100, opportunityScore));
 
-        // Assign priority based on score
         let priority: "high" | "medium" | "low";
         if (clampedScore >= 70) {
           priority = "high";
@@ -198,26 +296,22 @@ export const analyzeContentGaps = action({
           priority = "low";
         }
 
-        // Calculate estimated traffic value
-        // Simple estimate: searchVolume * CTR_estimate * conversion_value
-        // CTR estimate based on competitor position (simplified)
         const ctrEstimate =
-          compPos === 1
+          competitorPosition === 1
             ? 0.3
-            : compPos <= 3
+            : competitorPosition <= 3
             ? 0.15
-            : compPos <= 10
+            : competitorPosition <= 10
             ? 0.05
             : 0.01;
         const estimatedTrafficValue = Math.round(volume * ctrEstimate);
 
-        // Upsert the gap
-        const gapId = await ctx.runMutation(internal.contentGaps_actions.upsertGap, {
+        gaps.push({
           domainId: args.domainId,
           keywordId: keyword._id,
           competitorId: competitor._id,
           opportunityScore: clampedScore,
-          competitorPosition: compPos,
+          competitorPosition,
           yourPosition,
           searchVolume: volume,
           difficulty,
@@ -225,19 +319,18 @@ export const analyzeContentGaps = action({
           estimatedTrafficValue,
           priority,
         });
-
-        gapIds.push(gapId);
-
-        // Track if created or updated
-        // Since upsert can return existing ID, we'll consider all as "processed"
-        gapsUpdated++;
       }
+    }
+
+    // Batch mutation: upsert all gaps at once (1 round-trip)
+    if (gaps.length > 0) {
+      await ctx.runMutation(internal.contentGaps_actions.upsertGapsBatch, { gaps });
     }
 
     return {
       success: true,
       message: `Analyzed ${activeKeywords.length} keywords across ${activeCompetitors.length} competitors`,
-      gapsProcessed: gapsUpdated,
+      gapsProcessed: gaps.length,
       competitorsAnalyzed: activeCompetitors.length,
       keywordsAnalyzed: activeKeywords.length,
     };
