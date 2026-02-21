@@ -3,6 +3,39 @@ import { internalAction, internalMutation, internalQuery } from "./_generated/se
 import { internal } from "./_generated/api";
 import type { Id, Doc } from "./_generated/dataModel";
 
+// =================================================================
+// Notification Logging
+// =================================================================
+
+export const logNotification = internalMutation({
+  args: {
+    type: v.union(v.literal("email"), v.literal("system")),
+    recipient: v.string(),
+    subject: v.string(),
+    status: v.union(v.literal("sent"), v.literal("failed"), v.literal("pending")),
+    error: v.optional(v.string()),
+    category: v.optional(v.union(
+      v.literal("transactional"),
+      v.literal("digest"),
+      v.literal("alert"),
+      v.literal("billing")
+    )),
+    metadata: v.optional(v.any()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("notificationLogs", {
+      type: args.type,
+      recipient: args.recipient,
+      subject: args.subject,
+      status: args.status,
+      error: args.error,
+      category: args.category,
+      metadata: args.metadata,
+      createdAt: Date.now(),
+    });
+  },
+});
+
 // Get domains that need daily refresh
 export const getDailyDomains = internalQuery({
   args: {},

@@ -724,6 +724,12 @@ export default defineSchema({
     subject: v.optional(v.string()),
     status: v.union(v.literal("sent"), v.literal("failed"), v.literal("pending")),
     error: v.optional(v.string()),
+    category: v.optional(v.union(
+      v.literal("transactional"),
+      v.literal("digest"),
+      v.literal("alert"),
+      v.literal("billing")
+    )),
     metadata: v.optional(v.any()),
     createdAt: v.number(),
   })
