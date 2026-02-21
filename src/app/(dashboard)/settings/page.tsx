@@ -1613,7 +1613,8 @@ function SecuritySection() {
       setSecurityStep("code");
       setCooldown(60);
       toast.success(tAuth("codeSent", { email: currentUser.email }));
-    } catch {
+    } catch (err) {
+      console.error("[security] sendCode error:", err);
       toast.error(tAuth("invalidCredentials"));
       setSecurityStep("idle");
     }
@@ -1625,7 +1626,8 @@ function SecuritySection() {
       await signIn("password", { email: currentUser.email, flow: "reset" });
       setCooldown(60);
       toast.success(tAuth("codeSent", { email: currentUser.email }));
-    } catch {
+    } catch (err) {
+      console.error("[security] resend error:", err);
       toast.error(tAuth("invalidCredentials"));
     }
   }, [signIn, currentUser?.email, cooldown, tAuth]);
@@ -1654,7 +1656,8 @@ function SecuritySection() {
         });
         toast.success(t("passwordChanged"));
         setSecurityStep("idle");
-      } catch {
+      } catch (err) {
+        console.error("[security] resetPassword error:", err);
         toast.error(tAuth("invalidCode"));
         setSecurityStep("code");
       }

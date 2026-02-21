@@ -42,7 +42,8 @@ export default function ForgotPasswordPage() {
         setStep("code");
         setCooldown(60);
         toast.success(t("codeSent", { email: emailValue }));
-      } catch {
+      } catch (err) {
+        console.error("[forgot-password] sendCode error:", err);
         toast.error(t("invalidCredentials"));
       } finally {
         setIsLoading(false);
@@ -58,7 +59,8 @@ export default function ForgotPasswordPage() {
       await signIn("password", { email, flow: "reset" });
       setCooldown(60);
       toast.success(t("codeSent", { email }));
-    } catch {
+    } catch (err) {
+      console.error("[forgot-password] resend error:", err);
       toast.error(t("invalidCredentials"));
     } finally {
       setIsLoading(false);
@@ -88,7 +90,8 @@ export default function ForgotPasswordPage() {
         });
         toast.success(t("resetSuccess"));
         router.push("/domains");
-      } catch {
+      } catch (err) {
+        console.error("[forgot-password] resetPassword error:", err);
         toast.error(t("invalidCode"));
       } finally {
         setIsLoading(false);
