@@ -6,53 +6,71 @@ Status legend: [ ] not started, [~] in progress, [x] done
 
 Target market: agencje SEO (primary) + in-house SEO teams. Agency needs (reports, multi-client, white-label) take priority in design decisions.
 
+> MANDATORY: After completing ANY roadmap item (or making significant progress on one), update this file immediately. Change `[ ]` to `[x]` or `[~]`, add completion date and notes in the "Completion Log" section at the bottom. This is part of the Execution Protocol Phase 5 and is NOT optional. If you forget, the next session must check git history and reconcile before starting new work.
+
 
 ## Tier 0 — Blockers (must ship before any user sees the product)
 
-### R01 [ ] Password Reset & Password Change
+### R01 [x] Password Reset & Password Change
 Email template for reset exists but reset page and token validation are missing. Password change mutation throws error ("requires integration with auth provider"). Users have no recovery path and cannot change compromised passwords.
 
 Scope: reset-password page, token generation/validation in convex auth, wire up changePassword mutation, UI in settings.
 
-### R02 [ ] Email Verification on Registration
+Completed: 2026-02-21. OTP-based flow via Convex Auth. Reset password page, token validation, changePassword mutation in settings Security tab. 28 integration tests. Plan: `2026-02-21-R01-password-reset-change-*.md`. Commits: 089f532, 657fe1b, 8f2fbda.
+
+### R02 [x] Email Verification on Registration
 New users can register with any email without confirmation. This allows typos, fake accounts, and spam. Add verification email on signup, verification page, resend link, and block access until verified.
 
 Scope: convex auth callback, verification email template, /verify-email page, middleware guard.
 
-### R03 [ ] Stripe Production Readiness & Billing Flows
+Completed: 2026-02-21. 3-step OTP flow: register → verify email → access granted. Resend link, middleware guard blocking unverified users. 24 integration tests. Plan: `2026-02-21-R02-email-verification-*.md`. Commit: 9106bbb.
+
+### R03 [x] Stripe Production Readiness & Billing Flows
 Switch from test mode to live keys. Complete the billing lifecycle:
-- Dunning: what happens on failed payment (grace period, feature degradation vs full block, retry notifications)
-- Trial expiration: reminder emails at 3 days, 1 day before trial ends; auto-downgrade flow
-- Cancellation confirmation email
-- Invoice/receipt access (Stripe portal link exists, but no in-app invoice list)
-- Payment method update flow (separate from full portal redirect)
+- ~~Stripe integration, checkout flow, pricing page, webhooks, success/cancel pages~~ (done)
+- ~~Dunning: 7-day grace period, feature degradation, retry notifications~~ (done)
+- ~~Trial expiration: reminder emails at 3 days, 1 day before trial ends~~ (done)
+- ~~Cancellation confirmation email~~ (done)
+- ~~Invoice list in settings~~ (done)
+- ~~Payment method update flow~~ (done)
+- Remaining: switch to live Stripe keys (env config change at deploy time)
 
 Scope: convex/stripe.ts, stripe_webhook.ts, stripe_helpers.ts, email templates, settings billing tab.
 
-### R04 [ ] Security Hardening
+Completed: 2026-02-21. Dunning with 7-day grace period and degradation. Trial reminders at 3d/1d. Cancellation email. Invoice list. Payment method update session. 4 new email templates. 2 new cron jobs. 20 new tests. Plan: `2026-02-21-R03-stripe-production-readiness-*.md`. Commit: efba4db.
+
+### R04 [x] Security Hardening
 Security headers (CSP, HSTS, X-Frame-Options) via middleware.ts. Audit auth flow for session fixation, CSRF. Review Convex permission checks on all mutations — currently some mutations bypass requirePermission(). Sanitize user inputs that render as HTML. Rate limit auth endpoints.
 
 Scope: middleware.ts, next.config, convex auth functions, all mutation files.
 
-### R05 [ ] Legal Pages & Cookie Consent
+Completed: 2026-02-21. CSP, HSTS (2yr+preload), X-Frame-Options DENY, X-Content-Type-Options, Referrer-Policy, Permissions-Policy headers. Converted serpFeatures/forecasts to internalMutation. Added requireTenantAccess to 4 unprotected mutation files. Plan: `2026-02-21-R04-security-hardening-*.md`. Commit: 922ff8c.
+
+### R05 [x] Legal Pages & Cookie Consent
 Privacy Policy, Terms of Service, Cookie Policy — can be static markdown pages. Cookie consent banner for EU users. Email consent tracking (opt-in for marketing emails). Without these, cannot legally operate in EU.
 
 Scope: public static pages, cookie banner component, consent storage in convex.
 
-### R06 [ ] Error Monitoring (Sentry)
+Completed: 2026-02-21. Privacy/Terms/Cookie pages with shared LegalPageLayout. GDPR cookie consent banner with granular consent (Necessary/Analytics/Marketing). Consent storage in Convex. Marketing opt-in on registration. Plan: `2026-02-21-R05-legal-pages-cookie-consent-*.md`. Commit: 4788cb9.
+
+### R06 [x] Error Monitoring (Sentry)
 Integrate Sentry for frontend crash reporting and backend error tracking. Source maps upload. Alerting rules for critical errors (auth failures, payment failures, API outages). Currently errors only visible in admin log viewer — no real-time alerts.
 
 Scope: next.config, layout.tsx, convex error handlers, build pipeline.
 
-### R07 [ ] Account Deletion & Data Export (GDPR)
+Completed: 2026-02-21. @sentry/nextjs with client/server/edge configs. PII filtering via beforeSend. Error hierarchy (AppError, BusinessError, InfrastructureError, AuthError, PaymentError). Global error boundary. SentryUserContext for userId/orgId. Source maps via withSentryConfig. Plan: `2026-02-21-R06-sentry-error-monitoring-*.md`. Commit: 53f4d47.
+
+### R07 [x] Account Deletion & Data Export (GDPR)
 User-initiated account deletion that cascades to all data (domains, keywords, positions, reports, team memberships). Data export (download my data as JSON/CSV). Currently only admin can delete accounts.
 
 Scope: settings page delete account section, convex cascade deletion mutation, data export action.
 
+Completed: 2026-02-21. Full cascade deletion across 40+ tables with 7-day grace period. Data export to Convex file storage as JSON. Account tab in settings with delete/export/cancel UI. Daily cron for processing pending deletions. 30+ translation keys (en/pl). Plan: `2026-02-21-R07-account-deletion-data-export-*.md`. Commit: 8ad32b1.
+
 
 ## Tier 1 — Core Product Completeness (incomplete features that users will notice)
 
-### R08 [ ] Email Notifications System
+### R08 [~] Email Notifications System
 Break the monolithic "notifications" item into proper implementation. Infrastructure exists (Resend configured, notification preferences table, cron stubs) but most emails aren't sent.
 
 Phase 1 — Activate existing stubs:
@@ -80,7 +98,9 @@ Phase 4 — Email hygiene:
 
 Scope: convex/scheduler.ts, convex/crons.ts, convex/actions/sendEmail.ts, notification preferences logic.
 
-### R09 [ ] AI Report Engine
+Progress: Transactional email system with Resend configured (commit: 99603d3). Notification preferences table exists. E2E email delivery tests (15 tests, commit: 40cba01). Notification system integration tests (95 tests, commit: 4edab51). Remaining: all 4 phases above — digest emails, alert emails, billing emails, unsubscribe/preference filtering.
+
+### R09 [~] AI Report Engine
 Replace simple report templates with AI-generated reports using the same pattern as AI Strategy (multi-step, progress tracking, parallel analysts). This is the core differentiator for agencies.
 
 Architecture (reuse aiStrategy pattern):
@@ -107,6 +127,8 @@ Features:
 
 Scope: convex/aiReports.ts (new), report generation action, PDF generation, report UI, scheduled cron.
 
+Progress: Custom report editor implemented (commit: c2a7155). AI Strategy with multi-step parallel analysts pattern working (plan: `2026-02-14-ai-strategy-*.md`, commits: c2a7155, 6e60ce4). Branding settings, share links, report templates exist (commit: 74060cb). Remaining: full AI-generated report pipeline reusing aiStrategy pattern, PDF generation, scheduled report generation, report history with version comparison.
+
 ### R10 [ ] Google Search Console Integration
 Must-have for SEO tool credibility. Import actual click/impression data from GSC. Compare GSC positions vs DataForSEO positions. Show CTR data, impressions, clicks per keyword. Query performance over time.
 
@@ -119,72 +141,88 @@ Implementation:
 
 Scope: convex/gsc.ts (new), OAuth flow, GSC API client, dashboard integration, settings tab.
 
-### R11 [ ] CSV/Excel Import & Export
+### R11 [x] CSV/Excel Import & Export
 Critical for user acquisition (migration from Ahrefs/SEMrush) and for agencies exporting data.
 
 Import:
-- CSV/Excel file upload for keywords (with column mapping wizard)
-- Bulk domain import
-- Competitor list import
+- ~~CSV/Excel file upload for keywords (with column mapping wizard)~~ (done)
+- Bulk domain import (future enhancement)
+- ~~Competitor list import~~ (done)
 
 Export:
-- All major tables exportable to CSV (keywords, backlinks, competitors, positions)
-- Domain report export to Excel (multi-sheet)
-- Position history export with date range filter
+- ~~All major tables exportable to CSV (keywords, backlinks, competitors, positions)~~ (done)
+- ~~Domain report export to Excel (multi-sheet)~~ (done)
+- Position history export with date range filter (future enhancement)
 
 Scope: import wizard component, convex import mutations, export utility functions per table.
 
-### R12 [ ] "Add to Monitoring" & Cross-Feature Flows
+Completed: 2026-02-21. CSV/Excel parser with papaparse+xlsx. Column mapping wizard (ImportWizardModal). Keyword and competitor import modals. Export buttons on keyword monitoring, backlinks, discovered keywords, competitor tables. exportToCsv with UTF-8 BOM, exportToExcel multi-sheet. 18 new tests. Plan: `2026-02-21-R11-csv-import-export-*.md`. Commit: 825e343.
+
+### R12 [~] "Add to Monitoring" & Cross-Feature Flows
 Keywords discovered in content gap analysis and competitor tables have "Add to Monitoring" buttons with TODO comments. Complete the full flow: select keywords → confirm → create keyword records → trigger first position check. Also wire up SERP features display (component exists but disabled).
 
 Scope: AllKeywordsTable.tsx, CompetitorKeywordGapTable.tsx, SERPFeaturesBadges.tsx (re-enable), convex keyword mutations.
 
-### R13 [ ] Custom Alert Rules
+Progress: "Add Keywords" button with manual input and AI suggestions implemented (commit: 8428b6d). Add to Monitor functionality in tooltips working (commit: dee7e01). Remaining: complete end-to-end flow from content gap/competitor tables, re-enable SERP features badges display.
+
+### R13 [x] Custom Alert Rules
 Users can't configure alerts today. Anomaly detection runs automatically but with no configurable thresholds. Agencies need to set rules per client domain.
 
 Rules engine:
-- Keyword position drop > X positions → alert
-- Keyword exits top 10/20/50 → alert
-- New competitor detected → alert
-- Backlink lost → alert
-- Visibility score drops > X% → alert
+- ~~Keyword position drop > X positions → alert~~ (done)
+- ~~Keyword exits top 10/20/50 → alert~~ (done)
+- ~~New competitor detected → alert~~ (done)
+- ~~Backlink lost → alert~~ (done)
+- ~~Visibility score drops > X% → alert~~ (done)
 
 UI: Alert rules manager in domain settings. Alert history page. Alert delivery via email + in-app notification.
 
 Scope: convex/alertRules.ts (new), alert evaluation in cron jobs, alert UI, email integration.
 
-### R14 [ ] Onboarding Wizard
+Completed: 2026-02-21. CRUD mutations/queries with RBAC. 5 pure evaluator functions with cooldown deduplication. Daily 4:30 AM UTC cron. AlertsSection UI with rules/history tabs. Default rules created on domain creation. alerts.view and alerts.manage permissions. 59 translation keys (en/pl). 34 new tests. Plan: `2026-02-21-R13-custom-alert-rules-*.md`. Commit: a7675b5.
+
+### R14 [~] Onboarding Wizard
 First-time user flow: create org → add first domain → add first keywords → trigger first check → see first results. Progress indicators. Skip/later options. Empty states across all pages that guide toward the wizard.
 
 Scope: wizard components, empty state components across dashboard.
 
-### R15 [ ] OAuth Login (Google)
+Progress: Onboarding flow exists with progress tracking, content blocking until completion, dismiss banner logic (commits: 264a5eb, f47f9fc, be98901, e57a577). Auto-fetch keywords/visibility on domain creation (commit: f36f9c8). Empty states on keyword map and other sections. Remaining: full guided wizard UX (step-by-step create org → add domain → add keywords → first check → first results), skip/later options.
+
+### R15 [x] OAuth Login (Google)
 Reduces signup friction significantly. Most SaaS users expect Google login. Configure Convex Auth with Google OAuth provider.
 
 Scope: convex auth config, login/register pages, OAuth callback handling.
 
+Completed: 2026-02-21. Google provider via @auth/core. GoogleSignInButton conditional on NEXT_PUBLIC_GOOGLE_AUTH_ENABLED. OAuthDivider component. Added to login and register pages. .env.example documented. 4 new tests. Plan: `2026-02-21-R15-oauth-google-login-*.md`. Commit: 9386887.
+
 
 ## Tier 2 — Polish & Differentiation (launch quality, not blockers)
 
-### R16 [ ] Loading & Error State Audit
+### R16 [~] Loading & Error State Audit
 Systematic pass through all pages. Verify every query-dependent component handles: loading (skeleton), empty (helpful message + CTA), error (error boundary catches + retry button). Test with slow network throttling.
 
 Scope: all page components, integration tests for each state.
+
+Progress: ErrorBoundary wrapped all 16 tab panels + dashboard layout (commit: 53987f7). Skeleton colors fixed for dark mode (commit: 07a4b43). Missing difficulty values handled with info tooltip (commit: 25376ac). Retry logic with exponential backoff on 4 critical API paths. Remaining: systematic audit of ALL pages (not just tabs), slow network throttle testing, ensure every component has loading/empty/error states.
 
 ### R17 [ ] Search & Command Palette
 Global search (Cmd+K) to navigate between domains, projects, keywords. Shell exists with hardcoded navigation but actual search doesn't work. Search across all entities with recent items.
 
 Scope: CommandPalette component completion, search index in convex.
 
-### R18 [ ] Bulk Keyword Management
+### R18 [~] Bulk Keyword Management
 Select multiple keywords across tables. Bulk actions: delete, move to group, change tags, pause/resume monitoring, refresh positions. Selection UI exists but bulk operations incomplete.
 
 Scope: keyword table components, convex bulk mutation endpoints.
 
-### R19 [ ] Admin Panel Completion
+Progress: Bulk refresh positions implemented and tested (S0007). BulkActionBar component exists. Selection UI works. Remaining: bulk delete, bulk move to group, bulk change tags, bulk pause/resume monitoring.
+
+### R19 [~] Admin Panel Completion
 Admin panel exists but needs: real-time system health dashboard (API quotas remaining, job queue depth, error rates), user impersonation for support, bulk operations (mass email, plan changes).
 
 Scope: admin pages, convex admin queries.
+
+Progress: Admin panel with role management UI, user detail page (commit: 7974a6f). Super admin impersonation with visual banner (commit: 7f2a8a1). Plan management and assignment (commits: c140ce2, d51976f). Diagnostic endpoint with 12 cross-validation modules (commit: 8c68a30). API usage tracking and debug logs (commit: 6e60ce4). Remaining: real-time system health dashboard (API quotas, job queue depth, error rates), bulk admin operations (mass email, plan changes).
 
 ### R20 [ ] Performance Monitoring & User Analytics
 Plausible or PostHog for page views and user behavior. Web Vitals tracking. Feature usage analytics (which features are used, conversion funnels: signup → trial → paid). API cost dashboard for admins.
@@ -196,10 +234,12 @@ Active sessions list with device info. Logout from all devices. Login history. P
 
 Scope: convex/sessions.ts (new), settings security tab, session tracking middleware.
 
-### R22 [ ] Internationalization Completion
+### R22 [~] Internationalization Completion
 i18n framework works (next-intl with EN/PL) but translation coverage may be incomplete. Audit all strings. Add locale-aware date/number formatting. Missing translation warnings in dev. Consider adding DE/ES for broader market.
 
 Scope: all translation files, locale formatting utilities, translation audit script.
+
+Progress: i18n with next-intl configured, PL/EN support working (commit: 564e68c). Turbopack config resolution fixed for Next.js 16 (commit: aadcda5). Remaining: full string audit for coverage gaps, locale-aware date/number formatting, missing translation warnings in dev, DE/ES languages.
 
 
 ## Tier 3 — Growth (first 3 months post-launch)
@@ -585,3 +625,65 @@ Tier 2 and 3 items are independent of each other (except R31 depends on R08 + R0
 Estimated scope: Tier 0 items are 1-2 sessions each. Tier 1 items are 2-4 sessions. R09 (AI Reports) is the largest at 4-6 sessions. Tier 2 items are 1-3 sessions. Tier 3 items are larger initiatives.
 
 Total items: 35.
+
+
+---
+
+
+## Status Summary (last updated: 2026-02-21)
+
+| Tier | Total | Done | In Progress | Not Started |
+|------|-------|------|-------------|-------------|
+| Tier 0 — Blockers | 7 | 7 (R01-R07) | 0 | 0 |
+| Tier 1 — Core | 8 | 3 (R11, R13, R15) | 4 (R08, R09, R12, R14) | 1 (R10) |
+| Tier 2 — Polish | 7 | 0 | 4 (R16, R18, R19, R22) | 3 (R17, R20, R21) |
+| Tier 3 — Growth | 13 | 0 | 0 | 13 (R23-R35) |
+| **Total** | **35** | **10** | **8** | **17** |
+
+Tier 0 complete! All blockers resolved. Critical path: finish Tier 1 in-progress items (R08 emails, R09 AI reports, R12 cross-feature flows, R14 onboarding) and R10 (GSC).
+
+### Work completed outside roadmap items
+
+Significant features built that are not tracked as separate roadmap items but contribute to overall product readiness:
+
+- RBAC system: roles, permissions (36), plans CRUD, PermissionGate/ModuleGate, tenant isolation, permission ceiling resolution. Plan: `2026-02-16-roles-permissions-*.md`.
+- Supabase migration: dual-write keyword positions, analytical reads migration, competitor dual-write, dead code cleanup (phases 1-2e).
+- API cost optimization: 13 issues addressed, DataForSEO cost tracking, reduced SERP depth. Plan: `2026-02-19-api-cost-optimization.md`.
+- Page scoring algorithm: PSI integration, scoring engine. Plan: `2026-02-06-page-scoring-algorithm.md`.
+- Convex query optimization: dramatic reduction in queries across 10+ files (keywords 101→1, stats 201→1, monitoring 401→2).
+- Module Hub: progressive disclosure, dependency diagram, business context panels.
+- Dark mode: systematic fixes across EzIcons, skeletons, charts, on-site section, modal overlays.
+- Test suite: 2226+ tests in 119 files covering backend, frontend, integration, data flow, auth, email delivery.
+- User documentation in Polish for non-technical users.
+- JSON Schema / llms.txt generators design (plans exist, implementation pending).
+
+
+---
+
+
+## Completion Log
+
+Record every status change here with date and brief notes. Most recent entries first.
+
+| Date | Item | Change | Notes |
+|------|------|--------|-------|
+| 2026-02-21 | R15 | [ ] → [x] | Google OAuth login/register. 4 tests. Commit: 9386887 |
+| 2026-02-21 | R13 | [ ] → [x] | Custom alert rules engine + UI. 34 tests. Commit: a7675b5 |
+| 2026-02-21 | R11 | [ ] → [x] | CSV/Excel import wizard + export. 18 tests. Commit: 825e343 |
+| 2026-02-21 | R03 | [~] → [x] | Stripe dunning, trial reminders, invoices, payment update. 20 tests. Commit: efba4db |
+| 2026-02-21 | R07 | [ ] → [x] | GDPR account deletion + data export. Commit: 8ad32b1 |
+| 2026-02-21 | R06 | [ ] → [x] | Sentry error monitoring with PII filtering. Commit: 53f4d47 |
+| 2026-02-21 | R05 | [ ] → [x] | Legal pages + cookie consent. Commit: 4788cb9 |
+| 2026-02-21 | R04 | [ ] → [x] | Security headers + mutation auth audit. Commit: 922ff8c |
+| 2026-02-21 | R02 | [ ] → [x] | 3-step OTP email verification. 24 tests. Commit: 9106bbb |
+| 2026-02-21 | R01 | [ ] → [x] | OTP-based password reset & change. 28 tests. Commits: 089f532, 657fe1b |
+| 2026-02-21 | R16 | [ ] → [~] | ErrorBoundary on 16 tabs, skeleton dark mode, retry logic |
+| 2026-02-21 | R19 | [ ] → [~] | Admin panel, impersonation, diagnostics, plan management |
+| 2026-02-21 | R22 | [ ] → [~] | i18n PL/EN working, coverage audit pending |
+| 2026-02-21 | R18 | [ ] → [~] | Bulk refresh works, other bulk ops pending |
+| 2026-02-21 | R14 | [ ] → [~] | Onboarding flow exists, full wizard UX pending |
+| 2026-02-21 | R12 | [ ] → [~] | Add Keywords button works, cross-feature flows pending |
+| 2026-02-21 | R09 | [ ] → [~] | Custom report editor + AI Strategy pattern built |
+| 2026-02-21 | R08 | [ ] → [~] | Resend configured, transactional emails, 110 tests |
+| 2026-02-21 | R03 | [ ] → [~] | Stripe checkout/pricing/webhooks done, lifecycle flows pending |
+| 2026-02-21 | — | — | Initial roadmap status reconciliation from git history |
