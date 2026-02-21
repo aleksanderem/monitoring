@@ -1,5 +1,65 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { auth } from "./auth";
+
+// =================================================================
+// User-Level Onboarding (App Welcome Flow — R14)
+// =================================================================
+
+/**
+ * Get the current user's onboarding status (whether they've completed
+ * the first-time welcome flow).
+ */
+export const getUserOnboardingStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+
+    const status = await ctx.db
+      .query("userOnboardingStatus")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+
+    return {
+      hasCompletedOnboarding: status?.hasCompletedOnboarding ?? false,
+      userId,
+    };
+  },
+});
+
+/**
+ * Mark the current user's onboarding as complete.
+ */
+export const completeUserOnboarding = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const existing = await ctx.db
+      .query("userOnboardingStatus")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        hasCompletedOnboarding: true,
+        completedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userOnboardingStatus", {
+        userId,
+        hasCompletedOnboarding: true,
+        completedAt: Date.now(),
+      });
+    }
+  },
+});
+
+// =================================================================
+// Domain-Level Onboarding (DomainSetupWizard)
+// =================================================================
 
 /**
  * Get computed onboarding status for a domain.

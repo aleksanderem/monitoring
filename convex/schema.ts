@@ -5,6 +5,13 @@ import { authTables } from "@convex-dev/auth/server";
 export default defineSchema({
   ...authTables,
 
+  // User onboarding status (tracks whether user has completed the welcome flow)
+  userOnboardingStatus: defineTable({
+    userId: v.id("users"),
+    hasCompletedOnboarding: v.boolean(),
+    completedAt: v.optional(v.number()),
+  }).index("by_user", ["userId"]),
+
   // Subscription plans (define module/permission/limit ceilings per organization)
   plans: defineTable({
     name: v.string(),              // "Free", "Pro", "Enterprise"

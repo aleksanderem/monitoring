@@ -1,0 +1,36 @@
+{
+    "title": "Welcome to doseo",
+    "subtitle": "Let's get your SEO monitoring set up in a few quick steps.",
+    "welcome": {
+        "heading": "Welcome to doseo!",
+        "description": "Your all-in-one SEO monitoring platform. Track keyword positions, analyze competitors, audit your site, and get AI-powered strategy recommendations.",
+        "features": {
+            "positioning": "Keyword position tracking with daily updates",
+            "competitors": "Competitor analysis and content gap detection",
+            "audit": "On-site SEO audit with actionable recommendations",
+            "strategy": "AI-powered SEO strategy and calendar planning"
+        },
+        "cta": "Get Started"
+    },
+    "orgSetup": {
+        "heading": "Set up your organization",
+        "description": "Customize your organization name. You can always change this later in settings.",
+        "nameLabel": "Organization name",
+        "namePlaceholder": "My Company",
+        "industryLabel": "Industry (optional)",
+        "industryPlaceholder": "e.g. E-commerce, SaaS, Marketing",
+        "cta": "Continue"
+    },
+    "firstDomain": {
+        "heading": "Add your first domain",
+        "description": "Enter the domain you want to monitor. We'll start tracking its SEO performance right away.",
+        "urlLabel": "Domain URL",
+        "urlPlaceholder": "example.com",
+        "nameLabel": "Display name (optional)",
+        "namePlaceholder": "My Website",
+        "cta": "Add Domain"
+    },
+    "skip": "Skip",
+    "stepOf": "Step {current} of {total}",
+    "back": "Back"
+}

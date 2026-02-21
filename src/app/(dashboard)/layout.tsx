@@ -35,6 +35,11 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
 
+  const onboardingStatus = useQuery(
+    api.onboarding.getUserOnboardingStatus,
+    isAuthenticated ? {} : "skip"
+  );
+
   const userOrgs = useQuery(
     api.organizations.getUserOrganizations,
     isAuthenticated ? {} : "skip"
@@ -65,6 +70,18 @@ export default function DashboardLayout({
       router.push("/login");
     }
   }, [isAuthenticated, isLoading, router]);
+
+  // Redirect new users to onboarding flow
+  useEffect(() => {
+    if (
+      isAuthenticated &&
+      onboardingStatus !== undefined &&
+      onboardingStatus !== null &&
+      !onboardingStatus.hasCompletedOnboarding
+    ) {
+      router.push("/onboarding");
+    }
+  }, [isAuthenticated, onboardingStatus, router]);
 
   if (isLoading) {
     return (
