@@ -172,5 +172,7 @@
   "recentOrganizations": "Ostatnie organizacje",
   "viewAllOrganizations": "Zobacz wszystkie ({count})",
   "joinedDate": "Dołączył {date}",
-  "performedBy": "Przez"
+  "performedBy": "Przez",
+  "impersonationBannerViewing": "Przeglądasz jako:",
+  "impersonationBannerReturn": "Powrót do panelu admina"
 }

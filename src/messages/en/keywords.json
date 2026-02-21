@@ -579,5 +579,10 @@
   "tagOp_set": "Replace all tags",
   "bulkPause": "Pause",
   "bulkResume": "Resume",
-  "bulkStatusSuccess": "Changed status of {count} keywords"
+  "bulkStatusSuccess": "Changed status of {count} keywords",
+  "failedToFetchKeywordsGeneric": "Failed to fetch keywords",
+  "failedToFetchHistory": "Failed to fetch history",
+  "drillDownFailed": "Drill-down failed",
+  "unknownError": "Unknown error",
+  "unknownKeyword": "Unknown"
 }

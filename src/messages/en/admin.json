@@ -172,5 +172,7 @@
   "recentOrganizations": "Recent Organizations",
   "viewAllOrganizations": "View all {count} organizations",
   "joinedDate": "Joined {date}",
-  "performedBy": "By"
+  "performedBy": "By",
+  "impersonationBannerViewing": "Viewing as:",
+  "impersonationBannerReturn": "Return to admin panel"
 }

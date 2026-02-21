@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 export function ImpersonationBanner() {
+  const t = useTranslations("admin");
   const [impersonating, setImpersonating] = useState<{
     orgId: string;
     orgName: string;
@@ -27,13 +29,13 @@ export function ImpersonationBanner() {
   return (
     <div className="bg-warning-solid text-white px-4 py-2 text-center text-sm font-medium flex items-center justify-center gap-4 z-50">
       <span>
-        Przeglądasz jako: <strong>{impersonating.orgName}</strong>
+        {t("impersonationBannerViewing")} <strong>{impersonating.orgName}</strong>
       </span>
       <button
         onClick={handleExit}
         className="underline hover:no-underline font-semibold"
       >
-        Powrót do panelu admina
+        {t("impersonationBannerReturn")}
       </button>
     </div>
   );

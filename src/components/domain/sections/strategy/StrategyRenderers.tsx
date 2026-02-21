@@ -1824,11 +1824,11 @@ export function StrategySectionCard({
         question: question || undefined,
       });
       if (!result.success) {
-        toast.error(result.error || "Drill-down failed");
+        toast.error(result.error || t("drillDownFailed"));
       }
       setDrillDownQuestion("");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unknown error");
+      toast.error(err instanceof Error ? err.message : t("unknownError"));
     } finally {
       setIsDrilling(false);
     }

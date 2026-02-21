@@ -579,5 +579,10 @@
   "tagOp_set": "Zastąp wszystkie tagi",
   "bulkPause": "Wstrzymaj",
   "bulkResume": "Wznów",
-  "bulkStatusSuccess": "Zmieniono status {count} słów kluczowych"
+  "bulkStatusSuccess": "Zmieniono status {count} słów kluczowych",
+  "failedToFetchKeywordsGeneric": "Nie udało się pobrać słów kluczowych",
+  "failedToFetchHistory": "Nie udało się pobrać historii",
+  "drillDownFailed": "Pogłębiona analiza nie powiodła się",
+  "unknownError": "Nieznany błąd",
+  "unknownKeyword": "Nieznane"
 }

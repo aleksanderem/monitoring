@@ -48,5 +48,7 @@
   "requiresCrawl": "Najpierw uruchom skan On-Site, aby mieć dane stron do generowania.",
   "editBeforeDownload": "Edytuj",
   "saveEdits": "Zapisz",
-  "cancelEdits": "Anuluj"
+  "cancelEdits": "Anuluj",
+  "failedToGenerateInstructions": "Nie udało się wygenerować instrukcji",
+  "failedToGenerateOutput": "Generowanie nie powiodło się"
 }

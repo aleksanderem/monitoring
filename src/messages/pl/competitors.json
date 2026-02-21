@@ -564,5 +564,7 @@
     "winRateYouLead": "Ty prowadzisz",
     "winRateTied": "Remis",
     "winRateTheyLead": "Oni prowadzą",
-    "winRateTotal": "Łącznie słów kluczowych"
+    "winRateTotal": "Łącznie słów kluczowych",
+    "unknownKeyword": "Nieznane",
+    "unknownCompetitor": "Nieznany"
 }
