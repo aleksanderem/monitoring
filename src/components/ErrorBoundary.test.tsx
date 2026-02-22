@@ -63,7 +63,7 @@ describe("ErrorBoundary", () => {
     expect(screen.getByText("Test render error")).toBeInTheDocument();
   });
 
-  it('"Try again" button resets the error state and re-renders children', async () => {
+  it('"Retry now" button resets the error state and re-renders children', async () => {
     let shouldThrow = true;
 
     function Toggler() {
@@ -84,7 +84,7 @@ describe("ErrorBoundary", () => {
     shouldThrow = false;
 
     const user = userEvent.setup();
-    await user.click(screen.getByText("Try again"));
+    await user.click(screen.getByText("Retry now"));
 
     // Children re-render successfully
     expect(screen.getByText("Recovered content")).toBeInTheDocument();

@@ -200,6 +200,86 @@ export const getMovementTrend = query({
   },
 });
 
+// Internal query to verify domain access from actions (actions can't use requireTenantAccess directly)
+export const _verifyDomainAccess = internalQuery({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return false;
+    try {
+      await requireTenantAccess(ctx, "domain", args.domainId);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+});
+
+// Movement trend from Supabase (full history, not limited to 7 days)
+export const getMovementTrendSupabase = action({
+  args: {
+    domainId: v.id("domains"),
+    days: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const hasAccess = await ctx.runQuery(internal.keywords._verifyDomainAccess, { domainId: args.domainId });
+    if (!hasAccess) return [];
+
+    const sb = getSupabaseAdmin();
+    if (!sb) return [];
+
+    const days = args.days ?? 30;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoff = cutoffDate.toISOString().split("T")[0];
+
+    const { data, error } = await sb
+      .from("keyword_positions")
+      .select("convex_keyword_id, date, position")
+      .eq("convex_domain_id", args.domainId)
+      .gte("date", cutoff)
+      .not("position", "is", null)
+      .order("convex_keyword_id")
+      .order("date", { ascending: true });
+
+    if (error || !data) return [];
+
+    // Group by keyword, then compare consecutive days
+    const dateGainers = new Map<string, number>();
+    const dateLosers = new Map<string, number>();
+
+    const byKeyword = new Map<string, Array<{ date: string; position: number }>>();
+    for (const row of data) {
+      if (row.position == null) continue;
+      const arr = byKeyword.get(row.convex_keyword_id);
+      const entry = { date: row.date, position: row.position };
+      if (arr) arr.push(entry);
+      else byKeyword.set(row.convex_keyword_id, [entry]);
+    }
+
+    for (const positions of byKeyword.values()) {
+      for (let i = 1; i < positions.length; i++) {
+        const prev = positions[i - 1];
+        const curr = positions[i];
+        if (curr.position < prev.position) {
+          dateGainers.set(curr.date, (dateGainers.get(curr.date) ?? 0) + 1);
+        } else if (curr.position > prev.position) {
+          dateLosers.set(curr.date, (dateLosers.get(curr.date) ?? 0) + 1);
+        }
+      }
+    }
+
+    const allDates = new Set([...dateGainers.keys(), ...dateLosers.keys()]);
+    return Array.from(allDates)
+      .sort()
+      .map((date) => ({
+        date: new Date(date).getTime(),
+        gainers: dateGainers.get(date) ?? 0,
+        losers: dateLosers.get(date) ?? 0,
+      }));
+  },
+});
+
 // Get monitoring statistics for overview cards (uses denormalized data — single query, no N+1)
 export const getMonitoringStats = query({
   args: { domainId: v.id("domains") },

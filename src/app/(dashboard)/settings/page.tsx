@@ -33,6 +33,9 @@ import {
   TrendUp01,
   Globe01,
   Monitor01,
+  LinkExternal01,
+  Code02,
+  Palette,
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
@@ -43,7 +46,11 @@ import { usePageTitle } from "@/hooks/usePageTitle";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { RoleManagement } from "@/components/settings/RoleManagement";
 import { SessionManagement } from "@/components/settings/SessionManagement";
+import { GscConnectionPanel } from "@/components/settings/GscConnectionPanel";
 import { FileTrigger } from "@/components/base/file-upload-trigger/file-upload-trigger";
+import { TwoFactorSetup } from "@/components/settings/TwoFactorSetup";
+import WebhooksTab from "@/components/settings/WebhooksTab";
+import { WhiteLabelTab } from "@/components/settings/WhiteLabelTab";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { useTheme } from "next-themes";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
@@ -691,124 +698,6 @@ function APIKeysSection() {
           </table>
         </div>
       )}
-    </Section>
-  );
-}
-
-// ─── Branding section ────────────────────────────────────────────────
-
-function BrandingSection() {
-  const t = useTranslations("settings");
-  const branding = useQuery(api.branding.getOrganizationBranding);
-  const generateUploadUrl = useMutation(api.branding.generateLogoUploadUrl);
-  const saveLogo = useMutation(api.branding.saveOrganizationLogo);
-  const removeLogo = useMutation(api.branding.removeOrganizationLogo);
-
-  const [isUploading, setIsUploading] = useState(false);
-  const [isRemoving, setIsRemoving] = useState(false);
-
-  const handleFileSelect = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const file = files[0];
-
-    // Client-side validation
-    if (!file.type.startsWith("image/")) {
-      toast.error(t("logoUploadError"));
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error(t("logoUploadError"));
-      return;
-    }
-
-    setIsUploading(true);
-    try {
-      const uploadUrl = await generateUploadUrl();
-      const response = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      const { storageId } = await response.json();
-      await saveLogo({ storageId });
-      toast.success(t("logoUploadedSuccess"));
-    } catch {
-      toast.error(t("logoUploadError"));
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleRemove = async () => {
-    setIsRemoving(true);
-    try {
-      await removeLogo();
-      toast.success(t("logoRemovedSuccess"));
-    } catch {
-      toast.error(t("logoUploadError"));
-    } finally {
-      setIsRemoving(false);
-    }
-  };
-
-  if (branding === undefined) {
-    return <LoadingState type="card" rows={2} />;
-  }
-
-  const logoUrl = branding?.branding?.logoUrl;
-
-  return (
-    <Section
-      title={t("brandingTitle")}
-      description={t("brandingDescription")}
-    >
-      {/* Logo preview */}
-      <div className="mb-6 flex items-center gap-6">
-        <div className="flex h-20 w-40 items-center justify-center rounded-lg border border-dashed border-secondary bg-secondary/30">
-          {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt="Company logo"
-              className="max-h-16 max-w-36 object-contain"
-            />
-          ) : (
-            <div className="flex flex-col items-center gap-1">
-              <Image01 className="h-6 w-6 text-quaternary" />
-              <span className="text-xs text-quaternary">{t("noLogoUploaded")}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <FileTrigger
-            acceptedFileTypes={["image/png", "image/jpeg", "image/svg+xml"]}
-            onSelect={handleFileSelect}
-          >
-            <Button
-              color="secondary"
-              size="sm"
-              iconLeading={Upload01}
-              isLoading={isUploading}
-            >
-              {t("uploadLogo")}
-            </Button>
-          </FileTrigger>
-
-          {logoUrl && (
-            <Button
-              color="primary-destructive"
-              size="sm"
-              iconLeading={Trash01}
-              onClick={handleRemove}
-              isLoading={isRemoving}
-            >
-              {t("removeLogo")}
-            </Button>
-          )}
-
-          <p className="text-xs text-quaternary">{t("logoRequirements")}</p>
-        </div>
-      </div>
     </Section>
   );
 }
@@ -1874,6 +1763,50 @@ function SecuritySection() {
   );
 }
 
+// ─── Integrations section ────────────────────────────────────────────
+
+function IntegrationsSection() {
+  const t = useTranslations("settings");
+  const orgs = useQuery(api.organizations.getUserOrganizations);
+  const orgId = orgs?.[0]?._id;
+
+  if (!orgId) {
+    return <LoadingState type="table" rows={2} />;
+  }
+
+  return (
+    <Section title={t("tabIntegrations")} description={t("integrationsDescription")}>
+      <GscConnectionPanel organizationId={orgId} />
+    </Section>
+  );
+}
+
+// ─── Webhooks section ─────────────────────────────────────────────────
+
+function WebhooksSection() {
+  const orgs = useQuery(api.organizations.getUserOrganizations);
+  const orgId = orgs?.[0]?._id;
+
+  if (!orgId) {
+    return <LoadingState type="table" rows={2} />;
+  }
+
+  return <WebhooksTab orgId={orgId} />;
+}
+
+// ─── White Label section ──────────────────────────────────────────────
+
+function WhiteLabelSection() {
+  const orgs = useQuery(api.organizations.getUserOrganizations);
+  const orgId = orgs?.[0]?._id;
+
+  if (!orgId) {
+    return <LoadingState type="card" rows={3} />;
+  }
+
+  return <WhiteLabelTab organizationId={orgId} />;
+}
+
 // ─── Main page ──────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -1886,12 +1819,14 @@ export default function SettingsPage() {
     { id: "preferences", label: t("tabPreferences"), icon: Settings01 },
     { id: "notifications", label: t("tabNotifications"), icon: Bell01 },
     { id: "api-keys", label: t("tabApiKeys"), icon: Key01 },
-    { id: "branding", label: t("tabBranding"), icon: Image01 },
     { id: "members", label: t("tabMembers"), icon: Users01 },
     { id: "roles", label: t("tabRoles"), icon: Shield01 },
     { id: "limits", label: t("tabLimits"), icon: Speedometer02 },
     { id: "sessions", label: t("tabSessions"), icon: Monitor01 },
     { id: "security", label: t("tabSecurity"), icon: Lock01 },
+    { id: "integrations", label: t("tabIntegrations"), icon: LinkExternal01 },
+    { id: "webhooks", label: t("tabWebhooks"), icon: Code02 },
+    { id: "white-label", label: t("tabWhiteLabel"), icon: Palette },
   ];
 
   return (
@@ -1950,10 +1885,6 @@ export default function SettingsPage() {
                 <APIKeysSection />
               </TabPanel>
 
-              <TabPanel id="branding" className="w-full">
-                <BrandingSection />
-              </TabPanel>
-
               <TabPanel id="members" className="w-full">
                 <MembersSection />
               </TabPanel>
@@ -1972,6 +1903,21 @@ export default function SettingsPage() {
 
               <TabPanel id="security" className="w-full">
                 <SecuritySection />
+                <div className="border-t border-secondary px-6 pb-6">
+                  <TwoFactorSetup />
+                </div>
+              </TabPanel>
+
+              <TabPanel id="integrations" className="w-full">
+                <IntegrationsSection />
+              </TabPanel>
+
+              <TabPanel id="webhooks" className="w-full">
+                <WebhooksSection />
+              </TabPanel>
+
+              <TabPanel id="white-label" className="w-full">
+                <WhiteLabelSection />
               </TabPanel>
             </div>
           </div>

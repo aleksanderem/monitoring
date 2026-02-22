@@ -286,7 +286,7 @@ export default function WebhooksTab({ orgId }: WebhooksTabProps) {
   }
 
   return (
-    <div data-testid="webhooks-tab">
+    <div data-testid="webhooks-tab" className="p-6">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-primary">{t("title")}</h2>

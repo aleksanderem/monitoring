@@ -216,6 +216,8 @@
   "passwordChanged": "Password changed successfully",
   "tabIntegrations": "Integrations",
   "integrationsDescription": "Connect external services to enrich your monitoring data.",
+  "tabWebhooks": "Webhooks",
+  "tabWhiteLabel": "White Label",
   "gscTitle": "Google Search Console",
   "gscDescription": "Connect your Google Search Console to import search performance data.",
   "gscConnect": "Connect Google Search Console",

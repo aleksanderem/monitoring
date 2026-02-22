@@ -186,6 +186,7 @@ function baseQueries(overrides: QueryMap = {}): QueryMap {
     "limits:getUsageStats": USAGE_STATS_LOW,
     "limits:getOrgRefreshLimits": ORG_REFRESH_LIMITS,
     "branding:getOrganizationBranding": BRANDING_NO_LOGO,
+    "agency:getClientBranding": { logoUrl: null, primaryColor: "#3B82F6", accentColor: "#8B5CF6", companyName: "", footerText: "", customDomain: "" },
     ...overrides,
   };
 }
@@ -371,16 +372,16 @@ describe("Settings Flows", () => {
     });
   });
 
-  // ── Branding Tab ─────────────────────────────────────────────────────
+  // ── White Label Tab ──────────────────────────────────────────────────
 
-  describe("Branding Tab", () => {
+  describe("White Label Tab", () => {
     it("shows upload button when no logo is set", async () => {
       const user = userEvent.setup();
       setupQueries(baseQueries({ "branding:getOrganizationBranding": BRANDING_NO_LOGO }));
       renderWithProviders(<SettingsPage />);
 
-      const brandingTab = screen.getAllByRole("tab", { name: /Branding/i })[0];
-      await user.click(brandingTab);
+      const whitelabelTab = screen.getAllByRole("tab", { name: /White Label/i })[0];
+      await user.click(whitelabelTab);
 
       expect(screen.getByText("No logo uploaded yet")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Upload logo/i })).toBeInTheDocument();
@@ -391,8 +392,8 @@ describe("Settings Flows", () => {
       setupQueries(baseQueries({ "branding:getOrganizationBranding": BRANDING_WITH_LOGO }));
       renderWithProviders(<SettingsPage />);
 
-      const brandingTab = screen.getAllByRole("tab", { name: /Branding/i })[0];
-      await user.click(brandingTab);
+      const whitelabelTab = screen.getAllByRole("tab", { name: /White Label/i })[0];
+      await user.click(whitelabelTab);
 
       const logo = screen.getByAltText("Company logo");
       expect(logo).toBeInTheDocument();
@@ -784,10 +785,10 @@ describe("Settings Flows", () => {
       expect(screen.queryByText("Choose what you want to be notified about and how often.")).not.toBeInTheDocument();
       expect(screen.getByText("Manage API keys for programmatic access to your data.")).toBeInTheDocument();
 
-      // Switch to Branding
-      const brandingTab = screen.getAllByRole("tab", { name: /Branding/i })[0];
-      await user.click(brandingTab);
-      expect(screen.getByText("Company Logo")).toBeInTheDocument();
+      // Switch to White Label
+      const whitelabelTab = screen.getAllByRole("tab", { name: /White Label/i })[0];
+      await user.click(whitelabelTab);
+      expect(screen.getByRole("button", { name: /Upload logo/i })).toBeInTheDocument();
     });
   });
 });

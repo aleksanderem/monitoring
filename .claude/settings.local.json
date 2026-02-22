@@ -31,6 +31,32 @@
       "Bash(node:*)"
     ]
   },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/alex/projects/monitoring2/monitoring/.claude/hooks/commit-guard.sh",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/alex/projects/monitoring2/monitoring/.claude/hooks/blast-radius-check.sh",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "graphiti-memory",

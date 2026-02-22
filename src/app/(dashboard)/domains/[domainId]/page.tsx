@@ -52,6 +52,8 @@ import { CanvasRevealEffect } from "@/components/ui/canvas-reveal-effect";
 import { PositionDistributionChart } from "@/components/domain/charts/PositionDistributionChart";
 import { MovementTrendChart } from "@/components/domain/charts/MovementTrendChart";
 import { MonitoringStats } from "@/components/domain/sections/MonitoringStats";
+import { ExecutiveSummary } from "@/components/domain/sections/ExecutiveSummary";
+import { SERPFeaturesSection } from "@/components/domain/sections/SERPFeaturesSection";
 import { KeywordMonitoringTable } from "@/components/domain/tables/KeywordMonitoringTable";
 import { LiveBadge } from "@/components/domain/badges/LiveBadge";
 import { Activity } from "@untitledui/icons";
@@ -984,6 +986,9 @@ export default function DomainDetailPage() {
                 {/* Statistics Section */}
                 <MonitoringStats domainId={domainId} />
 
+                {/* SERP Features */}
+                <SERPFeaturesSection domainId={domainId} />
+
                 {/* Monitoring Table */}
                 <KeywordMonitoringTable domainId={domainId} />
               </div>
@@ -1020,6 +1025,9 @@ export default function DomainDetailPage() {
                     {isFetchingVisibility ? t('fetching') : t('refreshKeywords')}
                   </Button>
                 </div>
+
+                {/* Executive Summary */}
+                <ExecutiveSummary domainId={domainId} />
 
                 {/* Visibility Statistics */}
                 <VisibilityStats

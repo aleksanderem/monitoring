@@ -104,8 +104,10 @@ vi.mock("next-intl", async () => {
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
 
+import { waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/helpers/render-with-providers";
-import { mockQueries, resetConvexMocks } from "@/test/helpers/convex-mock";
+import { useAction } from "convex/react";
+import { mockQueries, resetConvexMocks, mockAction } from "@/test/helpers/convex-mock";
 import { api } from "../../../../convex/_generated/api";
 import { MiniSparkline } from "./MiniSparkline";
 import { PositionDistributionChart } from "./PositionDistributionChart";
@@ -249,30 +251,39 @@ describe("PositionHistoryChart", () => {
 });
 
 // ===========================================================================
-// 4. MovementTrendChart
+// 4. MovementTrendChart (uses useAction, not useQuery)
 // ===========================================================================
 describe("MovementTrendChart", () => {
-  it("shows loading state when query returns undefined", () => {
+  it("shows loading state when action has not resolved yet", () => {
+    // Action returns a never-resolving promise → trend stays undefined → loading state
+    const actionFn = vi.fn().mockReturnValue(new Promise(() => {}));
+    vi.mocked(useAction).mockReturnValue(actionFn as any);
     renderWithProviders(<MovementTrendChart domainId={"d1" as any} />);
     expect(screen.getByText("Position Movement Trend (6 months)")).toBeInTheDocument();
     expect(screen.getByTestId("loading-state")).toBeInTheDocument();
   });
 
-  it("shows empty state when trend is empty array", () => {
-    mockQueries([[api.keywords.getMovementTrend, []]]);
+  it("shows empty state when trend is empty array", async () => {
+    const actionFn = vi.fn().mockResolvedValue([]);
+    vi.mocked(useAction).mockReturnValue(actionFn as any);
     renderWithProviders(<MovementTrendChart domainId={"d1" as any} />);
-    expect(screen.getByText("No historical data yet")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("No historical data yet")).toBeInTheDocument();
+    });
     expect(screen.getByText(/Click "Refresh Keywords"/)).toBeInTheDocument();
   });
 
-  it("renders chart with trend data", () => {
-    mockQueries([[api.keywords.getMovementTrend, [
-      { date: "2025-01-01", gainers: 10, losers: 5 },
-      { date: "2025-01-02", gainers: 12, losers: 3 },
-    ]]]);
+  it("renders chart with trend data", async () => {
+    const actionFn = vi.fn().mockResolvedValue([
+      { date: new Date("2025-01-01").getTime(), gainers: 10, losers: 5 },
+      { date: new Date("2025-01-02").getTime(), gainers: 12, losers: 3 },
+    ]);
+    vi.mocked(useAction).mockReturnValue(actionFn as any);
     renderWithProviders(<MovementTrendChart domainId={"d1" as any} />);
-    expect(screen.getByText("Position Movement Trend (6 months)")).toBeInTheDocument();
-    expect(screen.getByTestId("responsive-container")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Position Movement Trend (6 months)")).toBeInTheDocument();
+      expect(screen.getByTestId("responsive-container")).toBeInTheDocument();
+    });
   });
 });
 

@@ -216,6 +216,8 @@
   "passwordChanged": "[DE] Password changed successfully",
   "tabIntegrations": "[DE] Integrations",
   "integrationsDescription": "[DE] Connect external services to enrich your monitoring data.",
+  "tabWebhooks": "Webhooks",
+  "tabWhiteLabel": "White Label",
   "gscTitle": "[DE] Google Search Console",
   "gscDescription": "[DE] Connect your Google Search Console to import search performance data.",
   "gscConnect": "[DE] Connect Google Search Console",

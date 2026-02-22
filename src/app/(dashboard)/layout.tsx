@@ -21,6 +21,8 @@ import { AlertFullWidth } from "@/components/application/alerts/alerts";
 import { PermissionsProvider } from "@/contexts/PermissionsContext";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ProductTour } from "@/components/tours/ProductTour";
+import { TOUR_GETTING_STARTED } from "@/components/tours/tourDefinitions";
 import { useTranslations } from "next-intl";
 import type { Id } from "../../../convex/_generated/dataModel";
 
@@ -159,6 +161,9 @@ export default function DashboardLayout({
 
         {/* Job completion notifications */}
         <JobCompletionNotifier />
+
+        {/* Getting started product tour */}
+        <ProductTour tourId={TOUR_GETTING_STARTED.id} steps={TOUR_GETTING_STARTED.steps} />
       </div>
     </PermissionsProvider>
   );
