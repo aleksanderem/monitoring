@@ -13,14 +13,14 @@ interface SERPFeaturesBadgesProps {
 
 const FEATURE_CONFIG: Record<
   string,
-  { label: string; color: "blue" | "green" | "purple" | "red" | "orange" | "cyan" | "gray"; icon: React.ElementType }
+  { label: string; color: "blue" | "success" | "purple" | "error" | "orange" | "blue-light" | "gray"; icon: React.ElementType }
 > = {
   featuredSnippet: { label: "Featured", color: "blue", icon: Stars01 },
-  peopleAlsoAsk: { label: "PAA", color: "green", icon: InfoCircle },
+  peopleAlsoAsk: { label: "PAA", color: "success", icon: InfoCircle },
   imagePack: { label: "Images", color: "purple", icon: Image01 },
-  videoPack: { label: "Videos", color: "red", icon: VideoRecorder },
+  videoPack: { label: "Videos", color: "error", icon: VideoRecorder },
   localPack: { label: "Local", color: "orange", icon: MarkerPin01 },
-  knowledgeGraph: { label: "KG", color: "cyan", icon: InfoCircle },
+  knowledgeGraph: { label: "KG", color: "blue-light", icon: InfoCircle },
   sitelinks: { label: "Sitelinks", color: "gray", icon: InfoCircle },
   topStories: { label: "Top Stories", color: "gray", icon: InfoCircle },
   relatedSearches: { label: "Related", color: "gray", icon: InfoCircle },

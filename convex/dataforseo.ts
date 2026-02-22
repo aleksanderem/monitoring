@@ -1644,7 +1644,8 @@ export const fetchAndStoreVisibility = action({
     // Store discovered keywords (convert null to undefined for Convex schema)
     await ctx.runMutation(internal.dataforseo.storeDiscoveredKeywords, {
       domainId: args.domainId,
-      keywords: result.keywords.map(kw => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      keywords: (result.keywords as any[]).map((kw) => ({
         ...kw,
         position: kw.position ?? undefined, // Convert null to undefined for optional fields
       })),

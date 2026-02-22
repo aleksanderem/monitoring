@@ -156,7 +156,7 @@ function AlertRulesManager({ domainId }: { domainId: Id<"domains"> }) {
         </div>
         <Button
           size="sm"
-          variant="primary"
+          color="primary"
           onClick={() => setShowCreateDialog(true)}
         >
           <Plus className="w-4 h-4 mr-1.5" />
@@ -236,10 +236,10 @@ function AlertRulesManager({ domainId }: { domainId: Id<"domains"> }) {
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t("deleteAlertRule")}</h3>
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{t("deleteAlertRuleConfirm")}</p>
             <div className="mt-4 flex justify-end gap-2">
-              <Button size="sm" variant="secondary" onClick={() => setDeletingRuleId(null)}>
+              <Button size="sm" color="secondary" onClick={() => setDeletingRuleId(null)}>
                 {t("alertCancel")}
               </Button>
-              <Button size="sm" variant="destructive" onClick={() => handleDelete(deletingRuleId)}>
+              <Button size="sm" color="primary-destructive" onClick={() => handleDelete(deletingRuleId)}>
                 {t("deleteAlertRule")}
               </Button>
             </div>
@@ -426,10 +426,10 @@ function AlertRuleDialog({ domainId, rule, onClose }: AlertRuleDialogProps) {
         </div>
 
         <div className="mt-6 flex justify-end gap-2">
-          <Button size="sm" variant="secondary" onClick={onClose}>
+          <Button size="sm" color="secondary" onClick={onClose}>
             {t("alertCancel")}
           </Button>
-          <Button size="sm" variant="primary" onClick={handleSave} disabled={saving || !name.trim()}>
+          <Button size="sm" color="primary" onClick={handleSave} disabled={saving || !name.trim()}>
             {saving ? "..." : t("alertSave")}
           </Button>
         </div>
@@ -485,7 +485,7 @@ function AlertHistoryList({ domainId }: { domainId: Id<"domains"> }) {
           <h3 className="text-base font-semibold text-gray-900 dark:text-white">{t("alertHistory")}</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">{t("alertHistoryDescription")}</p>
         </div>
-        <Button size="sm" variant="secondary" onClick={handleAcknowledgeAll}>
+        <Button size="sm" color="secondary" onClick={handleAcknowledgeAll}>
           {t("alertAcknowledgeAll")}
         </Button>
       </div>

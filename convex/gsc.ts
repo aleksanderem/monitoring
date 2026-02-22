@@ -54,10 +54,13 @@ export const getGscMetrics = query({
     const project = await ctx.db.get(domain.projectId);
     if (!project) return null;
 
+    const team = await ctx.db.get(project.teamId);
+    if (!team) return null;
+
     const membership = await ctx.db
       .query("organizationMembers")
       .withIndex("by_org_user", (q) =>
-        q.eq("organizationId", project.organizationId).eq("userId", userId)
+        q.eq("organizationId", team.organizationId).eq("userId", userId)
       )
       .first();
     if (!membership) return null;
@@ -160,10 +163,13 @@ export const getGscKeywordComparison = query({
     const project = await ctx.db.get(domain.projectId);
     if (!project) return null;
 
+    const team = await ctx.db.get(project.teamId);
+    if (!team) return null;
+
     const membership = await ctx.db
       .query("organizationMembers")
       .withIndex("by_org_user", (q) =>
-        q.eq("organizationId", project.organizationId).eq("userId", userId)
+        q.eq("organizationId", team.organizationId).eq("userId", userId)
       )
       .first();
     if (!membership) return null;

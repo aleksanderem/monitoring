@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 
 // =================================================================
 // Queries
@@ -72,7 +72,7 @@ export const getWebhookStats = query({
   },
 });
 
-export const getEndpointInternal = query({
+export const getEndpointInternal = internalQuery({
   args: { endpointId: v.id("webhookEndpoints") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.endpointId);
@@ -143,7 +143,7 @@ export const deleteWebhook = mutation({
   },
 });
 
-export const insertDelivery = mutation({
+export const insertDelivery = internalMutation({
   args: {
     webhookEndpointId: v.id("webhookEndpoints"),
     event: v.string(),
@@ -159,7 +159,7 @@ export const insertDelivery = mutation({
   },
 });
 
-export const markEndpointFailed = mutation({
+export const markEndpointFailed = internalMutation({
   args: {
     endpointId: v.id("webhookEndpoints"),
     failureCount: v.number(),
@@ -173,7 +173,7 @@ export const markEndpointFailed = mutation({
   },
 });
 
-export const markEndpointTriggered = mutation({
+export const markEndpointTriggered = internalMutation({
   args: { endpointId: v.id("webhookEndpoints") },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.endpointId, {

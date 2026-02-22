@@ -215,7 +215,7 @@ export const processKeywordCheckJobInternal = internalAction({
     let failedCount = job.failedKeywords || 0;
 
     const endIndex = Math.min(startIndex + CHUNK_SIZE, job.keywordIds.length);
-    const chunkKeywordIds = job.keywordIds.slice(startIndex, endIndex);
+    const chunkKeywordIds: Id<"keywords">[] = job.keywordIds.slice(startIndex, endIndex);
 
     // Phase 1: Check cancellation before processing chunk
     if (startIndex > 0) {
@@ -229,7 +229,8 @@ export const processKeywordCheckJobInternal = internalAction({
     }
 
     // Phase 2: Batch fetch all keyword data for this chunk (1 query instead of N)
-    const keywords = await ctx.runQuery(internal.keywords.getKeywordsByIdsBatch, {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const keywords: any[] = await ctx.runQuery(internal.keywords.getKeywordsByIdsBatch, {
       keywordIds: chunkKeywordIds,
     });
 

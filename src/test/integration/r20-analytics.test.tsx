@@ -179,16 +179,16 @@ describe("useWebVitals hook", () => {
     vi.resetModules();
   });
 
-  it("imports web-vitals and calls onLCP/onFID/onCLS/onFCP/onTTFB", async () => {
+  it("imports web-vitals and calls onLCP/onINP/onCLS/onFCP/onTTFB", async () => {
     const onLCP = vi.fn();
-    const onFID = vi.fn();
+    const onINP = vi.fn();
     const onCLS = vi.fn();
     const onFCP = vi.fn();
     const onTTFB = vi.fn();
 
     vi.doMock("web-vitals", () => ({
       onLCP,
-      onFID,
+      onINP,
       onCLS,
       onFCP,
       onTTFB,
@@ -208,7 +208,7 @@ describe("useWebVitals hook", () => {
       expect(onLCP).toHaveBeenCalled();
     });
 
-    expect(onFID).toHaveBeenCalled();
+    expect(onINP).toHaveBeenCalled();
     expect(onCLS).toHaveBeenCalled();
     expect(onFCP).toHaveBeenCalled();
     expect(onTTFB).toHaveBeenCalled();

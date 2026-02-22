@@ -142,7 +142,7 @@ export const createCheckoutSession = action({
  */
 export const getInvoices = action({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<Array<{ id: string; number: string | null; date: number; amount: number; currency: string; status: string | null; hostedUrl: string | null; pdfUrl: string | null }>> => {
     const userId = await auth.getUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
@@ -167,8 +167,8 @@ export const getInvoices = action({
       amount: inv.amount_paid,
       currency: inv.currency,
       status: inv.status,
-      hostedUrl: inv.hosted_invoice_url,
-      pdfUrl: inv.invoice_pdf,
+      hostedUrl: inv.hosted_invoice_url ?? null,
+      pdfUrl: inv.invoice_pdf ?? null,
     }));
   },
 });

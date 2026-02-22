@@ -190,10 +190,11 @@ export const resetTourProgress = mutation({
     if (!userId) throw new Error("Not authenticated");
 
     if (args.tourId) {
+      const tourId = args.tourId;
       const progress = await ctx.db
         .query("tourProgress")
         .withIndex("by_user_tour", (q) =>
-          q.eq("userId", userId).eq("tourId", args.tourId)
+          q.eq("userId", userId).eq("tourId", tourId)
         )
         .first();
       if (progress) await ctx.db.delete(progress._id);

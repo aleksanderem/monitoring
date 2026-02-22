@@ -1288,7 +1288,7 @@ function PlanUsageSection() {
             Okres karencji minął. Zaktualizuj metodę płatności, aby przywrócić pełny dostęp.
           </p>
           <div className="mt-3">
-            <Button color="error" size="sm" onClick={handlePaymentUpdate}>
+            <Button color="primary-destructive" size="sm" onClick={handlePaymentUpdate}>
               Zaktualizuj metodę płatności
             </Button>
           </div>

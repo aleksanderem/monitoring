@@ -18,7 +18,7 @@ export function useWebVitals() {
     if (reportedRef.current) return;
     reportedRef.current = true;
 
-    import("web-vitals").then(({ onLCP, onFID, onCLS, onFCP, onTTFB }) => {
+    import("web-vitals").then(({ onLCP, onINP, onCLS, onFCP, onTTFB }) => {
       const reportMetric = (name: string, value: number) => {
         track({
           eventName: EVENTS.WEB_VITAL,
@@ -32,7 +32,7 @@ export function useWebVitals() {
       };
 
       onLCP((metric) => reportMetric("LCP", metric.value));
-      onFID((metric) => reportMetric("FID", metric.value));
+      onINP((metric) => reportMetric("INP", metric.value));
       onCLS((metric) => reportMetric("CLS", metric.value));
       onFCP((metric) => reportMetric("FCP", metric.value));
       onTTFB((metric) => reportMetric("TTFB", metric.value));

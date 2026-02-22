@@ -38,6 +38,10 @@
   ],
   "exclude": [
     "node_modules",
-    "src/emails"
+    "src/emails",
+    "src/test",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "e2e"
   ]
 }
