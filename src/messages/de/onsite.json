@@ -496,5 +496,8 @@
   "issueDuplicateContent": "Duplicate Inhalt",
   "issueThinContent": "Thin Inhalt",
   "issueMissingSchema": "Fehlend Schema",
-  "issueMissingRobots": "Fehlend Robots Meta"
+  "issueMissingRobots": "Fehlend Robots Meta",
+  "addToMonitoring": "Zum Monitoring hinzufügen",
+  "addedToMonitoring": "\"{keyword}\" zum Monitoring hinzugefügt",
+  "failedToAdd": "Keyword konnte nicht hinzugefügt werden"
 }
