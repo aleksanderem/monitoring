@@ -29,6 +29,7 @@ export default getRequestConfig(async () => {
         "generators",
         "onboarding",
         "search",
+        "agency",
     ];
 
     const messages: Record<string, any> = {};

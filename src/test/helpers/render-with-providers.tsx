@@ -28,6 +28,7 @@ import enSettings from "@/messages/en/settings.json";
 import enShare from "@/messages/en/share.json";
 import enStrategy from "@/messages/en/strategy.json";
 import enOnboarding from "@/messages/en/onboarding.json";
+import enAgency from "@/messages/en/agency.json";
 
 const messages = {
   admin: enAdmin,
@@ -47,6 +48,7 @@ const messages = {
   share: enShare,
   strategy: enStrategy,
   onboarding: enOnboarding,
+  agency: enAgency,
 };
 
 interface ProviderOptions {

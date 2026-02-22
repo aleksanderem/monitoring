@@ -2056,6 +2056,31 @@ export default defineSchema({
   })
     .index("by_user", ["userId"]),
 
+  // =================================================================
+  // Agency & White-Label (R23)
+  // =================================================================
+
+  agencyClients: defineTable({
+    agencyOrgId: v.id("organizations"),
+    clientOrgId: v.id("organizations"),
+    status: v.union(v.literal("active"), v.literal("suspended")),
+    createdAt: v.number(),
+    addedBy: v.id("users"),
+  })
+    .index("by_agency", ["agencyOrgId"])
+    .index("by_client", ["clientOrgId"]),
+
+  brandingOverrides: defineTable({
+    orgId: v.id("organizations"),
+    logoUrl: v.optional(v.string()),
+    primaryColor: v.optional(v.string()),
+    accentColor: v.optional(v.string()),
+    companyName: v.optional(v.string()),
+    customDomain: v.optional(v.string()),
+    footerText: v.optional(v.string()),
+    reportHeaderHtml: v.optional(v.string()),
+  }).index("by_org", ["orgId"]),
+
   generatorOutputs: defineTable({
     domainId: v.id("domains"),
     type: v.union(
