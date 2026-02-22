@@ -226,5 +226,22 @@
   "gscSelectProperty": "Wybierz właściwość...",
   "gscConnectionSuccess": "Google Search Console połączono pomyślnie",
   "gscConnectionError": "Nie udało się połączyć Google Search Console",
-  "gscDisconnected": "Google Search Console rozłączono"
+  "gscDisconnected": "Google Search Console rozłączono",
+  "mfaTitle": "Uwierzytelnianie dwuskładnikowe",
+  "mfaDescription": "Dodaj dodatkową warstwę zabezpieczeń do swojego konta z uwierzytelnianiem TOTP.",
+  "mfaEnabled": "Uwierzytelnianie dwuskładnikowe jest włączone",
+  "mfaDisabled": "Uwierzytelnianie dwuskładnikowe nie jest włączone",
+  "mfaEnable": "Włącz 2FA",
+  "mfaDisable": "Wyłącz 2FA",
+  "mfaScanQrCode": "Zeskanuj kod QR",
+  "mfaScanInstructions": "Zeskanuj ten kod QR za pomocą aplikacji uwierzytelniającej (Google Authenticator, Authy itp.)",
+  "mfaManualEntry": "Ręczne wprowadzanie",
+  "mfaVerificationCode": "Kod weryfikacyjny",
+  "mfaVerify": "Zweryfikuj",
+  "mfaCancel": "Anuluj",
+  "mfaBackupCodesTitle": "Kody zapasowe",
+  "mfaBackupCodesWarning": "Zapisz te kody w bezpiecznym miejscu. Każdy kod może być użyty tylko raz.",
+  "mfaBackupCodesRemaining": "Pozostało {count} kodów zapasowych",
+  "mfaRegenerateCodes": "Wygeneruj nowe kody",
+  "mfaDone": "Gotowe"
 }

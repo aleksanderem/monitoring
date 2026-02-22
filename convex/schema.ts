@@ -2039,6 +2039,23 @@ export default defineSchema({
     .index("by_category", ["category", "timestamp"])
     .index("by_user", ["userId", "timestamp"]),
 
+  // =================================================================
+  // Multi-Factor Authentication (R25)
+  // =================================================================
+
+  userMfaSettings: defineTable({
+    userId: v.id("users"),
+    totpSecret: v.optional(v.string()),
+    isEnabled: v.boolean(),
+    backupCodes: v.optional(v.array(v.object({
+      code: v.string(),
+      usedAt: v.optional(v.number()),
+    }))),
+    enabledAt: v.optional(v.number()),
+    lastVerifiedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"]),
+
   generatorOutputs: defineTable({
     domainId: v.id("domains"),
     type: v.union(
@@ -2062,7 +2079,6 @@ export default defineSchema({
     .index("by_domain", ["domainId"]),
 
   // =================================================================
-<<<<<<< HEAD
   // Custom Alert Rules (R13)
   // =================================================================
 
