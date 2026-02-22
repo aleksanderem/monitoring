@@ -217,5 +217,17 @@
   "healthBulkSuspendReasonPlaceholder": "Reason (optional)",
   "healthBulkSuspendButton": "Suspend Users",
   "healthBulkSuspendResult": "{suspended} suspended, {skipped} skipped",
-  "healthBulkOperationFailed": "Bulk operation failed"
+  "healthBulkOperationFailed": "Bulk operation failed",
+  "navAnalytics": "Analytics",
+  "analyticsDescription": "User analytics, feature usage, conversion funnel, and Web Vitals.",
+  "analyticsFunnel": "Conversion Funnel",
+  "analyticsFunnelRegistered": "Registered Users",
+  "analyticsFunnelDomain": "Added Domain",
+  "analyticsFunnelKeywords": "Added Keywords",
+  "analyticsFunnelSubscribed": "Subscribed",
+  "analyticsActiveUsers": "Active Users",
+  "analyticsUniqueUsers30d": "unique users in last 30 days",
+  "analyticsTopFeatures": "Top Features",
+  "analyticsWebVitals": "Web Vitals (7d)",
+  "analyticsNoData": "No analytics data yet."
 }

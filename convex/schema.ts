@@ -2017,6 +2017,28 @@ export default defineSchema({
     error: v.optional(v.string()),
   }).index("by_domain", ["domainId"]),
 
+  // =================================================================
+  // Analytics Events (R20 — Performance Monitoring & User Analytics)
+  // =================================================================
+
+  analyticsEvents: defineTable({
+    eventName: v.string(),
+    category: v.union(
+      v.literal("navigation"),
+      v.literal("feature"),
+      v.literal("conversion"),
+      v.literal("performance"),
+      v.literal("error")
+    ),
+    userId: v.optional(v.string()),
+    properties: v.optional(v.any()),
+    sessionId: v.optional(v.string()),
+    timestamp: v.number(),
+  })
+    .index("by_event", ["eventName", "timestamp"])
+    .index("by_category", ["category", "timestamp"])
+    .index("by_user", ["userId", "timestamp"]),
+
   generatorOutputs: defineTable({
     domainId: v.id("domains"),
     type: v.union(

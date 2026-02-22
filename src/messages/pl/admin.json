@@ -217,5 +217,17 @@
   "healthBulkSuspendReasonPlaceholder": "Powód (opcjonalny)",
   "healthBulkSuspendButton": "Zawieś użytkowników",
   "healthBulkSuspendResult": "{suspended} zawieszonych, {skipped} pominiętych",
-  "healthBulkOperationFailed": "Operacja zbiorcza nie powiodła się"
+  "healthBulkOperationFailed": "Operacja zbiorcza nie powiodła się",
+  "navAnalytics": "Analityka",
+  "analyticsDescription": "Analityka użytkowników, wykorzystanie funkcji, lejek konwersji i Web Vitals.",
+  "analyticsFunnel": "Lejek konwersji",
+  "analyticsFunnelRegistered": "Zarejestrowani użytkownicy",
+  "analyticsFunnelDomain": "Dodali domenę",
+  "analyticsFunnelKeywords": "Dodali słowa kluczowe",
+  "analyticsFunnelSubscribed": "Subskrybowani",
+  "analyticsActiveUsers": "Aktywni użytkownicy",
+  "analyticsUniqueUsers30d": "unikalnych użytkowników w ostatnich 30 dniach",
+  "analyticsTopFeatures": "Popularne funkcje",
+  "analyticsWebVitals": "Web Vitals (7 dni)",
+  "analyticsNoData": "Brak danych analitycznych."
 }

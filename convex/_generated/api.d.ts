@@ -21,6 +21,7 @@ import type * as actions_generateSchema from "../actions/generateSchema.js";
 import type * as actions_scrapeHomepage from "../actions/scrapeHomepage.js";
 import type * as actions_sendEmail from "../actions/sendEmail.js";
 import type * as admin from "../admin.js";
+import type * as analytics from "../analytics.js";
 import type * as aiResearch from "../aiResearch.js";
 import type * as aiStrategy from "../aiStrategy.js";
 import type * as apiUsage from "../apiUsage.js";
@@ -131,6 +132,7 @@ declare const fullApi: ApiFromModules<{
   "actions/scrapeHomepage": typeof actions_scrapeHomepage;
   "actions/sendEmail": typeof actions_sendEmail;
   admin: typeof admin;
+  analytics: typeof analytics;
   aiResearch: typeof aiResearch;
   aiStrategy: typeof aiStrategy;
   apiUsage: typeof apiUsage;
