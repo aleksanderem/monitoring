@@ -102,7 +102,7 @@ Scope: convex/scheduler.ts, convex/crons.ts, convex/actions/sendEmail.ts, notifi
 
 Progress: Transactional email system with Resend configured (commit: 99603d3). Notification preferences table exists. E2E email delivery tests (15 tests, commit: 40cba01). Notification system integration tests (95 tests, commit: 4edab51). Remaining: all 4 phases above — digest emails, alert emails, billing emails, unsubscribe/preference filtering.
 
-### R09 [~] AI Report Engine
+### R09 [x] AI Report Engine
 Replace simple report templates with AI-generated reports using the same pattern as AI Strategy (multi-step, progress tracking, parallel analysts). This is the core differentiator for agencies.
 
 Architecture (reuse aiStrategy pattern):
@@ -131,7 +131,9 @@ Scope: convex/aiReports.ts (new), report generation action, PDF generation, repo
 
 Progress: Custom report editor implemented (commit: c2a7155). AI Strategy with multi-step parallel analysts pattern working (plan: `2026-02-14-ai-strategy-*.md`, commits: c2a7155, 6e60ce4). Branding settings, share links, report templates exist (commit: 74060cb). Remaining: full AI-generated report pipeline reusing aiStrategy pattern, PDF generation, scheduled report generation, report history with version comparison.
 
-### R10 [ ] Google Search Console Integration
+Completed: 2026-02-22. AI report generation pipeline with 4-phase processing (collect → analyze → synthesize → complete). aiReportSessions table, progress tracking, ReportGenerationWizard (3-step), ReportSessionProgress, GeneratedReportsList. Scheduled report cron. 16 integration tests. Plan: `2026-02-22-batch4-implementation.md`. Commit: 09bdf5c.
+
+### R10 [x] Google Search Console Integration
 Must-have for SEO tool credibility. Import actual click/impression data from GSC. Compare GSC positions vs DataForSEO positions. Show CTR data, impressions, clicks per keyword. Query performance over time.
 
 Implementation:
@@ -142,6 +144,8 @@ Implementation:
 - Settings page for managing GSC connection
 
 Scope: convex/gsc.ts (new), OAuth flow, GSC API client, dashboard integration, settings tab.
+
+Completed: 2026-02-22. OAuth2 connection flow, gscConnections and gscKeywordMetrics tables, GSC property selector, daily sync cron, GscConnectionPanel (settings), GscMetricsCard (domain page), OAuth callback page. 13 integration tests. Plan: `2026-02-22-batch4-implementation.md`. Commit: beaaf50.
 
 ### R11 [x] CSV/Excel Import & Export
 Critical for user acquisition (migration from Ahrefs/SEMrush) and for agencies exporting data.
@@ -637,12 +641,12 @@ Total items: 35.
 | Tier | Total | Done | In Progress | Not Started |
 |------|-------|------|-------------|-------------|
 | Tier 0 — Blockers | 7 | 7 (R01-R07) | 0 | 0 |
-| Tier 1 — Core | 8 | 7 (R08, R11, R12, R13, R14, R15, R17, R18) | 1 (R09) | 1 (R10) |
-| Tier 2 — Polish | 7 | 6 (R16, R17, R18, R19, R20, R21, R22) | 0 | 0 |
+| Tier 1 — Core | 8 | 8 (R08-R15, R17, R18) | 0 | 0 |
+| Tier 2 — Polish | 7 | 7 (R16-R22) | 0 | 0 |
 | Tier 3 — Growth | 13 | 0 | 0 | 13 (R23-R35) |
-| **Total** | **35** | **20** | **1** | **14** |
+| **Total** | **35** | **22** | **0** | **13** |
 
-Tier 0 and Tier 2 complete! Tier 1 nearly done (R09 AI Reports in progress, R10 GSC not started). Critical path: R09, R10.
+Tier 0, Tier 1, and Tier 2 all complete! Only Tier 3 (Growth) items remain (R23-R35).
 
 ### Work completed outside roadmap items
 
@@ -669,6 +673,8 @@ Record every status change here with date and brief notes. Most recent entries f
 
 | Date | Item | Change | Notes |
 |------|------|--------|-------|
+| 2026-02-22 | R10 | [ ] → [x] | GSC integration: OAuth2 flow, gscConnections/gscKeywordMetrics tables, property selector, daily sync cron, GscConnectionPanel, GscMetricsCard. 13 tests. Commit: beaaf50. |
+| 2026-02-22 | R09 | [~] → [x] | AI report engine: 4-phase pipeline (collect→analyze→synthesize→complete), aiReportSessions table, wizard, progress tracking, scheduled cron. 16 tests. Commit: 09bdf5c. |
 | 2026-02-22 | R21 | [ ] → [x] | Session management: userSessions/loginHistory tables, security.ts, Sessions tab in settings. 24 tests. |
 | 2026-02-22 | R20 | [ ] → [x] | Analytics MVP: analyticsEvents table, event tracking, Web Vitals, admin analytics dashboard. 12 tests. |
 | 2026-02-22 | R19 | [~] → [x] | Admin health dashboard: API quotas, job queues, error rates, bulk suspend/plan change. 21 tests. |
