@@ -1,0 +1,36 @@
+{
+    "title": "Bienvenue sur doseo",
+    "subtitle": "Configurez votre surveillance SEO en quelques étapes.",
+    "welcome": {
+        "heading": "Bienvenue sur doseo !",
+        "description": "Votre plateforme de surveillance SEO tout-en-un. Suivez les positions de mots-clés, analysez les concurrents, auditez votre site et obtenez des recommandations de stratégie alimentées par l'IA.",
+        "features": {
+            "positioning": "Suivi de position des mots-clés avec mises à jour quotidiennes",
+            "competitors": "Analyse concurrentielle et détection des lacunes de contenu",
+            "audit": "Audit SEO on-site avec recommandations actionnables",
+            "strategy": "Stratégie SEO et planification de calendrier alimentées par l'IA"
+        },
+        "cta": "Commencer"
+    },
+    "orgSetup": {
+        "heading": "Configurer votre organisation",
+        "description": "Personnalisez le nom de votre organisation. Vous pouvez le modifier à tout moment dans les paramètres.",
+        "nameLabel": "Nom de l'organisation",
+        "namePlaceholder": "Mon Entreprise",
+        "industryLabel": "Secteur (optionnel)",
+        "industryPlaceholder": "ex. E-commerce, SaaS, Marketing",
+        "cta": "Continuer"
+    },
+    "firstDomain": {
+        "heading": "Ajoutez votre premier domaine",
+        "description": "Entrez le domaine que vous souhaitez surveiller. Nous commencerons à suivre ses performances SEO immédiatement.",
+        "urlLabel": "URL du domaine",
+        "urlPlaceholder": "exemple.fr",
+        "nameLabel": "Nom d'affichage (optionnel)",
+        "namePlaceholder": "Mon Site Web",
+        "cta": "Ajouter le domaine"
+    },
+    "skip": "Passer",
+    "stepOf": "Étape {current} sur {total}",
+    "back": "Retour"
+}

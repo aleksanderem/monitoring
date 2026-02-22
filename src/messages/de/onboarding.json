@@ -1,0 +1,36 @@
+{
+    "title": "Willkommen bei doseo",
+    "subtitle": "Richten Sie Ihr SEO-Monitoring in wenigen Schritten ein.",
+    "welcome": {
+        "heading": "Willkommen bei doseo!",
+        "description": "Ihre All-in-One-SEO-Monitoring-Plattform. Verfolgen Sie Keyword-Positionen, analysieren Sie Wettbewerber, prüfen Sie Ihre Website und erhalten Sie KI-gestützte Strategieempfehlungen.",
+        "features": {
+            "positioning": "Keyword-Positionsverfolgung mit täglichen Updates",
+            "competitors": "Wettbewerbsanalyse und Content-Gap-Erkennung",
+            "audit": "On-Site-SEO-Audit mit umsetzbaren Empfehlungen",
+            "strategy": "KI-gestützte SEO-Strategie und Kalenderplanung"
+        },
+        "cta": "Loslegen"
+    },
+    "orgSetup": {
+        "heading": "Organisation einrichten",
+        "description": "Passen Sie Ihren Organisationsnamen an. Sie können dies jederzeit in den Einstellungen ändern.",
+        "nameLabel": "Organisationsname",
+        "namePlaceholder": "Mein Unternehmen",
+        "industryLabel": "Branche (optional)",
+        "industryPlaceholder": "z.B. E-Commerce, SaaS, Marketing",
+        "cta": "Weiter"
+    },
+    "firstDomain": {
+        "heading": "Erste Domain hinzufügen",
+        "description": "Geben Sie die Domain ein, die Sie überwachen möchten. Wir beginnen sofort mit der Verfolgung ihrer SEO-Leistung.",
+        "urlLabel": "Domain-URL",
+        "urlPlaceholder": "beispiel.de",
+        "nameLabel": "Anzeigename (optional)",
+        "namePlaceholder": "Meine Website",
+        "cta": "Domain hinzufügen"
+    },
+    "skip": "Überspringen",
+    "stepOf": "Schritt {current} von {total}",
+    "back": "Zurück"
+}

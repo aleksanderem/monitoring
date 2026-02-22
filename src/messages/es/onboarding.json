@@ -1,0 +1,36 @@
+{
+    "title": "Bienvenido a doseo",
+    "subtitle": "Configura tu monitoreo SEO en unos pocos pasos.",
+    "welcome": {
+        "heading": "¡Bienvenido a doseo!",
+        "description": "Tu plataforma de monitoreo SEO todo en uno. Rastrea posiciones de palabras clave, analiza competidores, audita tu sitio y obtén recomendaciones de estrategia impulsadas por IA.",
+        "features": {
+            "positioning": "Seguimiento de posición de palabras clave con actualizaciones diarias",
+            "competitors": "Análisis de competidores y detección de brechas de contenido",
+            "audit": "Auditoría SEO on-site con recomendaciones accionables",
+            "strategy": "Estrategia SEO y planificación de calendario impulsada por IA"
+        },
+        "cta": "Comenzar"
+    },
+    "orgSetup": {
+        "heading": "Configura tu organización",
+        "description": "Personaliza el nombre de tu organización. Puedes cambiarlo en cualquier momento en la configuración.",
+        "nameLabel": "Nombre de la organización",
+        "namePlaceholder": "Mi Empresa",
+        "industryLabel": "Industria (opcional)",
+        "industryPlaceholder": "ej. E-commerce, SaaS, Marketing",
+        "cta": "Continuar"
+    },
+    "firstDomain": {
+        "heading": "Añade tu primer dominio",
+        "description": "Ingresa el dominio que deseas monitorear. Comenzaremos a rastrear su rendimiento SEO de inmediato.",
+        "urlLabel": "URL del dominio",
+        "urlPlaceholder": "ejemplo.com",
+        "nameLabel": "Nombre visible (opcional)",
+        "namePlaceholder": "Mi Sitio Web",
+        "cta": "Añadir Dominio"
+    },
+    "skip": "Omitir",
+    "stepOf": "Paso {current} de {total}",
+    "back": "Volver"
+}
