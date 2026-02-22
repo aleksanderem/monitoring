@@ -193,5 +193,19 @@
     "download": "Download",
     "upload": "Upload",
     "preview": "Preview",
-    "continue": "Continue"
+    "continue": "Continue",
+    "errorTitle": "Something went wrong",
+    "errorDescription": "An unexpected error occurred while loading this section.",
+    "retrying": "Retrying in {seconds}s...",
+    "retryNow": "Retry now",
+    "loadingDashboard": "Loading dashboard...",
+    "loadingProjects": "Loading projects...",
+    "loadingProject": "Loading project...",
+    "loadingDomains": "Loading domains...",
+    "loadingDomain": "Loading domain...",
+    "loadingInsights": "Loading insights...",
+    "loadingJobs": "Loading jobs...",
+    "loadingCalendar": "Loading calendar...",
+    "loadingSettings": "Loading settings...",
+    "loadingPage": "Loading page..."
 }

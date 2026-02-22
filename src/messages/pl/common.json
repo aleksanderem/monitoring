@@ -193,5 +193,19 @@
     "download": "Pobierz",
     "upload": "Prześlij",
     "preview": "Podgląd",
-    "continue": "Kontynuuj"
+    "continue": "Kontynuuj",
+    "errorTitle": "Coś poszło nie tak",
+    "errorDescription": "Wystąpił nieoczekiwany błąd podczas ładowania tej sekcji.",
+    "retrying": "Ponowna próba za {seconds}s...",
+    "retryNow": "Spróbuj ponownie",
+    "loadingDashboard": "Ładowanie panelu...",
+    "loadingProjects": "Ładowanie projektów...",
+    "loadingProject": "Ładowanie projektu...",
+    "loadingDomains": "Ładowanie domen...",
+    "loadingDomain": "Ładowanie domeny...",
+    "loadingInsights": "Ładowanie analiz...",
+    "loadingJobs": "Ładowanie zadań...",
+    "loadingCalendar": "Ładowanie kalendarza...",
+    "loadingSettings": "Ładowanie ustawień...",
+    "loadingPage": "Ładowanie strony..."
 }
