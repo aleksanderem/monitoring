@@ -2152,8 +2152,8 @@ export default defineSchema({
     ),
     isActive: v.boolean(),
     threshold: v.number(),
-    topN: v.optional(v.number()), // Only for top_n_exit: 3, 10, 20, 50, 100
-    cooldownMinutes: v.number(), // Default 1440 (24h)
+    topN: v.optional(v.number()),
+    cooldownMinutes: v.number(),
     notifyVia: v.array(v.union(v.literal("in_app"), v.literal("email"))),
     lastTriggeredAt: v.optional(v.number()),
     createdBy: v.id("users"),
@@ -2339,4 +2339,38 @@ export default defineSchema({
   })
     .index("by_endpoint", ["webhookEndpointId"])
     .index("by_endpoint_created", ["webhookEndpointId", "createdAt"]),
+
+  // =================================================================
+  // Scheduled Report Delivery (R31)
+  // =================================================================
+
+  reportSchedules: defineTable({
+    orgId: v.id("organizations"),
+    domainId: v.id("domains"),
+    name: v.string(),
+    reportType: v.union(
+      v.literal("executive"),
+      v.literal("keyword"),
+      v.literal("competitor"),
+      v.literal("monthly"),
+      v.literal("custom")
+    ),
+    frequency: v.union(
+      v.literal("weekly"),
+      v.literal("biweekly"),
+      v.literal("monthly")
+    ),
+    dayOfWeek: v.optional(v.number()),
+    dayOfMonth: v.optional(v.number()),
+    recipients: v.array(v.string()),
+    isActive: v.boolean(),
+    lastRunAt: v.optional(v.number()),
+    nextRunAt: v.optional(v.number()),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_domain", ["domainId"])
+    .index("by_active", ["isActive", "nextRunAt"]),
 });

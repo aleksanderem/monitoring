@@ -26,6 +26,7 @@ import enOnsite from "@/messages/en/onsite.json";
 import enProjects from "@/messages/en/projects.json";
 import enSettings from "@/messages/en/settings.json";
 import enShare from "@/messages/en/share.json";
+import enScheduledReports from "@/messages/en/scheduledReports.json";
 import enStrategy from "@/messages/en/strategy.json";
 import enOnboarding from "@/messages/en/onboarding.json";
 import enAgency from "@/messages/en/agency.json";
@@ -46,6 +47,7 @@ const messages = {
   nav: enNav,
   onsite: enOnsite,
   projects: enProjects,
+  scheduledReports: enScheduledReports,
   settings: enSettings,
   share: enShare,
   strategy: enStrategy,

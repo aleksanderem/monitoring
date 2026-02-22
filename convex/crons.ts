@@ -87,4 +87,11 @@ crons.daily(
   internal.actions.gscSync.syncAllGscConnections
 );
 
+// Process scheduled report delivery daily at 6 AM UTC
+crons.daily(
+  "process-scheduled-reports",
+  { hourUTC: 6, minuteUTC: 0 },
+  internal.scheduledReports.processScheduledReports
+);
+
 export default crons;

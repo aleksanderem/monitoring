@@ -96,6 +96,7 @@ import type * as projects from "../projects.js";
 import type * as proposals from "../proposals.js";
 import type * as queries_competitors from "../queries/competitors.js";
 import type * as reports from "../reports.js";
+import type * as scheduledReports from "../scheduledReports.js";
 import type * as scheduler from "../scheduler.js";
 import type * as seoAudit_actions from "../seoAudit_actions.js";
 import type * as seoAudit_queries from "../seoAudit_queries.js";
@@ -207,6 +208,7 @@ declare const fullApi: ApiFromModules<{
   proposals: typeof proposals;
   "queries/competitors": typeof queries_competitors;
   reports: typeof reports;
+  scheduledReports: typeof scheduledReports;
   scheduler: typeof scheduler;
   seoAudit_actions: typeof seoAudit_actions;
   seoAudit_queries: typeof seoAudit_queries;
