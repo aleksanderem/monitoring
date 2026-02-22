@@ -661,14 +661,14 @@ export function ContentGapOpportunitiesTable({ domainId }: ContentGapOpportuniti
                   {columnVisibility.keyword && (
                     <td className="px-4 py-3">
                       <span className="text-sm font-medium text-primary">
-                        {opp.keywordPhrase || "Unknown"}
+                        {opp.keywordPhrase || t("unknownKeyword")}
                       </span>
                     </td>
                   )}
                   {columnVisibility.competitor && (
                     <td className="px-4 py-3">
                       <span className="text-sm text-tertiary truncate max-w-[160px] block">
-                        {opp.competitorDomain || "Unknown"}
+                        {opp.competitorDomain || t("unknownCompetitor")}
                       </span>
                     </td>
                   )}

@@ -17,19 +17,19 @@ crons.weekly(
   internal.scheduler.refreshWeeklyDomains
 );
 
-// Send daily digest emails every day at 8 AM UTC (commented out until email service is fully configured)
-// crons.daily(
-//   "send-daily-digests",
-//   { hourUTC: 8, minuteUTC: 0 },
-//   internal.scheduler.triggerDailyDigests
-// );
+// Send daily digest emails every day at 8 AM UTC
+crons.daily(
+  "send-daily-digests",
+  { hourUTC: 8, minuteUTC: 0 },
+  internal.scheduler.triggerDailyDigests
+);
 
-// Send weekly reports every Monday at 9 AM UTC (commented out until email service is fully configured)
-// crons.weekly(
-//   "send-weekly-reports",
-//   { dayOfWeek: "monday", hourUTC: 9, minuteUTC: 0 },
-//   internal.scheduler.triggerWeeklyReports
-// );
+// Send weekly reports every Monday at 9 AM UTC
+crons.weekly(
+  "send-weekly-reports",
+  { dayOfWeek: "monday", hourUTC: 9, minuteUTC: 0 },
+  internal.scheduler.triggerWeeklyReports
+);
 
 // Calculate backlink velocity daily at 2 AM UTC (after backlink refresh)
 crons.daily(
@@ -71,6 +71,27 @@ crons.daily(
   "check-trial-reminders",
   { hourUTC: 7, minuteUTC: 0 },
   internal.stripe_helpers.checkTrialReminders
+);
+
+// Check for scheduled AI report generation daily at 5:30 AM UTC
+crons.daily(
+  "scheduled-ai-reports",
+  { hourUTC: 5, minuteUTC: 30 },
+  internal.aiReports.processScheduledReports
+);
+
+// Sync Google Search Console data daily at 4 AM UTC
+crons.daily(
+  "sync-gsc-data",
+  { hourUTC: 4, minuteUTC: 0 },
+  internal.actions.gscSync.syncAllGscConnections
+);
+
+// Process scheduled report delivery daily at 6 AM UTC
+crons.daily(
+  "process-scheduled-reports",
+  { hourUTC: 6, minuteUTC: 0 },
+  internal.scheduledReports.processScheduledReports
 );
 
 export default crons;

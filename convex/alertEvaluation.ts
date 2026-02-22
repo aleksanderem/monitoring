@@ -138,6 +138,8 @@ export const createAlertEventAndNotify = internalMutation({
     domainId: v.id("domains"),
     ruleType: v.string(),
     ruleName: v.string(),
+    notifyVia: v.optional(v.array(v.union(v.literal("in_app"), v.literal("email")))),
+    topN: v.optional(v.number()),
     data: v.object({
       keywordId: v.optional(v.id("keywords")),
       keywordPhrase: v.optional(v.string()),
@@ -149,6 +151,7 @@ export const createAlertEventAndNotify = internalMutation({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+    const channels = args.notifyVia ?? ["in_app"];
 
     // Create the event
     await ctx.db.insert("alertEvents", {
@@ -163,7 +166,7 @@ export const createAlertEventAndNotify = internalMutation({
     // Update rule's lastTriggeredAt
     await ctx.db.patch(args.ruleId, { lastTriggeredAt: now });
 
-    // Send in-app notifications to team members
+    // Get domain + project for notification context
     const domain = await ctx.db.get(args.domainId);
     if (!domain) return;
 
@@ -175,17 +178,97 @@ export const createAlertEventAndNotify = internalMutation({
       .withIndex("by_team", (q) => q.eq("teamId", project.teamId))
       .collect();
 
-    for (const member of teamMembers) {
-      await ctx.db.insert("notifications", {
-        userId: member.userId,
-        domainId: args.domainId,
-        type: "warning",
-        title: `Alert: ${args.ruleName}`,
-        message: args.data.details ?? `Alert rule "${args.ruleName}" triggered for ${domain.domain}`,
-        isRead: false,
-        createdAt: now,
-        domainName: domain.domain,
-      });
+    // Send in-app notifications
+    if (channels.includes("in_app")) {
+      for (const member of teamMembers) {
+        await ctx.db.insert("notifications", {
+          userId: member.userId,
+          domainId: args.domainId,
+          type: "warning",
+          title: `Alert: ${args.ruleName}`,
+          message: args.data.details ?? `Alert rule "${args.ruleName}" triggered for ${domain.domain}`,
+          isRead: false,
+          createdAt: now,
+          domainName: domain.domain,
+        });
+      }
+    }
+
+    // Send email notifications
+    if (channels.includes("email")) {
+      // Collect team member emails (with positionAlerts pref check)
+      const emailRecipients: string[] = [];
+      for (const member of teamMembers) {
+        const user = await ctx.db.get(member.userId);
+        if (!user || !(user as any).email) continue;
+
+        const prefs = await ctx.db
+          .query("userNotificationPreferences")
+          .withIndex("by_user", (q) => q.eq("userId", member.userId))
+          .unique();
+
+        // Default to sending if no prefs or positionAlerts not explicitly false
+        if (!prefs || prefs.positionAlerts !== false) {
+          emailRecipients.push((user as any).email);
+        }
+      }
+
+      // Schedule the appropriate email action per ruleType
+      for (const email of emailRecipients) {
+        switch (args.ruleType) {
+          case "position_drop":
+            if (args.data.keywordPhrase && args.data.previousValue != null && args.data.currentValue != null) {
+              await ctx.scheduler.runAfter(0, internal.actions.sendEmail.sendPositionDropAlert, {
+                to: email,
+                domainName: domain.domain,
+                keywordPhrase: args.data.keywordPhrase,
+                previousPosition: args.data.previousValue,
+                currentPosition: args.data.currentValue,
+              });
+            }
+            break;
+          case "top_n_exit":
+            if (args.data.keywordPhrase && args.data.previousValue != null && args.data.currentValue != null) {
+              await ctx.scheduler.runAfter(0, internal.actions.sendEmail.sendTopNExitAlert, {
+                to: email,
+                domainName: domain.domain,
+                keywordPhrase: args.data.keywordPhrase,
+                previousPosition: args.data.previousValue,
+                currentPosition: args.data.currentValue,
+                topN: args.topN ?? 10,
+              });
+            }
+            break;
+          case "new_competitor":
+            if (args.data.competitorDomain) {
+              await ctx.scheduler.runAfter(0, internal.actions.sendEmail.sendNewCompetitorAlert, {
+                to: email,
+                domainName: domain.domain,
+                competitorDomain: args.data.competitorDomain,
+              });
+            }
+            break;
+          case "backlink_lost":
+            if (args.data.currentValue != null) {
+              await ctx.scheduler.runAfter(0, internal.actions.sendEmail.sendBacklinkLostAlert, {
+                to: email,
+                domainName: domain.domain,
+                lostCount: Math.abs(args.data.currentValue),
+              });
+            }
+            break;
+          case "visibility_drop":
+            if (args.data.previousValue != null && args.data.currentValue != null) {
+              await ctx.scheduler.runAfter(0, internal.actions.sendEmail.sendVisibilityDropAlert, {
+                to: email,
+                domainName: domain.domain,
+                previousValue: args.data.previousValue,
+                currentValue: args.data.currentValue,
+              });
+            }
+            break;
+        }
+      }
     }
   },
 });
@@ -248,6 +331,8 @@ export const evaluateAlertRules = internalAction({
                   domainId: domain._id,
                   ruleType: rule.ruleType,
                   ruleName: rule.name,
+                  notifyVia: rule.notifyVia,
+                  topN: rule.topN,
                   data: {
                     keywordId: trigger.keywordId,
                     keywordPhrase: trigger.keywordPhrase,

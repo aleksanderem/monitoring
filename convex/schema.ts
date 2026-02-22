@@ -5,6 +5,13 @@ import { authTables } from "@convex-dev/auth/server";
 export default defineSchema({
   ...authTables,
 
+  // User onboarding status (tracks whether user has completed the welcome flow)
+  userOnboardingStatus: defineTable({
+    userId: v.id("users"),
+    hasCompletedOnboarding: v.boolean(),
+    completedAt: v.optional(v.number()),
+  }).index("by_user", ["userId"]),
+
   // Subscription plans (define module/permission/limit ceilings per organization)
   plans: defineTable({
     name: v.string(),              // "Free", "Pro", "Enterprise"
@@ -724,6 +731,12 @@ export default defineSchema({
     subject: v.optional(v.string()),
     status: v.union(v.literal("sent"), v.literal("failed"), v.literal("pending")),
     error: v.optional(v.string()),
+    category: v.optional(v.union(
+      v.literal("transactional"),
+      v.literal("digest"),
+      v.literal("alert"),
+      v.literal("billing")
+    )),
     metadata: v.optional(v.any()),
     createdAt: v.number(),
   })
@@ -2004,6 +2017,136 @@ export default defineSchema({
     error: v.optional(v.string()),
   }).index("by_domain", ["domainId"]),
 
+  // =================================================================
+  // Analytics Events (R20 — Performance Monitoring & User Analytics)
+  // =================================================================
+
+  analyticsEvents: defineTable({
+    eventName: v.string(),
+    category: v.union(
+      v.literal("navigation"),
+      v.literal("feature"),
+      v.literal("conversion"),
+      v.literal("performance"),
+      v.literal("error")
+    ),
+    userId: v.optional(v.string()),
+    properties: v.optional(v.any()),
+    sessionId: v.optional(v.string()),
+    timestamp: v.number(),
+  })
+    .index("by_event", ["eventName", "timestamp"])
+    .index("by_category", ["category", "timestamp"])
+    .index("by_user", ["userId", "timestamp"]),
+
+  // =================================================================
+  // Multi-Factor Authentication (R25)
+  // =================================================================
+
+  userMfaSettings: defineTable({
+    userId: v.id("users"),
+    totpSecret: v.optional(v.string()),
+    isEnabled: v.boolean(),
+    backupCodes: v.optional(v.array(v.object({
+      code: v.string(),
+      usedAt: v.optional(v.number()),
+    }))),
+    enabledAt: v.optional(v.number()),
+    lastVerifiedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"]),
+
+  // =================================================================
+  // Agency & White-Label (R23)
+  // =================================================================
+
+  agencyClients: defineTable({
+    agencyOrgId: v.id("organizations"),
+    clientOrgId: v.id("organizations"),
+    status: v.union(v.literal("active"), v.literal("suspended")),
+    createdAt: v.number(),
+    addedBy: v.id("users"),
+  })
+    .index("by_agency", ["agencyOrgId"])
+    .index("by_client", ["clientOrgId"]),
+
+  brandingOverrides: defineTable({
+    orgId: v.id("organizations"),
+    logoUrl: v.optional(v.string()),
+    primaryColor: v.optional(v.string()),
+    accentColor: v.optional(v.string()),
+    companyName: v.optional(v.string()),
+    customDomain: v.optional(v.string()),
+    footerText: v.optional(v.string()),
+    reportHeaderHtml: v.optional(v.string()),
+  }).index("by_org", ["orgId"]),
+
+  // =================================================================
+  // Custom Dashboards & Saved Views (R30)
+  // =================================================================
+
+  dashboardLayouts: defineTable({
+    orgId: v.id("organizations"),
+    userId: v.id("users"),
+    name: v.string(),
+    isDefault: v.boolean(),
+    widgets: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_user", ["userId"])
+    .index("by_org_user", ["orgId", "userId"]),
+
+  savedViews: defineTable({
+    orgId: v.id("organizations"),
+    userId: v.id("users"),
+    name: v.string(),
+    targetTable: v.string(),
+    filters: v.string(),
+    sortBy: v.optional(v.string()),
+    sortDirection: v.optional(v.union(v.literal("asc"), v.literal("desc"))),
+    columns: v.array(v.string()),
+    isShared: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_user", ["userId"])
+    .index("by_org_table", ["orgId", "targetTable"]),
+
+  // =================================================================
+  // Product Tours & Knowledge Base (R32)
+  // =================================================================
+
+  // Tour progress tracking per user
+  tourProgress: defineTable({
+    userId: v.id("users"),
+    tourId: v.string(),
+    completedSteps: v.array(v.string()),
+    isCompleted: v.boolean(),
+    dismissedAt: v.optional(v.number()),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_tour", ["userId", "tourId"]),
+
+  // Knowledge base articles
+  kbArticles: defineTable({
+    slug: v.string(),
+    category: v.string(),
+    title: v.string(),
+    content: v.string(), // markdown
+    tags: v.array(v.string()),
+    order: v.number(),
+    isPublished: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_category", ["category"])
+    .index("by_published", ["isPublished"]),
+
   generatorOutputs: defineTable({
     domainId: v.id("domains"),
     type: v.union(
@@ -2042,8 +2185,8 @@ export default defineSchema({
     ),
     isActive: v.boolean(),
     threshold: v.number(),
-    topN: v.optional(v.number()), // Only for top_n_exit: 3, 10, 20, 50, 100
-    cooldownMinutes: v.number(), // Default 1440 (24h)
+    topN: v.optional(v.number()),
+    cooldownMinutes: v.number(),
     notifyVia: v.array(v.union(v.literal("in_app"), v.literal("email"))),
     lastTriggeredAt: v.optional(v.number()),
     createdBy: v.id("users"),
@@ -2058,41 +2201,40 @@ export default defineSchema({
   // Session Management & Account Security (R21)
   // =================================================================
 
-  // Active user sessions
   userSessions: defineTable({
     userId: v.id("users"),
-    sessionId: v.optional(v.string()), // Convex Auth session ID if available
+    deviceInfo: v.object({
+      userAgent: v.string(),
+      browser: v.optional(v.string()),
+      os: v.optional(v.string()),
+      deviceType: v.string(), // "desktop", "mobile", "tablet"
+    }),
     ipAddress: v.optional(v.string()),
-    userAgent: v.optional(v.string()),
-    deviceLabel: v.optional(v.string()), // Parsed device summary, e.g. "Chrome on macOS"
-    lastActiveAt: v.number(),
-    createdAt: v.number(),
-    expiresAt: v.optional(v.number()),
-    isRevoked: v.boolean(),
+    location: v.optional(v.string()), // "Country, City" (simplified)
+    status: v.string(), // "active", "revoked", "expired"
+    isCurrent: v.optional(v.boolean()),
+    loginAt: v.number(),
+    lastActivityAt: v.number(),
     revokedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
-    .index("by_user_active", ["userId", "isRevoked"])
-    .index("by_session", ["sessionId"]),
+    .index("by_user_status", ["userId", "status"]),
 
-  // Login history (audit trail)
   loginHistory: defineTable({
     userId: v.id("users"),
+    loginMethod: v.string(), // "password", "google"
+    deviceInfo: v.object({
+      userAgent: v.string(),
+      browser: v.optional(v.string()),
+      os: v.optional(v.string()),
+    }),
     ipAddress: v.optional(v.string()),
-    userAgent: v.optional(v.string()),
-    deviceLabel: v.optional(v.string()),
-    method: v.union(
-      v.literal("password"),
-      v.literal("google"),
-      v.literal("email_link"),
-      v.literal("unknown")
-    ),
-    success: v.boolean(),
+    status: v.string(), // "success", "failed"
     failureReason: v.optional(v.string()),
-    createdAt: v.number(),
+    loginAt: v.number(),
   })
     .index("by_user", ["userId"])
-    .index("by_user_date", ["userId", "createdAt"]),
+    .index("by_user_date", ["userId", "loginAt"]),
 
   alertEvents: defineTable({
     ruleId: v.id("alertRules"),
@@ -2114,4 +2256,154 @@ export default defineSchema({
     .index("by_domain", ["domainId"])
     .index("by_rule", ["ruleId"])
     .index("by_domain_status", ["domainId", "status"]),
+
+  // =================================================================
+  // AI Report Sessions (R09)
+  // =================================================================
+
+  aiReportSessions: defineTable({
+    domainId: v.id("domains"),
+    organizationId: v.id("organizations"),
+    createdBy: v.id("users"),
+    reportType: v.string(), // "executive-summary", "detailed-keyword", "competitor-analysis", "progress-report", "custom"
+    config: v.object({
+      dateRange: v.object({ start: v.number(), end: v.number() }),
+      sections: v.array(v.string()),
+      audience: v.optional(v.string()),
+      language: v.optional(v.string()),
+    }),
+    status: v.string(), // "initializing", "collecting", "analyzing", "synthesizing", "generating-pdf", "completed", "failed"
+    progress: v.number(), // 0-100
+    currentStep: v.optional(v.string()),
+    collectedData: v.optional(v.any()),
+    analysisResults: v.optional(v.any()),
+    synthesisResult: v.optional(v.any()),
+    generatedReportId: v.optional(v.id("generatedReports")),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_org", ["organizationId"])
+    .index("by_status", ["status"]),
+
+  // =================================================================
+  // Google Search Console Integration (R10)
+  // =================================================================
+
+  gscConnections: defineTable({
+    organizationId: v.id("organizations"),
+    googleEmail: v.string(),
+    accessToken: v.string(),
+    refreshToken: v.string(),
+    tokenExpiresAt: v.number(),
+    properties: v.array(v.object({
+      url: v.string(),
+      type: v.string(),
+    })),
+    selectedPropertyUrl: v.optional(v.string()),
+    lastSyncAt: v.optional(v.number()),
+    status: v.string(),
+    connectedAt: v.number(),
+  })
+    .index("by_org", ["organizationId"]),
+
+  gscKeywordMetrics: defineTable({
+    domainId: v.id("domains"),
+    organizationId: v.id("organizations"),
+    keyword: v.string(),
+    date: v.string(),
+    clicks: v.number(),
+    impressions: v.number(),
+    ctr: v.number(),
+    position: v.number(),
+    url: v.optional(v.string()),
+  })
+    .index("by_domain_date", ["domainId", "date"])
+    .index("by_domain_keyword", ["domainId", "keyword"]),
+
+  // =================================================================
+  // Health Checks (R35)
+  // =================================================================
+
+  healthChecks: defineTable({
+    timestamp: v.number(),
+    status: v.string(), // "healthy", "degraded", "down"
+    services: v.object({
+      database: v.string(),
+      email: v.string(),
+      api: v.string(),
+      auth: v.string(),
+    }),
+    responseTimeMs: v.optional(v.number()),
+  })
+    .index("by_timestamp", ["timestamp"]),
+
+  // =================================================================
+  // Webhooks & Integrations (R27)
+  // =================================================================
+
+  webhookEndpoints: defineTable({
+    orgId: v.id("organizations"),
+    url: v.string(),
+    secret: v.string(),
+    events: v.array(v.string()),
+    status: v.union(
+      v.literal("active"),
+      v.literal("paused"),
+      v.literal("failed")
+    ),
+    createdAt: v.number(),
+    lastTriggeredAt: v.optional(v.number()),
+    failureCount: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_org_status", ["orgId", "status"]),
+
+  webhookDeliveries: defineTable({
+    webhookEndpointId: v.id("webhookEndpoints"),
+    event: v.string(),
+    payload: v.string(),
+    statusCode: v.optional(v.number()),
+    response: v.optional(v.string()),
+    attemptNumber: v.number(),
+    createdAt: v.number(),
+    deliveredAt: v.optional(v.number()),
+  })
+    .index("by_endpoint", ["webhookEndpointId"])
+    .index("by_endpoint_created", ["webhookEndpointId", "createdAt"]),
+
+  // =================================================================
+  // Scheduled Report Delivery (R31)
+  // =================================================================
+
+  reportSchedules: defineTable({
+    orgId: v.id("organizations"),
+    domainId: v.id("domains"),
+    name: v.string(),
+    reportType: v.union(
+      v.literal("executive"),
+      v.literal("keyword"),
+      v.literal("competitor"),
+      v.literal("monthly"),
+      v.literal("custom")
+    ),
+    frequency: v.union(
+      v.literal("weekly"),
+      v.literal("biweekly"),
+      v.literal("monthly")
+    ),
+    dayOfWeek: v.optional(v.number()),
+    dayOfMonth: v.optional(v.number()),
+    recipients: v.array(v.string()),
+    isActive: v.boolean(),
+    lastRunAt: v.optional(v.number()),
+    nextRunAt: v.optional(v.number()),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_domain", ["domainId"])
+    .index("by_active", ["isActive", "nextRunAt"]),
 });

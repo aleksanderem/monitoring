@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
+import { toast } from "sonner";
 import {
   ChevronUp,
   ChevronDown,
@@ -89,6 +90,9 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
   const [changeFilter, setChangeFilter] = useState<string>("all");
 
   const keywords = useQuery(api.keywords.getKeywords, { domainId });
+  const addKeywordMutation = useMutation(api.keywords.addKeyword);
+  const refreshPositions = useMutation(api.keywords.refreshKeywordPositions);
+  const [addingKeywords, setAddingKeywords] = useState<Set<string>>(new Set());
 
   // Create a Set of monitored keyword phrases for quick lookup
   const monitoredPhrases = useMemo(() => {
@@ -104,14 +108,21 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
     return monitoredPhrases.has(phrase.toLowerCase().trim());
   };
 
-  const handleAddToMonitoring = (keyword: any) => {
-    if (isAlreadyMonitored(keyword.phrase)) {
-      console.log("Keyword already monitored:", keyword.phrase);
-      return;
+  const handleAddToMonitoring = async (keyword: any) => {
+    if (isAlreadyMonitored(keyword.phrase)) return;
+    const phrase = keyword.phrase;
+    setAddingKeywords(prev => new Set(prev).add(phrase));
+    try {
+      const keywordId = await addKeywordMutation({ domainId, phrase });
+      if (keywordId) {
+        await refreshPositions({ keywordIds: [keywordId] });
+      }
+      toast.success(t('addedToMonitoring', { keyword: phrase }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('failedToAddKeyword'));
+    } finally {
+      setAddingKeywords(prev => { const next = new Set(prev); next.delete(phrase); return next; });
     }
-    // TODO: Implement add to monitoring functionality
-    console.log("Adding to monitoring:", keyword.phrase);
-    // This will be connected to a Convex mutation later
   };
 
   const sortedAndFilteredKeywords = useMemo(() => {
@@ -466,6 +477,8 @@ export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {
                           size="sm"
                           color="secondary"
                           onClick={() => handleAddToMonitoring(keyword)}
+                          isLoading={addingKeywords.has(keyword.phrase)}
+                          isDisabled={addingKeywords.has(keyword.phrase)}
                         >
                           {t('addToMonitoring')}
                         </Button>

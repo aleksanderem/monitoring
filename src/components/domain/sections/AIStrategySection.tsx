@@ -210,10 +210,10 @@ export function AIStrategySection({ domainId }: AIStrategySectionProps) {
         generateContentMockups: generateContentMockups || undefined,
       });
       if (!result.success) {
-        setError(result.error || "Unknown error");
+        setError(result.error || t("unknownError"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(err instanceof Error ? err.message : t("unknownError"));
     } finally {
       setIsGenerating(false);
     }
@@ -246,7 +246,7 @@ export function AIStrategySection({ domainId }: AIStrategySectionProps) {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("[PDF Export]", err);
-      toast.error("Failed to export PDF");
+      toast.error(t("failedToExportPdf"));
     } finally {
       setIsExporting(false);
     }
@@ -257,7 +257,7 @@ export function AIStrategySection({ domainId }: AIStrategySectionProps) {
       await setActiveStrategyMutation({ domainId, sessionId });
       toast.success(t("strategyActivated"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to activate strategy");
+      toast.error(err instanceof Error ? err.message : t("failedToActivateStrategy"));
     }
   };
 

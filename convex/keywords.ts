@@ -1751,3 +1751,143 @@ export const deduplicatePositions = internalMutation({
     return { deleted: totalDeleted, keywordsProcessed };
   },
 });
+
+// =================================================================
+// Bulk Keyword Management (R18)
+// =================================================================
+
+// Bulk delete keywords and their position history
+export const bulkDeleteKeywords = mutation({
+  args: {
+    keywordIds: v.array(v.id("keywords")),
+    domainId: v.id("domains"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
+    const context = await getContextFromDomain(ctx, args.domainId);
+    if (!context) throw new Error("Domain not found");
+    await requirePermission(ctx, "keywords.remove", context);
+
+    for (const id of args.keywordIds) {
+      // Delete position history
+      const positions = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", id))
+        .collect();
+      for (const p of positions) await ctx.db.delete(p._id);
+
+      // Delete group memberships
+      const memberships = await ctx.db
+        .query("keywordGroupMemberships")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", id))
+        .collect();
+      for (const m of memberships) await ctx.db.delete(m._id);
+
+      await ctx.db.delete(id);
+    }
+
+    return args.keywordIds.length;
+  },
+});
+
+// Bulk move keywords to a group (via keywordGroupMemberships)
+export const bulkMoveToGroup = mutation({
+  args: {
+    keywordIds: v.array(v.id("keywords")),
+    groupId: v.optional(v.id("keywordGroups")),
+    domainId: v.id("domains"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
+    const context = await getContextFromDomain(ctx, args.domainId);
+    if (!context) throw new Error("Domain not found");
+    await requirePermission(ctx, "keywords.add", context);
+
+    for (const keywordId of args.keywordIds) {
+      // Remove all existing group memberships for this keyword
+      const existing = await ctx.db
+        .query("keywordGroupMemberships")
+        .withIndex("by_keyword", (q) => q.eq("keywordId", keywordId))
+        .collect();
+      for (const m of existing) await ctx.db.delete(m._id);
+
+      // Add to new group if specified
+      if (args.groupId) {
+        await ctx.db.insert("keywordGroupMemberships", {
+          keywordId,
+          groupId: args.groupId,
+          addedAt: Date.now(),
+        });
+      }
+    }
+
+    return args.keywordIds.length;
+  },
+});
+
+// Bulk change tags on keywords (set/add/remove)
+export const bulkChangeTags = mutation({
+  args: {
+    keywordIds: v.array(v.id("keywords")),
+    tags: v.array(v.string()),
+    operation: v.union(v.literal("set"), v.literal("add"), v.literal("remove")),
+    domainId: v.id("domains"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
+    const context = await getContextFromDomain(ctx, args.domainId);
+    if (!context) throw new Error("Domain not found");
+    await requirePermission(ctx, "keywords.add", context);
+
+    for (const id of args.keywordIds) {
+      const kw = await ctx.db.get(id);
+      if (!kw) continue;
+
+      let newTags: string[];
+      if (args.operation === "set") {
+        newTags = args.tags;
+      } else if (args.operation === "add") {
+        newTags = [...new Set([...(kw.tags ?? []), ...args.tags])];
+      } else {
+        newTags = (kw.tags ?? []).filter((t) => !args.tags.includes(t));
+      }
+
+      await ctx.db.patch(id, { tags: newTags.length > 0 ? newTags : undefined });
+    }
+
+    return args.keywordIds.length;
+  },
+});
+
+// Bulk toggle keyword monitoring status (pause/resume)
+export const bulkToggleStatus = mutation({
+  args: {
+    keywordIds: v.array(v.id("keywords")),
+    status: v.union(v.literal("active"), v.literal("paused")),
+    domainId: v.id("domains"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
+    const context = await getContextFromDomain(ctx, args.domainId);
+    if (!context) throw new Error("Domain not found");
+    await requirePermission(ctx, "keywords.add", context);
+
+    for (const id of args.keywordIds) {
+      await ctx.db.patch(id, { status: args.status });
+    }
+
+    return args.keywordIds.length;
+  },
+});

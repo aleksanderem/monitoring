@@ -55,7 +55,7 @@ export function PlatformInstructions({
         });
         setInstructions(result);
       } catch (err: any) {
-        toast.error(err.message || "Failed to generate instructions");
+        toast.error(err.message || t("failedToGenerateInstructions"));
       } finally {
         setLoading(false);
       }

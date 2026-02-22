@@ -78,10 +78,10 @@ export function KeywordMapSection({ domainId }: KeywordMapSectionProps) {
             if (result.success) {
                 toast.success(t('discoveredKeywordsRefreshed', { count: result.count || 0 }));
             } else {
-                toast.error(result.error || "Failed to fetch keywords");
+                toast.error(result.error || t("failedToFetchKeywordsGeneric"));
             }
         } catch (e: any) {
-            toast.error(e.message || "Failed to fetch keywords");
+            toast.error(e.message || t("failedToFetchKeywordsGeneric"));
         } finally {
             setIsFetching(false);
         }

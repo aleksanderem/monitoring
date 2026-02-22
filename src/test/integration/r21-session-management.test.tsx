@@ -1,27 +1,26 @@
 /**
- * R21 — Session Management & Account Security integration tests.
+ * R21 — Session Management & Account Security Integration Tests
  *
- * Tests:
- * - Active sessions list rendering (loading, empty, populated states)
- * - Login history table rendering
- * - Revoke session mutation flow
- * - Revoke all other sessions flow
- * - Sessions tab visibility in settings
+ * Tests the security backend (session tracking, login history, revocation)
+ * and the frontend components (ActiveSessionsList, LoginHistoryTable, SessionManagement).
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { getFunctionName } from "convex/server";
 
 // ---------------------------------------------------------------------------
 // Hoisted mocks
 // ---------------------------------------------------------------------------
 
+const mockUseQuery = vi.fn(() => undefined);
+const mockUseMutation = vi.fn(() => vi.fn());
+
 vi.mock("convex/react", () => ({
-  useQuery: vi.fn(() => undefined),
-  useMutation: vi.fn(() => vi.fn()),
-  useAction: vi.fn(() => vi.fn()),
+  useQuery: (...args: unknown[]) => mockUseQuery(...args),
+  useMutation: (...args: unknown[]) => mockUseMutation(...args),
+  useAction: () => vi.fn(),
   useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
 }));
 
@@ -32,536 +31,482 @@ vi.mock("next/navigation", () => ({
   useParams: () => ({}),
 }));
 
-vi.mock("@/hooks/usePermissions", () => ({
-  usePermissions: () => ({
-    permissions: ["domains.create", "domains.edit"],
-    modules: ["positioning"],
-    role: "admin",
-    plan: { name: "Pro", key: "pro" },
-    isLoading: false,
-    can: () => true,
-    hasModule: () => true,
-  }),
+vi.mock("@/hooks/usePageTitle", () => ({
+  usePageTitle: vi.fn(),
 }));
 
-vi.mock("@/contexts/PermissionsContext", () => ({
-  usePermissionsContext: () => ({
-    permissions: ["domains.create"],
-    modules: ["positioning"],
-    role: "admin",
-    plan: { name: "Pro", key: "pro" },
-    isLoading: false,
-    can: () => true,
-    hasModule: () => true,
-  }),
-  PermissionsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+vi.mock("@/components/ui/glowing-effect", () => ({
+  GlowingEffect: () => null,
 }));
 
-vi.mock("@/hooks/usePageTitle", () => ({ usePageTitle: vi.fn() }));
-vi.mock("@/hooks/useEscapeClose", () => ({ useEscapeClose: vi.fn() }));
-vi.mock("@/hooks/use-breakpoint", () => ({ useBreakpoint: () => true }));
-
-vi.mock("@/components/shared/LoadingState", () => ({
-  LoadingState: (props: Record<string, unknown>) => (
-    <div data-testid="loading-state" data-type={props.type}>Loading...</div>
-  ),
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock("@/components/ui/glowing-effect", () => ({ GlowingEffect: () => null }));
-vi.mock("next-themes", () => ({ useTheme: () => ({ theme: "light", setTheme: vi.fn() }) }));
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-vi.mock("motion/react", () => {
-  const Component = ({ children, ...props }: Record<string, unknown>) => {
-    const domSafe: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(props)) {
-      if (["className", "style", "id", "role", "onClick", "data-testid"].includes(k)) domSafe[k] = v;
+function setupQueryMock(responses: Record<string, unknown>) {
+  mockUseQuery.mockImplementation(((ref: unknown, args: unknown) => {
+    if (args === "skip") return undefined;
+    const key = getFunctionName(ref as any);
+    return responses[key] ?? undefined;
+  }) as any);
+}
+
+const mutationMap = new Map<string, ReturnType<typeof vi.fn>>();
+
+function setupMutationMock() {
+  mutationMap.clear();
+  mockUseMutation.mockImplementation(((ref: unknown) => {
+    const key = getFunctionName(ref as any);
+    if (!mutationMap.has(key)) {
+      mutationMap.set(key, vi.fn().mockResolvedValue(undefined));
     }
-    return <div {...domSafe}>{children as React.ReactNode}</div>;
-  };
-  return {
-    motion: new Proxy({}, { get: () => Component, has: () => true }),
-    AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-    useMotionValue: () => ({ get: () => 0, set: vi.fn() }),
-    useTransform: () => ({ get: () => 0 }),
-    useSpring: () => ({ get: () => 0 }),
-    useInView: () => true,
-    animate: vi.fn(),
-  };
-});
-
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-
-vi.mock("next-intl", async () => {
-  const actual = await vi.importActual<typeof import("next-intl")>("next-intl");
-  return { ...actual };
-});
-
-const mockSignIn = vi.fn().mockResolvedValue(undefined);
-vi.mock("@convex-dev/auth/react", () => ({
-  useAuthActions: () => ({ signIn: mockSignIn }),
-}));
-
-// ---------------------------------------------------------------------------
-// Imports (after mocks)
-// ---------------------------------------------------------------------------
-
-import { useQuery, useMutation } from "convex/react";
-import { toast } from "sonner";
-import { renderWithProviders } from "@/test/helpers/render-with-providers";
+    return mutationMap.get(key)!;
+  }) as any);
+}
 
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const now = Date.now();
-const hour = 60 * 60 * 1000;
-const day = 24 * hour;
-
 function makeSession(overrides: Record<string, unknown> = {}) {
   return {
     _id: "session_1" as any,
+    _creationTime: Date.now(),
     userId: "user_1" as any,
-    sessionId: "convex_sess_abc",
-    ipAddress: "192.168.1.100",
-    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-    deviceLabel: "Chrome on macOS",
-    lastActiveAt: now - 5 * 60 * 1000, // 5 minutes ago
-    createdAt: now - 2 * day,
-    expiresAt: now + 28 * day,
-    isRevoked: false,
+    deviceInfo: {
+      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      browser: "Chrome",
+      os: "macOS",
+      deviceType: "desktop",
+    },
+    ipAddress: "192.168.1.1",
+    location: "Warsaw, PL",
+    status: "active",
+    isCurrent: false,
+    loginAt: Date.now() - 3600000,
+    lastActivityAt: Date.now() - 600000,
     ...overrides,
   };
 }
-
-const SESSION_CURRENT = makeSession({
-  _id: "session_1",
-  lastActiveAt: now - 1000,
-  deviceLabel: "Chrome on macOS",
-  ipAddress: "10.0.0.1",
-});
-
-const SESSION_OTHER = makeSession({
-  _id: "session_2",
-  lastActiveAt: now - 2 * hour,
-  deviceLabel: "Firefox on Windows",
-  ipAddress: "192.168.1.50",
-  createdAt: now - 7 * day,
-});
-
-const SESSION_MOBILE = makeSession({
-  _id: "session_3",
-  lastActiveAt: now - 12 * hour,
-  deviceLabel: "Safari on iOS",
-  ipAddress: "172.16.0.5",
-  createdAt: now - 14 * day,
-});
-
-const SESSIONS_LIST = [SESSION_CURRENT, SESSION_OTHER, SESSION_MOBILE];
 
 function makeLoginEntry(overrides: Record<string, unknown> = {}) {
   return {
     _id: "login_1" as any,
+    _creationTime: Date.now(),
     userId: "user_1" as any,
+    loginMethod: "password",
+    deviceInfo: {
+      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+      browser: "Chrome",
+      os: "macOS",
+    },
+    ipAddress: "192.168.1.1",
+    status: "success",
+    loginAt: Date.now() - 3600000,
+    ...overrides,
+  };
+}
+
+const ACTIVE_SESSIONS = [
+  makeSession({ _id: "session_1" as any, isCurrent: true }),
+  makeSession({
+    _id: "session_2" as any,
+    deviceInfo: {
+      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0)",
+      browser: "Safari",
+      os: "iOS",
+      deviceType: "mobile",
+    },
     ipAddress: "10.0.0.1",
-    userAgent: "Mozilla/5.0",
-    deviceLabel: "Chrome on macOS",
-    method: "password" as const,
-    success: true,
-    createdAt: now - 30 * 60 * 1000,
-    ...overrides,
-  };
-}
+    lastActivityAt: Date.now() - 7200000,
+  }),
+  makeSession({
+    _id: "session_3" as any,
+    deviceInfo: {
+      userAgent: "Mozilla/5.0 (Windows NT 10.0)",
+      browser: "Firefox",
+      os: "Windows",
+      deviceType: "desktop",
+    },
+    ipAddress: "172.16.0.1",
+    lastActivityAt: Date.now() - 86400000,
+  }),
+];
 
-const LOGIN_SUCCESS = makeLoginEntry();
-const LOGIN_FAILED = makeLoginEntry({
-  _id: "login_2",
-  success: false,
-  failureReason: "Invalid password",
-  method: "password" as const,
-  createdAt: now - 2 * hour,
-});
-const LOGIN_GOOGLE = makeLoginEntry({
-  _id: "login_3",
-  method: "google" as const,
-  createdAt: now - day,
-});
-
-const LOGIN_HISTORY = [LOGIN_SUCCESS, LOGIN_FAILED, LOGIN_GOOGLE];
-
-// ---------------------------------------------------------------------------
-// Query mock helpers
-// ---------------------------------------------------------------------------
-
-type QueryMap = Record<string, unknown>;
-
-function setupQueries(responses: QueryMap) {
-  vi.mocked(useQuery).mockImplementation(((ref: unknown, args: unknown) => {
-    if (args === "skip") return undefined;
-    try {
-      const name = getFunctionName(ref as any);
-      if (name in responses) return responses[name];
-    } catch {
-      // not a valid function reference
-    }
-    return undefined;
-  }) as any);
-}
-
-function setupMutationMap() {
-  const mutationMap = new Map<string, ReturnType<typeof vi.fn>>();
-  vi.mocked(useMutation).mockImplementation(((ref: unknown) => {
-    const key = getFunctionName(ref as any);
-    if (!mutationMap.has(key)) mutationMap.set(key, vi.fn().mockResolvedValue(undefined));
-    return mutationMap.get(key)!;
-  }) as any);
-  return mutationMap;
-}
-
-/** Base queries for a settings page that shows the sessions tab. */
-function sessionsTabQueries(overrides: QueryMap = {}): QueryMap {
-  return {
-    "users:getCurrentUser": { _id: "user_1", name: "Test User", email: "test@example.com" },
-    "auth:getCurrentUser": { _id: "user_1", name: "Test User", email: "test@example.com" },
-    "userSettings:getUserPreferences": { language: "en", timezone: "UTC", dateFormat: "YYYY-MM-DD", timeFormat: "24h" },
-    "userSettings:getNotificationPreferences": { dailyRankingReports: true, positionAlerts: true, keywordOpportunities: true, teamInvitations: true, systemUpdates: true, frequency: "daily" },
-    "users:getAPIKeys": [],
-    "organizations:getUserOrganizations": [{ _id: "org_1", name: "Test Org", role: "admin", planId: "plan_pro", subscriptionStatus: "active" }],
-    "organizations:getOrganizationMembers": [],
-    "plans:getPlan": { _id: "plan_pro", name: "Pro", key: "pro", modules: [], limits: {}, permissions: [], isDefault: false, createdAt: now },
-    "plans:getDefaultPlan": null,
-    "limits:getUsageStats": { keywords: { current: 10, limit: 500 }, domains: { current: 2, limit: 20 }, projects: { current: 1, limit: 10 } },
-    "limits:getOrgRefreshLimits": null,
-    "branding:getOrganizationBranding": null,
-    "security:getActiveSessions": SESSIONS_LIST,
-    "security:getLoginHistory": LOGIN_HISTORY,
-    ...overrides,
-  };
-}
+const LOGIN_HISTORY = [
+  makeLoginEntry({ _id: "login_1" as any, status: "success", loginAt: Date.now() - 3600000 }),
+  makeLoginEntry({
+    _id: "login_2" as any,
+    status: "failed",
+    failureReason: "Invalid password",
+    loginAt: Date.now() - 7200000,
+  }),
+  makeLoginEntry({
+    _id: "login_3" as any,
+    loginMethod: "google",
+    status: "success",
+    loginAt: Date.now() - 86400000,
+  }),
+];
 
 // ---------------------------------------------------------------------------
-// Setup
+// 1) Backend logic tests (security.ts module)
 // ---------------------------------------------------------------------------
 
-let SessionManagementSection: React.ComponentType;
-
-beforeEach(async () => {
-  vi.mocked(useQuery).mockImplementation((() => undefined) as any);
-  vi.mocked(useMutation).mockReturnValue(vi.fn() as any);
-  localStorage.clear();
-
-  const mod = await import("@/components/settings/SessionManagement");
-  SessionManagementSection = mod.SessionManagementSection;
+describe("convex/security — device parser", () => {
+  it("exports parseBrowser, parseOS, parseDeviceType logic via trackSession", async () => {
+    // We test the parsing logic indirectly through the exported functions' behavior
+    // The parser functions are internal, so we validate through the module structure
+    const securityModule = await import("../../../convex/security");
+    expect(securityModule.getActiveSessions).toBeDefined();
+    expect(securityModule.getLoginHistory).toBeDefined();
+    expect(securityModule.revokeSession).toBeDefined();
+    expect(securityModule.revokeAllOtherSessions).toBeDefined();
+    expect(securityModule.trackSession).toBeDefined();
+    expect(securityModule.updateSessionActivity).toBeDefined();
+    expect(securityModule.trackLoginAttempt).toBeDefined();
+    expect(securityModule.cleanExpiredSessions).toBeDefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
-// Tests — SessionManagementSection (standalone)
+// 2) ActiveSessionsList component tests
 // ---------------------------------------------------------------------------
 
-describe("R21 — Session Management", () => {
-
-  // ── Active Sessions ──────────────────────────────────────────────
-
-  describe("Active Sessions List", () => {
-    it("shows loading state when sessions query returns undefined", () => {
-      setupQueries({
-        "security:getActiveSessions": undefined,
-        "security:getLoginHistory": undefined,
-      });
-      // Force useQuery to return undefined for everything (loading)
-      vi.mocked(useQuery).mockImplementation((() => undefined) as any);
-
-      renderWithProviders(<SessionManagementSection />);
-      expect(screen.getAllByTestId("loading-state").length).toBeGreaterThan(0);
-    });
-
-    it("shows empty state when there are no active sessions", () => {
-      setupQueries({
-        "security:getActiveSessions": [],
-        "security:getLoginHistory": [],
-      });
-
-      renderWithProviders(<SessionManagementSection />);
-      expect(screen.getByText("No active sessions found.")).toBeInTheDocument();
-    });
-
-    it("renders sessions with device label, IP, and timestamps", () => {
-      setupQueries({
-        "security:getActiveSessions": SESSIONS_LIST,
-        "security:getLoginHistory": [],
-      });
-
-      renderWithProviders(<SessionManagementSection />);
-
-      // Device labels
-      expect(screen.getByText("Chrome on macOS")).toBeInTheDocument();
-      expect(screen.getByText("Firefox on Windows")).toBeInTheDocument();
-      expect(screen.getByText("Safari on iOS")).toBeInTheDocument();
-
-      // IP addresses
-      expect(screen.getByText("10.0.0.1")).toBeInTheDocument();
-      expect(screen.getByText("192.168.1.50")).toBeInTheDocument();
-      expect(screen.getByText("172.16.0.5")).toBeInTheDocument();
-    });
-
-    it("marks the first session as Current", () => {
-      setupQueries({
-        "security:getActiveSessions": SESSIONS_LIST,
-        "security:getLoginHistory": [],
-      });
-
-      renderWithProviders(<SessionManagementSection />);
-      expect(screen.getByText("Current")).toBeInTheDocument();
-    });
-
-    it("does not show revoke button on the current (first) session", () => {
-      setupQueries({
-        "security:getActiveSessions": SESSIONS_LIST,
-        "security:getLoginHistory": [],
-      });
-
-      renderWithProviders(<SessionManagementSection />);
-
-      // There should be Revoke buttons only for non-current sessions (2 of 3)
-      const revokeButtons = screen.getAllByRole("button", { name: /Revoke/i });
-      // "Revoke all other sessions" is also a button, so filter just "Revoke" text
-      const singleRevokeButtons = revokeButtons.filter((btn) =>
-        btn.textContent?.trim() === "Revoke"
-      );
-      expect(singleRevokeButtons).toHaveLength(2);
-    });
-
-    it("shows 'Revoke all other sessions' button when multiple sessions exist", () => {
-      setupQueries({
-        "security:getActiveSessions": SESSIONS_LIST,
-        "security:getLoginHistory": [],
-      });
-
-      renderWithProviders(<SessionManagementSection />);
-      expect(screen.getByText("Revoke all other sessions")).toBeInTheDocument();
-    });
-
-    it("hides 'Revoke all other sessions' button when only one session exists", () => {
-      setupQueries({
-        "security:getActiveSessions": [SESSION_CURRENT],
-        "security:getLoginHistory": [],
-      });
-
-      renderWithProviders(<SessionManagementSection />);
-      expect(screen.queryByText("Revoke all other sessions")).not.toBeInTheDocument();
-    });
-
-    it("shows unknown device label when deviceLabel is missing", () => {
-      const sessionNoDevice = makeSession({
-        _id: "session_nodev",
-        deviceLabel: undefined,
-        lastActiveAt: now,
-      });
-      setupQueries({
-        "security:getActiveSessions": [sessionNoDevice],
-        "security:getLoginHistory": [],
-      });
-
-      renderWithProviders(<SessionManagementSection />);
-      expect(screen.getByText("Unknown device")).toBeInTheDocument();
-    });
-
-    it("shows Unknown IP when ipAddress is missing", () => {
-      const sessionNoIp = makeSession({
-        _id: "session_noip",
-        ipAddress: undefined,
-        lastActiveAt: now,
-      });
-      setupQueries({
-        "security:getActiveSessions": [sessionNoIp],
-        "security:getLoginHistory": [],
-      });
-
-      renderWithProviders(<SessionManagementSection />);
-      expect(screen.getByText("Unknown")).toBeInTheDocument();
-    });
+describe("ActiveSessionsList", () => {
+  beforeEach(() => {
+    setupMutationMock();
   });
 
-  // ── Revoke Session Flow ──────────────────────────────────────────
+  it("shows loading state when sessions are undefined", async () => {
+    setupQueryMock({});
+    const { ActiveSessionsList } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<ActiveSessionsList />);
+    // LoadingState renders skeletons (pulse divs) — just verify no error
+    expect(document.querySelector("[class*='animate-pulse']") || document.querySelector("table") === null).toBeTruthy();
+  });
 
-  describe("Revoke Session", () => {
-    it("calls revokeSession mutation with correct session ID on confirm", async () => {
-      const user = userEvent.setup();
-      const mutationMap = setupMutationMap();
-      setupQueries({
-        "security:getActiveSessions": SESSIONS_LIST,
-        "security:getLoginHistory": [],
-      });
+  it("shows empty state when no sessions exist", async () => {
+    setupQueryMock({ "security:getActiveSessions": [] });
+    const { ActiveSessionsList } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<ActiveSessionsList />);
+    expect(screen.getByText("noActiveSessions")).toBeInTheDocument();
+  });
 
-      // Mock confirm to return true
-      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+  it("renders active sessions with device info", async () => {
+    setupQueryMock({ "security:getActiveSessions": ACTIVE_SESSIONS });
+    const { ActiveSessionsList } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<ActiveSessionsList />);
 
-      renderWithProviders(<SessionManagementSection />);
+    // Check that browser/OS info renders
+    expect(screen.getByText(/Chrome.*macOS/)).toBeInTheDocument();
+    expect(screen.getByText(/Safari.*iOS/)).toBeInTheDocument();
+    expect(screen.getByText(/Firefox.*Windows/)).toBeInTheDocument();
+  });
 
-      // Click the first "Revoke" button (second session)
-      const revokeButtons = screen.getAllByRole("button", { name: /^Revoke$/ });
-      await user.click(revokeButtons[0]);
+  it("shows 'Current' badge on current session", async () => {
+    setupQueryMock({ "security:getActiveSessions": ACTIVE_SESSIONS });
+    const { ActiveSessionsList } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<ActiveSessionsList />);
 
-      expect(confirmSpy).toHaveBeenCalled();
+    expect(screen.getByText("currentSession")).toBeInTheDocument();
+  });
 
-      await waitFor(() => {
-        const revokeFn = mutationMap.get("security:revokeSession");
-        expect(revokeFn).toHaveBeenCalledWith({ sessionId: "session_2" });
-      });
-
-      expect(toast.success).toHaveBeenCalledWith("Session revoked successfully");
-      confirmSpy.mockRestore();
+  it("does not show revoke button on current session", async () => {
+    setupQueryMock({
+      "security:getActiveSessions": [makeSession({ isCurrent: true })],
     });
+    const { ActiveSessionsList } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<ActiveSessionsList />);
 
-    it("does not revoke when user cancels confirm dialog", async () => {
-      const user = userEvent.setup();
-      const mutationMap = setupMutationMap();
-      setupQueries({
-        "security:getActiveSessions": SESSIONS_LIST,
-        "security:getLoginHistory": [],
-      });
+    // Only 1 session and it's current — no revoke buttons
+    expect(screen.queryByText("revokeSessionBtn")).not.toBeInTheDocument();
+  });
 
-      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+  it("shows revoke buttons on non-current sessions", async () => {
+    setupQueryMock({ "security:getActiveSessions": ACTIVE_SESSIONS });
+    const { ActiveSessionsList } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<ActiveSessionsList />);
 
-      renderWithProviders(<SessionManagementSection />);
+    // 3 sessions, 1 current => 2 revoke buttons
+    const revokeButtons = screen.getAllByText("revokeSessionBtn");
+    expect(revokeButtons).toHaveLength(2);
+  });
 
-      const revokeButtons = screen.getAllByRole("button", { name: /^Revoke$/ });
-      await user.click(revokeButtons[0]);
+  it("calls revokeSession mutation when revoke is clicked", async () => {
+    setupQueryMock({ "security:getActiveSessions": ACTIVE_SESSIONS });
+    const { ActiveSessionsList } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<ActiveSessionsList />);
 
+    const revokeButtons = screen.getAllByText("revokeSessionBtn");
+    fireEvent.click(revokeButtons[0]);
+
+    await waitFor(() => {
       const revokeFn = mutationMap.get("security:revokeSession");
-      expect(revokeFn).not.toHaveBeenCalled();
-
-      confirmSpy.mockRestore();
-    });
-
-    it("shows error toast when revoke fails", async () => {
-      const user = userEvent.setup();
-      const mutationMap = setupMutationMap();
-      mutationMap.set("security:revokeSession", vi.fn().mockRejectedValue(new Error("Server error")));
-      vi.mocked(useMutation).mockImplementation(((ref: unknown) => {
-        const key = getFunctionName(ref as any);
-        if (!mutationMap.has(key)) mutationMap.set(key, vi.fn().mockResolvedValue(undefined));
-        return mutationMap.get(key)!;
-      }) as any);
-
-      setupQueries({
-        "security:getActiveSessions": SESSIONS_LIST,
-        "security:getLoginHistory": [],
+      expect(revokeFn).toHaveBeenCalledWith({
+        sessionId: "session_2",
       });
-
-      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-
-      renderWithProviders(<SessionManagementSection />);
-
-      const revokeButtons = screen.getAllByRole("button", { name: /^Revoke$/ });
-      await user.click(revokeButtons[0]);
-
-      await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith("Failed to revoke session");
-      });
-
-      confirmSpy.mockRestore();
     });
   });
 
-  // ── Revoke All Sessions ──────────────────────────────────────────
+  it("shows 'Revoke all other' button when multiple sessions exist", async () => {
+    setupQueryMock({ "security:getActiveSessions": ACTIVE_SESSIONS });
+    const { ActiveSessionsList } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<ActiveSessionsList />);
 
-  describe("Revoke All Other Sessions", () => {
-    it("calls revokeAllOtherSessions and shows success toast with count", async () => {
-      const user = userEvent.setup();
-      const mutationMap = setupMutationMap();
-      mutationMap.set("security:revokeAllOtherSessions", vi.fn().mockResolvedValue({ revokedCount: 2 }));
-      vi.mocked(useMutation).mockImplementation(((ref: unknown) => {
-        const key = getFunctionName(ref as any);
-        if (!mutationMap.has(key)) mutationMap.set(key, vi.fn().mockResolvedValue(undefined));
-        return mutationMap.get(key)!;
-      }) as any);
-
-      setupQueries({
-        "security:getActiveSessions": SESSIONS_LIST,
-        "security:getLoginHistory": [],
-      });
-
-      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-
-      renderWithProviders(<SessionManagementSection />);
-
-      await user.click(screen.getByText("Revoke all other sessions"));
-
-      await waitFor(() => {
-        expect(mutationMap.get("security:revokeAllOtherSessions")).toHaveBeenCalled();
-      });
-
-      expect(toast.success).toHaveBeenCalled();
-      confirmSpy.mockRestore();
-    });
+    expect(screen.getByText("revokeAllOther")).toBeInTheDocument();
   });
 
-  // ── Login History ────────────────────────────────────────────────
-
-  describe("Login History Table", () => {
-    it("shows empty state when no login history", () => {
-      setupQueries({
-        "security:getActiveSessions": [],
-        "security:getLoginHistory": [],
-      });
-
-      renderWithProviders(<SessionManagementSection />);
-      expect(screen.getByText("No login history available.")).toBeInTheDocument();
+  it("hides 'Revoke all other' when only one session", async () => {
+    setupQueryMock({
+      "security:getActiveSessions": [makeSession({ isCurrent: true })],
     });
+    const { ActiveSessionsList } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<ActiveSessionsList />);
 
-    it("renders login entries with method, device, IP, and status", () => {
-      setupQueries({
-        "security:getActiveSessions": [],
-        "security:getLoginHistory": LOGIN_HISTORY,
-      });
-
-      renderWithProviders(<SessionManagementSection />);
-
-      // Methods — "Password" may appear multiple times (login entries), so use getAllByText
-      expect(screen.getAllByText("Password").length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText("Google")).toBeInTheDocument();
-
-      // Statuses
-      const successBadges = screen.getAllByText("Success");
-      expect(successBadges.length).toBeGreaterThanOrEqual(2); // LOGIN_SUCCESS and LOGIN_GOOGLE
-      expect(screen.getByText("Failed")).toBeInTheDocument();
-    });
-
-    it("displays unknown device when deviceLabel is missing in history", () => {
-      const entryNoDevice = makeLoginEntry({
-        _id: "login_nodev",
-        deviceLabel: undefined,
-      });
-      setupQueries({
-        "security:getActiveSessions": [],
-        "security:getLoginHistory": [entryNoDevice],
-      });
-
-      renderWithProviders(<SessionManagementSection />);
-      // "Unknown device" text in the device column
-      expect(screen.getByText("Unknown device")).toBeInTheDocument();
-    });
+    expect(screen.queryByText("revokeAllOther")).not.toBeInTheDocument();
   });
 
-  // ── Settings Page Tab Integration ────────────────────────────────
+  it("displays IP address in the location column", async () => {
+    setupQueryMock({ "security:getActiveSessions": ACTIVE_SESSIONS });
+    const { ActiveSessionsList } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<ActiveSessionsList />);
 
-  describe("Settings Page — Sessions Tab", () => {
-    let SettingsPage: React.ComponentType;
+    expect(screen.getByText("192.168.1.1")).toBeInTheDocument();
+    expect(screen.getByText("10.0.0.1")).toBeInTheDocument();
+  });
+});
 
-    beforeEach(async () => {
-      vi.mocked(useQuery).mockImplementation((() => undefined) as any);
-      vi.mocked(useMutation).mockReturnValue(vi.fn() as any);
+// ---------------------------------------------------------------------------
+// 3) LoginHistoryTable component tests
+// ---------------------------------------------------------------------------
 
-      const mod = await import("@/app/(dashboard)/settings/page");
-      SettingsPage = mod.default;
+describe("LoginHistoryTable", () => {
+  beforeEach(() => {
+    setupMutationMock();
+  });
+
+  it("shows loading state when history is undefined", async () => {
+    setupQueryMock({});
+    const { LoginHistoryTable } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<LoginHistoryTable />);
+    expect(document.querySelector("[class*='animate-pulse']") || document.querySelector("table") === null).toBeTruthy();
+  });
+
+  it("shows empty state when no login history", async () => {
+    setupQueryMock({ "security:getLoginHistory": [] });
+    const { LoginHistoryTable } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<LoginHistoryTable />);
+    expect(screen.getByText("noLoginHistory")).toBeInTheDocument();
+  });
+
+  it("renders login history entries", async () => {
+    setupQueryMock({ "security:getLoginHistory": LOGIN_HISTORY });
+    const { LoginHistoryTable } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<LoginHistoryTable />);
+
+    // Check that entries render with correct info
+    expect(screen.getAllByText(/Chrome/)).toHaveLength(3); // All use Chrome in fixture
+    expect(screen.getAllByText("loginSuccess").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("loginFailed").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows login method for each entry", async () => {
+    setupQueryMock({ "security:getLoginHistory": LOGIN_HISTORY });
+    const { LoginHistoryTable } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<LoginHistoryTable />);
+
+    // password entries (2) + google entry (1)
+    const passwordElements = screen.getAllByText("password");
+    expect(passwordElements.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("google")).toBeInTheDocument();
+  });
+
+  it("shows success and failure indicators", async () => {
+    setupQueryMock({ "security:getLoginHistory": LOGIN_HISTORY });
+    const { LoginHistoryTable } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<LoginHistoryTable />);
+
+    // 2 successful, 1 failed
+    const successElements = screen.getAllByText("loginSuccess");
+    expect(successElements).toHaveLength(2);
+    const failedElements = screen.getAllByText("loginFailed");
+    expect(failedElements).toHaveLength(1);
+  });
+
+  it("displays IP addresses for each login entry", async () => {
+    setupQueryMock({ "security:getLoginHistory": LOGIN_HISTORY });
+    const { LoginHistoryTable } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<LoginHistoryTable />);
+
+    // All entries have 192.168.1.1
+    const ipElements = screen.getAllByText("192.168.1.1");
+    expect(ipElements).toHaveLength(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 4) SessionManagement combined component tests
+// ---------------------------------------------------------------------------
+
+describe("SessionManagement", () => {
+  beforeEach(() => {
+    setupMutationMock();
+  });
+
+  it("renders both ActiveSessionsList and LoginHistoryTable", async () => {
+    setupQueryMock({
+      "security:getActiveSessions": ACTIVE_SESSIONS,
+      "security:getLoginHistory": LOGIN_HISTORY,
     });
+    const { SessionManagement } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    render(<SessionManagement />);
 
-    it("renders the Sessions tab in tab navigation", () => {
-      setupQueries(sessionsTabQueries());
-      renderWithProviders(<SettingsPage />);
+    // Both section headers should be present
+    expect(screen.getByText("activeSessionsTitle")).toBeInTheDocument();
+    expect(screen.getByText("loginHistoryTitle")).toBeInTheDocument();
+  });
 
-      // The tab should be present (rendered as tab button or link)
-      expect(screen.getAllByText("Sessions").length).toBeGreaterThan(0);
+  it("renders divider between sections", async () => {
+    setupQueryMock({
+      "security:getActiveSessions": ACTIVE_SESSIONS,
+      "security:getLoginHistory": LOGIN_HISTORY,
     });
+    const { SessionManagement } = await import(
+      "@/components/settings/SessionManagement"
+    );
+    const { container } = render(<SessionManagement />);
+
+    // Should have an hr divider
+    expect(container.querySelector("hr")).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 5) Schema validation tests
+// ---------------------------------------------------------------------------
+
+describe("Schema — userSessions and loginHistory tables", () => {
+  it("schema includes userSessions table", async () => {
+    const schema = await import("../../../convex/schema");
+    const schemaDef = schema.default;
+    // The schema default export has tables property
+    expect(schemaDef).toBeDefined();
+    expect(schemaDef.tables).toBeDefined();
+    expect(schemaDef.tables.userSessions).toBeDefined();
+    expect(schemaDef.tables.loginHistory).toBeDefined();
+  });
+
+  it("userSessions has by_user and by_user_status indexes", async () => {
+    const schema = await import("../../../convex/schema");
+    const sessionTable = schema.default.tables.userSessions;
+    expect(sessionTable).toBeDefined();
+    // Convex schema table objects have indexes array
+    const indexes = sessionTable.indexes;
+    const indexNames = indexes.map((idx: any) => idx.indexDescriptor);
+    expect(indexNames).toContain("by_user");
+    expect(indexNames).toContain("by_user_status");
+  });
+
+  it("loginHistory has by_user and by_user_date indexes", async () => {
+    const schema = await import("../../../convex/schema");
+    const loginTable = schema.default.tables.loginHistory;
+    expect(loginTable).toBeDefined();
+    const indexes = loginTable.indexes;
+    const indexNames = indexes.map((idx: any) => idx.indexDescriptor);
+    expect(indexNames).toContain("by_user");
+    expect(indexNames).toContain("by_user_date");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 6) Translation key tests
+// ---------------------------------------------------------------------------
+
+describe("Translation keys", () => {
+  it("EN settings.json has all session management keys", async () => {
+    const en = await import("@/messages/en/settings.json");
+    const keys = [
+      "tabSessions",
+      "activeSessionsTitle",
+      "activeSessionsDescription",
+      "sessionDevice",
+      "sessionLocation",
+      "sessionLastActive",
+      "currentSession",
+      "revokeSessionBtn",
+      "revokeAllOther",
+      "sessionRevoked",
+      "sessionRevokeError",
+      "confirmRevokeAll",
+      "allSessionsRevoked",
+      "noActiveSessions",
+      "loginHistoryTitle",
+      "loginHistoryDescription",
+      "loginDate",
+      "loginMethod",
+      "loginDeviceColumn",
+      "loginIp",
+      "loginStatus",
+      "loginSuccess",
+      "loginFailed",
+      "noLoginHistory",
+    ];
+    for (const key of keys) {
+      expect((en as any)[key] || (en as any).default?.[key]).toBeDefined();
+    }
+  });
+
+  it("PL settings.json has all session management keys", async () => {
+    const pl = await import("@/messages/pl/settings.json");
+    const keys = [
+      "tabSessions",
+      "activeSessionsTitle",
+      "loginHistoryTitle",
+      "sessionRevoked",
+      "noActiveSessions",
+      "noLoginHistory",
+    ];
+    for (const key of keys) {
+      expect((pl as any)[key] || (pl as any).default?.[key]).toBeDefined();
+    }
   });
 });

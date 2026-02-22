@@ -26,7 +26,7 @@ import {
 } from "../../../convex/actions/sendEmail";
 
 const FROM_EMAIL = "doseo <noreply@kolabogroup.pl>";
-const mockCtx = {} as any;
+const mockCtx = { scheduler: { runAfter: vi.fn() } } as any;
 
 describe("sendEmail actions", () => {
   const originalEnv = process.env;

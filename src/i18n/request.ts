@@ -27,6 +27,13 @@ export default getRequestConfig(async () => {
         "aiResearch",
         "strategy",
         "generators",
+        "onboarding",
+        "search",
+        "agency",
+        "webhooks",
+        "dashboards",
+        "scheduledReports",
+        "help",
     ];
 
     const messages: Record<string, any> = {};

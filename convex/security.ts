@@ -1,52 +1,68 @@
-import { v } from "convex/values";
 import { query, mutation, internalMutation } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { v } from "convex/values";
+import { auth } from "./auth";
+import { Id } from "./_generated/dataModel";
 
-// =================================================================
+// ---------------------------------------------------------------------------
+// Device info parser (simple regex, no heavy dependencies)
+// ---------------------------------------------------------------------------
+
+function parseBrowser(ua: string): string {
+  if (/Edg\//i.test(ua)) return "Edge";
+  if (/OPR\//i.test(ua) || /Opera/i.test(ua)) return "Opera";
+  if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) return "Chrome";
+  if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) return "Safari";
+  if (/Firefox\//i.test(ua)) return "Firefox";
+  return "Unknown";
+}
+
+function parseOS(ua: string): string {
+  if (/Windows NT/i.test(ua)) return "Windows";
+  if (/Mac OS X/i.test(ua)) return "macOS";
+  if (/Android/i.test(ua)) return "Android";
+  if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
+  if (/Linux/i.test(ua)) return "Linux";
+  return "Unknown";
+}
+
+function parseDeviceType(ua: string): string {
+  if (/Tablet|iPad/i.test(ua)) return "tablet";
+  if (/Mobile|iPhone|Android.*Mobile/i.test(ua)) return "mobile";
+  return "desktop";
+}
+
+// ---------------------------------------------------------------------------
 // Queries
-// =================================================================
+// ---------------------------------------------------------------------------
 
-/**
- * Get active (non-revoked, non-expired) sessions for the current user.
- * Returns newest first, up to 50 sessions.
- */
 export const getActiveSessions = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await auth.getUserId(ctx);
     if (!userId) return [];
 
     const sessions = await ctx.db
       .query("userSessions")
-      .withIndex("by_user_active", (q) => q.eq("userId", userId).eq("isRevoked", false))
+      .withIndex("by_user_status", (q) =>
+        q.eq("userId", userId).eq("status", "active")
+      )
       .collect();
 
-    const now = Date.now();
-    // Filter out expired sessions and sort newest first
-    return sessions
-      .filter((s) => !s.expiresAt || s.expiresAt > now)
-      .sort((a, b) => b.lastActiveAt - a.lastActiveAt)
-      .slice(0, 50);
+    // Sort by lastActivityAt desc
+    return sessions.sort((a, b) => b.lastActivityAt - a.lastActivityAt);
   },
 });
 
-/**
- * Get login history for the current user.
- * Returns most recent entries first, up to 100.
- */
 export const getLoginHistory = query({
-  args: {
-    limit: v.optional(v.number()),
-  },
+  args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await auth.getUserId(ctx);
     if (!userId) return [];
 
     const limit = args.limit ?? 50;
-
     const entries = await ctx.db
       .query("loginHistory")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_user_date", (q) => q.eq("userId", userId))
       .order("desc")
       .take(limit);
 
@@ -54,211 +70,163 @@ export const getLoginHistory = query({
   },
 });
 
-// =================================================================
+// ---------------------------------------------------------------------------
 // Mutations (user-facing)
-// =================================================================
+// ---------------------------------------------------------------------------
 
-/**
- * Revoke a specific session. Verifies ownership before revoking.
- */
 export const revokeSession = mutation({
-  args: {
-    sessionId: v.id("userSessions"),
-  },
+  args: { sessionId: v.id("userSessions") },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await auth.getUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const session = await ctx.db.get(args.sessionId);
     if (!session) throw new Error("Session not found");
-    if (session.userId !== userId) throw new Error("Unauthorized");
-    if (session.isRevoked) return; // Already revoked
+    if (session.userId !== userId) throw new Error("Not authorized");
+    if (session.status !== "active") throw new Error("Session is not active");
 
     await ctx.db.patch(args.sessionId, {
-      isRevoked: true,
+      status: "revoked",
       revokedAt: Date.now(),
     });
   },
 });
 
-/**
- * Revoke all other sessions (keep current one if identifiable).
- * Since we may not know the current session ID, this revokes ALL sessions.
- */
 export const revokeAllOtherSessions = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+  args: { currentSessionId: v.optional(v.id("userSessions")) },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const sessions = await ctx.db
       .query("userSessions")
-      .withIndex("by_user_active", (q) => q.eq("userId", userId).eq("isRevoked", false))
+      .withIndex("by_user_status", (q) =>
+        q.eq("userId", userId).eq("status", "active")
+      )
       .collect();
 
     const now = Date.now();
-    // Revoke all sessions except the most recently active one (assumed current)
-    const sorted = sessions.sort((a, b) => b.lastActiveAt - a.lastActiveAt);
-    for (let i = 1; i < sorted.length; i++) {
-      await ctx.db.patch(sorted[i]._id, {
-        isRevoked: true,
+    let revokedCount = 0;
+    for (const session of sessions) {
+      // Keep the current session if provided
+      if (args.currentSessionId && session._id === args.currentSessionId) {
+        continue;
+      }
+      await ctx.db.patch(session._id, {
+        status: "revoked",
         revokedAt: now,
       });
+      revokedCount++;
     }
 
-    return { revokedCount: Math.max(0, sorted.length - 1) };
+    return { revokedCount };
   },
 });
 
-// =================================================================
-// Internal mutations (called by auth callbacks or cron jobs)
-// =================================================================
+// ---------------------------------------------------------------------------
+// Internal mutations (called from auth callbacks or cron)
+// ---------------------------------------------------------------------------
 
-/**
- * Track a new session when user logs in.
- */
 export const trackSession = internalMutation({
   args: {
     userId: v.id("users"),
-    sessionId: v.optional(v.string()),
+    deviceInfo: v.object({
+      userAgent: v.string(),
+      browser: v.optional(v.string()),
+      os: v.optional(v.string()),
+      deviceType: v.string(),
+    }),
     ipAddress: v.optional(v.string()),
-    userAgent: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const deviceLabel = args.userAgent ? parseDeviceLabel(args.userAgent) : undefined;
     const now = Date.now();
-    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
 
-    await ctx.db.insert("userSessions", {
+    // Parse browser/OS from user agent if not provided
+    const browser = args.deviceInfo.browser || parseBrowser(args.deviceInfo.userAgent);
+    const os = args.deviceInfo.os || parseOS(args.deviceInfo.userAgent);
+
+    return await ctx.db.insert("userSessions", {
       userId: args.userId,
-      sessionId: args.sessionId,
+      deviceInfo: {
+        userAgent: args.deviceInfo.userAgent,
+        browser,
+        os,
+        deviceType: args.deviceInfo.deviceType,
+      },
       ipAddress: args.ipAddress,
-      userAgent: args.userAgent,
-      deviceLabel,
-      lastActiveAt: now,
-      createdAt: now,
-      expiresAt: now + thirtyDays,
-      isRevoked: false,
+      status: "active",
+      loginAt: now,
+      lastActivityAt: now,
     });
   },
 });
 
-/**
- * Update last activity timestamp for a session.
- */
 export const updateSessionActivity = internalMutation({
-  args: {
-    sessionId: v.id("userSessions"),
-  },
+  args: { sessionId: v.id("userSessions") },
   handler: async (ctx, args) => {
     const session = await ctx.db.get(args.sessionId);
-    if (!session || session.isRevoked) return;
+    if (!session || session.status !== "active") return;
 
     await ctx.db.patch(args.sessionId, {
-      lastActiveAt: Date.now(),
+      lastActivityAt: Date.now(),
     });
   },
 });
 
-/**
- * Track a login attempt (success or failure).
- */
 export const trackLoginAttempt = internalMutation({
   args: {
     userId: v.id("users"),
+    loginMethod: v.string(),
+    deviceInfo: v.object({
+      userAgent: v.string(),
+      browser: v.optional(v.string()),
+      os: v.optional(v.string()),
+    }),
     ipAddress: v.optional(v.string()),
-    userAgent: v.optional(v.string()),
-    method: v.union(
-      v.literal("password"),
-      v.literal("google"),
-      v.literal("email_link"),
-      v.literal("unknown")
-    ),
-    success: v.boolean(),
+    status: v.string(),
     failureReason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const deviceLabel = args.userAgent ? parseDeviceLabel(args.userAgent) : undefined;
+    const browser = args.deviceInfo.browser || parseBrowser(args.deviceInfo.userAgent);
+    const os = args.deviceInfo.os || parseOS(args.deviceInfo.userAgent);
 
-    await ctx.db.insert("loginHistory", {
+    return await ctx.db.insert("loginHistory", {
       userId: args.userId,
+      loginMethod: args.loginMethod,
+      deviceInfo: {
+        userAgent: args.deviceInfo.userAgent,
+        browser,
+        os,
+      },
       ipAddress: args.ipAddress,
-      userAgent: args.userAgent,
-      deviceLabel,
-      method: args.method,
-      success: args.success,
+      status: args.status,
       failureReason: args.failureReason,
-      createdAt: Date.now(),
+      loginAt: Date.now(),
     });
   },
 });
 
-/**
- * Clean expired and old revoked sessions.
- * Intended to be called by a cron job periodically.
- */
 export const cleanExpiredSessions = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const now = Date.now();
-    const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
-    // Get all sessions — we'll filter in memory
-    // In production this would be paginated, but for now this is sufficient
-    const allSessions = await ctx.db.query("userSessions").collect();
+    // Get all active sessions and mark old ones as expired
+    // We query without a specific user to clean all expired sessions
+    const allActive = await ctx.db
+      .query("userSessions")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("status"), "active"),
+          q.lt(q.field("lastActivityAt"), thirtyDaysAgo)
+        )
+      )
+      .take(100); // Process in batches
 
-    let cleaned = 0;
-    for (const session of allSessions) {
-      const isExpired = session.expiresAt && session.expiresAt < now;
-      const isOldRevoked = session.isRevoked && session.revokedAt && session.revokedAt < ninetyDaysAgo;
-
-      if (isExpired || isOldRevoked) {
-        await ctx.db.delete(session._id);
-        cleaned++;
-      }
+    for (const session of allActive) {
+      await ctx.db.patch(session._id, { status: "expired" });
     }
 
-    return { cleaned };
+    return { expiredCount: allActive.length };
   },
 });
-
-// =================================================================
-// Helpers
-// =================================================================
-
-/**
- * Simple user-agent parser that extracts browser + OS.
- * No heavy dependencies — just regex matching.
- */
-function parseDeviceLabel(userAgent: string): string {
-  let browser = "Unknown Browser";
-  let os = "Unknown OS";
-
-  // Browser detection
-  if (/Edg\//i.test(userAgent)) {
-    browser = "Edge";
-  } else if (/Chrome\//i.test(userAgent) && !/Chromium/i.test(userAgent)) {
-    browser = "Chrome";
-  } else if (/Firefox\//i.test(userAgent)) {
-    browser = "Firefox";
-  } else if (/Safari\//i.test(userAgent) && !/Chrome/i.test(userAgent)) {
-    browser = "Safari";
-  } else if (/Opera|OPR\//i.test(userAgent)) {
-    browser = "Opera";
-  }
-
-  // OS detection
-  if (/Windows/i.test(userAgent)) {
-    os = "Windows";
-  } else if (/Macintosh|Mac OS X/i.test(userAgent)) {
-    os = "macOS";
-  } else if (/Linux/i.test(userAgent)) {
-    os = "Linux";
-  } else if (/Android/i.test(userAgent)) {
-    os = "Android";
-  } else if (/iPhone|iPad|iPod/i.test(userAgent)) {
-    os = "iOS";
-  }
-
-  return `${browser} on ${os}`;
-}

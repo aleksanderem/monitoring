@@ -7,41 +7,77 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { Button } from "@/components/base/buttons/button";
 import { Badge } from "@/components/base/badges/badges";
 import { LoadingState } from "@/components/shared/LoadingState";
-import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { Trash01 } from "@untitledui/icons";
+import { toast } from "sonner";
+import {
+  Monitor01,
+  Phone01,
+  Tablet01,
+  Check,
+  XClose,
+  LogOut01,
+} from "@untitledui/icons";
 
-// ─── Active Sessions List ────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-function ActiveSessionsList() {
+function relativeTime(timestamp: number): string {
+  const diff = Date.now() - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(timestamp).toLocaleDateString();
+}
+
+function DeviceIcon({ type }: { type: string }) {
+  switch (type) {
+    case "mobile":
+      return <Phone01 className="h-4 w-4 text-tertiary" />;
+    case "tablet":
+      return <Tablet01 className="h-4 w-4 text-tertiary" />;
+    default:
+      return <Monitor01 className="h-4 w-4 text-tertiary" />;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Active Sessions List
+// ---------------------------------------------------------------------------
+
+export function ActiveSessionsList() {
   const t = useTranslations("settings");
   const sessions = useQuery(api.security.getActiveSessions);
   const revokeSession = useMutation(api.security.revokeSession);
   const revokeAll = useMutation(api.security.revokeAllOtherSessions);
+
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokingAll, setRevokingAll] = useState(false);
 
   const handleRevoke = async (sessionId: Id<"userSessions">) => {
-    if (!confirm(t("revokeSessionConfirm"))) return;
     setRevokingId(sessionId);
     try {
       await revokeSession({ sessionId });
-      toast.success(t("sessionRevokedSuccess"));
+      toast.success(t("sessionRevoked"));
     } catch {
-      toast.error(t("sessionRevokedError"));
+      toast.error(t("sessionRevokeError"));
     } finally {
       setRevokingId(null);
     }
   };
 
   const handleRevokeAll = async () => {
-    if (!confirm(t("revokeAllSessionsConfirm"))) return;
+    if (!confirm(t("confirmRevokeAll"))) return;
     setRevokingAll(true);
     try {
-      const result = await revokeAll();
-      toast.success(t("allSessionsRevokedSuccess", { count: String(result?.revokedCount ?? 0) }));
+      const result = await revokeAll({});
+      toast.success(t("allSessionsRevoked", { count: String(result.revokedCount) }));
     } catch {
-      toast.error(t("allSessionsRevokedError"));
+      toast.error(t("sessionRevokeError"));
     } finally {
       setRevokingAll(false);
     }
@@ -52,20 +88,25 @@ function ActiveSessionsList() {
   }
 
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-medium text-primary">{t("sessionsTitle")}</h3>
-          <p className="mt-0.5 text-sm text-tertiary">{t("sessionsDescription")}</p>
+          <h3 className="text-sm font-semibold text-primary">
+            {t("activeSessionsTitle")}
+          </h3>
+          <p className="text-sm text-tertiary">
+            {t("activeSessionsDescription")}
+          </p>
         </div>
         {sessions.length > 1 && (
           <Button
             color="secondary"
             size="sm"
+            iconLeading={LogOut01}
             onClick={handleRevokeAll}
             isLoading={revokingAll}
           >
-            {t("revokeAllSessions")}
+            {t("revokeAllOther")}
           </Button>
         )}
       </div>
@@ -79,50 +120,59 @@ function ActiveSessionsList() {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-secondary">
-                <th className="pb-3 pr-4 font-medium text-tertiary">{t("sessionDevice")}</th>
-                <th className="pb-3 pr-4 font-medium text-tertiary">{t("sessionIpAddress")}</th>
-                <th className="pb-3 pr-4 font-medium text-tertiary">{t("sessionLastActive")}</th>
-                <th className="pb-3 pr-4 font-medium text-tertiary">{t("sessionCreated")}</th>
+                <th className="pb-3 pr-4 font-medium text-tertiary">
+                  {t("sessionDevice")}
+                </th>
+                <th className="pb-3 pr-4 font-medium text-tertiary">
+                  {t("sessionLocation")}
+                </th>
+                <th className="pb-3 pr-4 font-medium text-tertiary">
+                  {t("sessionLastActive")}
+                </th>
                 <th className="pb-3 font-medium text-tertiary" />
               </tr>
             </thead>
             <tbody>
-              {sessions.map((session, index) => (
+              {sessions.map((session) => (
                 <tr
                   key={session._id}
                   className="border-b border-secondary last:border-0"
                 >
                   <td className="py-3 pr-4">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-primary">
-                        {session.deviceLabel || t("unknownDevice")}
-                      </span>
-                      {index === 0 && (
-                        <Badge size="sm" type="pill-color" color="success">
-                          {t("sessionCurrent")}
-                        </Badge>
-                      )}
+                      <DeviceIcon type={session.deviceInfo.deviceType} />
+                      <div className="flex flex-col">
+                        <span className="font-medium text-primary">
+                          {session.deviceInfo.browser || "Unknown"}{" "}
+                          {session.deviceInfo.os
+                            ? `on ${session.deviceInfo.os}`
+                            : ""}
+                        </span>
+                        {session.isCurrent && (
+                          <Badge size="sm" type="pill-color" color="success">
+                            {t("currentSession")}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="py-3 pr-4 text-tertiary">
-                    {session.ipAddress || t("unknownIp")}
+                    {session.ipAddress || session.location || "—"}
                   </td>
                   <td className="whitespace-nowrap py-3 pr-4 text-tertiary">
-                    {new Date(session.lastActiveAt).toLocaleString()}
-                  </td>
-                  <td className="whitespace-nowrap py-3 pr-4 text-tertiary">
-                    {new Date(session.createdAt).toLocaleDateString()}
+                    {relativeTime(session.lastActivityAt)}
                   </td>
                   <td className="py-3">
-                    {index > 0 && (
+                    {!session.isCurrent && (
                       <Button
                         color="primary-destructive"
                         size="sm"
-                        iconLeading={Trash01}
-                        onClick={() => handleRevoke(session._id as Id<"userSessions">)}
+                        onClick={() =>
+                          handleRevoke(session._id as Id<"userSessions">)
+                        }
                         isLoading={revokingId === session._id}
                       >
-                        {t("revokeSession")}
+                        {t("revokeSessionBtn")}
                       </Button>
                     )}
                   </td>
@@ -136,9 +186,11 @@ function ActiveSessionsList() {
   );
 }
 
-// ─── Login History Table ─────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// Login History Table
+// ---------------------------------------------------------------------------
 
-function LoginHistoryTable() {
+export function LoginHistoryTable() {
   const t = useTranslations("settings");
   const history = useQuery(api.security.getLoginHistory, { limit: 50 });
 
@@ -146,21 +198,15 @@ function LoginHistoryTable() {
     return <LoadingState type="table" rows={5} />;
   }
 
-  const methodLabel = (method: string) => {
-    const labels: Record<string, string> = {
-      password: t("loginMethodPassword"),
-      google: t("loginMethodGoogle"),
-      email_link: t("loginMethodEmailLink"),
-      unknown: t("loginMethodUnknown"),
-    };
-    return labels[method] || method;
-  };
-
   return (
-    <div>
-      <div className="mb-4">
-        <h3 className="text-sm font-medium text-primary">{t("loginHistoryTitle")}</h3>
-        <p className="mt-0.5 text-sm text-tertiary">{t("loginHistoryDescription")}</p>
+    <div className="flex flex-col gap-4">
+      <div>
+        <h3 className="text-sm font-semibold text-primary">
+          {t("loginHistoryTitle")}
+        </h3>
+        <p className="text-sm text-tertiary">
+          {t("loginHistoryDescription")}
+        </p>
       </div>
 
       {history.length === 0 ? (
@@ -172,11 +218,21 @@ function LoginHistoryTable() {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-secondary">
-                <th className="pb-3 pr-4 font-medium text-tertiary">{t("loginHistoryDate")}</th>
-                <th className="pb-3 pr-4 font-medium text-tertiary">{t("loginHistoryMethod")}</th>
-                <th className="pb-3 pr-4 font-medium text-tertiary">{t("loginHistoryDevice")}</th>
-                <th className="pb-3 pr-4 font-medium text-tertiary">{t("loginHistoryIp")}</th>
-                <th className="pb-3 pr-4 font-medium text-tertiary">{t("loginHistoryStatus")}</th>
+                <th className="pb-3 pr-4 font-medium text-tertiary">
+                  {t("loginDate")}
+                </th>
+                <th className="pb-3 pr-4 font-medium text-tertiary">
+                  {t("loginMethod")}
+                </th>
+                <th className="pb-3 pr-4 font-medium text-tertiary">
+                  {t("loginDeviceColumn")}
+                </th>
+                <th className="pb-3 pr-4 font-medium text-tertiary">
+                  {t("loginIp")}
+                </th>
+                <th className="pb-3 font-medium text-tertiary">
+                  {t("loginStatus")}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -186,25 +242,34 @@ function LoginHistoryTable() {
                   className="border-b border-secondary last:border-0"
                 >
                   <td className="whitespace-nowrap py-3 pr-4 text-primary">
-                    {new Date(entry.createdAt).toLocaleString()}
+                    {new Date(entry.loginAt).toLocaleString()}
+                  </td>
+                  <td className="py-3 pr-4 text-tertiary capitalize">
+                    {entry.loginMethod}
                   </td>
                   <td className="py-3 pr-4 text-tertiary">
-                    {methodLabel(entry.method)}
+                    {entry.deviceInfo.browser || "Unknown"}{" "}
+                    {entry.deviceInfo.os ? `/ ${entry.deviceInfo.os}` : ""}
                   </td>
                   <td className="py-3 pr-4 text-tertiary">
-                    {entry.deviceLabel || t("unknownDevice")}
+                    {entry.ipAddress || "—"}
                   </td>
-                  <td className="py-3 pr-4 text-tertiary">
-                    {entry.ipAddress || t("unknownIp")}
-                  </td>
-                  <td className="py-3 pr-4">
-                    <Badge
-                      size="sm"
-                      type="pill-color"
-                      color={entry.success ? "success" : "error"}
-                    >
-                      {entry.success ? t("loginSuccess") : t("loginFailed")}
-                    </Badge>
+                  <td className="py-3">
+                    {entry.status === "success" ? (
+                      <div className="flex items-center gap-1">
+                        <Check className="h-4 w-4 text-fg-success-primary" />
+                        <span className="text-fg-success-primary">
+                          {t("loginSuccess")}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <XClose className="h-4 w-4 text-fg-error-primary" />
+                        <span className="text-fg-error-primary">
+                          {t("loginFailed")}
+                        </span>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -216,13 +281,15 @@ function LoginHistoryTable() {
   );
 }
 
-// ─── Combined Session Management Section ─────────────────────────────
+// ---------------------------------------------------------------------------
+// Combined Sessions tab content
+// ---------------------------------------------------------------------------
 
-export function SessionManagementSection() {
+export function SessionManagement() {
   return (
     <div className="flex flex-col gap-8 p-6">
       <ActiveSessionsList />
-      <div className="border-t border-secondary" />
+      <hr className="border-secondary" />
       <LoginHistoryTable />
     </div>
   );

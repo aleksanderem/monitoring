@@ -352,10 +352,10 @@ export function AIKeywordResearchSection({ domainId }: { domainId: Id<"domains">
       if (result.success && result.keywords) {
         setResults(result.keywords);
       } else {
-        setError(result.error || "Unknown error");
+        setError(result.error || t("unknownError"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(err instanceof Error ? err.message : t("unknownError"));
     } finally {
       setIsGenerating(false);
     }

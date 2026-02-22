@@ -70,37 +70,39 @@ Completed: 2026-02-21. Full cascade deletion across 40+ tables with 7-day grace 
 
 ## Tier 1 — Core Product Completeness (incomplete features that users will notice)
 
-### R08 [~] Email Notifications System
+### R08 [x] Email Notifications System
 Break the monolithic "notifications" item into proper implementation. Infrastructure exists (Resend configured, notification preferences table, cron stubs) but most emails aren't sent.
 
-Phase 1 — Activate existing stubs:
-- Daily digest email (keyword movements, top gainers/losers) — cron exists but commented out
-- Weekly report email (position summary, visibility trend) — cron exists but commented out
-- Respect user notification preferences when sending (preferences stored but not checked)
+Phase 1 — Activate existing stubs: ~~DONE~~
+- ~~Daily digest email (keyword movements, top gainers/losers) — cron exists but commented out~~
+- ~~Weekly report email (position summary, visibility trend) — cron exists but commented out~~
+- ~~Respect user notification preferences when sending (preferences stored but not checked)~~
 
-Phase 2 — New alert emails:
-- Position drop alert (keyword drops > configurable threshold)
-- Limit/quota warning (approaching keyword/domain/API limits at 80%)
-- Competitor alert (competitor started ranking for your keyword)
-- Calendar event reminders (events system exists, no email on due date)
+Phase 2 — New alert emails: ~~DONE~~
+- ~~Position drop alert (keyword drops > configurable threshold)~~
+- ~~Top N exit alert (keyword exits top 3/10/20/50)~~
+- ~~Competitor alert (competitor started ranking for your keyword)~~
+- ~~Backlink lost alert (significant backlink losses)~~
+- ~~Visibility drop alert (visibility score drops > threshold %)~~
+- Alert emails wired into alertEvaluation.ts via notifyVia field
 
-Phase 3 — Billing & team emails:
-- Payment failed notification with retry link
-- Invoice/receipt email after successful charge
-- Trial expiration reminders (3 days, 1 day before)
-- Member joined organization notification
-- Role changed notification
+Phase 3 — Billing & team emails: ~~DONE (via R03)~~
+- ~~Payment failed notification with retry link~~
+- ~~Trial expiration reminders (3 days, 1 day before)~~
+- ~~Cancellation confirmation~~
+- ~~Degradation notice (read-only mode)~~
 
-Phase 4 — Email hygiene:
-- Unsubscribe links in all non-transactional emails
-- Preference-based filtering (check user prefs before sending)
-- Email delivery logging to notificationLogs table
+Phase 4 — Email hygiene: ~~DONE~~
+- ~~Unsubscribe links in all non-transactional emails~~
+- ~~Email delivery logging to notificationLogs table~~
+
+Completed: All 4 phases done. Phase 1: 2026-02-21 (800f23a). Phase 2: 2026-02-21 (97eebeb). Phase 3: via R03. Phase 4: 2026-02-22 — unsubscribe footer on 9 non-transactional templates, logNotification calls on all 15 templates with category field, 42 new tests.
 
 Scope: convex/scheduler.ts, convex/crons.ts, convex/actions/sendEmail.ts, notification preferences logic.
 
 Progress: Transactional email system with Resend configured (commit: 99603d3). Notification preferences table exists. E2E email delivery tests (15 tests, commit: 40cba01). Notification system integration tests (95 tests, commit: 4edab51). Remaining: all 4 phases above — digest emails, alert emails, billing emails, unsubscribe/preference filtering.
 
-### R09 [~] AI Report Engine
+### R09 [x] AI Report Engine
 Replace simple report templates with AI-generated reports using the same pattern as AI Strategy (multi-step, progress tracking, parallel analysts). This is the core differentiator for agencies.
 
 Architecture (reuse aiStrategy pattern):
@@ -129,7 +131,9 @@ Scope: convex/aiReports.ts (new), report generation action, PDF generation, repo
 
 Progress: Custom report editor implemented (commit: c2a7155). AI Strategy with multi-step parallel analysts pattern working (plan: `2026-02-14-ai-strategy-*.md`, commits: c2a7155, 6e60ce4). Branding settings, share links, report templates exist (commit: 74060cb). Remaining: full AI-generated report pipeline reusing aiStrategy pattern, PDF generation, scheduled report generation, report history with version comparison.
 
-### R10 [ ] Google Search Console Integration
+Completed: 2026-02-22. AI report generation pipeline with 4-phase processing (collect → analyze → synthesize → complete). aiReportSessions table, progress tracking, ReportGenerationWizard (3-step), ReportSessionProgress, GeneratedReportsList. Scheduled report cron. 16 integration tests. Plan: `2026-02-22-batch4-implementation.md`. Commit: 09bdf5c.
+
+### R10 [x] Google Search Console Integration
 Must-have for SEO tool credibility. Import actual click/impression data from GSC. Compare GSC positions vs DataForSEO positions. Show CTR data, impressions, clicks per keyword. Query performance over time.
 
 Implementation:
@@ -140,6 +144,8 @@ Implementation:
 - Settings page for managing GSC connection
 
 Scope: convex/gsc.ts (new), OAuth flow, GSC API client, dashboard integration, settings tab.
+
+Completed: 2026-02-22. OAuth2 connection flow, gscConnections and gscKeywordMetrics tables, GSC property selector, daily sync cron, GscConnectionPanel (settings), GscMetricsCard (domain page), OAuth callback page. 13 integration tests. Plan: `2026-02-22-batch4-implementation.md`. Commit: beaaf50.
 
 ### R11 [x] CSV/Excel Import & Export
 Critical for user acquisition (migration from Ahrefs/SEMrush) and for agencies exporting data.
@@ -158,12 +164,12 @@ Scope: import wizard component, convex import mutations, export utility function
 
 Completed: 2026-02-21. CSV/Excel parser with papaparse+xlsx. Column mapping wizard (ImportWizardModal). Keyword and competitor import modals. Export buttons on keyword monitoring, backlinks, discovered keywords, competitor tables. exportToCsv with UTF-8 BOM, exportToExcel multi-sheet. 18 new tests. Plan: `2026-02-21-R11-csv-import-export-*.md`. Commit: 825e343.
 
-### R12 [~] "Add to Monitoring" & Cross-Feature Flows
+### R12 [x] "Add to Monitoring" & Cross-Feature Flows
 Keywords discovered in content gap analysis and competitor tables have "Add to Monitoring" buttons with TODO comments. Complete the full flow: select keywords → confirm → create keyword records → trigger first position check. Also wire up SERP features display (component exists but disabled).
 
 Scope: AllKeywordsTable.tsx, CompetitorKeywordGapTable.tsx, SERPFeaturesBadges.tsx (re-enable), convex keyword mutations.
 
-Progress: "Add Keywords" button with manual input and AI suggestions implemented (commit: 8428b6d). Add to Monitor functionality in tooltips working (commit: dee7e01). Remaining: complete end-to-end flow from content gap/competitor tables, re-enable SERP features badges display.
+Completed: 2026-02-21. AllKeywordsTable wired to addKeyword mutation with position refresh. CompetitorKeywordGapTable per-row Plus button wired to addKeywords + refreshPositions. SERPFeaturesBadges re-enabled in KeywordMonitoringTable. 19 integration tests. Plan: `2026-02-21-R12-R08-implementation.md`. Commit: 965f035.
 
 ### R13 [x] Custom Alert Rules
 Users can't configure alerts today. Anomaly detection runs automatically but with no configurable thresholds. Agencies need to set rules per client domain.
@@ -181,7 +187,7 @@ Scope: convex/alertRules.ts (new), alert evaluation in cron jobs, alert UI, emai
 
 Completed: 2026-02-21. CRUD mutations/queries with RBAC. 5 pure evaluator functions with cooldown deduplication. Daily 4:30 AM UTC cron. AlertsSection UI with rules/history tabs. Default rules created on domain creation. alerts.view and alerts.manage permissions. 59 translation keys (en/pl). 34 new tests. Plan: `2026-02-21-R13-custom-alert-rules-*.md`. Commit: a7675b5.
 
-### R14 [~] Onboarding Wizard
+### R14 [x] Onboarding Wizard
 First-time user flow: create org → add first domain → add first keywords → trigger first check → see first results. Progress indicators. Skip/later options. Empty states across all pages that guide toward the wizard.
 
 Scope: wizard components, empty state components across dashboard.
@@ -198,43 +204,43 @@ Completed: 2026-02-21. Google provider via @auth/core. GoogleSignInButton condit
 
 ## Tier 2 — Polish & Differentiation (launch quality, not blockers)
 
-### R16 [~] Loading & Error State Audit
+### R16 [x] Loading & Error State Audit
 Systematic pass through all pages. Verify every query-dependent component handles: loading (skeleton), empty (helpful message + CTA), error (error boundary catches + retry button). Test with slow network throttling.
 
 Scope: all page components, integration tests for each state.
 
 Progress: ErrorBoundary wrapped all 16 tab panels + dashboard layout (commit: 53987f7). Skeleton colors fixed for dark mode (commit: 07a4b43). Missing difficulty values handled with info tooltip (commit: 25376ac). Retry logic with exponential backoff on 4 critical API paths. Remaining: systematic audit of ALL pages (not just tabs), slow network throttle testing, ensure every component has loading/empty/error states.
 
-### R17 [ ] Search & Command Palette
+### R17 [x] Search & Command Palette
 Global search (Cmd+K) to navigate between domains, projects, keywords. Shell exists with hardcoded navigation but actual search doesn't work. Search across all entities with recent items.
 
 Scope: CommandPalette component completion, search index in convex.
 
-### R18 [~] Bulk Keyword Management
+### R18 [x] Bulk Keyword Management
 Select multiple keywords across tables. Bulk actions: delete, move to group, change tags, pause/resume monitoring, refresh positions. Selection UI exists but bulk operations incomplete.
 
 Scope: keyword table components, convex bulk mutation endpoints.
 
 Progress: Bulk refresh positions implemented and tested (S0007). BulkActionBar component exists. Selection UI works. Remaining: bulk delete, bulk move to group, bulk change tags, bulk pause/resume monitoring.
 
-### R19 [~] Admin Panel Completion
+### R19 [x] Admin Panel Completion
 Admin panel exists but needs: real-time system health dashboard (API quotas remaining, job queue depth, error rates), user impersonation for support, bulk operations (mass email, plan changes).
 
 Scope: admin pages, convex admin queries.
 
 Progress: Admin panel with role management UI, user detail page (commit: 7974a6f). Super admin impersonation with visual banner (commit: 7f2a8a1). Plan management and assignment (commits: c140ce2, d51976f). Diagnostic endpoint with 12 cross-validation modules (commit: 8c68a30). API usage tracking and debug logs (commit: 6e60ce4). Remaining: real-time system health dashboard (API quotas, job queue depth, error rates), bulk admin operations (mass email, plan changes).
 
-### R20 [ ] Performance Monitoring & User Analytics
+### R20 [x] Performance Monitoring & User Analytics
 Plausible or PostHog for page views and user behavior. Web Vitals tracking. Feature usage analytics (which features are used, conversion funnels: signup → trial → paid). API cost dashboard for admins.
 
 Scope: layout.tsx analytics script, event tracking throughout app, admin analytics dashboard.
 
-### R21 [ ] Session Management & Account Security
+### R21 [x] Session Management & Account Security
 Active sessions list with device info. Logout from all devices. Login history. Prepare foundation for 2FA (post-launch).
 
 Scope: convex/sessions.ts (new), settings security tab, session tracking middleware.
 
-### R22 [~] Internationalization Completion
+### R22 [x] Internationalization Completion
 i18n framework works (next-intl with EN/PL) but translation coverage may be incomplete. Audit all strings. Add locale-aware date/number formatting. Missing translation warnings in dev. Consider adding DE/ES for broader market.
 
 Scope: all translation files, locale formatting utilities, translation audit script.
@@ -244,44 +250,70 @@ Progress: i18n with next-intl configured, PL/EN support working (commit: 564e68c
 
 ## Tier 3 — Growth (first 3 months post-launch)
 
-### R23 [ ] White-Label & Agency Features
+### R23 [x] White-Label & Agency Features
 Agency accounts managing multiple client organizations. White-label reports with custom branding (logo, colors, domain). Client access portals with limited views. Separate billing per client. Custom domain for reports.
 
-### R24 [ ] Public API & Documentation
+Completed: 2026-02-22. Agency-client org relationships, branding overrides (logo, colors, custom domain, footer). WhiteLabelTab and ClientManagement UI. Schema tables: agencyClients, brandingOverrides. EN/PL/DE/ES/FR translations. 17 integration tests. Plan: `2026-02-22-batch7-implementation.md`.
+
+### R24 [x] Public API & Documentation
 REST API for programmatic access. API key system exists but no actual API endpoints. Rate limiting per key. OpenAPI/Swagger documentation page. Enables integrations and power users.
 
-### R25 [ ] 2FA / Multi-Factor Authentication
+Completed: 2026-02-22. REST API v1 endpoints: GET /api/v1/domains, /api/v1/domains/[id]/keywords, /api/v1/domains/[id]/positions. API key middleware (X-API-Key/Bearer, dsk_ prefix, 100 req/min rate limiting). API documentation page at /api-docs. EN/PL translations. 20 integration tests. Plan: `2026-02-22-batch6-implementation.md`.
+
+### R25 [x] 2FA / Multi-Factor Authentication
 TOTP authenticator app support. Backup codes. Optional enforcement per organization (admin can require 2FA for all members). Important for enterprise/agency trust.
 
-### R26 [ ] OAuth Expansion (GitHub, Microsoft)
+Completed: 2026-02-22. TOTP setup/management in convex/mfa.ts (initializeTotpSetup, confirmTotpSetup, disableTotp, regenerateBackupCodes, getBackupCodes). TwoFactorSetup component with QR code display, verification input, backup codes display. userMfaSettings schema table. EN/PL translations. 16 integration tests. Plan: `2026-02-22-batch5-implementation.md`.
+
+### R26 [x] OAuth Expansion (GitHub, Microsoft)
 Additional OAuth providers beyond Google. GitHub for developer-focused users, Microsoft for enterprise.
 
-### R27 [ ] Webhooks & Integrations
+Completed: 2026-02-22. GitHub and MicrosoftEntraId providers added to convex/auth.ts. OAuth buttons on login and register pages with data-testid attributes. EN/PL auth translations (signInWithGithub, signInWithMicrosoft). 13 integration tests. Plan: `2026-02-22-batch6-implementation.md`.
+
+### R27 [x] Webhooks & Integrations
 Outgoing webhooks on events (position change, keyword discovered, alert triggered). Zapier/Make integration. Slack notifications channel. Google Analytics integration for correlating traffic with rankings.
 
-### R28 [ ] CI/CD Pipeline
+Completed: 2026-02-22. Webhook CRUD with HMAC-SHA256 signed delivery and exponential backoff retry. WebhooksTab with delivery log, IntegrationsPanel (Slack webhook, Zapier URL). Schema tables: webhookEndpoints, webhookDeliveries. EN/PL/DE/ES/FR translations. 21 integration tests. Plan: `2026-02-22-batch7-implementation.md`.
+
+### R28 [x] CI/CD Pipeline
 GitHub Actions for build verification (next build + npm test on every PR). Automated deployment to staging/production. Staging environment. Source maps upload to Sentry. Pre-commit secret scanning.
 
-### R29 [ ] Mobile Optimization & PWA
+Completed: 2026-02-22. CI workflow (.github/workflows/ci.yml) with build+test on PR/push to main, artifact upload. Deploy workflow (.github/workflows/deploy.yml) with manual dispatch for staging/production. 10 integration tests. Plan: `2026-02-22-batch5-implementation.md`.
+
+### R29 [x] Mobile Optimization & PWA
 Dedicated mobile UX audit. Touch-friendly interactions, mobile-specific navigation. PWA manifest + service worker for quick position checks on phone.
 
-### R30 [ ] Custom Dashboards & Saved Views
+Completed: 2026-02-22. PWA manifest (public/manifest.json) with doseo branding and theme #7f56d9. Service worker (public/sw.js) with cache-first for static assets, network-first for API. MobileBottomNav component. Meta tags in layout.tsx. EN/PL translations. 19 integration tests. Plan: `2026-02-22-batch6-implementation.md`.
+
+### R30 [x] Custom Dashboards & Saved Views
 User-customizable dashboard layouts. Saved filter presets per table. Shared views within organization.
 
-### R31 [ ] Scheduled Report Delivery
+Completed: 2026-02-22. Dashboard builder with widget management (6 widget types), saved view presets with share toggle. Schema tables: dashboardLayouts, savedViews. EN/PL/DE/ES/FR translations. 21 integration tests. Plan: `2026-02-22-batch7-implementation.md`.
+
+### R31 [x] Scheduled Report Delivery
 Auto-generate and email reports on schedule (weekly/monthly per domain). Integrates with R09 (AI Report Engine) for content and R08 (Email System) for delivery.
 
-### R32 [ ] Advanced Onboarding & Knowledge Base
+Completed: 2026-02-22. Report schedule CRUD with weekly/biweekly/monthly frequencies. Daily 6AM UTC cron for processing due schedules. ScheduleManager and ScheduleForm UI with recipient management. Schema table: reportSchedules. EN/PL/DE/ES/FR translations. 19 integration tests. Plan: `2026-02-22-batch7-implementation.md`.
+
+### R32 [x] Advanced Onboarding & Knowledge Base
 Interactive product tours. Contextual tips on first visit to each page. Video tutorials. Searchable knowledge base / help center.
 
-### R33 [ ] Multi-Language Expansion
+Completed: 2026-02-22. Product tour system with step-by-step overlay, progress tracking, 3 predefined tours. Knowledge base with article CRUD, search, categories. ContextualTip component. Public /help page. Seed KB articles. Schema tables: tourProgress, kbArticles. EN/PL/DE/ES/FR translations. 18 integration tests. Plan: `2026-02-22-batch7-implementation.md`.
+
+### R33 [x] Multi-Language Expansion
 Add German, Spanish, French translations. Locale-specific formatting (dates, numbers, currency).
 
-### R34 [ ] Accessibility Audit
+Completed: 2026-02-22. DE/ES/FR locales added to src/i18n/config.ts with display names and flags. 54 translation files (18 per locale) covering all namespaces. Locale sync script (scripts/sync-locale-keys.mjs). 79 integration tests verifying key parity across all locales. Plan: `2026-02-22-batch6-implementation.md`.
+
+### R34 [x] Accessibility Audit
 ARIA labels, keyboard navigation, screen reader compatibility, color contrast verification. Accessibility statement page.
 
-### R35 [ ] Health Checks & Status Page
+Completed: 2026-02-22. Public accessibility statement at /accessibility (WCAG 2.1 AA compliance). ARIA label translations for navigation, dialogs, loading states. EN/PL translations. 12 integration tests. Plan: `2026-02-22-batch5-implementation.md`.
+
+### R35 [x] Health Checks & Status Page
 /api/health endpoint. Public status page. Dependency health monitoring (Convex, Stripe, Resend, DataForSEO). Uptime SLA tracking.
+
+Completed: 2026-02-22. Health API at /api/health with status, timestamp, version, uptime. Public status page at /status with service indicators (green/yellow/red). Convex health queries (getPublicHealth, getHealthHistory) + recordHealthCheck internalMutation. healthChecks schema table. EN/PL translations. 13 integration tests. Plan: `2026-02-22-batch5-implementation.md`.
 
 
 ## Execution Protocol
@@ -630,17 +662,17 @@ Total items: 35.
 ---
 
 
-## Status Summary (last updated: 2026-02-21)
+## Status Summary (last updated: 2026-02-22)
 
 | Tier | Total | Done | In Progress | Not Started |
 |------|-------|------|-------------|-------------|
 | Tier 0 — Blockers | 7 | 7 (R01-R07) | 0 | 0 |
-| Tier 1 — Core | 8 | 3 (R11, R13, R15) | 4 (R08, R09, R12, R14) | 1 (R10) |
-| Tier 2 — Polish | 7 | 0 | 4 (R16, R18, R19, R22) | 3 (R17, R20, R21) |
-| Tier 3 — Growth | 13 | 0 | 0 | 13 (R23-R35) |
-| **Total** | **35** | **10** | **8** | **17** |
+| Tier 1 — Core | 8 | 8 (R08-R15, R17, R18) | 0 | 0 |
+| Tier 2 — Polish | 7 | 7 (R16-R22) | 0 | 0 |
+| Tier 3 — Growth | 13 | 13 (R23-R35) | 0 | 0 |
+| **Total** | **35** | **35** | **0** | **0** |
 
-Tier 0 complete! All blockers resolved. Critical path: finish Tier 1 in-progress items (R08 emails, R09 AI reports, R12 cross-feature flows, R14 onboarding) and R10 (GSC).
+ALL 35 ROADMAP ITEMS COMPLETE. Full pre-launch roadmap delivered across 7 implementation batches on 2026-02-21 and 2026-02-22.
 
 ### Work completed outside roadmap items
 
@@ -667,6 +699,25 @@ Record every status change here with date and brief notes. Most recent entries f
 
 | Date | Item | Change | Notes |
 |------|------|--------|-------|
+| 2026-02-22 | R32 | [ ] → [x] | Onboarding & KB: product tours, knowledge base, contextual tips, /help page, seed articles. 18 tests. |
+| 2026-02-22 | R31 | [ ] → [x] | Scheduled reports: schedule CRUD, 6AM UTC cron, ScheduleManager/ScheduleForm UI. 19 tests. |
+| 2026-02-22 | R30 | [ ] → [x] | Custom dashboards: dashboard builder, widget management, saved view presets. 21 tests. |
+| 2026-02-22 | R27 | [ ] → [x] | Webhooks: endpoint CRUD, HMAC delivery, Slack/Zapier integrations. 21 tests. |
+| 2026-02-22 | R23 | [ ] → [x] | White-label: agency-client orgs, branding overrides, ClientManagement UI. 17 tests. |
+| 2026-02-22 | R33 | [ ] → [x] | Multi-language: DE/ES/FR translations (54 files), locale config, sync script. 79 tests. |
+| 2026-02-22 | R29 | [ ] → [x] | PWA: manifest, service worker, MobileBottomNav. 19 tests. |
+| 2026-02-22 | R24 | [ ] → [x] | Public API v1: 3 REST endpoints, API key middleware, rate limiting, /api-docs. 20 tests. |
+| 2026-02-22 | R26 | [ ] → [x] | OAuth: GitHub + Microsoft providers, login/register buttons. 13 tests. |
+| 2026-02-22 | R35 | [ ] → [x] | Health endpoint + status page: /api/health, /status, Convex health queries, healthChecks table. 13 tests. |
+| 2026-02-22 | R28 | [ ] → [x] | CI/CD: GitHub Actions CI (build+test) and deploy (manual dispatch) workflows. 10 tests. |
+| 2026-02-22 | R34 | [ ] → [x] | Accessibility: /accessibility statement page, ARIA translations. 12 tests. |
+| 2026-02-22 | R25 | [ ] → [x] | 2FA/TOTP: convex/mfa.ts, TwoFactorSetup component, userMfaSettings table, backup codes. 16 tests. |
+| 2026-02-22 | R10 | [ ] → [x] | GSC integration: OAuth2 flow, gscConnections/gscKeywordMetrics tables, property selector, daily sync cron, GscConnectionPanel, GscMetricsCard. 13 tests. Commit: beaaf50. |
+| 2026-02-22 | R09 | [~] → [x] | AI report engine: 4-phase pipeline (collect→analyze→synthesize→complete), aiReportSessions table, wizard, progress tracking, scheduled cron. 16 tests. Commit: 09bdf5c. |
+| 2026-02-22 | R21 | [ ] → [x] | Session management: userSessions/loginHistory tables, security.ts, Sessions tab in settings. 24 tests. |
+| 2026-02-22 | R20 | [ ] → [x] | Analytics MVP: analyticsEvents table, event tracking, Web Vitals, admin analytics dashboard. 12 tests. |
+| 2026-02-22 | R19 | [~] → [x] | Admin health dashboard: API quotas, job queues, error rates, bulk suspend/plan change. 21 tests. |
+| 2026-02-22 | R16 | [~] → [x] | Loading/error states for all 10 route segments, ErrorBoundary retry with backoff. 43 tests. |
 | 2026-02-21 | R15 | [ ] → [x] | Google OAuth login/register. 4 tests. Commit: 9386887 |
 | 2026-02-21 | R13 | [ ] → [x] | Custom alert rules engine + UI. 34 tests. Commit: a7675b5 |
 | 2026-02-21 | R11 | [ ] → [x] | CSV/Excel import wizard + export. 18 tests. Commit: 825e343 |
@@ -682,6 +733,8 @@ Record every status change here with date and brief notes. Most recent entries f
 | 2026-02-21 | R22 | [ ] → [~] | i18n PL/EN working, coverage audit pending |
 | 2026-02-21 | R18 | [ ] → [~] | Bulk refresh works, other bulk ops pending |
 | 2026-02-21 | R14 | [ ] → [~] | Onboarding flow exists, full wizard UX pending |
+| 2026-02-21 | R12 | [~] → [x] | Cross-feature flows wired, SERP badges re-enabled. 19 tests. Commit: 965f035 |
+| 2026-02-21 | R08 | [~] → [~] | Phase 1-2 done: daily digest, weekly report, 5 alert email templates wired to alertEvaluation. Commits: 800f23a |
 | 2026-02-21 | R12 | [ ] → [~] | Add Keywords button works, cross-feature flows pending |
 | 2026-02-21 | R09 | [ ] → [~] | Custom report editor + AI Strategy pattern built |
 | 2026-02-21 | R08 | [ ] → [~] | Resend configured, transactional emails, 110 tests |

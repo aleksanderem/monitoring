@@ -154,7 +154,7 @@ export function KeywordAnalysisReportDetailModal({
             <div className="flex items-center gap-3 mb-1">
               <FileSearch02 className="h-5 w-5 text-brand-600 flex-shrink-0" />
               <h2 className="text-lg font-semibold text-primary truncate">
-                {report?.keyword || "Loading..."}
+                {report?.keyword || tc("loading")}
               </h2>
               {report && (
                 <Badge color={getStatusColor(report.status)} size="sm">
