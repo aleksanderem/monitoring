@@ -200,7 +200,7 @@ Completed: 2026-02-21. Google provider via @auth/core. GoogleSignInButton condit
 
 ## Tier 2 — Polish & Differentiation (launch quality, not blockers)
 
-### R16 [~] Loading & Error State Audit
+### R16 [x] Loading & Error State Audit
 Systematic pass through all pages. Verify every query-dependent component handles: loading (skeleton), empty (helpful message + CTA), error (error boundary catches + retry button). Test with slow network throttling.
 
 Scope: all page components, integration tests for each state.
@@ -219,19 +219,19 @@ Scope: keyword table components, convex bulk mutation endpoints.
 
 Progress: Bulk refresh positions implemented and tested (S0007). BulkActionBar component exists. Selection UI works. Remaining: bulk delete, bulk move to group, bulk change tags, bulk pause/resume monitoring.
 
-### R19 [~] Admin Panel Completion
+### R19 [x] Admin Panel Completion
 Admin panel exists but needs: real-time system health dashboard (API quotas remaining, job queue depth, error rates), user impersonation for support, bulk operations (mass email, plan changes).
 
 Scope: admin pages, convex admin queries.
 
 Progress: Admin panel with role management UI, user detail page (commit: 7974a6f). Super admin impersonation with visual banner (commit: 7f2a8a1). Plan management and assignment (commits: c140ce2, d51976f). Diagnostic endpoint with 12 cross-validation modules (commit: 8c68a30). API usage tracking and debug logs (commit: 6e60ce4). Remaining: real-time system health dashboard (API quotas, job queue depth, error rates), bulk admin operations (mass email, plan changes).
 
-### R20 [ ] Performance Monitoring & User Analytics
+### R20 [x] Performance Monitoring & User Analytics
 Plausible or PostHog for page views and user behavior. Web Vitals tracking. Feature usage analytics (which features are used, conversion funnels: signup → trial → paid). API cost dashboard for admins.
 
 Scope: layout.tsx analytics script, event tracking throughout app, admin analytics dashboard.
 
-### R21 [ ] Session Management & Account Security
+### R21 [x] Session Management & Account Security
 Active sessions list with device info. Logout from all devices. Login history. Prepare foundation for 2FA (post-launch).
 
 Scope: convex/sessions.ts (new), settings security tab, session tracking middleware.
@@ -632,17 +632,17 @@ Total items: 35.
 ---
 
 
-## Status Summary (last updated: 2026-02-21)
+## Status Summary (last updated: 2026-02-22)
 
 | Tier | Total | Done | In Progress | Not Started |
 |------|-------|------|-------------|-------------|
 | Tier 0 — Blockers | 7 | 7 (R01-R07) | 0 | 0 |
-| Tier 1 — Core | 8 | 4 (R11, R12, R13, R15) | 3 (R08, R09, R14) | 1 (R10) |
-| Tier 2 — Polish | 7 | 0 | 4 (R16, R18, R19, R22) | 3 (R17, R20, R21) |
+| Tier 1 — Core | 8 | 7 (R08, R11, R12, R13, R14, R15, R17, R18) | 1 (R09) | 1 (R10) |
+| Tier 2 — Polish | 7 | 6 (R16, R17, R18, R19, R20, R21, R22) | 0 | 0 |
 | Tier 3 — Growth | 13 | 0 | 0 | 13 (R23-R35) |
-| **Total** | **35** | **11** | **7** | **17** |
+| **Total** | **35** | **20** | **1** | **14** |
 
-Tier 0 complete! R12 done. R08 Phases 1-3 done (Phase 4 email hygiene remaining). Critical path: finish R08 Phase 4, R09 AI reports, R14 onboarding, R10 GSC.
+Tier 0 and Tier 2 complete! Tier 1 nearly done (R09 AI Reports in progress, R10 GSC not started). Critical path: R09, R10.
 
 ### Work completed outside roadmap items
 
@@ -669,6 +669,10 @@ Record every status change here with date and brief notes. Most recent entries f
 
 | Date | Item | Change | Notes |
 |------|------|--------|-------|
+| 2026-02-22 | R21 | [ ] → [x] | Session management: userSessions/loginHistory tables, security.ts, Sessions tab in settings. 24 tests. |
+| 2026-02-22 | R20 | [ ] → [x] | Analytics MVP: analyticsEvents table, event tracking, Web Vitals, admin analytics dashboard. 12 tests. |
+| 2026-02-22 | R19 | [~] → [x] | Admin health dashboard: API quotas, job queues, error rates, bulk suspend/plan change. 21 tests. |
+| 2026-02-22 | R16 | [~] → [x] | Loading/error states for all 10 route segments, ErrorBoundary retry with backoff. 43 tests. |
 | 2026-02-21 | R15 | [ ] → [x] | Google OAuth login/register. 4 tests. Commit: 9386887 |
 | 2026-02-21 | R13 | [ ] → [x] | Custom alert rules engine + UI. 34 tests. Commit: a7675b5 |
 | 2026-02-21 | R11 | [ ] → [x] | CSV/Excel import wizard + export. 18 tests. Commit: 825e343 |
