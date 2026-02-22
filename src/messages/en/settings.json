@@ -213,5 +213,18 @@
   "securityDescription": "Change your account password.",
   "changePassword": "Change password",
   "changePasswordDescription": "We'll send a verification code to your email to confirm the change.",
-  "passwordChanged": "Password changed successfully"
+  "passwordChanged": "Password changed successfully",
+  "tabIntegrations": "Integrations",
+  "gscTitle": "Google Search Console",
+  "gscDescription": "Connect your Google Search Console to import search performance data.",
+  "gscConnect": "Connect Google Search Console",
+  "gscDisconnect": "Disconnect",
+  "gscConnected": "Connected",
+  "gscNotConnected": "Not connected",
+  "gscLastSync": "Last synced",
+  "gscProperties": "Properties",
+  "gscSelectProperty": "Select a property...",
+  "gscConnectionSuccess": "Google Search Console connected successfully",
+  "gscConnectionError": "Failed to connect Google Search Console",
+  "gscDisconnected": "Google Search Console disconnected"
 }

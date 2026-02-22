@@ -24,7 +24,11 @@
       "Bash(for file in src/components/domain/charts/PositionDistributionChart.tsx src/components/domain/charts/LinkAttributesChart.tsx src/components/domain/charts/PlatformTypesChart.tsx)",
       "Bash(do sed -i '' 's/ChartLegendContent \\\\/>/ChartLegendContent payload={[]} \\\\/>/g' \"$file\")",
       "Bash(done)",
-      "Bash(for file in src/components/domain/tables/CompetitorKeywordGapTable.tsx src/components/domain/tables/SERPFeaturesBadges.tsx)"
+      "Bash(for file in src/components/domain/tables/CompetitorKeywordGapTable.tsx src/components/domain/tables/SERPFeaturesBadges.tsx)",
+      "Bash(head:*)",
+      "mcp__context7__resolve-library-id",
+      "Bash(npx untitledui@latest:*)",
+      "Bash(node:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

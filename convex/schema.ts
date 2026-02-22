@@ -2178,4 +2178,39 @@ export default defineSchema({
     .index("by_domain", ["domainId"])
     .index("by_org", ["organizationId"])
     .index("by_status", ["status"]),
+
+  // =================================================================
+  // Google Search Console Integration (R10)
+  // =================================================================
+
+  gscConnections: defineTable({
+    organizationId: v.id("organizations"),
+    googleEmail: v.string(),
+    accessToken: v.string(),
+    refreshToken: v.string(),
+    tokenExpiresAt: v.number(),
+    properties: v.array(v.object({
+      url: v.string(),
+      type: v.string(),
+    })),
+    selectedPropertyUrl: v.optional(v.string()),
+    lastSyncAt: v.optional(v.number()),
+    status: v.string(),
+    connectedAt: v.number(),
+  })
+    .index("by_org", ["organizationId"]),
+
+  gscKeywordMetrics: defineTable({
+    domainId: v.id("domains"),
+    organizationId: v.id("organizations"),
+    keyword: v.string(),
+    date: v.string(),
+    clicks: v.number(),
+    impressions: v.number(),
+    ctr: v.number(),
+    position: v.number(),
+    url: v.optional(v.string()),
+  })
+    .index("by_domain_date", ["domainId", "date"])
+    .index("by_domain_keyword", ["domainId", "keyword"]),
 });

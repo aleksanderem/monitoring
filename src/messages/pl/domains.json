@@ -514,5 +514,10 @@
   "reportStatusFailed": "Błąd",
   "reportSelectType": "Wybierz typ raportu",
   "reportConfigureRange": "Skonfiguruj zakres dat",
-  "reportReview": "Przejrzyj i wygeneruj"
+  "reportReview": "Przejrzyj i wygeneruj",
+  "gscMetricsTitle": "Search Console (28d)",
+  "gscClicks": "Kliknięcia",
+  "gscImpressions": "Wyświetlenia",
+  "gscAvgCtr": "Śr. CTR",
+  "gscAvgPosition": "Śr. pozycja"
 }

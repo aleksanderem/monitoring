@@ -80,4 +80,11 @@ crons.daily(
   internal.aiReports.processScheduledReports
 );
 
+// Sync Google Search Console data daily at 4 AM UTC
+crons.daily(
+  "sync-gsc-data",
+  { hourUTC: 4, minuteUTC: 0 },
+  internal.actions.gscSync.syncAllGscConnections
+);
+
 export default crons;

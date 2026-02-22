@@ -514,5 +514,10 @@
   "reportStatusFailed": "Failed",
   "reportSelectType": "Select Report Type",
   "reportConfigureRange": "Configure Date Range",
-  "reportReview": "Review & Generate"
+  "reportReview": "Review & Generate",
+  "gscMetricsTitle": "Search Console (28d)",
+  "gscClicks": "Clicks",
+  "gscImpressions": "Impressions",
+  "gscAvgCtr": "Avg CTR",
+  "gscAvgPosition": "Avg Position"
 }

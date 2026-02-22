@@ -213,5 +213,18 @@
   "securityDescription": "Zmień hasło do konta.",
   "changePassword": "Zmień hasło",
   "changePasswordDescription": "Wyślemy kod weryfikacyjny na Twój email, aby potwierdzić zmianę.",
-  "passwordChanged": "Hasło zostało zmienione"
+  "passwordChanged": "Hasło zostało zmienione",
+  "tabIntegrations": "Integracje",
+  "gscTitle": "Google Search Console",
+  "gscDescription": "Połącz Google Search Console, aby importować dane o wydajności wyszukiwania.",
+  "gscConnect": "Połącz Google Search Console",
+  "gscDisconnect": "Rozłącz",
+  "gscConnected": "Połączono",
+  "gscNotConnected": "Nie połączono",
+  "gscLastSync": "Ostatnia synchronizacja",
+  "gscProperties": "Właściwości",
+  "gscSelectProperty": "Wybierz właściwość...",
+  "gscConnectionSuccess": "Google Search Console połączono pomyślnie",
+  "gscConnectionError": "Nie udało się połączyć Google Search Console",
+  "gscDisconnected": "Google Search Console rozłączono"
 }
