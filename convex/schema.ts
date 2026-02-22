@@ -2081,6 +2081,39 @@ export default defineSchema({
     reportHeaderHtml: v.optional(v.string()),
   }).index("by_org", ["orgId"]),
 
+  // =================================================================
+  // Custom Dashboards & Saved Views (R30)
+  // =================================================================
+
+  dashboardLayouts: defineTable({
+    orgId: v.id("organizations"),
+    userId: v.id("users"),
+    name: v.string(),
+    isDefault: v.boolean(),
+    widgets: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_user", ["userId"])
+    .index("by_org_user", ["orgId", "userId"]),
+
+  savedViews: defineTable({
+    orgId: v.id("organizations"),
+    userId: v.id("users"),
+    name: v.string(),
+    targetTable: v.string(),
+    filters: v.string(),
+    sortBy: v.optional(v.string()),
+    sortDirection: v.optional(v.union(v.literal("asc"), v.literal("desc"))),
+    columns: v.array(v.string()),
+    isShared: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_user", ["userId"])
+    .index("by_org_table", ["orgId", "targetTable"]),
+
   generatorOutputs: defineTable({
     domainId: v.id("domains"),
     type: v.union(
@@ -2104,7 +2137,6 @@ export default defineSchema({
     .index("by_domain", ["domainId"]),
 
   // =================================================================
-<<<<<<< HEAD
   // Custom Alert Rules (R13)
   // =================================================================
 
