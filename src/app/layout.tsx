@@ -41,6 +41,8 @@ export default async function RootLayout({
     return (
         <html lang={locale} suppressHydrationWarning>
             <head>
+                <link rel="manifest" href="/manifest.json" />
+                <meta name="mobile-web-app-capable" content="yes" />
                 <Script src="https://ezicons.com/sdk.js" data-key="iek_rNzVYc9CxXGFO67HX8jqTnPpItL0PcRG" strategy="afterInteractive" />
             </head>
             <body className={cx(inter.variable, "bg-primary antialiased")}>

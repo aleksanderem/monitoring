@@ -170,7 +170,6 @@
     "keywordUsage": "Użycie słów kluczowych",
     "keywordsOf": "{current} / {limit} słów kluczowych",
     "limits": "Limity",
-<<<<<<< HEAD
     "unknownErrorGeneric": "Wystąpił nieznany błąd",
     "failedGenericAction": "Operacja nie powiodła się",
     "copyToClipboard": "Kopiuj do schowka",
@@ -228,5 +227,9 @@
     "apiDocsDescription": "Programowy dostęp do danych SEO.",
     "apiDocsAuth": "Uwierzytelnianie",
     "apiDocsEndpoints": "Punkty końcowe",
-    "apiDocsRateLimits": "Limity zapytań"
+    "apiDocsRateLimits": "Limity zapytań",
+    "mobileNavDashboard": "Panel",
+    "mobileNavDomains": "Domeny",
+    "mobileNavKeywords": "Słowa kluczowe",
+    "mobileNavSettings": "Ustawienia"
 }

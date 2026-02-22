@@ -170,7 +170,6 @@
     "keywordUsage": "Keyword usage",
     "keywordsOf": "{current} / {limit} keywords",
     "limits": "Limits",
-<<<<<<< HEAD
     "unknownErrorGeneric": "An unknown error occurred",
     "failedGenericAction": "Operation failed",
     "copyToClipboard": "Copy to clipboard",
@@ -228,5 +227,9 @@
     "apiDocsDescription": "Programmatic access to your SEO data.",
     "apiDocsAuth": "Authentication",
     "apiDocsEndpoints": "Endpoints",
-    "apiDocsRateLimits": "Rate Limits"
+    "apiDocsRateLimits": "Rate Limits",
+    "mobileNavDashboard": "Dashboard",
+    "mobileNavDomains": "Domains",
+    "mobileNavKeywords": "Keywords",
+    "mobileNavSettings": "Settings"
 }
