@@ -10,7 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/base/tooltip/tooltip";
-import { Sparkles, Image, Video, MapPin, Info } from "@untitledui/icons";
+import { Sparkles, Image01, Video, MapPin, Info } from "@untitledui/icons";
 
 interface SERPFeaturesBadgesProps {
   keywordId: Id<"keywords">;
@@ -22,7 +22,7 @@ const FEATURE_CONFIG: Record<
 > = {
   featuredSnippet: { label: "Featured", color: "blue", icon: Sparkles },
   peopleAlsoAsk: { label: "PAA", color: "green", icon: Info },
-  imagePack: { label: "Images", color: "purple", icon: Image },
+  imagePack: { label: "Images", color: "purple", icon: Image01 },
   videoPack: { label: "Videos", color: "red", icon: Video },
   localPack: { label: "Local", color: "orange", icon: MapPin },
   knowledgeGraph: { label: "KG", color: "cyan", icon: Info },
