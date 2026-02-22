@@ -2,6 +2,8 @@ import { convexAuth } from "@convex-dev/auth/server";
 import { Password } from "@convex-dev/auth/providers/Password";
 import { Email } from "@convex-dev/auth/providers/Email";
 import Google from "@auth/core/providers/google";
+import GitHub from "@auth/core/providers/github";
+import MicrosoftEntraId from "@auth/core/providers/microsoft-entra-id";
 import { Resend } from "resend";
 import { generateRandomString, type RandomReader } from "@oslojs/crypto/random";
 import { query } from "./_generated/server";
@@ -119,6 +121,11 @@ export const { auth, signIn, signOut, store } = convexAuth({
       },
     }),
     Google,
+    GitHub,
+    MicrosoftEntraId({
+      clientId: process.env.MICROSOFT_CLIENT_ID,
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+    }),
   ],
   callbacks: {
     async afterUserCreatedOrUpdated(ctx, { userId, existingUserId }) {
