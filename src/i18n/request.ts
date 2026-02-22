@@ -30,6 +30,7 @@ export default getRequestConfig(async () => {
         "onboarding",
         "search",
         "agency",
+        "webhooks",
     ];
 
     const messages: Record<string, any> = {};

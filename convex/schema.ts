@@ -2104,6 +2104,7 @@ export default defineSchema({
     .index("by_domain", ["domainId"]),
 
   // =================================================================
+<<<<<<< HEAD
   // Custom Alert Rules (R13)
   // =================================================================
 
@@ -2272,4 +2273,38 @@ export default defineSchema({
     responseTimeMs: v.optional(v.number()),
   })
     .index("by_timestamp", ["timestamp"]),
+
+  // =================================================================
+  // Webhooks & Integrations (R27)
+  // =================================================================
+
+  webhookEndpoints: defineTable({
+    orgId: v.id("organizations"),
+    url: v.string(),
+    secret: v.string(),
+    events: v.array(v.string()),
+    status: v.union(
+      v.literal("active"),
+      v.literal("paused"),
+      v.literal("failed")
+    ),
+    createdAt: v.number(),
+    lastTriggeredAt: v.optional(v.number()),
+    failureCount: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_org_status", ["orgId", "status"]),
+
+  webhookDeliveries: defineTable({
+    webhookEndpointId: v.id("webhookEndpoints"),
+    event: v.string(),
+    payload: v.string(),
+    statusCode: v.optional(v.number()),
+    response: v.optional(v.string()),
+    attemptNumber: v.number(),
+    createdAt: v.number(),
+    deliveredAt: v.optional(v.number()),
+  })
+    .index("by_endpoint", ["webhookEndpointId"])
+    .index("by_endpoint_created", ["webhookEndpointId", "createdAt"]),
 });
