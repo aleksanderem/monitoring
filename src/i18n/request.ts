@@ -33,6 +33,7 @@ export default getRequestConfig(async () => {
         "webhooks",
         "dashboards",
         "scheduledReports",
+        "help",
     ];
 
     const messages: Record<string, any> = {};

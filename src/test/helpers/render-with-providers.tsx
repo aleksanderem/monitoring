@@ -32,6 +32,7 @@ import enOnboarding from "@/messages/en/onboarding.json";
 import enAgency from "@/messages/en/agency.json";
 import enWebhooks from "@/messages/en/webhooks.json";
 import enDashboards from "@/messages/en/dashboards.json";
+import enHelp from "@/messages/en/help.json";
 
 const messages = {
   admin: enAdmin,
@@ -55,6 +56,7 @@ const messages = {
   agency: enAgency,
   webhooks: enWebhooks,
   dashboards: enDashboards,
+  help: enHelp,
 };
 
 interface ProviderOptions {

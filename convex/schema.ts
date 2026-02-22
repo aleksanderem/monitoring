@@ -2114,6 +2114,39 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_org_table", ["orgId", "targetTable"]),
 
+  // =================================================================
+  // Product Tours & Knowledge Base (R32)
+  // =================================================================
+
+  // Tour progress tracking per user
+  tourProgress: defineTable({
+    userId: v.id("users"),
+    tourId: v.string(),
+    completedSteps: v.array(v.string()),
+    isCompleted: v.boolean(),
+    dismissedAt: v.optional(v.number()),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_tour", ["userId", "tourId"]),
+
+  // Knowledge base articles
+  kbArticles: defineTable({
+    slug: v.string(),
+    category: v.string(),
+    title: v.string(),
+    content: v.string(), // markdown
+    tags: v.array(v.string()),
+    order: v.number(),
+    isPublished: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_category", ["category"])
+    .index("by_published", ["isPublished"]),
+
   generatorOutputs: defineTable({
     domainId: v.id("domains"),
     type: v.union(
