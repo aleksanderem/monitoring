@@ -170,7 +170,6 @@
     "keywordUsage": "Keyword usage",
     "keywordsOf": "{current} / {limit} keywords",
     "limits": "Limits",
-<<<<<<< HEAD
     "unknownErrorGeneric": "An unknown error occurred",
     "failedGenericAction": "Operation failed",
     "copyToClipboard": "Copy to clipboard",
@@ -215,5 +214,13 @@
     "statusDegraded": "Degraded Performance",
     "statusDown": "Service Disruption",
     "statusChecking": "Checking...",
-    "statusLastUpdated": "Last updated"
+    "statusLastUpdated": "Last updated",
+    "accessibilityTitle": "Accessibility",
+    "accessibilityStatement": "Accessibility Statement",
+    "skipToContent": "Skip to main content",
+    "ariaMainNav": "Main navigation",
+    "ariaUserMenu": "User menu",
+    "ariaSidebar": "Sidebar navigation",
+    "ariaCloseDialog": "Close dialog",
+    "ariaLoadingContent": "Loading content"
 }
