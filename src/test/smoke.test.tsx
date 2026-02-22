@@ -15,7 +15,7 @@ import { render } from "@testing-library/react";
 vi.mock("convex/react", () => ({
   useQuery: vi.fn(() => undefined),
   useMutation: vi.fn(() => vi.fn()),
-  useAction: vi.fn(() => vi.fn()),
+  useAction: vi.fn(() => vi.fn().mockResolvedValue(undefined)),
   useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
   usePaginatedQuery: vi.fn(() => ({
     results: [],

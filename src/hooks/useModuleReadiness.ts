@@ -30,6 +30,7 @@ const MODULE_PACKAGE_MAP: Record<string, string | null> = {
   "ai-research": "ai_strategy",
   strategy: "ai_strategy",
   generators: null,
+  alerts: null,
   settings: null,
 };
 

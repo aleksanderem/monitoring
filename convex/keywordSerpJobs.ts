@@ -215,10 +215,10 @@ export const processSerpFetchJobInternal = internalAction({
     const endIndex = Math.min(startIndex + CHUNK_SIZE, job.keywordIds.length);
 
     // ── Fetch keywords for this chunk (1 batch query instead of N individual) ──
-    const chunkKeywordIds = job.keywordIds.slice(startIndex, endIndex);
+    const chunkKeywordIds: Id<"keywords">[] = job.keywordIds.slice(startIndex, endIndex);
     const skippedCount = { invalid: 0 };
 
-    const allKeywords = await ctx.runQuery(internal.keywords.getKeywordsByIdsBatch, {
+    const allKeywords: Array<{ _id: Id<"keywords">; phrase: string }> = await ctx.runQuery(internal.keywords.getKeywordsByIdsBatch, {
       keywordIds: chunkKeywordIds,
     });
 
@@ -464,7 +464,7 @@ export const processSerpFetchJobInternal = internalAction({
 
               // Dual-write competitor positions to Supabase
               if (storedPositions && storedPositions.length > 0) {
-                writeCompetitorPositions(storedPositions.map((sp) => ({
+                writeCompetitorPositions(storedPositions.map((sp: { competitorId: string; keywordId: string; date: string; position: number; url: string }) => ({
                   convex_competitor_id: sp.competitorId,
                   convex_keyword_id: sp.keywordId,
                   date: sp.date,

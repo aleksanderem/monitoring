@@ -540,5 +540,8 @@
   "issueDuplicateContent": "Zduplikowana treść",
   "issueThinContent": "Słaba treść",
   "issueMissingSchema": "Brak danych strukturalnych",
-  "issueMissingRobots": "Brak meta robots"
+  "issueMissingRobots": "Brak meta robots",
+  "addToMonitoring": "Dodaj do monitoringu",
+  "addedToMonitoring": "Dodano \"{keyword}\" do monitoringu",
+  "failedToAdd": "Nie udało się dodać słowa kluczowego"
 }

@@ -52,10 +52,13 @@ import { CanvasRevealEffect } from "@/components/ui/canvas-reveal-effect";
 import { PositionDistributionChart } from "@/components/domain/charts/PositionDistributionChart";
 import { MovementTrendChart } from "@/components/domain/charts/MovementTrendChart";
 import { MonitoringStats } from "@/components/domain/sections/MonitoringStats";
+import { ExecutiveSummary } from "@/components/domain/sections/ExecutiveSummary";
+import { SERPFeaturesSection } from "@/components/domain/sections/SERPFeaturesSection";
 import { KeywordMonitoringTable } from "@/components/domain/tables/KeywordMonitoringTable";
 import { LiveBadge } from "@/components/domain/badges/LiveBadge";
 import { Activity } from "@untitledui/icons";
 import { VisibilityStats } from "@/components/domain/sections/VisibilityStats";
+import { GscMetricsCard } from "@/components/domain/GscMetricsCard";
 import { TopKeywordsTable } from "@/components/domain/tables/TopKeywordsTable";
 import { AllKeywordsTable } from "@/components/domain/tables/AllKeywordsTable";
 import { DiscoveredKeywordsTable } from "@/components/domain/tables/DiscoveredKeywordsTable";
@@ -93,6 +96,7 @@ import { AIKeywordResearchSection } from "@/components/domain/sections/AIKeyword
 import { StrategySection } from "@/components/domain/sections/StrategySection";
 import { DiagnosticSection } from "@/components/domain/sections/DiagnosticSection";
 import { GeneratorsSection } from "@/components/domain/sections/GeneratorsSection";
+import { AlertsSection } from "@/components/domain/sections/AlertsSection";
 import { OnboardingChecklist } from "@/components/domain/onboarding/OnboardingChecklist";
 import { getCountryFlag, getLanguageFlag } from "@/lib/countryFlags";
 import { EzIcon } from "@/components/foundations/ez-icon";
@@ -118,6 +122,7 @@ const TAB_EZICONS: Record<string, string> = {
   "strategy": "strategy",
   "generators": "code",
   "diagnostics": "stethoscope",
+  "alerts": "alert-02",
   "settings": "settings-05",
 };
 
@@ -146,6 +151,7 @@ const MODULE_CARDS: {
   { tabId: "strategy", titleKey: "tabStrategy", descriptionKey: "moduleDescStrategy", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
   { tabId: "keyword-analysis", titleKey: "tabKeywordAnalysis", descriptionKey: "moduleDescKeywordAnalysis", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
   { tabId: "generators", titleKey: "tabGenerators", descriptionKey: "moduleDescGenerators", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
+  { tabId: "alerts", titleKey: "tabAlerts", descriptionKey: "moduleDescAlerts", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
   { tabId: "settings", titleKey: "tabSettings", descriptionKey: "moduleDescSettings", colors: [[100,116,139],[71,85,105]], group: "hubSectionTools" },
 ];
 
@@ -169,6 +175,52 @@ function formatRelativeTime(timestamp: number) {
   if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
   if (days < 365) return `${Math.floor(days / 30)} months ago`;
   return `${Math.floor(days / 365)} years ago`;
+}
+
+function GscPropertySection({ domainId }: { domainId: Id<"domains"> }) {
+  const t = useTranslations("domains");
+  const gscData = useQuery(api.gsc.getGscPropertiesForDomain, { domainId });
+  const setGscProperty = useMutation(api.gsc.setDomainGscProperty);
+
+  if (gscData === undefined) {
+    return <div className="animate-pulse h-24 rounded-xl border border-secondary bg-primary" />;
+  }
+
+  if (!gscData || !gscData.connected) {
+    return (
+      <div className="rounded-xl border border-secondary bg-primary p-6">
+        <h3 className="text-sm font-semibold text-primary mb-2">{t("gscProperty")}</h3>
+        <p className="text-sm text-tertiary">{t("gscConnectHint")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-secondary bg-primary p-6">
+      <h3 className="text-sm font-semibold text-primary mb-3">{t("gscProperty")}</h3>
+      {gscData.properties.length > 0 ? (
+        <select
+          value={gscData.selectedPropertyUrl || ""}
+          onChange={async (e) => {
+            await setGscProperty({
+              domainId,
+              propertyUrl: e.target.value || null,
+            });
+          }}
+          className="w-full rounded-lg border border-secondary bg-primary px-3 py-2 text-sm text-primary focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/20"
+        >
+          <option value="">{t("gscSelectProperty")}</option>
+          {gscData.properties.map((p: { url: string; type: string }) => (
+            <option key={p.url} value={p.url}>
+              {p.url} ({p.type})
+            </option>
+          ))}
+        </select>
+      ) : (
+        <p className="text-sm text-tertiary">{t("gscNotConnected")}</p>
+      )}
+    </div>
+  );
 }
 
 function DomainLimitsSection({ domainId, currentLimits }: { domainId: Id<"domains">; currentLimits?: { maxKeywords?: number; maxDailyRefreshes?: number } }) {
@@ -393,6 +445,7 @@ export default function DomainDetailPage() {
       { id: "strategy", label: t('tabStrategy'), icon: Stars01, badge: strategyBadge, locked: moduleReadiness.strategy?.locked, lockReason: moduleReadiness.strategy?.lockReason },
     ] : []),
     { id: "generators", label: t('tabGenerators'), icon: CodeBrowser },
+    { id: "alerts", label: t('tabAlerts'), icon: Activity },
     { id: "settings", label: t('tabSettings'), icon: Settings01 },
     ...(isSuperAdmin ? [{ id: "diagnostics", label: t('tabDiagnostics'), icon: Settings01 }] : []),
   ];
@@ -927,8 +980,14 @@ export default function DomainDetailPage() {
                   <MovementTrendChart domainId={domainId} />
                 </div>
 
+                {/* GSC Metrics (renders null if not connected) */}
+                <GscMetricsCard domainId={domainId} />
+
                 {/* Statistics Section */}
                 <MonitoringStats domainId={domainId} />
+
+                {/* SERP Features */}
+                <SERPFeaturesSection domainId={domainId} />
 
                 {/* Monitoring Table */}
                 <KeywordMonitoringTable domainId={domainId} />
@@ -966,6 +1025,9 @@ export default function DomainDetailPage() {
                     {isFetchingVisibility ? t('fetching') : t('refreshKeywords')}
                   </Button>
                 </div>
+
+                {/* Executive Summary */}
+                <ExecutiveSummary domainId={domainId} />
 
                 {/* Visibility Statistics */}
                 <VisibilityStats
@@ -1225,6 +1287,13 @@ export default function DomainDetailPage() {
               </ErrorBoundary>
             </TabPanel>
 
+            {/* Alerts Tab */}
+            <TabPanel id="alerts">
+              <ErrorBoundary label="Alerts">
+              <AlertsSection domainId={domainId} />
+              </ErrorBoundary>
+            </TabPanel>
+
             {/* Settings Tab */}
             <TabPanel id="settings">
               <ErrorBoundary label="Settings">
@@ -1257,6 +1326,8 @@ export default function DomainDetailPage() {
                     </div>
                   </div>
                 </div>
+
+                <GscPropertySection domainId={domainId} />
 
                 <BusinessContextSection domainId={domainId} domain={domain} />
 

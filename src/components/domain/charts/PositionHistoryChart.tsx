@@ -44,10 +44,10 @@ export function PositionHistoryChart({ domainId }: PositionHistoryChartProps) {
       if (result.success) {
         toast.success(t("fetchHistoryButton") + `: ${result.datesStored} records`);
       } else {
-        toast.error(result.error || "Failed to fetch history");
+        toast.error(result.error || t("failedToFetchHistory"));
       }
     } catch (e: any) {
-      toast.error(e.message || "Failed to fetch history");
+      toast.error(e.message || t("failedToFetchHistory"));
     } finally {
       setIsFetching(false);
     }

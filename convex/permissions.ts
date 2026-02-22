@@ -68,6 +68,10 @@ export const PERMISSIONS = {
   // --- Link Building module ---
   "links.view": "Podgląd prospektów linków",
   "links.manage": "Zarządzanie prospektami linków",
+
+  // --- Alerts module ---
+  "alerts.view": "Podgląd alertów",
+  "alerts.manage": "Zarządzanie regułami alertów",
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -122,6 +126,10 @@ export const PERMISSION_CATEGORIES = {
     label: "Link Building",
     permissions: ["links.view", "links.manage"],
   },
+  alerts: {
+    label: "Alerty",
+    permissions: ["alerts.view", "alerts.manage"],
+  },
 } as const;
 
 // Default system role permissions
@@ -140,6 +148,7 @@ export const SYSTEM_ROLE_PERMISSIONS = {
     "ai.research", "ai.strategy",
     "forecasts.view", "forecasts.generate",
     "links.view", "links.manage",
+    "alerts.view", "alerts.manage",
   ] as Permission[],
   viewer: [
     "org.settings.view", "org.limits.view",
@@ -153,6 +162,7 @@ export const SYSTEM_ROLE_PERMISSIONS = {
     "competitors.view",
     "forecasts.view",
     "links.view",
+    "alerts.view",
   ] as Permission[],
 } as const;
 
@@ -166,6 +176,7 @@ export const MODULE_PERMISSIONS: Record<string, Permission[]> = {
   ai_strategy: ["ai.research", "ai.strategy"],
   forecasts: ["forecasts.view", "forecasts.generate"],
   link_building: ["links.view", "links.manage"],
+  alerts: ["alerts.view", "alerts.manage"],
 };
 
 // All modules

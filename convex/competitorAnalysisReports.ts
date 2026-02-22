@@ -233,7 +233,7 @@ export const analyzeReportInternal = internalAction({
 
       // Check cache for each competitor page (batch cache lookups)
       const cacheResults = await Promise.all(
-        report.competitorPages.map((compPage) =>
+        report.competitorPages.map((compPage: { url: string; title?: string }) =>
           ctx.runQuery(internal.competitorAnalysis.getCachedPageAnalysis, { url: compPage.url })
         )
       );
@@ -253,7 +253,7 @@ export const analyzeReportInternal = internalAction({
 
       // Fetch uncached pages in parallel
       const analysisResults = await Promise.allSettled(
-        uncachedPages.map((compPage) => analyzePageWithDataForSEO(compPage.url))
+        uncachedPages.map((compPage: { url: string }) => analyzePageWithDataForSEO(compPage.url))
       );
 
       // Build fresh analysis map from API results

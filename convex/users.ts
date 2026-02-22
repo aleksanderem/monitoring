@@ -68,42 +68,8 @@ export const updateProfile = mutation({
   },
 });
 
-/**
- * Change user password
- */
-export const changePassword = mutation({
-  args: {
-    currentPassword: v.string(),
-    newPassword: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
-
-    // Validate new password requirements
-    if (args.newPassword.length < 8) {
-      throw new Error("Password must be at least 8 characters long");
-    }
-    if (!/[A-Z]/.test(args.newPassword)) {
-      throw new Error("Password must contain at least one uppercase letter");
-    }
-    if (!/[a-z]/.test(args.newPassword)) {
-      throw new Error("Password must contain at least one lowercase letter");
-    }
-    if (!/[0-9]/.test(args.newPassword)) {
-      throw new Error("Password must contain at least one number");
-    }
-
-    // Note: Actual password verification and update would be handled by @convex-dev/auth
-    // This is a placeholder for the validation logic
-    // In a real implementation, you would verify currentPassword and update via the auth system
-
-    throw new Error("Password change functionality requires integration with authentication provider");
-  },
-});
-
-// Note: Notification preferences moved to convex/userSettings.ts
-// This file now only contains user profile-related queries and mutations
+// Note: Password change is handled client-side via @convex-dev/auth reset flow.
+// See: signIn("password", { email, flow: "reset" }) and signIn("password", { email, code, newPassword, flow: "reset-verification" })
 
 /**
  * Get user's API keys

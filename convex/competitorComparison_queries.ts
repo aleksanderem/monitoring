@@ -27,16 +27,17 @@ export const getPositionScatterData = action({
     if (competitors.length === 0 || keywords.length === 0) return [];
 
     // Build keyword map for quick lookup (only keywords where we have a position)
-    const keywordMap = new Map(
+    type KW = { _id: string; currentPosition?: number | null; phrase: string; searchVolume?: number | null };
+    const keywordMap = new Map<string, KW>(
       keywords
-        .filter((k: any) => k.currentPosition != null)
-        .map((k: any) => [k._id, k])
+        .filter((k: KW) => k.currentPosition != null)
+        .map((k: KW) => [k._id, k])
     );
 
     const keywordIds = [...keywordMap.keys()];
     if (keywordIds.length === 0) return [];
 
-    const competitorIds = competitors.map((c: any) => c._id);
+    const competitorIds = competitors.map((c: { _id: string }) => c._id);
 
     // Get latest competitor positions from Supabase
     const { data: compRows } = await sb
@@ -48,8 +49,8 @@ export const getPositionScatterData = action({
       .order("date", { ascending: false });
 
     // Build competitor name map
-    const competitorNameMap = new Map(
-      competitors.map((c: any) => [c._id, c.name || c.competitorDomain])
+    const competitorNameMap = new Map<string, string>(
+      competitors.map((c: { _id: string; name?: string | null; competitorDomain: string }) => [c._id, c.name || c.competitorDomain])
     );
 
     // Deduplicate to latest per competitor+keyword

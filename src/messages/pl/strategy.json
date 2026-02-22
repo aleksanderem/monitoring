@@ -144,5 +144,9 @@
   "backlinkEmailSubject": "Temat e-maila",
   "dashboardTabTimeline": "Oś czasu",
   "dashboardTabActionPlan": "Plan działań",
-  "dashboardTabTasks": "Zadania"
+  "dashboardTabTasks": "Zadania",
+  "failedToExportPdf": "Nie udało się wyeksportować PDF",
+  "failedToActivateStrategy": "Nie udało się aktywować strategii",
+  "drillDownFailed": "Pogłębiona analiza nie powiodła się",
+  "unknownError": "Nieznany błąd"
 }

@@ -138,6 +138,75 @@ export const createCheckoutSession = action({
 });
 
 /**
+ * Fetch the last 12 invoices for the current user's organization.
+ */
+export const getInvoices = action({
+  args: {},
+  handler: async (ctx): Promise<Array<{ id: string; number: string | null; date: number; amount: number; currency: string; status: string | null; hostedUrl: string | null; pdfUrl: string | null }>> => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const orgData = await ctx.runQuery(
+      internal.stripe_helpers.getUserOrgForBilling,
+      {}
+    );
+    if (!orgData || !orgData.stripeCustomerId) {
+      return [];
+    }
+
+    const stripe = getStripe();
+    const invoices = await stripe.invoices.list({
+      customer: orgData.stripeCustomerId,
+      limit: 12,
+    });
+
+    return invoices.data.map((inv) => ({
+      id: inv.id,
+      number: inv.number,
+      date: inv.created,
+      amount: inv.amount_paid,
+      currency: inv.currency,
+      status: inv.status,
+      hostedUrl: inv.hosted_invoice_url ?? null,
+      pdfUrl: inv.invoice_pdf ?? null,
+    }));
+  },
+});
+
+/**
+ * Create a Stripe Billing Portal session for updating payment method.
+ * Returns the portal URL configured to go directly to payment method update.
+ */
+export const createPaymentMethodUpdateSession = action({
+  args: {},
+  handler: async (ctx): Promise<string> => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const orgs = await ctx.runQuery(
+      internal.stripe_helpers.getUserOrgForBilling,
+      {}
+    );
+    if (!orgs || !orgs.stripeCustomerId) {
+      throw new Error("No billing account found");
+    }
+
+    const stripe = getStripe();
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: orgs.stripeCustomerId,
+      return_url: `${appUrl}/settings?tab=plan`,
+      flow_data: {
+        type: "payment_method_update",
+      },
+    });
+
+    return session.url;
+  },
+});
+
+/**
  * Create a Stripe Billing Portal session for managing subscription.
  * Returns the portal URL.
  */

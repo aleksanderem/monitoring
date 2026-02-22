@@ -46,7 +46,7 @@ export function LlmsTxtGeneratorPanel({ domainId }: LlmsTxtGeneratorPanelProps) 
     try {
       await generateLlmsTxt({ domainId });
     } catch (err: any) {
-      toast.error(err.message || "Generation failed");
+      toast.error(err.message || t("failedToGenerateOutput"));
     }
   }, [domainId, generateLlmsTxt]);
 

@@ -80,6 +80,7 @@ const I18N: Record<string, string> = {
   "shell.keyword-analysis": "Keyword Metrics",
   "shell.generators":       "Schema Generator",
   "shell.settings":         "Domain Config",
+  "shell.alerts":           "Alert Rules",
   // Visibility
   "score": "Score",
   "keywords": "Keywords",
@@ -116,6 +117,15 @@ const I18N: Record<string, string> = {
   "str.audit": "Fix critical audit issues",
   "str.gaps": "Create content for gaps",
   "str.monitor": "Monitor position changes",
+  // Alerts
+  "alert.positionDrop": "Position dropped below #10",
+  "alert.newCompetitor": "New competitor detected",
+  "alert.backlinkLost": "Backlink lost from DR 60+ domain",
+  "alert.healthDrop": "Health score dropped 15%",
+  "alert.typeRank": "Ranking",
+  "alert.typeComp": "Competition",
+  "alert.typeLink": "Backlinks",
+  "alert.typeHealth": "Health",
   // Settings
   "searchEngine": "Search Engine",
   "location": "Location",
@@ -198,6 +208,7 @@ const I18N_PL: Record<string, string> = {
   "shell.keyword-analysis": "Metryki słów",
   "shell.generators":       "Generator schematów",
   "shell.settings":         "Konfiguracja",
+  "shell.alerts":           "Reguły alertów",
   "score": "Wynik",
   "keywords": "Słowa",
   "top3": "Top 3",
@@ -228,6 +239,14 @@ const I18N_PL: Record<string, string> = {
   "str.audit": "Napraw krytyczne błędy",
   "str.gaps": "Stwórz treści na luki",
   "str.monitor": "Monitoruj zmiany pozycji",
+  "alert.positionDrop": "Pozycja spadła poniżej #10",
+  "alert.newCompetitor": "Wykryto nowego konkurenta",
+  "alert.backlinkLost": "Utracono backlink z domeny DR 60+",
+  "alert.healthDrop": "Wynik zdrowia spadł o 15%",
+  "alert.typeRank": "Ranking",
+  "alert.typeComp": "Konkurencja",
+  "alert.typeLink": "Backlinki",
+  "alert.typeHealth": "Zdrowie",
   "searchEngine": "Wyszukiwarka",
   "location": "Lokalizacja",
   "language": "Język",
@@ -866,6 +885,35 @@ function SkeletonSettings({ color, data }: { color: string; data?: ModuleHubData
   );
 }
 
+function SkeletonAlerts({ color, data }: { color: string; data?: ModuleHubData }) {
+  const l = data?.locale;
+  const alerts = [
+    { title: loc("alert.positionDrop", l), type: loc("alert.typeRank", l), typeC: "#ef4444", severity: loc("high", l), sevC: "#ef4444", time: "2m" },
+    { title: loc("alert.newCompetitor", l), type: loc("alert.typeComp", l), typeC: "#8b5cf6", severity: loc("med", l), sevC: "#f59e0b", time: "1h" },
+    { title: loc("alert.backlinkLost", l), type: loc("alert.typeLink", l), typeC: "#3b82f6", severity: loc("high", l), sevC: "#ef4444", time: "3h" },
+    { title: loc("alert.healthDrop", l), type: loc("alert.typeHealth", l), typeC: "#10b981", severity: loc("low", l), sevC: "#22c55e", time: "1d" },
+  ];
+  return (
+    <>
+      {alerts.map((a, i) => (
+        <div key={i}>
+          <div className="flex items-center justify-between px-4 py-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: a.sevC }} />
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-300">{a.title}</p>
+                <p className="text-[9px] text-neutral-400">{a.type} · {a.time}</p>
+              </div>
+            </div>
+            <TinyBadge label={a.severity} bg={`${a.sevC}15`} fg={a.sevC} />
+          </div>
+          {i < alerts.length - 1 && <DividerLine />}
+        </div>
+      ))}
+    </>
+  );
+}
+
 // ─── Maps ────────────────────────────────────────────────────────────
 
 function skeletonLabel(tabId: string, locale?: string): string {
@@ -890,6 +938,7 @@ const SKELETON_MAP: Record<
   "keyword-analysis": SkeletonKeywordAnalysis,
   generators: SkeletonGenerators,
   settings: SkeletonSettings,
+  alerts: SkeletonAlerts,
 };
 
 // ─── Module dependency graph ─────────────────────────────────────────

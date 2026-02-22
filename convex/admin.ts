@@ -1461,6 +1461,106 @@ export const testDataForSEOConnection = action({
 });
 
 /**
+ * Bulk suspend multiple users at once
+ */
+export const bulkSuspendUsers = mutation({
+  args: {
+    userIds: v.array(v.id("users")),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const adminUserId = await requireSuperAdmin(ctx);
+
+    let suspended = 0;
+    let skipped = 0;
+
+    for (const userId of args.userIds) {
+      // Cannot suspend self
+      if (userId === adminUserId) {
+        skipped++;
+        continue;
+      }
+
+      const user = await ctx.db.get(userId);
+      if (!user) {
+        skipped++;
+        continue;
+      }
+
+      // Check if already suspended
+      const existing = await ctx.db
+        .query("userSuspensions")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .unique();
+
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      await ctx.db.insert("userSuspensions", {
+        userId,
+        suspendedBy: adminUserId,
+        suspendedAt: Date.now(),
+        reason: args.reason,
+      });
+
+      suspended++;
+    }
+
+    await logAdminAction(ctx, adminUserId, "bulk_suspend_users", "system", "bulk", {
+      totalRequested: args.userIds.length,
+      suspended,
+      skipped,
+      reason: args.reason,
+    });
+
+    return { suspended, skipped };
+  },
+});
+
+/**
+ * Bulk change plan for multiple organizations
+ */
+export const bulkChangePlan = mutation({
+  args: {
+    organizationIds: v.array(v.id("organizations")),
+    planId: v.id("plans"),
+  },
+  handler: async (ctx, args) => {
+    const adminUserId = await requireSuperAdmin(ctx);
+
+    // Verify plan exists
+    const plan = await ctx.db.get(args.planId);
+    if (!plan) throw new Error("Plan not found");
+
+    let updated = 0;
+    let skipped = 0;
+
+    for (const orgId of args.organizationIds) {
+      const org = await ctx.db.get(orgId);
+      if (!org) {
+        skipped++;
+        continue;
+      }
+
+      await ctx.db.patch(orgId, { planId: args.planId });
+      updated++;
+    }
+
+    await logAdminAction(ctx, adminUserId, "bulk_change_plan", "system", "bulk", {
+      totalRequested: args.organizationIds.length,
+      updated,
+      skipped,
+      planId: args.planId,
+      planName: plan.name,
+    });
+
+    return { updated, skipped };
+  },
+});
+
+/**
  * Test SE Ranking API connection
  */
 export const testSERankingConnection = action({

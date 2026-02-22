@@ -20,6 +20,12 @@ import {
   Plus,
   DotsVertical,
   Stars01,
+  Download01,
+  Upload01,
+  FolderMinus,
+  Tag01,
+  PauseCircle,
+  PlayCircle,
 } from "@untitledui/icons";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -31,9 +37,15 @@ import { KeywordPositionChart } from "../charts/KeywordPositionChart";
 import { AddKeywordsModal } from "../modals/AddKeywordsModal";
 import { KeywordMonitoringDetailModal } from "../modals/KeywordMonitoringDetailModal";
 import { RefreshConfirmModal } from "../modals/RefreshConfirmModal";
+import { KeywordImportModal } from "../modals/KeywordImportModal";
+import { BulkDeleteConfirmModal } from "../modals/BulkDeleteConfirmModal";
+import { BulkMoveToGroupModal } from "../modals/BulkMoveToGroupModal";
+import { BulkChangeTagsModal } from "../modals/BulkChangeTagsModal";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { BulkActionBar } from "@/components/patterns/BulkActionBar";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { exportToCsv } from "@/utils/exportCsv";
+import { SERPFeaturesBadges } from "./SERPFeaturesBadges";
 
 interface KeywordMonitoringTableProps {
   domainId: Id<"domains">;
@@ -53,6 +65,7 @@ interface ColumnVisibility {
   etv: boolean;
   competition: boolean;
   intent: boolean;
+  serp: boolean;
   actions: boolean;
 }
 
@@ -88,6 +101,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [refreshModalOpen, setRefreshModalOpen] = useState(false);
   const [refreshModalAction, setRefreshModalAction] = useState<"refresh" | "serp">("refresh");
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   // Column visibility state - load from localStorage on mount
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(() => {
@@ -112,6 +126,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
       etv: true,
       competition: false,
       intent: false,
+      serp: true,
       actions: true,
     };
   });
@@ -127,10 +142,19 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const [positionFilter, setPositionFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
+  // Bulk operation modal states
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
+  const [bulkMoveModalOpen, setBulkMoveModalOpen] = useState(false);
+  const [bulkTagsModalOpen, setBulkTagsModalOpen] = useState(false);
+
   // Queries and mutations
   const keywords = useQuery(api.keywords.getKeywordMonitoring, { domainId });
   const refreshPositions = useMutation(api.keywords.refreshKeywordPositions);
   const deleteKeyword = useMutation(api.keywords.deleteKeywords);
+  const bulkDeleteKeywords = useMutation(api.keywords.bulkDeleteKeywords);
+  const bulkMoveToGroup = useMutation(api.keywords.bulkMoveToGroup);
+  const bulkChangeTags = useMutation(api.keywords.bulkChangeTags);
+  const bulkToggleStatus = useMutation(api.keywords.bulkToggleStatus);
   const createSerpFetchJob = useMutation(api.keywordSerpJobs.createSerpFetchJob);
   const activeSerpJob = useQuery(api.keywordSerpJobs.getActiveJobForDomain, { domainId });
   const selection = useRowSelection();
@@ -430,6 +454,42 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                       <SearchLg className="h-4 w-4" />
                       {activeSerpJob && activeSerpJob.status !== "completed" ? t('fetching') : t('fetchSerpData')}
                     </button>
+                    <div className="my-1 border-t border-secondary" />
+                    <button
+                      onClick={() => { setImportModalOpen(true); setShowActionsMenu(false); }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-primary hover:bg-secondary/50 transition-colors"
+                    >
+                      <Upload01 className="h-4 w-4" />
+                      Import from CSV
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        if (!keywords || keywords.length === 0) {
+                          toast.error("No keywords to export");
+                          return;
+                        }
+                        const headers = ["Keyword", "Position", "Previous Position", "Change", "Search Volume", "Difficulty", "CPC", "URL", "Status"];
+                        const rows = keywords.map((kw: any) => [
+                          kw.phrase,
+                          kw.currentPosition,
+                          kw.previousPosition,
+                          kw.change,
+                          kw.searchVolume,
+                          kw.difficulty,
+                          kw.latestCpc,
+                          kw.url,
+                          kw.status,
+                        ]);
+                        exportToCsv(`keywords-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+                        toast.success(`Exported ${keywords.length} keywords`);
+                      }}
+                      disabled={!keywords || keywords.length === 0}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-primary hover:bg-secondary/50 transition-colors disabled:opacity-50"
+                    >
+                      <Download01 className="h-4 w-4" />
+                      Export to CSV
+                    </button>
                   </div>
                 </>
               )}
@@ -530,18 +590,54 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
               },
             },
             {
-              label: tc('bulkDelete'),
-              icon: Trash01,
-              variant: "destructive",
+              label: t('bulkMoveToGroup'),
+              icon: FolderMinus,
+              onClick: () => setBulkMoveModalOpen(true),
+            },
+            {
+              label: t('bulkChangeTags'),
+              icon: Tag01,
+              onClick: () => setBulkTagsModalOpen(true),
+            },
+            {
+              label: t('bulkPause'),
+              icon: PauseCircle,
               onClick: async (ids) => {
                 try {
-                  await deleteKeyword({ keywordIds: Array.from(ids) as Id<"keywords">[] });
-                  toast.success(tc('bulkActionSuccess', { count: ids.size }));
+                  const count = await bulkToggleStatus({
+                    keywordIds: Array.from(ids) as Id<"keywords">[],
+                    status: "paused",
+                    domainId,
+                  });
+                  toast.success(t('bulkStatusSuccess', { count }));
                   selection.clear();
                 } catch {
                   toast.error(tc('bulkActionFailed'));
                 }
               },
+            },
+            {
+              label: t('bulkResume'),
+              icon: PlayCircle,
+              onClick: async (ids) => {
+                try {
+                  const count = await bulkToggleStatus({
+                    keywordIds: Array.from(ids) as Id<"keywords">[],
+                    status: "active",
+                    domainId,
+                  });
+                  toast.success(t('bulkStatusSuccess', { count }));
+                  selection.clear();
+                } catch {
+                  toast.error(tc('bulkActionFailed'));
+                }
+              },
+            },
+            {
+              label: tc('bulkDelete'),
+              icon: Trash01,
+              variant: "destructive",
+              onClick: () => setBulkDeleteModalOpen(true),
             },
           ]}
         />
@@ -631,6 +727,11 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                 {columnVisibility.intent && (
                   <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
                     {t('columnIntent')}
+                  </th>
+                )}
+                {columnVisibility.serp && (
+                  <th className="px-4 py-3 text-center text-xs font-medium text-tertiary">
+                    SERP
                   </th>
                 )}
                 {columnVisibility.actions && (
@@ -789,6 +890,11 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                           )}
                         </td>
                       )}
+                      {columnVisibility.serp && (
+                        <td className="px-4 py-3 text-center">
+                          <SERPFeaturesBadges keywordId={keyword.keywordId} />
+                        </td>
+                      )}
                       {columnVisibility.actions && (
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">
@@ -913,6 +1019,13 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
         onClose={() => setSelectedKeyword(null)}
       />
 
+      {/* Keyword Import Modal */}
+      <KeywordImportModal
+        domainId={domainId}
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+      />
+
       {/* Refresh Confirm Modal */}
       <RefreshConfirmModal
         isOpen={refreshModalOpen}
@@ -930,6 +1043,55 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
             await createSerpFetchJob({ domainId, keywordIds: allKeywordIds });
             toast.success(t('serpFetchJobQueued', { count: keywords.length }));
           }
+        }}
+      />
+
+      {/* Bulk Delete Confirm Modal */}
+      <BulkDeleteConfirmModal
+        isOpen={bulkDeleteModalOpen}
+        onClose={() => setBulkDeleteModalOpen(false)}
+        count={selection.count}
+        onConfirm={async () => {
+          const count = await bulkDeleteKeywords({
+            keywordIds: Array.from(selection.selectedIds) as Id<"keywords">[],
+            domainId,
+          });
+          toast.success(t('bulkDeleteSuccess', { count }));
+          selection.clear();
+        }}
+      />
+
+      {/* Bulk Move to Group Modal */}
+      <BulkMoveToGroupModal
+        isOpen={bulkMoveModalOpen}
+        onClose={() => setBulkMoveModalOpen(false)}
+        domainId={domainId}
+        count={selection.count}
+        onConfirm={async (groupId) => {
+          const count = await bulkMoveToGroup({
+            keywordIds: Array.from(selection.selectedIds) as Id<"keywords">[],
+            groupId,
+            domainId,
+          });
+          toast.success(t('bulkMoveSuccess', { count }));
+          selection.clear();
+        }}
+      />
+
+      {/* Bulk Change Tags Modal */}
+      <BulkChangeTagsModal
+        isOpen={bulkTagsModalOpen}
+        onClose={() => setBulkTagsModalOpen(false)}
+        count={selection.count}
+        onConfirm={async (tags, operation) => {
+          const count = await bulkChangeTags({
+            keywordIds: Array.from(selection.selectedIds) as Id<"keywords">[],
+            tags,
+            operation,
+            domainId,
+          });
+          toast.success(t('bulkTagsSuccess', { count }));
+          selection.clear();
         }}
       />
     </>

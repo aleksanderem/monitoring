@@ -138,6 +138,15 @@ export const createDomain = mutation({
       language: args.settings.language,
     });
 
+    // Create default alert rules for this domain
+    const userId = await auth.getUserId(ctx);
+    if (userId) {
+      await ctx.scheduler.runAfter(0, internal.alertRules.createDefaultRules, {
+        domainId,
+        createdBy: userId,
+      });
+    }
+
     return domainId;
   },
 });

@@ -540,5 +540,8 @@
   "issueDuplicateContent": "Duplicate Content",
   "issueThinContent": "Thin Content",
   "issueMissingSchema": "Missing Schema",
-  "issueMissingRobots": "Missing Robots Meta"
+  "issueMissingRobots": "Missing Robots Meta",
+  "addToMonitoring": "Add to monitoring",
+  "addedToMonitoring": "Added \"{keyword}\" to monitoring",
+  "failedToAdd": "Failed to add keyword"
 }

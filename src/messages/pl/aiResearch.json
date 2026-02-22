@@ -48,5 +48,6 @@
   "historyDeleteButton": "Usuń",
   "historyDeleted": "Sesja usunięta",
   "historyShowKeywords": "Pokaż słowa kluczowe",
-  "historyHideKeywords": "Ukryj słowa kluczowe"
+  "historyHideKeywords": "Ukryj słowa kluczowe",
+  "unknownError": "Nieznany błąd"
 }

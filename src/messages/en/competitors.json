@@ -564,5 +564,7 @@
     "winRateYouLead": "You lead",
     "winRateTied": "Tied",
     "winRateTheyLead": "They lead",
-    "winRateTotal": "Total keywords"
+    "winRateTotal": "Total keywords",
+    "unknownKeyword": "Unknown",
+    "unknownCompetitor": "Unknown"
 }

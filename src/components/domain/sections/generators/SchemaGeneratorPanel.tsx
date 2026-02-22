@@ -37,7 +37,7 @@ export function SchemaGeneratorPanel({ domainId }: SchemaGeneratorPanelProps) {
     try {
       await generateSchema({ domainId });
     } catch (err: any) {
-      toast.error(err.message || "Generation failed");
+      toast.error(err.message || t("failedToGenerateOutput"));
     }
   }, [domainId, generateSchema]);
 

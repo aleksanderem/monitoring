@@ -11,7 +11,7 @@ import fs from "fs";
 import path from "path";
 
 const MESSAGES_DIR = path.resolve(__dirname, "../messages");
-const LOCALES = ["en", "pl"] as const;
+const LOCALES = ["en", "pl", "de", "es", "fr"] as const;
 
 // Discover all namespace files from the EN directory (source of truth)
 const namespaces = fs
@@ -66,18 +66,21 @@ describe("i18n message files", () => {
         }
       });
 
-      it("EN and PL have the same key paths", () => {
-        if (!files.en || !files.pl) return; // skip if locale file missing
+      for (const locale of LOCALES) {
+        if (locale === "en") continue;
+        it(`EN and ${locale.toUpperCase()} have the same key paths`, () => {
+          if (!files.en || !files[locale]) return; // skip if locale file missing
 
-        const enKeys = new Set(collectKeyPaths(files.en));
-        const plKeys = new Set(collectKeyPaths(files.pl));
+          const enKeys = new Set(collectKeyPaths(files.en));
+          const localeKeys = new Set(collectKeyPaths(files[locale]));
 
-        const missingInPl = [...enKeys].filter((k) => !plKeys.has(k));
-        const missingInEn = [...plKeys].filter((k) => !enKeys.has(k));
+          const missingInLocale = [...enKeys].filter((k) => !localeKeys.has(k));
+          const missingInEn = [...localeKeys].filter((k) => !enKeys.has(k));
 
-        expect(missingInPl, `Keys in EN but missing in PL: ${missingInPl.join(", ")}`).toEqual([]);
-        expect(missingInEn, `Keys in PL but missing in EN: ${missingInEn.join(", ")}`).toEqual([]);
-      });
+          expect(missingInLocale, `Keys in EN but missing in ${locale.toUpperCase()}: ${missingInLocale.join(", ")}`).toEqual([]);
+          expect(missingInEn, `Keys in ${locale.toUpperCase()} but missing in EN: ${missingInEn.join(", ")}`).toEqual([]);
+        });
+      }
 
       it("has no empty string values", () => {
         for (const [locale, data] of Object.entries(files)) {

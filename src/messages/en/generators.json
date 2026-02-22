@@ -48,5 +48,7 @@
   "requiresCrawl": "Run an On-Site scan first to have page data available for generation.",
   "editBeforeDownload": "Edit",
   "saveEdits": "Save",
-  "cancelEdits": "Cancel"
+  "cancelEdits": "Cancel",
+  "failedToGenerateInstructions": "Failed to generate instructions",
+  "failedToGenerateOutput": "Generation failed"
 }

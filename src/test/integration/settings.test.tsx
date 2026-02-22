@@ -243,6 +243,7 @@ function allQueriesLoaded() {
     "limits:getUsageStats": USAGE_STATS,
     "limits:getOrgRefreshLimits": REFRESH_LIMITS,
     "branding:getOrganizationBranding": BRANDING,
+    "agency:getClientBranding": { logoUrl: null, primaryColor: "#3B82F6", accentColor: "#8B5CF6", companyName: "", footerText: "", customDomain: "" },
     "stripe:createCheckoutSession": null,
     "stripe:createBillingPortalSession": null,
   };
@@ -538,17 +539,16 @@ describe("Settings Page", () => {
     expect(screen.getByText("Refresh Limits")).toBeInTheDocument();
   });
 
-  // 13. Branding tab — renders upload section
-  it("renders branding section with upload button", async () => {
+  // 13. White Label tab — renders logo upload section
+  it("renders white label section with upload button", async () => {
     const user = userEvent.setup();
     setupQueries(allQueriesLoaded());
 
     renderWithProviders(<SettingsPage />);
 
-    const brandingTab = screen.getAllByRole("tab", { name: /Branding/i })[0];
-    await user.click(brandingTab);
+    const whitelabelTab = screen.getAllByRole("tab", { name: /White Label/i })[0];
+    await user.click(whitelabelTab);
 
-    expect(screen.getByText("Company Logo")).toBeInTheDocument();
     expect(screen.getByText("No logo uploaded yet")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Upload logo/i })).toBeInTheDocument();
     expect(screen.getByText("PNG, JPG or SVG. Max 2MB.")).toBeInTheDocument();

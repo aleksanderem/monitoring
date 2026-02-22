@@ -30,6 +30,8 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const addKeywords = useMutation(api.keywords.addKeywords);
+  const refreshPositions = useMutation(api.keywords.refreshKeywordPositions);
+  const [addingKeywords, setAddingKeywords] = useState<Set<string>>(new Set());
   const selection = useRowSelection();
 
   const { data: competitors } = useAnalyticsQuery<Array<{
@@ -206,7 +208,10 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
                       .map((g) => g.phrase);
                     if (phrases.length === 0) return;
                     try {
-                      await addKeywords({ domainId, phrases });
+                      const ids = await addKeywords({ domainId, phrases });
+                      if (ids && ids.length > 0) {
+                        await refreshPositions({ keywordIds: ids });
+                      }
                       toast.success(tc('bulkActionSuccess', { count: phrases.length }));
                       selection.clear();
                     } catch {
@@ -333,9 +338,21 @@ export function CompetitorKeywordGapTable({ domainId }: CompetitorKeywordGapTabl
                         color="tertiary"
                         size="sm"
                         iconLeading={Plus}
-                        onClick={() => {
-                          // TODO: Implement add to monitoring
-                          toast.info(t('keywordGapBulkActions'));
+                        isLoading={addingKeywords.has(gap.phrase)}
+                        isDisabled={addingKeywords.has(gap.phrase)}
+                        onClick={async () => {
+                          setAddingKeywords(prev => new Set(prev).add(gap.phrase));
+                          try {
+                            const ids = await addKeywords({ domainId, phrases: [gap.phrase] });
+                            if (ids && ids.length > 0) {
+                              await refreshPositions({ keywordIds: ids });
+                            }
+                            toast.success(tc('bulkActionSuccess', { count: 1 }));
+                          } catch {
+                            toast.error(tc('bulkActionFailed'));
+                          } finally {
+                            setAddingKeywords(prev => { const next = new Set(prev); next.delete(gap.phrase); return next; });
+                          }
                         }}
                       />
                     </td>

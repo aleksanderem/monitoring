@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import {
@@ -19,6 +20,7 @@ import {
   Speedometer02,
   Shield01,
   CreditCard02,
+  Lock01,
   LayersTwo01,
   LayersThree01,
   Zap,
@@ -30,6 +32,10 @@ import {
   Stars02,
   TrendUp01,
   Globe01,
+  Monitor01,
+  LinkExternal01,
+  Code02,
+  Palette,
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
@@ -39,7 +45,12 @@ import { Badge } from "@/components/base/badges/badges";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { RoleManagement } from "@/components/settings/RoleManagement";
+import { SessionManagement } from "@/components/settings/SessionManagement";
+import { GscConnectionPanel } from "@/components/settings/GscConnectionPanel";
 import { FileTrigger } from "@/components/base/file-upload-trigger/file-upload-trigger";
+import { TwoFactorSetup } from "@/components/settings/TwoFactorSetup";
+import WebhooksTab from "@/components/settings/WebhooksTab";
+import { WhiteLabelTab } from "@/components/settings/WhiteLabelTab";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { useTheme } from "next-themes";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
@@ -691,124 +702,6 @@ function APIKeysSection() {
   );
 }
 
-// ─── Branding section ────────────────────────────────────────────────
-
-function BrandingSection() {
-  const t = useTranslations("settings");
-  const branding = useQuery(api.branding.getOrganizationBranding);
-  const generateUploadUrl = useMutation(api.branding.generateLogoUploadUrl);
-  const saveLogo = useMutation(api.branding.saveOrganizationLogo);
-  const removeLogo = useMutation(api.branding.removeOrganizationLogo);
-
-  const [isUploading, setIsUploading] = useState(false);
-  const [isRemoving, setIsRemoving] = useState(false);
-
-  const handleFileSelect = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const file = files[0];
-
-    // Client-side validation
-    if (!file.type.startsWith("image/")) {
-      toast.error(t("logoUploadError"));
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error(t("logoUploadError"));
-      return;
-    }
-
-    setIsUploading(true);
-    try {
-      const uploadUrl = await generateUploadUrl();
-      const response = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      const { storageId } = await response.json();
-      await saveLogo({ storageId });
-      toast.success(t("logoUploadedSuccess"));
-    } catch {
-      toast.error(t("logoUploadError"));
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleRemove = async () => {
-    setIsRemoving(true);
-    try {
-      await removeLogo();
-      toast.success(t("logoRemovedSuccess"));
-    } catch {
-      toast.error(t("logoUploadError"));
-    } finally {
-      setIsRemoving(false);
-    }
-  };
-
-  if (branding === undefined) {
-    return <LoadingState type="card" rows={2} />;
-  }
-
-  const logoUrl = branding?.branding?.logoUrl;
-
-  return (
-    <Section
-      title={t("brandingTitle")}
-      description={t("brandingDescription")}
-    >
-      {/* Logo preview */}
-      <div className="mb-6 flex items-center gap-6">
-        <div className="flex h-20 w-40 items-center justify-center rounded-lg border border-dashed border-secondary bg-secondary/30">
-          {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt="Company logo"
-              className="max-h-16 max-w-36 object-contain"
-            />
-          ) : (
-            <div className="flex flex-col items-center gap-1">
-              <Image01 className="h-6 w-6 text-quaternary" />
-              <span className="text-xs text-quaternary">{t("noLogoUploaded")}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <FileTrigger
-            acceptedFileTypes={["image/png", "image/jpeg", "image/svg+xml"]}
-            onSelect={handleFileSelect}
-          >
-            <Button
-              color="secondary"
-              size="sm"
-              iconLeading={Upload01}
-              isLoading={isUploading}
-            >
-              {t("uploadLogo")}
-            </Button>
-          </FileTrigger>
-
-          {logoUrl && (
-            <Button
-              color="primary-destructive"
-              size="sm"
-              iconLeading={Trash01}
-              onClick={handleRemove}
-              isLoading={isRemoving}
-            >
-              {t("removeLogo")}
-            </Button>
-          )}
-
-          <p className="text-xs text-quaternary">{t("logoRequirements")}</p>
-        </div>
-      </div>
-    </Section>
-  );
-}
-
 // ─── Members section ─────────────────────────────────────────────────
 
 const ROLE_OPTIONS = [
@@ -1067,8 +960,21 @@ function PlanUsageSection() {
 
   const createCheckout = useAction(api.stripe.createCheckoutSession);
   const createPortal = useAction(api.stripe.createBillingPortalSession);
+  const createPaymentUpdate = useAction(api.stripe.createPaymentMethodUpdateSession);
+  const fetchInvoices = useAction(api.stripe.getInvoices);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [invoices, setInvoices] = useState<Array<{
+    id: string;
+    number: string | null;
+    date: number;
+    amount: number;
+    currency: string;
+    status: string | null;
+    hostedUrl: string | null;
+    pdfUrl: string | null;
+  }> | null>(null);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
 
   const subscriptionStatus = firstOrg?.subscriptionStatus;
   const subscriptionEnd = firstOrg?.subscriptionPeriodEnd;
@@ -1093,6 +999,34 @@ function PlanUsageSection() {
       window.location.href = url;
     } catch {
       toast.error("Nie udało się otworzyć portalu rozliczeniowego");
+    }
+  }
+
+  async function handlePaymentUpdate() {
+    try {
+      const url = await createPaymentUpdate();
+      window.location.href = url;
+    } catch {
+      // Fallback to general portal if flow_data not supported
+      try {
+        const url = await createPortal();
+        window.location.href = url;
+      } catch {
+        toast.error("Nie udało się otworzyć aktualizacji płatności");
+      }
+    }
+  }
+
+  async function loadInvoices() {
+    if (invoicesLoading || invoices !== null) return;
+    setInvoicesLoading(true);
+    try {
+      const data = await fetchInvoices();
+      setInvoices(data);
+    } catch {
+      setInvoices([]);
+    } finally {
+      setInvoicesLoading(false);
     }
   }
 
@@ -1229,9 +1163,24 @@ function PlanUsageSection() {
       )}
 
       {/* Past due warning */}
-      {subscriptionStatus === "past_due" && (
+      {subscriptionStatus === "past_due" && !firstOrg?.degraded && (
         <div className="rounded-lg border border-warning-300 bg-warning-50 p-3 text-sm font-medium text-fg-warning-primary dark:bg-warning-50/10">
           Płatność zaległa. Zaktualizuj metodę płatności, aby uniknąć przerwy w usłudze.
+        </div>
+      )}
+
+      {/* Degraded (read-only) warning */}
+      {firstOrg?.degraded && (
+        <div className="rounded-lg border border-error-300 bg-error-50 p-4 dark:bg-error-50/10">
+          <p className="text-sm font-semibold text-fg-error-primary">Konto w trybie tylko do odczytu</p>
+          <p className="mt-1 text-sm text-fg-error-secondary">
+            Okres karencji minął. Zaktualizuj metodę płatności, aby przywrócić pełny dostęp.
+          </p>
+          <div className="mt-3">
+            <Button color="primary-destructive" size="sm" onClick={handlePaymentUpdate}>
+              Zaktualizuj metodę płatności
+            </Button>
+          </div>
         </div>
       )}
 
@@ -1431,7 +1380,7 @@ function PlanUsageSection() {
                     <span className="text-sm text-tertiary">Zarządzana przez Stripe</span>
                   </div>
                 </div>
-                <Button color="link-gray" size="sm" onClick={handleManage}>
+                <Button color="link-gray" size="sm" onClick={handlePaymentUpdate}>
                   Zmień
                 </Button>
               </div>
@@ -1453,16 +1402,70 @@ function PlanUsageSection() {
             description="Faktury i historia płatności."
           />
           <div className="flex flex-col gap-3">
-            {isSubscribed ? (
+            {isSubscribed || subscriptionStatus === "canceled" ? (
               <>
-                <p className="text-sm text-tertiary">
-                  Przeglądaj faktury, pobieraj potwierdzenia i zarządzaj rozliczeniami w portalu Stripe.
-                </p>
-                <div>
-                  <Button color="secondary" size="sm" onClick={handleManage}>
-                    Otwórz historię rozliczeń
-                  </Button>
-                </div>
+                {invoices === null && !invoicesLoading && (
+                  <div>
+                    <Button color="secondary" size="sm" onClick={loadInvoices}>
+                      Załaduj faktury
+                    </Button>
+                  </div>
+                )}
+                {invoicesLoading && (
+                  <p className="text-sm text-tertiary">Ładowanie faktur...</p>
+                )}
+                {invoices !== null && invoices.length === 0 && (
+                  <p className="text-sm text-tertiary">Brak faktur.</p>
+                )}
+                {invoices !== null && invoices.length > 0 && (
+                  <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-secondary">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-secondary bg-secondary">
+                          <th className="px-4 py-2.5 font-medium text-secondary">Numer</th>
+                          <th className="px-4 py-2.5 font-medium text-secondary">Data</th>
+                          <th className="px-4 py-2.5 font-medium text-secondary">Kwota</th>
+                          <th className="px-4 py-2.5 font-medium text-secondary">Status</th>
+                          <th className="px-4 py-2.5 font-medium text-secondary"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {invoices.map((inv) => (
+                          <tr key={inv.id} className="border-b border-secondary last:border-0">
+                            <td className="px-4 py-2.5 text-primary">{inv.number ?? "—"}</td>
+                            <td className="px-4 py-2.5 text-tertiary">
+                              {new Date(inv.date * 1000).toLocaleDateString("pl-PL")}
+                            </td>
+                            <td className="px-4 py-2.5 text-primary tabular-nums">
+                              {(inv.amount / 100).toFixed(2)} {inv.currency.toUpperCase()}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <Badge
+                                size="sm"
+                                type="pill-color"
+                                color={inv.status === "paid" ? "success" : inv.status === "open" ? "warning" : "gray"}
+                              >
+                                {inv.status === "paid" ? "Opłacona" : inv.status === "open" ? "Otwarta" : inv.status ?? "—"}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-2.5 text-right">
+                              {inv.hostedUrl && (
+                                <a
+                                  href={inv.hostedUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm font-medium text-brand-600 hover:text-brand-700"
+                                >
+                                  Zobacz
+                                </a>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </>
             ) : (
               <p className="text-sm text-tertiary">
@@ -1584,6 +1587,226 @@ function LimitsSection() {
   );
 }
 
+// ─── Security section ────────────────────────────────────────────────
+
+type SecurityStep = "idle" | "sending" | "code" | "resetting";
+
+function SecuritySection() {
+  const t = useTranslations("settings");
+  const tAuth = useTranslations("auth");
+  const { signIn } = useAuthActions();
+  const currentUser = useQuery(api.auth.getCurrentUser);
+
+  const [securityStep, setSecurityStep] = useState<SecurityStep>("idle");
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  const handleSendCode = useCallback(async () => {
+    if (!currentUser?.email) return;
+    setSecurityStep("sending");
+    try {
+      await signIn("password", { email: currentUser.email, flow: "reset" });
+      setSecurityStep("code");
+      setCooldown(60);
+      toast.success(tAuth("codeSent", { email: currentUser.email }));
+    } catch (err) {
+      console.error("[security] sendCode error:", err);
+      toast.error(tAuth("invalidCredentials"));
+      setSecurityStep("idle");
+    }
+  }, [signIn, currentUser?.email, tAuth]);
+
+  const handleResend = useCallback(async () => {
+    if (cooldown > 0 || !currentUser?.email) return;
+    try {
+      await signIn("password", { email: currentUser.email, flow: "reset" });
+      setCooldown(60);
+      toast.success(tAuth("codeSent", { email: currentUser.email }));
+    } catch (err) {
+      console.error("[security] resend error:", err);
+      toast.error(tAuth("invalidCredentials"));
+    }
+  }, [signIn, currentUser?.email, cooldown, tAuth]);
+
+  const handleResetPassword = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      if (!currentUser?.email) return;
+      const formData = new FormData(e.currentTarget);
+      const code = formData.get("code") as string;
+      const newPassword = formData.get("newPassword") as string;
+      const confirmPassword = formData.get("confirmPassword") as string;
+
+      if (newPassword !== confirmPassword) {
+        toast.error(tAuth("passwordsDoNotMatch"));
+        return;
+      }
+
+      setSecurityStep("resetting");
+      try {
+        await signIn("password", {
+          email: currentUser.email,
+          code,
+          newPassword,
+          flow: "reset-verification",
+        });
+        toast.success(t("passwordChanged"));
+        setSecurityStep("idle");
+      } catch (err) {
+        console.error("[security] resetPassword error:", err);
+        toast.error(tAuth("invalidCode"));
+        setSecurityStep("code");
+      }
+    },
+    [signIn, currentUser?.email, t, tAuth]
+  );
+
+  return (
+    <Section title={t("securityTitle")} description={t("securityDescription")}>
+      {securityStep === "idle" && (
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-tertiary">{t("changePasswordDescription")}</p>
+          <div>
+            <Button
+              color="primary"
+              size="sm"
+              onClick={handleSendCode}
+            >
+              {t("changePassword")}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {securityStep === "sending" && (
+        <div className="flex items-center gap-2 text-sm text-tertiary">
+          <span>{tAuth("sendingCode")}</span>
+        </div>
+      )}
+
+      {(securityStep === "code" || securityStep === "resetting") && (
+        <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
+          <Input
+            isRequired
+            hideRequiredIndicator
+            label={tAuth("resetCode")}
+            type="text"
+            name="code"
+            placeholder={tAuth("enterResetCode")}
+            size="md"
+            isDisabled={securityStep === "resetting"}
+            autoComplete="one-time-code"
+          />
+          <Input
+            isRequired
+            hideRequiredIndicator
+            label={tAuth("newPassword")}
+            type="password"
+            name="newPassword"
+            placeholder="••••••••"
+            size="md"
+            isDisabled={securityStep === "resetting"}
+          />
+          <Input
+            isRequired
+            hideRequiredIndicator
+            label={tAuth("confirmPassword")}
+            type="password"
+            name="confirmPassword"
+            placeholder="••••••••"
+            size="md"
+            isDisabled={securityStep === "resetting"}
+          />
+          <p className="text-xs text-tertiary">{tAuth("passwordRequirements")}</p>
+          <div className="flex items-center gap-4">
+            <Button
+              type="submit"
+              color="primary"
+              size="sm"
+              isLoading={securityStep === "resetting"}
+            >
+              {t("changePassword")}
+            </Button>
+            <Button
+              type="button"
+              color="tertiary"
+              size="sm"
+              onClick={() => setSecurityStep("idle")}
+              isDisabled={securityStep === "resetting"}
+            >
+              {t("cancelRole")}
+            </Button>
+          </div>
+          <div>
+            {cooldown > 0 ? (
+              <span className="text-xs text-tertiary">
+                {tAuth("resendIn", { seconds: cooldown.toString() })}
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResend}
+                className="text-xs text-brand-600 hover:text-brand-500"
+              >
+                {tAuth("resendCode")}
+              </button>
+            )}
+          </div>
+        </form>
+      )}
+    </Section>
+  );
+}
+
+// ─── Integrations section ────────────────────────────────────────────
+
+function IntegrationsSection() {
+  const t = useTranslations("settings");
+  const orgs = useQuery(api.organizations.getUserOrganizations);
+  const orgId = orgs?.[0]?._id;
+
+  if (!orgId) {
+    return <LoadingState type="table" rows={2} />;
+  }
+
+  return (
+    <Section title={t("tabIntegrations")} description={t("integrationsDescription")}>
+      <GscConnectionPanel organizationId={orgId} />
+    </Section>
+  );
+}
+
+// ─── Webhooks section ─────────────────────────────────────────────────
+
+function WebhooksSection() {
+  const orgs = useQuery(api.organizations.getUserOrganizations);
+  const orgId = orgs?.[0]?._id;
+
+  if (!orgId) {
+    return <LoadingState type="table" rows={2} />;
+  }
+
+  return <WebhooksTab orgId={orgId} />;
+}
+
+// ─── White Label section ──────────────────────────────────────────────
+
+function WhiteLabelSection() {
+  const orgs = useQuery(api.organizations.getUserOrganizations);
+  const orgId = orgs?.[0]?._id;
+
+  if (!orgId) {
+    return <LoadingState type="card" rows={3} />;
+  }
+
+  return <WhiteLabelTab organizationId={orgId} />;
+}
+
 // ─── Main page ──────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -1596,10 +1819,14 @@ export default function SettingsPage() {
     { id: "preferences", label: t("tabPreferences"), icon: Settings01 },
     { id: "notifications", label: t("tabNotifications"), icon: Bell01 },
     { id: "api-keys", label: t("tabApiKeys"), icon: Key01 },
-    { id: "branding", label: t("tabBranding"), icon: Image01 },
     { id: "members", label: t("tabMembers"), icon: Users01 },
     { id: "roles", label: t("tabRoles"), icon: Shield01 },
     { id: "limits", label: t("tabLimits"), icon: Speedometer02 },
+    { id: "sessions", label: t("tabSessions"), icon: Monitor01 },
+    { id: "security", label: t("tabSecurity"), icon: Lock01 },
+    { id: "integrations", label: t("tabIntegrations"), icon: LinkExternal01 },
+    { id: "webhooks", label: t("tabWebhooks"), icon: Code02 },
+    { id: "white-label", label: t("tabWhiteLabel"), icon: Palette },
   ];
 
   return (
@@ -1658,10 +1885,6 @@ export default function SettingsPage() {
                 <APIKeysSection />
               </TabPanel>
 
-              <TabPanel id="branding" className="w-full">
-                <BrandingSection />
-              </TabPanel>
-
               <TabPanel id="members" className="w-full">
                 <MembersSection />
               </TabPanel>
@@ -1672,6 +1895,29 @@ export default function SettingsPage() {
 
               <TabPanel id="limits" className="w-full">
                 <LimitsSection />
+              </TabPanel>
+
+              <TabPanel id="sessions" className="w-full">
+                <SessionManagement />
+              </TabPanel>
+
+              <TabPanel id="security" className="w-full">
+                <SecuritySection />
+                <div className="border-t border-secondary px-6 pb-6">
+                  <TwoFactorSetup />
+                </div>
+              </TabPanel>
+
+              <TabPanel id="integrations" className="w-full">
+                <IntegrationsSection />
+              </TabPanel>
+
+              <TabPanel id="webhooks" className="w-full">
+                <WebhooksSection />
+              </TabPanel>
+
+              <TabPanel id="white-label" className="w-full">
+                <WhiteLabelSection />
               </TabPanel>
             </div>
           </div>

@@ -142,7 +142,7 @@ export function ActiveStrategyDashboard({ session, domainId }: ActiveStrategyDas
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("[PDF Export ActiveStrategy]", err);
-      toast.error("Failed to export PDF");
+      toast.error(t("failedToExportPdf"));
     } finally {
       setIsExporting(false);
     }

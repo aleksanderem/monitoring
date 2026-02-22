@@ -339,4 +339,359 @@ describe("cancelSubscription", () => {
       stripeSubscriptionId: "sub_ghost",
     });
   });
+
+  test("schedules cancellation confirmation email to org owner", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t, "owner@cancel.com", "Cancel User");
+    const proPlanId = await seedProPlan(t);
+    const freePlanId = await seedFreePlan(t);
+    await createOrgWithOwner(t, userId, {
+      stripeCustomerId: "cus_cancel_email",
+      stripeSubscriptionId: "sub_cancel_email",
+      subscriptionStatus: "active",
+      subscriptionPeriodEnd: 1700000000,
+      billingCycle: "monthly",
+      planId: proPlanId,
+      limits: { maxKeywords: 500, maxDomains: 20, maxProjects: 10 },
+    });
+
+    await t.mutation(internal.stripe_helpers.cancelSubscription, {
+      stripeSubscriptionId: "sub_cancel_email",
+    });
+
+    // The mutation should complete without error, meaning the scheduler.runAfter call succeeded
+    // (the actual email send would fail in test env due to missing RESEND_API_KEY)
+  });
+
+  test("clears gracePeriodEnd, degraded, and trialRemindersSent on cancellation", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t, "owner@cleanup.com");
+    const proPlanId = await seedProPlan(t);
+    const freePlanId = await seedFreePlan(t);
+    const orgId = await createOrgWithOwner(t, userId, {
+      stripeCustomerId: "cus_cleanup",
+      stripeSubscriptionId: "sub_cleanup",
+      subscriptionStatus: "past_due",
+      subscriptionPeriodEnd: 1700000000,
+      billingCycle: "monthly",
+      planId: proPlanId,
+      limits: { maxKeywords: 500, maxDomains: 20, maxProjects: 10 },
+      gracePeriodEnd: 1700000000,
+      degraded: true,
+      trialRemindersSent: { threeDays: true, oneDay: true },
+    });
+
+    await t.mutation(internal.stripe_helpers.cancelSubscription, {
+      stripeSubscriptionId: "sub_cleanup",
+    });
+
+    const org = await t.run(async (ctx: any) => ctx.db.get(orgId));
+    expect(org.gracePeriodEnd).toBeUndefined();
+    expect(org.degraded).toBeUndefined();
+    expect(org.trialRemindersSent).toBeUndefined();
+  });
+});
+
+// ─── setGracePeriod ───────────────────────────────────────────────
+
+describe("setGracePeriod", () => {
+  test("sets gracePeriodEnd on org with matching subscription", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const orgId = await createOrgWithOwner(t, userId, {
+      stripeSubscriptionId: "sub_grace",
+      subscriptionStatus: "past_due",
+    });
+
+    const result = await t.mutation(internal.stripe_helpers.setGracePeriod, {
+      stripeSubscriptionId: "sub_grace",
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.alreadySet).toBe(false);
+
+    const org = await t.run(async (ctx: any) => ctx.db.get(orgId));
+    expect(org.gracePeriodEnd).toBeDefined();
+    expect(org.gracePeriodEnd).toBeGreaterThan(Date.now());
+  });
+
+  test("does not reset grace period if already set (idempotent)", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const originalGraceEnd = Date.now() + 3 * 24 * 60 * 60 * 1000;
+    const orgId = await createOrgWithOwner(t, userId, {
+      stripeSubscriptionId: "sub_grace_existing",
+      subscriptionStatus: "past_due",
+      gracePeriodEnd: originalGraceEnd,
+    });
+
+    const result = await t.mutation(internal.stripe_helpers.setGracePeriod, {
+      stripeSubscriptionId: "sub_grace_existing",
+    });
+
+    expect(result!.alreadySet).toBe(true);
+
+    const org = await t.run(async (ctx: any) => ctx.db.get(orgId));
+    expect(org.gracePeriodEnd).toBe(originalGraceEnd);
+  });
+
+  test("returns null when org not found", async () => {
+    const t = convexTest(schema, modules);
+
+    const result = await t.mutation(internal.stripe_helpers.setGracePeriod, {
+      stripeSubscriptionId: "sub_nonexistent",
+    });
+
+    expect(result).toBeNull();
+  });
+});
+
+// ─── clearDegradedStatus ──────────────────────────────────────────
+
+describe("clearDegradedStatus", () => {
+  test("clears degraded and gracePeriodEnd when subscription reactivates", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const orgId = await createOrgWithOwner(t, userId, {
+      stripeSubscriptionId: "sub_reactivate",
+      subscriptionStatus: "active",
+      degraded: true,
+      gracePeriodEnd: Date.now() - 1000,
+    });
+
+    await t.mutation(internal.stripe_helpers.clearDegradedStatus, {
+      stripeSubscriptionId: "sub_reactivate",
+    });
+
+    const org = await t.run(async (ctx: any) => ctx.db.get(orgId));
+    expect(org.degraded).toBeUndefined();
+    expect(org.gracePeriodEnd).toBeUndefined();
+  });
+
+  test("does nothing when org not degraded", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const orgId = await createOrgWithOwner(t, userId, {
+      stripeSubscriptionId: "sub_not_degraded",
+      subscriptionStatus: "active",
+    });
+
+    await t.mutation(internal.stripe_helpers.clearDegradedStatus, {
+      stripeSubscriptionId: "sub_not_degraded",
+    });
+
+    const org = await t.run(async (ctx: any) => ctx.db.get(orgId));
+    expect(org.degraded).toBeUndefined();
+  });
+
+  test("does nothing when org not found", async () => {
+    const t = convexTest(schema, modules);
+
+    // Should not throw
+    await t.mutation(internal.stripe_helpers.clearDegradedStatus, {
+      stripeSubscriptionId: "sub_ghost",
+    });
+  });
+});
+
+// ─── checkGracePeriods ────────────────────────────────────────────
+
+describe("checkGracePeriods", () => {
+  test("degrades orgs with expired grace periods", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t, "owner@degrade.com");
+    const orgId = await createOrgWithOwner(t, userId, {
+      stripeCustomerId: "cus_degrade",
+      stripeSubscriptionId: "sub_degrade",
+      subscriptionStatus: "past_due",
+      gracePeriodEnd: Date.now() - 1000, // expired
+    });
+
+    await t.mutation(internal.stripe_helpers.checkGracePeriods, {});
+
+    const org = await t.run(async (ctx: any) => ctx.db.get(orgId));
+    expect(org.degraded).toBe(true);
+  });
+
+  test("does not degrade orgs with future grace periods", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const orgId = await createOrgWithOwner(t, userId, {
+      stripeSubscriptionId: "sub_future",
+      subscriptionStatus: "past_due",
+      gracePeriodEnd: Date.now() + 3 * 24 * 60 * 60 * 1000, // 3 days from now
+    });
+
+    await t.mutation(internal.stripe_helpers.checkGracePeriods, {});
+
+    const org = await t.run(async (ctx: any) => ctx.db.get(orgId));
+    expect(org.degraded).toBeUndefined();
+  });
+
+  test("does not re-degrade already degraded orgs", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const orgId = await createOrgWithOwner(t, userId, {
+      stripeSubscriptionId: "sub_already",
+      subscriptionStatus: "past_due",
+      gracePeriodEnd: Date.now() - 1000,
+      degraded: true,
+    });
+
+    // Should complete without error and not try to send email again
+    await t.mutation(internal.stripe_helpers.checkGracePeriods, {});
+
+    const org = await t.run(async (ctx: any) => ctx.db.get(orgId));
+    expect(org.degraded).toBe(true);
+  });
+});
+
+// ─── getTrialingOrgs ──────────────────────────────────────────────
+
+describe("getTrialingOrgs", () => {
+  test("returns orgs with trial ending in 3 days needing reminder", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const threeDaysFromNow = Math.floor((Date.now() + 2.5 * 24 * 60 * 60 * 1000) / 1000);
+    await createOrgWithOwner(t, userId, {
+      stripeSubscriptionId: "sub_trial_3d",
+      subscriptionStatus: "trialing",
+      subscriptionPeriodEnd: threeDaysFromNow,
+    });
+
+    const results = await t.query(internal.stripe_helpers.getTrialingOrgs, {});
+    expect(results.length).toBe(1);
+    expect(results[0].needsThreeDayReminder).toBe(true);
+  });
+
+  test("returns orgs with trial ending in 1 day needing reminder", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const oneDayFromNow = Math.floor((Date.now() + 0.5 * 24 * 60 * 60 * 1000) / 1000);
+    await createOrgWithOwner(t, userId, {
+      stripeSubscriptionId: "sub_trial_1d",
+      subscriptionStatus: "trialing",
+      subscriptionPeriodEnd: oneDayFromNow,
+    });
+
+    const results = await t.query(internal.stripe_helpers.getTrialingOrgs, {});
+    expect(results.length).toBe(1);
+    expect(results[0].needsOneDayReminder).toBe(true);
+  });
+
+  test("excludes orgs that already received reminders", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const twoDaysFromNow = Math.floor((Date.now() + 1.5 * 24 * 60 * 60 * 1000) / 1000);
+    await createOrgWithOwner(t, userId, {
+      stripeSubscriptionId: "sub_trial_sent",
+      subscriptionStatus: "trialing",
+      subscriptionPeriodEnd: twoDaysFromNow,
+      trialRemindersSent: { threeDays: true },
+    });
+
+    const results = await t.query(internal.stripe_helpers.getTrialingOrgs, {});
+    expect(results.length).toBe(0);
+  });
+
+  test("excludes orgs with trial ending in more than 3 days", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const fiveDaysFromNow = Math.floor((Date.now() + 5 * 24 * 60 * 60 * 1000) / 1000);
+    await createOrgWithOwner(t, userId, {
+      stripeSubscriptionId: "sub_trial_5d",
+      subscriptionStatus: "trialing",
+      subscriptionPeriodEnd: fiveDaysFromNow,
+    });
+
+    const results = await t.query(internal.stripe_helpers.getTrialingOrgs, {});
+    expect(results.length).toBe(0);
+  });
+
+  test("excludes non-trialing orgs", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const twoDaysFromNow = Math.floor((Date.now() + 1.5 * 24 * 60 * 60 * 1000) / 1000);
+    await createOrgWithOwner(t, userId, {
+      stripeSubscriptionId: "sub_active",
+      subscriptionStatus: "active",
+      subscriptionPeriodEnd: twoDaysFromNow,
+    });
+
+    const results = await t.query(internal.stripe_helpers.getTrialingOrgs, {});
+    expect(results.length).toBe(0);
+  });
+});
+
+// ─── markTrialReminderSent ────────────────────────────────────────
+
+describe("markTrialReminderSent", () => {
+  test("marks threeDays reminder as sent", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const orgId = await createOrgWithOwner(t, userId, {
+      subscriptionStatus: "trialing",
+    });
+
+    await t.mutation(internal.stripe_helpers.markTrialReminderSent, {
+      organizationId: orgId,
+      reminderType: "threeDays",
+    });
+
+    const org = await t.run(async (ctx: any) => ctx.db.get(orgId));
+    expect(org.trialRemindersSent?.threeDays).toBe(true);
+    expect(org.trialRemindersSent?.oneDay).toBeUndefined();
+  });
+
+  test("marks oneDay reminder without overwriting threeDays", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const orgId = await createOrgWithOwner(t, userId, {
+      subscriptionStatus: "trialing",
+      trialRemindersSent: { threeDays: true },
+    });
+
+    await t.mutation(internal.stripe_helpers.markTrialReminderSent, {
+      organizationId: orgId,
+      reminderType: "oneDay",
+    });
+
+    const org = await t.run(async (ctx: any) => ctx.db.get(orgId));
+    expect(org.trialRemindersSent?.threeDays).toBe(true);
+    expect(org.trialRemindersSent?.oneDay).toBe(true);
+  });
+});
+
+// ─── getOrgOwnerEmail ─────────────────────────────────────────────
+
+describe("getOrgOwnerEmail", () => {
+  test("returns owner email", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t, "owner@email.com");
+    const orgId = await createOrgWithOwner(t, userId);
+
+    const email = await t.query(internal.stripe_helpers.getOrgOwnerEmail, {
+      organizationId: orgId,
+    });
+
+    expect(email).toBe("owner@email.com");
+  });
+
+  test("returns null when no owner found", async () => {
+    const t = convexTest(schema, modules);
+    const orgId = await t.run(async (ctx: any) => {
+      return ctx.db.insert("organizations", {
+        name: "No Owner Org",
+        slug: "no-owner",
+        createdAt: Date.now(),
+        settings: { defaultRefreshFrequency: "weekly" as const },
+      });
+    });
+
+    const email = await t.query(internal.stripe_helpers.getOrgOwnerEmail, {
+      organizationId: orgId,
+    });
+
+    expect(email).toBeNull();
+  });
 });

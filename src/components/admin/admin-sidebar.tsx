@@ -18,6 +18,8 @@ export function AdminSidebar() {
     { href: "/admin/logs", label: t("navAuditLogs"), icon: ListIcon },
     { href: "/admin/debug-logs", label: t("navDebugLogs"), icon: BugIcon },
     { href: "/admin/api-usage", label: t("navApiUsage"), icon: CreditCardIcon },
+    { href: "/admin/health", label: t("navHealth"), icon: HeartPulseIcon },
+    { href: "/admin/analytics", label: t("navAnalytics"), icon: AnalyticsIcon },
   ];
   const pathname = usePathname();
   const router = useRouter();
@@ -142,6 +144,24 @@ function FileCheckIcon({ className }: { className?: string }) {
       <path strokeLinecap="round" strokeLinejoin="round" d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M10.125 2.25A3.375 3.375 0 0113.5 5.625v1.5c0 .621.504 1.125 1.125 1.125h1.5a3.375 3.375 0 013.375 3.375" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 15l2 2 4-4" />
+    </svg>
+  );
+}
+
+function HeartPulseIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h3l1.5-3 3 6 1.5-3h3" />
+    </svg>
+  );
+}
+
+function AnalyticsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
     </svg>
   );
 }

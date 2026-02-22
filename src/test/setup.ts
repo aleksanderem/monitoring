@@ -7,6 +7,15 @@ import React from "react";
 // jsdom polyfills
 // ---------------------------------------------------------------------------
 
+// ResizeObserver — not implemented in jsdom, needed by input-otp etc.
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof globalThis.ResizeObserver;
+}
+
 // window.matchMedia — not implemented in jsdom, needed by useBreakpoint etc.
 Object.defineProperty(window, "matchMedia", {
   writable: true,

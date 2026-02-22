@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useAction } from "convex/react";
+import { useEffect, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -17,7 +18,12 @@ interface MovementTrendChartProps {
 export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
   const t = useTranslations("keywords");
   const isDesktop = useBreakpoint("lg");
-  const trend = useQuery(api.keywords.getMovementTrend, { domainId, days: 30 });
+  const getMovementTrend = useAction(api.keywords.getMovementTrendSupabase);
+  const [trend, setTrend] = useState<Array<{ date: number; gainers: number; losers: number }> | undefined>(undefined);
+
+  useEffect(() => {
+    getMovementTrend({ domainId, days: 30 }).then(setTrend).catch(() => setTrend([]));
+  }, [domainId, getMovementTrend]);
 
   if (trend === undefined) {
     return (

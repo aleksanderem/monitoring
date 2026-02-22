@@ -220,7 +220,7 @@ export const generateKeywordIdeas = action({
     // DataForSEO keyword summary: top keywords with metrics
     const dfKeywordSummary = dfKeywords
       .slice(0, 100)
-      .map((k: any) => {
+      .map((k: { keyword: string; position?: number | null; searchVolume?: number | null; intent?: string | null; cpc?: number | null }) => {
         const parts = [k.keyword];
         if (k.position) parts.push(`pos:${k.position}`);
         if (k.searchVolume) parts.push(`vol:${k.searchVolume}`);
@@ -233,7 +233,7 @@ export const generateKeywordIdeas = action({
     // Discovered keywords summary
     const discoveredSummary = discoveredKeywords
       .slice(0, 80)
-      .map((k) => {
+      .map((k: { keyword: string; bestPosition?: number | null; searchVolume?: number | null; intent?: string | null }) => {
         const parts = [k.keyword];
         if (k.bestPosition) parts.push(`pos:${k.bestPosition}`);
         if (k.searchVolume) parts.push(`vol:${k.searchVolume}`);
@@ -243,7 +243,7 @@ export const generateKeywordIdeas = action({
       .join("\n");
 
     // Already-monitored keywords (to avoid suggesting duplicates)
-    const monitoredPhrases = monitoredKeywords.map((k) => k.phrase);
+    const monitoredPhrases = monitoredKeywords.map((k: { phrase: string }) => k.phrase);
     const monitoredList = monitoredPhrases.join(", ");
 
     // 5. Build the comprehensive prompt
@@ -358,11 +358,11 @@ Return ONLY a JSON array, no markdown, no code fences:
     }
 
     // 7. Filter out any keywords that are already monitored (safety check)
-    const monitoredSet = new Set(monitoredPhrases.map((p) => p.toLowerCase()));
-    aiKeywords = aiKeywords.filter((k) => !monitoredSet.has(k.keyword.toLowerCase()));
+    const monitoredSet = new Set(monitoredPhrases.map((p: string) => p.toLowerCase()));
+    aiKeywords = aiKeywords.filter((k: { keyword: string }) => !monitoredSet.has(k.keyword.toLowerCase()));
 
     // 8. Enrich with DataForSEO metrics (search volume, CPC, difficulty)
-    const keywordPhrases = aiKeywords.map((k) => k.keyword);
+    const keywordPhrases = aiKeywords.map((k: { keyword: string }) => k.keyword);
 
     const enrichmentMap = new Map<string, { searchVolume: number; cpc: number; competition: number; difficulty: number }>();
 

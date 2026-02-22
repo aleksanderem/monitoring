@@ -1,0 +1,49 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npx next build
+        env:
+          CONVEX_URL: ${{ secrets.CONVEX_URL }}
+
+      - name: Run tests
+        run: npm test
+
+      - name: Deploy
+        env:
+          DEPLOY_ENV: ${{ inputs.environment }}
+        run: |
+          echo "Deploying to $DEPLOY_ENV..."
+          echo "Deployment target will be configured when hosting is set up."
+          echo "For Vercel: npx vercel --prod (production) or npx vercel (staging)"

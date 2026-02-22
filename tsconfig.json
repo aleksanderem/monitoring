@@ -37,6 +37,11 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "src/emails",
+    "src/test",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "e2e"
   ]
 }

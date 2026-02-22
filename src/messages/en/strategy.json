@@ -144,5 +144,9 @@
   "backlinkEmailSubject": "Email Subject",
   "dashboardTabTimeline": "Timeline",
   "dashboardTabActionPlan": "Action Plan",
-  "dashboardTabTasks": "Tasks"
+  "dashboardTabTasks": "Tasks",
+  "failedToExportPdf": "Failed to export PDF",
+  "failedToActivateStrategy": "Failed to activate strategy",
+  "drillDownFailed": "Drill-down failed",
+  "unknownError": "Unknown error"
 }
