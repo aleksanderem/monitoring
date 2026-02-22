@@ -2062,6 +2062,7 @@ export default defineSchema({
     .index("by_domain", ["domainId"]),
 
   // =================================================================
+<<<<<<< HEAD
   // Custom Alert Rules (R13)
   // =================================================================
 
@@ -2213,4 +2214,21 @@ export default defineSchema({
   })
     .index("by_domain_date", ["domainId", "date"])
     .index("by_domain_keyword", ["domainId", "keyword"]),
+
+  // =================================================================
+  // Health Checks (R35)
+  // =================================================================
+
+  healthChecks: defineTable({
+    timestamp: v.number(),
+    status: v.string(), // "healthy", "degraded", "down"
+    services: v.object({
+      database: v.string(),
+      email: v.string(),
+      api: v.string(),
+      auth: v.string(),
+    }),
+    responseTimeMs: v.optional(v.number()),
+  })
+    .index("by_timestamp", ["timestamp"]),
 });

@@ -170,6 +170,7 @@
     "keywordUsage": "Użycie słów kluczowych",
     "keywordsOf": "{current} / {limit} słów kluczowych",
     "limits": "Limity",
+<<<<<<< HEAD
     "unknownErrorGeneric": "Wystąpił nieznany błąd",
     "failedGenericAction": "Operacja nie powiodła się",
     "copyToClipboard": "Kopiuj do schowka",
@@ -207,5 +208,12 @@
     "loadingJobs": "Ładowanie zadań...",
     "loadingCalendar": "Ładowanie kalendarza...",
     "loadingSettings": "Ładowanie ustawień...",
-    "loadingPage": "Ładowanie strony..."
+    "loadingPage": "Ładowanie strony...",
+    "statusTitle": "Status systemu",
+    "statusDescription": "Aktualny status operacyjny wszystkich usług.",
+    "statusAllOperational": "Wszystkie systemy działają prawidłowo",
+    "statusDegraded": "Obniżona wydajność",
+    "statusDown": "Przerwa w działaniu usługi",
+    "statusChecking": "Sprawdzanie...",
+    "statusLastUpdated": "Ostatnia aktualizacja"
 }

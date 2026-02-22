@@ -170,6 +170,7 @@
     "keywordUsage": "Keyword usage",
     "keywordsOf": "{current} / {limit} keywords",
     "limits": "Limits",
+<<<<<<< HEAD
     "unknownErrorGeneric": "An unknown error occurred",
     "failedGenericAction": "Operation failed",
     "copyToClipboard": "Copy to clipboard",
@@ -207,5 +208,12 @@
     "loadingJobs": "Loading jobs...",
     "loadingCalendar": "Loading calendar...",
     "loadingSettings": "Loading settings...",
-    "loadingPage": "Loading page..."
+    "loadingPage": "Loading page...",
+    "statusTitle": "System Status",
+    "statusDescription": "Current operational status of all services.",
+    "statusAllOperational": "All Systems Operational",
+    "statusDegraded": "Degraded Performance",
+    "statusDown": "Service Disruption",
+    "statusChecking": "Checking...",
+    "statusLastUpdated": "Last updated"
 }
