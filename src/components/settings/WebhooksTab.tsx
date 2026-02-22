@@ -240,7 +240,7 @@ export default function WebhooksTab({ orgId }: WebhooksTabProps) {
   const endpoints = useQuery(api.webhooks.getWebhookEndpoints, { orgId });
   const updateWebhook = useMutation(api.webhooks.updateWebhook);
   const deleteWebhookMut = useMutation(api.webhooks.deleteWebhook);
-  const testWebhookAction = useAction(api.webhooks.testWebhook);
+  const testWebhookAction = useAction(api.actions.webhookDelivery.testWebhook);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingWebhook, setEditingWebhook] = useState<any>(null);
