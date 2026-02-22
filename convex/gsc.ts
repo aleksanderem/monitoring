@@ -379,33 +379,75 @@ export const disconnectGsc = mutation({
   },
 });
 
-export const selectGscProperty = mutation({
-  args: {
-    organizationId: v.id("organizations"),
-    propertyUrl: v.string(),
-  },
-  handler: async (ctx, { organizationId, propertyUrl }) => {
+export const getGscPropertiesForDomain = query({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, { domainId }) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    if (!userId) return null;
+
+    const domain = await ctx.db.get(domainId);
+    if (!domain) return null;
+
+    const project = await ctx.db.get(domain.projectId);
+    if (!project) return null;
+
+    const team = await ctx.db.get(project.teamId);
+    if (!team) return null;
 
     const membership = await ctx.db
       .query("organizationMembers")
       .withIndex("by_org_user", (q) =>
-        q.eq("organizationId", organizationId).eq("userId", userId)
+        q.eq("organizationId", team.organizationId).eq("userId", userId)
+      )
+      .first();
+    if (!membership) return null;
+
+    const connection = await ctx.db
+      .query("gscConnections")
+      .withIndex("by_org", (q) => q.eq("organizationId", team.organizationId))
+      .filter((q) => q.neq(q.field("status"), "disconnected"))
+      .first();
+
+    if (!connection) {
+      return { connected: false, properties: [], selectedPropertyUrl: undefined };
+    }
+
+    return {
+      connected: true,
+      properties: connection.properties ?? [],
+      selectedPropertyUrl: domain.gscPropertyUrl,
+    };
+  },
+});
+
+export const setDomainGscProperty = mutation({
+  args: {
+    domainId: v.id("domains"),
+    propertyUrl: v.union(v.string(), v.null()),
+  },
+  handler: async (ctx, { domainId, propertyUrl }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const domain = await ctx.db.get(domainId);
+    if (!domain) throw new Error("Domain not found");
+
+    const project = await ctx.db.get(domain.projectId);
+    if (!project) throw new Error("Project not found");
+
+    const team = await ctx.db.get(project.teamId);
+    if (!team) throw new Error("Team not found");
+
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_user", (q) =>
+        q.eq("organizationId", team.organizationId).eq("userId", userId)
       )
       .first();
     if (!membership) throw new Error("Not a member of this organization");
 
-    const connection = await ctx.db
-      .query("gscConnections")
-      .withIndex("by_org", (q) => q.eq("organizationId", organizationId))
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .first();
-
-    if (!connection) throw new Error("No active GSC connection");
-
-    await ctx.db.patch(connection._id, {
-      selectedPropertyUrl: propertyUrl,
+    await ctx.db.patch(domainId, {
+      gscPropertyUrl: propertyUrl ?? undefined,
     });
   },
 });

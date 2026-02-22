@@ -56,6 +56,7 @@ import { KeywordMonitoringTable } from "@/components/domain/tables/KeywordMonito
 import { LiveBadge } from "@/components/domain/badges/LiveBadge";
 import { Activity } from "@untitledui/icons";
 import { VisibilityStats } from "@/components/domain/sections/VisibilityStats";
+import { GscMetricsCard } from "@/components/domain/GscMetricsCard";
 import { TopKeywordsTable } from "@/components/domain/tables/TopKeywordsTable";
 import { AllKeywordsTable } from "@/components/domain/tables/AllKeywordsTable";
 import { DiscoveredKeywordsTable } from "@/components/domain/tables/DiscoveredKeywordsTable";
@@ -172,6 +173,52 @@ function formatRelativeTime(timestamp: number) {
   if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
   if (days < 365) return `${Math.floor(days / 30)} months ago`;
   return `${Math.floor(days / 365)} years ago`;
+}
+
+function GscPropertySection({ domainId }: { domainId: Id<"domains"> }) {
+  const t = useTranslations("domains");
+  const gscData = useQuery(api.gsc.getGscPropertiesForDomain, { domainId });
+  const setGscProperty = useMutation(api.gsc.setDomainGscProperty);
+
+  if (gscData === undefined) {
+    return <div className="animate-pulse h-24 rounded-xl border border-secondary bg-primary" />;
+  }
+
+  if (!gscData || !gscData.connected) {
+    return (
+      <div className="rounded-xl border border-secondary bg-primary p-6">
+        <h3 className="text-sm font-semibold text-primary mb-2">{t("gscProperty")}</h3>
+        <p className="text-sm text-tertiary">{t("gscConnectHint")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-secondary bg-primary p-6">
+      <h3 className="text-sm font-semibold text-primary mb-3">{t("gscProperty")}</h3>
+      {gscData.properties.length > 0 ? (
+        <select
+          value={gscData.selectedPropertyUrl || ""}
+          onChange={async (e) => {
+            await setGscProperty({
+              domainId,
+              propertyUrl: e.target.value || null,
+            });
+          }}
+          className="w-full rounded-lg border border-secondary bg-primary px-3 py-2 text-sm text-primary focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/20"
+        >
+          <option value="">{t("gscSelectProperty")}</option>
+          {gscData.properties.map((p: { url: string; type: string }) => (
+            <option key={p.url} value={p.url}>
+              {p.url} ({p.type})
+            </option>
+          ))}
+        </select>
+      ) : (
+        <p className="text-sm text-tertiary">{t("gscNotConnected")}</p>
+      )}
+    </div>
+  );
 }
 
 function DomainLimitsSection({ domainId, currentLimits }: { domainId: Id<"domains">; currentLimits?: { maxKeywords?: number; maxDailyRefreshes?: number } }) {
@@ -931,6 +978,9 @@ export default function DomainDetailPage() {
                   <MovementTrendChart domainId={domainId} />
                 </div>
 
+                {/* GSC Metrics (renders null if not connected) */}
+                <GscMetricsCard domainId={domainId} />
+
                 {/* Statistics Section */}
                 <MonitoringStats domainId={domainId} />
 
@@ -1268,6 +1318,8 @@ export default function DomainDetailPage() {
                     </div>
                   </div>
                 </div>
+
+                <GscPropertySection domainId={domainId} />
 
                 <BusinessContextSection domainId={domainId} domain={domain} />
 

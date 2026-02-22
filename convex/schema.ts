@@ -129,6 +129,7 @@ export default defineSchema({
     activeStrategyId: v.optional(v.id("aiStrategySessions")),
     cachedPageContent: v.optional(v.string()),
     cachedPageContentAt: v.optional(v.number()),
+    gscPropertyUrl: v.optional(v.string()),
   }).index("by_project", ["projectId"]),
 
   // Keywords within domains

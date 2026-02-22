@@ -13,7 +13,6 @@ export function GscConnectionPanel({ organizationId }: GscConnectionPanelProps) 
   const connection = useQuery(api.gsc.getGscConnection, { organizationId });
   const initiate = useMutation(api.gsc.initiateGscConnection);
   const disconnect = useMutation(api.gsc.disconnectGsc);
-  const selectProperty = useMutation(api.gsc.selectGscProperty);
 
   // Loading state
   if (connection === undefined) {
@@ -55,27 +54,6 @@ export function GscConnectionPanel({ organizationId }: GscConnectionPanelProps) 
         <p className="text-xs text-gray-400 mb-4">
           {t("gscLastSync")}: {new Date(connection.lastSyncAt).toLocaleString()}
         </p>
-      )}
-
-      {/* Property selector */}
-      {connection.properties.length > 0 && (
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">{t("gscProperties")}</label>
-          <select
-            value={connection.selectedPropertyUrl || ""}
-            onChange={async (e) => {
-              await selectProperty({ organizationId, propertyUrl: e.target.value });
-            }}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 px-3 py-2 text-sm"
-          >
-            <option value="">{t("gscSelectProperty")}</option>
-            {connection.properties.map((p) => (
-              <option key={p.url} value={p.url}>
-                {p.url} ({p.type})
-              </option>
-            ))}
-          </select>
-        </div>
       )}
 
       <button

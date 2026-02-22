@@ -215,6 +215,7 @@
   "changePasswordDescription": "Wyślemy kod weryfikacyjny na Twój email, aby potwierdzić zmianę.",
   "passwordChanged": "Hasło zostało zmienione",
   "tabIntegrations": "Integracje",
+  "integrationsDescription": "Połącz zewnętrzne usługi, aby wzbogacić dane monitoringu.",
   "gscTitle": "Google Search Console",
   "gscDescription": "Połącz Google Search Console, aby importować dane o wydajności wyszukiwania.",
   "gscConnect": "Połącz Google Search Console",
