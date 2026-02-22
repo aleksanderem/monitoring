@@ -250,8 +250,10 @@ Progress: i18n with next-intl configured, PL/EN support working (commit: 564e68c
 
 ## Tier 3 — Growth (first 3 months post-launch)
 
-### R23 [ ] White-Label & Agency Features
+### R23 [x] White-Label & Agency Features
 Agency accounts managing multiple client organizations. White-label reports with custom branding (logo, colors, domain). Client access portals with limited views. Separate billing per client. Custom domain for reports.
+
+Completed: 2026-02-22. Agency-client org relationships, branding overrides (logo, colors, custom domain, footer). WhiteLabelTab and ClientManagement UI. Schema tables: agencyClients, brandingOverrides. EN/PL/DE/ES/FR translations. 17 integration tests. Plan: `2026-02-22-batch7-implementation.md`.
 
 ### R24 [x] Public API & Documentation
 REST API for programmatic access. API key system exists but no actual API endpoints. Rate limiting per key. OpenAPI/Swagger documentation page. Enables integrations and power users.
@@ -268,8 +270,10 @@ Additional OAuth providers beyond Google. GitHub for developer-focused users, Mi
 
 Completed: 2026-02-22. GitHub and MicrosoftEntraId providers added to convex/auth.ts. OAuth buttons on login and register pages with data-testid attributes. EN/PL auth translations (signInWithGithub, signInWithMicrosoft). 13 integration tests. Plan: `2026-02-22-batch6-implementation.md`.
 
-### R27 [ ] Webhooks & Integrations
+### R27 [x] Webhooks & Integrations
 Outgoing webhooks on events (position change, keyword discovered, alert triggered). Zapier/Make integration. Slack notifications channel. Google Analytics integration for correlating traffic with rankings.
+
+Completed: 2026-02-22. Webhook CRUD with HMAC-SHA256 signed delivery and exponential backoff retry. WebhooksTab with delivery log, IntegrationsPanel (Slack webhook, Zapier URL). Schema tables: webhookEndpoints, webhookDeliveries. EN/PL/DE/ES/FR translations. 21 integration tests. Plan: `2026-02-22-batch7-implementation.md`.
 
 ### R28 [x] CI/CD Pipeline
 GitHub Actions for build verification (next build + npm test on every PR). Automated deployment to staging/production. Staging environment. Source maps upload to Sentry. Pre-commit secret scanning.
@@ -281,14 +285,20 @@ Dedicated mobile UX audit. Touch-friendly interactions, mobile-specific navigati
 
 Completed: 2026-02-22. PWA manifest (public/manifest.json) with doseo branding and theme #7f56d9. Service worker (public/sw.js) with cache-first for static assets, network-first for API. MobileBottomNav component. Meta tags in layout.tsx. EN/PL translations. 19 integration tests. Plan: `2026-02-22-batch6-implementation.md`.
 
-### R30 [ ] Custom Dashboards & Saved Views
+### R30 [x] Custom Dashboards & Saved Views
 User-customizable dashboard layouts. Saved filter presets per table. Shared views within organization.
 
-### R31 [ ] Scheduled Report Delivery
+Completed: 2026-02-22. Dashboard builder with widget management (6 widget types), saved view presets with share toggle. Schema tables: dashboardLayouts, savedViews. EN/PL/DE/ES/FR translations. 21 integration tests. Plan: `2026-02-22-batch7-implementation.md`.
+
+### R31 [x] Scheduled Report Delivery
 Auto-generate and email reports on schedule (weekly/monthly per domain). Integrates with R09 (AI Report Engine) for content and R08 (Email System) for delivery.
 
-### R32 [ ] Advanced Onboarding & Knowledge Base
+Completed: 2026-02-22. Report schedule CRUD with weekly/biweekly/monthly frequencies. Daily 6AM UTC cron for processing due schedules. ScheduleManager and ScheduleForm UI with recipient management. Schema table: reportSchedules. EN/PL/DE/ES/FR translations. 19 integration tests. Plan: `2026-02-22-batch7-implementation.md`.
+
+### R32 [x] Advanced Onboarding & Knowledge Base
 Interactive product tours. Contextual tips on first visit to each page. Video tutorials. Searchable knowledge base / help center.
+
+Completed: 2026-02-22. Product tour system with step-by-step overlay, progress tracking, 3 predefined tours. Knowledge base with article CRUD, search, categories. ContextualTip component. Public /help page. Seed KB articles. Schema tables: tourProgress, kbArticles. EN/PL/DE/ES/FR translations. 18 integration tests. Plan: `2026-02-22-batch7-implementation.md`.
 
 ### R33 [x] Multi-Language Expansion
 Add German, Spanish, French translations. Locale-specific formatting (dates, numbers, currency).
@@ -659,10 +669,10 @@ Total items: 35.
 | Tier 0 — Blockers | 7 | 7 (R01-R07) | 0 | 0 |
 | Tier 1 — Core | 8 | 8 (R08-R15, R17, R18) | 0 | 0 |
 | Tier 2 — Polish | 7 | 7 (R16-R22) | 0 | 0 |
-| Tier 3 — Growth | 13 | 8 (R24-R26, R28-R29, R33-R35) | 0 | 5 (R23, R27, R30-R32) |
-| **Total** | **35** | **30** | **0** | **5** |
+| Tier 3 — Growth | 13 | 13 (R23-R35) | 0 | 0 |
+| **Total** | **35** | **35** | **0** | **0** |
 
-Tier 0, Tier 1, and Tier 2 all complete! Tier 3 has 8/13 done. 5 items remain: R23 (White-Label), R27 (Webhooks), R30 (Custom Dashboards), R31 (Scheduled Reports), R32 (Advanced Onboarding).
+ALL 35 ROADMAP ITEMS COMPLETE. Full pre-launch roadmap delivered across 7 implementation batches on 2026-02-21 and 2026-02-22.
 
 ### Work completed outside roadmap items
 
@@ -689,6 +699,11 @@ Record every status change here with date and brief notes. Most recent entries f
 
 | Date | Item | Change | Notes |
 |------|------|--------|-------|
+| 2026-02-22 | R32 | [ ] → [x] | Onboarding & KB: product tours, knowledge base, contextual tips, /help page, seed articles. 18 tests. |
+| 2026-02-22 | R31 | [ ] → [x] | Scheduled reports: schedule CRUD, 6AM UTC cron, ScheduleManager/ScheduleForm UI. 19 tests. |
+| 2026-02-22 | R30 | [ ] → [x] | Custom dashboards: dashboard builder, widget management, saved view presets. 21 tests. |
+| 2026-02-22 | R27 | [ ] → [x] | Webhooks: endpoint CRUD, HMAC delivery, Slack/Zapier integrations. 21 tests. |
+| 2026-02-22 | R23 | [ ] → [x] | White-label: agency-client orgs, branding overrides, ClientManagement UI. 17 tests. |
 | 2026-02-22 | R33 | [ ] → [x] | Multi-language: DE/ES/FR translations (54 files), locale config, sync script. 79 tests. |
 | 2026-02-22 | R29 | [ ] → [x] | PWA: manifest, service worker, MobileBottomNav. 19 tests. |
 | 2026-02-22 | R24 | [ ] → [x] | Public API v1: 3 REST endpoints, API key middleware, rate limiting, /api-docs. 20 tests. |
