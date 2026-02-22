@@ -67,7 +67,7 @@ describe("LoginPage", () => {
 
   it("renders sign in button", () => {
     renderWithProviders(<LoginPage />);
-    expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^sign in$/i })).toBeInTheDocument();
   });
 
   it("renders forgot password link pointing to /forgot-password", () => {
@@ -90,7 +90,7 @@ describe("LoginPage", () => {
 
     await user.type(screen.getByLabelText(/email/i), "user@example.com");
     await user.type(screen.getByLabelText(/password/i), "MyPassword123");
-    await user.click(screen.getByRole("button", { name: /sign in/i }));
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
 
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalledWith("password", {
@@ -107,7 +107,7 @@ describe("LoginPage", () => {
 
     await user.type(screen.getByLabelText(/email/i), "user@example.com");
     await user.type(screen.getByLabelText(/password/i), "MyPassword123");
-    await user.click(screen.getByRole("button", { name: /sign in/i }));
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
 
     await waitFor(() => {
       expect(mockRouterPush).toHaveBeenCalledWith("/domains");
@@ -121,7 +121,7 @@ describe("LoginPage", () => {
 
     await user.type(screen.getByLabelText(/email/i), "bad@example.com");
     await user.type(screen.getByLabelText(/password/i), "wrong");
-    await user.click(screen.getByRole("button", { name: /sign in/i }));
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalled();
