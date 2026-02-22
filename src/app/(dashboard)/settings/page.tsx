@@ -32,6 +32,7 @@ import {
   Stars02,
   TrendUp01,
   Globe01,
+  Monitor01,
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
@@ -41,6 +42,7 @@ import { Badge } from "@/components/base/badges/badges";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { RoleManagement } from "@/components/settings/RoleManagement";
+import { SessionManagement } from "@/components/settings/SessionManagement";
 import { FileTrigger } from "@/components/base/file-upload-trigger/file-upload-trigger";
 import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { useTheme } from "next-themes";
@@ -1888,6 +1890,7 @@ export default function SettingsPage() {
     { id: "members", label: t("tabMembers"), icon: Users01 },
     { id: "roles", label: t("tabRoles"), icon: Shield01 },
     { id: "limits", label: t("tabLimits"), icon: Speedometer02 },
+    { id: "sessions", label: t("tabSessions"), icon: Monitor01 },
     { id: "security", label: t("tabSecurity"), icon: Lock01 },
   ];
 
@@ -1961,6 +1964,10 @@ export default function SettingsPage() {
 
               <TabPanel id="limits" className="w-full">
                 <LimitsSection />
+              </TabPanel>
+
+              <TabPanel id="sessions" className="w-full">
+                <SessionManagement />
               </TabPanel>
 
               <TabPanel id="security" className="w-full">

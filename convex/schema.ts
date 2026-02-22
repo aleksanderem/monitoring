@@ -2089,6 +2089,45 @@ export default defineSchema({
     .index("by_domain_active", ["domainId", "isActive"])
     .index("by_domain_type", ["domainId", "ruleType"]),
 
+  // =================================================================
+  // Session Management & Account Security (R21)
+  // =================================================================
+
+  userSessions: defineTable({
+    userId: v.id("users"),
+    deviceInfo: v.object({
+      userAgent: v.string(),
+      browser: v.optional(v.string()),
+      os: v.optional(v.string()),
+      deviceType: v.string(), // "desktop", "mobile", "tablet"
+    }),
+    ipAddress: v.optional(v.string()),
+    location: v.optional(v.string()), // "Country, City" (simplified)
+    status: v.string(), // "active", "revoked", "expired"
+    isCurrent: v.optional(v.boolean()),
+    loginAt: v.number(),
+    lastActivityAt: v.number(),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_status", ["userId", "status"]),
+
+  loginHistory: defineTable({
+    userId: v.id("users"),
+    loginMethod: v.string(), // "password", "google"
+    deviceInfo: v.object({
+      userAgent: v.string(),
+      browser: v.optional(v.string()),
+      os: v.optional(v.string()),
+    }),
+    ipAddress: v.optional(v.string()),
+    status: v.string(), // "success", "failed"
+    failureReason: v.optional(v.string()),
+    loginAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_date", ["userId", "loginAt"]),
+
   alertEvents: defineTable({
     ruleId: v.id("alertRules"),
     domainId: v.id("domains"),
