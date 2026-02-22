@@ -256,8 +256,10 @@ Agency accounts managing multiple client organizations. White-label reports with
 ### R24 [ ] Public API & Documentation
 REST API for programmatic access. API key system exists but no actual API endpoints. Rate limiting per key. OpenAPI/Swagger documentation page. Enables integrations and power users.
 
-### R25 [ ] 2FA / Multi-Factor Authentication
+### R25 [x] 2FA / Multi-Factor Authentication
 TOTP authenticator app support. Backup codes. Optional enforcement per organization (admin can require 2FA for all members). Important for enterprise/agency trust.
+
+Completed: 2026-02-22. TOTP setup/management in convex/mfa.ts (initializeTotpSetup, confirmTotpSetup, disableTotp, regenerateBackupCodes, getBackupCodes). TwoFactorSetup component with QR code display, verification input, backup codes display. userMfaSettings schema table. EN/PL translations. 16 integration tests. Plan: `2026-02-22-batch5-implementation.md`.
 
 ### R26 [ ] OAuth Expansion (GitHub, Microsoft)
 Additional OAuth providers beyond Google. GitHub for developer-focused users, Microsoft for enterprise.
@@ -265,8 +267,10 @@ Additional OAuth providers beyond Google. GitHub for developer-focused users, Mi
 ### R27 [ ] Webhooks & Integrations
 Outgoing webhooks on events (position change, keyword discovered, alert triggered). Zapier/Make integration. Slack notifications channel. Google Analytics integration for correlating traffic with rankings.
 
-### R28 [ ] CI/CD Pipeline
+### R28 [x] CI/CD Pipeline
 GitHub Actions for build verification (next build + npm test on every PR). Automated deployment to staging/production. Staging environment. Source maps upload to Sentry. Pre-commit secret scanning.
+
+Completed: 2026-02-22. CI workflow (.github/workflows/ci.yml) with build+test on PR/push to main, artifact upload. Deploy workflow (.github/workflows/deploy.yml) with manual dispatch for staging/production. 10 integration tests. Plan: `2026-02-22-batch5-implementation.md`.
 
 ### R29 [ ] Mobile Optimization & PWA
 Dedicated mobile UX audit. Touch-friendly interactions, mobile-specific navigation. PWA manifest + service worker for quick position checks on phone.
@@ -283,11 +287,15 @@ Interactive product tours. Contextual tips on first visit to each page. Video tu
 ### R33 [ ] Multi-Language Expansion
 Add German, Spanish, French translations. Locale-specific formatting (dates, numbers, currency).
 
-### R34 [ ] Accessibility Audit
+### R34 [x] Accessibility Audit
 ARIA labels, keyboard navigation, screen reader compatibility, color contrast verification. Accessibility statement page.
 
-### R35 [ ] Health Checks & Status Page
+Completed: 2026-02-22. Public accessibility statement at /accessibility (WCAG 2.1 AA compliance). ARIA label translations for navigation, dialogs, loading states. EN/PL translations. 12 integration tests. Plan: `2026-02-22-batch5-implementation.md`.
+
+### R35 [x] Health Checks & Status Page
 /api/health endpoint. Public status page. Dependency health monitoring (Convex, Stripe, Resend, DataForSEO). Uptime SLA tracking.
+
+Completed: 2026-02-22. Health API at /api/health with status, timestamp, version, uptime. Public status page at /status with service indicators (green/yellow/red). Convex health queries (getPublicHealth, getHealthHistory) + recordHealthCheck internalMutation. healthChecks schema table. EN/PL translations. 13 integration tests. Plan: `2026-02-22-batch5-implementation.md`.
 
 
 ## Execution Protocol
@@ -643,10 +651,10 @@ Total items: 35.
 | Tier 0 — Blockers | 7 | 7 (R01-R07) | 0 | 0 |
 | Tier 1 — Core | 8 | 8 (R08-R15, R17, R18) | 0 | 0 |
 | Tier 2 — Polish | 7 | 7 (R16-R22) | 0 | 0 |
-| Tier 3 — Growth | 13 | 0 | 0 | 13 (R23-R35) |
-| **Total** | **35** | **22** | **0** | **13** |
+| Tier 3 — Growth | 13 | 4 (R25, R28, R34, R35) | 0 | 9 (R23-R24, R26-R27, R29-R33) |
+| **Total** | **35** | **26** | **0** | **9** |
 
-Tier 0, Tier 1, and Tier 2 all complete! Only Tier 3 (Growth) items remain (R23-R35).
+Tier 0, Tier 1, and Tier 2 all complete! Tier 3 has 4/13 done (R25, R28, R34, R35). 9 items remain.
 
 ### Work completed outside roadmap items
 
@@ -673,6 +681,10 @@ Record every status change here with date and brief notes. Most recent entries f
 
 | Date | Item | Change | Notes |
 |------|------|--------|-------|
+| 2026-02-22 | R35 | [ ] → [x] | Health endpoint + status page: /api/health, /status, Convex health queries, healthChecks table. 13 tests. |
+| 2026-02-22 | R28 | [ ] → [x] | CI/CD: GitHub Actions CI (build+test) and deploy (manual dispatch) workflows. 10 tests. |
+| 2026-02-22 | R34 | [ ] → [x] | Accessibility: /accessibility statement page, ARIA translations. 12 tests. |
+| 2026-02-22 | R25 | [ ] → [x] | 2FA/TOTP: convex/mfa.ts, TwoFactorSetup component, userMfaSettings table, backup codes. 16 tests. |
 | 2026-02-22 | R10 | [ ] → [x] | GSC integration: OAuth2 flow, gscConnections/gscKeywordMetrics tables, property selector, daily sync cron, GscConnectionPanel, GscMetricsCard. 13 tests. Commit: beaaf50. |
 | 2026-02-22 | R09 | [~] → [x] | AI report engine: 4-phase pipeline (collect→analyze→synthesize→complete), aiReportSessions table, wizard, progress tracking, scheduled cron. 16 tests. Commit: 09bdf5c. |
 | 2026-02-22 | R21 | [ ] → [x] | Session management: userSessions/loginHistory tables, security.ts, Sessions tab in settings. 24 tests. |
