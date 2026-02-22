@@ -170,6 +170,7 @@
     "keywordUsage": "Użycie słów kluczowych",
     "keywordsOf": "{current} / {limit} słów kluczowych",
     "limits": "Limity",
+<<<<<<< HEAD
     "unknownErrorGeneric": "Wystąpił nieznany błąd",
     "failedGenericAction": "Operacja nie powiodła się",
     "copyToClipboard": "Kopiuj do schowka",
@@ -222,5 +223,10 @@
     "ariaUserMenu": "Menu użytkownika",
     "ariaSidebar": "Nawigacja boczna",
     "ariaCloseDialog": "Zamknij okno dialogowe",
-    "ariaLoadingContent": "Ładowanie treści"
+    "ariaLoadingContent": "Ładowanie treści",
+    "apiDocsTitle": "Dokumentacja API",
+    "apiDocsDescription": "Programowy dostęp do danych SEO.",
+    "apiDocsAuth": "Uwierzytelnianie",
+    "apiDocsEndpoints": "Punkty końcowe",
+    "apiDocsRateLimits": "Limity zapytań"
 }

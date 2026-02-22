@@ -170,6 +170,7 @@
     "keywordUsage": "Keyword usage",
     "keywordsOf": "{current} / {limit} keywords",
     "limits": "Limits",
+<<<<<<< HEAD
     "unknownErrorGeneric": "An unknown error occurred",
     "failedGenericAction": "Operation failed",
     "copyToClipboard": "Copy to clipboard",
@@ -222,5 +223,10 @@
     "ariaUserMenu": "User menu",
     "ariaSidebar": "Sidebar navigation",
     "ariaCloseDialog": "Close dialog",
-    "ariaLoadingContent": "Loading content"
+    "ariaLoadingContent": "Loading content",
+    "apiDocsTitle": "API Documentation",
+    "apiDocsDescription": "Programmatic access to your SEO data.",
+    "apiDocsAuth": "Authentication",
+    "apiDocsEndpoints": "Endpoints",
+    "apiDocsRateLimits": "Rate Limits"
 }
