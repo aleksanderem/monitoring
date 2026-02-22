@@ -2054,6 +2054,46 @@ export default defineSchema({
     .index("by_domain_active", ["domainId", "isActive"])
     .index("by_domain_type", ["domainId", "ruleType"]),
 
+  // =================================================================
+  // Session Management & Account Security (R21)
+  // =================================================================
+
+  // Active user sessions
+  userSessions: defineTable({
+    userId: v.id("users"),
+    sessionId: v.optional(v.string()), // Convex Auth session ID if available
+    ipAddress: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+    deviceLabel: v.optional(v.string()), // Parsed device summary, e.g. "Chrome on macOS"
+    lastActiveAt: v.number(),
+    createdAt: v.number(),
+    expiresAt: v.optional(v.number()),
+    isRevoked: v.boolean(),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_active", ["userId", "isRevoked"])
+    .index("by_session", ["sessionId"]),
+
+  // Login history (audit trail)
+  loginHistory: defineTable({
+    userId: v.id("users"),
+    ipAddress: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+    deviceLabel: v.optional(v.string()),
+    method: v.union(
+      v.literal("password"),
+      v.literal("google"),
+      v.literal("email_link"),
+      v.literal("unknown")
+    ),
+    success: v.boolean(),
+    failureReason: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_date", ["userId", "createdAt"]),
+
   alertEvents: defineTable({
     ruleId: v.id("alertRules"),
     domainId: v.id("domains"),
