@@ -2148,4 +2148,34 @@ export default defineSchema({
     .index("by_domain", ["domainId"])
     .index("by_rule", ["ruleId"])
     .index("by_domain_status", ["domainId", "status"]),
+
+  // =================================================================
+  // AI Report Sessions (R09)
+  // =================================================================
+
+  aiReportSessions: defineTable({
+    domainId: v.id("domains"),
+    organizationId: v.id("organizations"),
+    createdBy: v.id("users"),
+    reportType: v.string(), // "executive-summary", "detailed-keyword", "competitor-analysis", "progress-report", "custom"
+    config: v.object({
+      dateRange: v.object({ start: v.number(), end: v.number() }),
+      sections: v.array(v.string()),
+      audience: v.optional(v.string()),
+      language: v.optional(v.string()),
+    }),
+    status: v.string(), // "initializing", "collecting", "analyzing", "synthesizing", "generating-pdf", "completed", "failed"
+    progress: v.number(), // 0-100
+    currentStep: v.optional(v.string()),
+    collectedData: v.optional(v.any()),
+    analysisResults: v.optional(v.any()),
+    synthesisResult: v.optional(v.any()),
+    generatedReportId: v.optional(v.id("generatedReports")),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_domain", ["domainId"])
+    .index("by_org", ["organizationId"])
+    .index("by_status", ["status"]),
 });

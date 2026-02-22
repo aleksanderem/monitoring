@@ -484,5 +484,35 @@
   "wizard": {
     "allJobsFailed": "All analysis jobs failed to start. Please try again.",
     "someJobsFailed": "{count} job(s) failed to start, but setup will continue with the successful ones."
-  }
+  },
+
+  "tabReports": "Reports",
+  "reportsTitle": "AI Reports",
+  "reportsDescription": "Generate AI-powered analysis reports for your domain.",
+  "reportTypeExecutive": "Executive Summary",
+  "reportTypeKeyword": "Detailed Keyword Analysis",
+  "reportTypeCompetitor": "Competitor Analysis",
+  "reportTypeProgress": "Progress Report",
+  "reportDateRange": "Date Range",
+  "reportLast7": "Last 7 days",
+  "reportLast14": "Last 14 days",
+  "reportLast30": "Last 30 days",
+  "reportLast90": "Last 90 days",
+  "reportGenerate": "Generate Report",
+  "reportCancel": "Cancel",
+  "reportProgress": "Progress",
+  "reportStatus": "Status",
+  "reportCreated": "Created",
+  "reportType": "Type",
+  "noReports": "No reports yet. Generate your first AI report above.",
+  "reportStatusInitializing": "Initializing",
+  "reportStatusCollecting": "Collecting Data",
+  "reportStatusAnalyzing": "Analyzing",
+  "reportStatusSynthesizing": "Synthesizing",
+  "reportStatusGenerating": "Generating",
+  "reportStatusCompleted": "Completed",
+  "reportStatusFailed": "Failed",
+  "reportSelectType": "Select Report Type",
+  "reportConfigureRange": "Configure Date Range",
+  "reportReview": "Review & Generate"
 }

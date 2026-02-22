@@ -73,4 +73,11 @@ crons.daily(
   internal.stripe_helpers.checkTrialReminders
 );
 
+// Check for scheduled AI report generation daily at 5:30 AM UTC
+crons.daily(
+  "scheduled-ai-reports",
+  { hourUTC: 5, minuteUTC: 30 },
+  internal.aiReports.processScheduledReports
+);
+
 export default crons;
