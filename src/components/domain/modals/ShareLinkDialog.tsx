@@ -10,6 +10,9 @@ import { Button } from "@/components/base/buttons/button";
 import { Copy01, Link03, Trash01 } from "@untitledui/icons";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
+import { Heading as AriaHeading } from "react-aria-components";
 
 interface ShareLinkDialogProps {
   domainId: Id<"domains">;
@@ -63,22 +66,27 @@ export function ShareLinkDialog({ domainId, children }: ShareLinkDialogProps) {
       <ModalOverlay>
         <Modal className="max-w-md">
           <Dialog>
-            <div className="w-full rounded-xl bg-primary p-6 shadow-xl">
-              <div className="mb-5 flex items-start justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-secondary bg-primary shadow-xs">
-                  <Link03 className="h-5 w-5 text-fg-quaternary" />
+            <div className="relative w-full overflow-hidden rounded-2xl bg-primary shadow-xl sm:max-w-md">
+              <CloseButton onPress={() => setIsOpen(false)} theme="light" size="lg" className="absolute top-3 right-3 z-10" />
+
+              {/* Header */}
+              <div className="flex flex-col gap-4 px-4 pt-5 sm:px-6 sm:pt-6">
+                <div className="relative w-max">
+                  <FeaturedIcon color="brand" size="lg" theme="light" icon={Link03} />
+                  <BackgroundPattern pattern="circle" size="sm" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                 </div>
-                <CloseButton onPress={() => setIsOpen(false)} />
+                <div className="z-10 flex flex-col gap-0.5">
+                  <AriaHeading slot="title" className="text-md font-semibold text-primary">
+                    {t("shareLink")}
+                  </AriaHeading>
+                  <p className="text-sm text-tertiary">
+                    {t("shareLinkDescription")}
+                  </p>
+                </div>
               </div>
 
-              <h2 className="text-lg font-semibold text-primary">
-                {t("shareLink")}
-              </h2>
-              <p className="mt-1 text-sm text-tertiary">
-                {t("shareLinkDescription")}
-              </p>
-
-              <div className="mt-5">
+              {/* Content */}
+              <div className="px-4 pb-6 pt-4 sm:px-6">
                 {shareUrl ? (
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-2 rounded-lg border border-secondary bg-secondary_subtle px-3 py-2.5">

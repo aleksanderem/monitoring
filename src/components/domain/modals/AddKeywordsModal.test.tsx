@@ -28,16 +28,32 @@ vi.mock("next-intl", () => ({
   },
 }));
 
-vi.mock("@/hooks/useEscapeClose", () => ({
-  useEscapeClose: vi.fn(),
+vi.mock("@/components/application/modals/modal", () => {
+  const R = require("react");
+  return {
+    DialogTrigger: ({ children, isOpen }: any) =>
+      isOpen ? R.createElement("div", { "data-testid": "dialog-trigger" }, children) : null,
+    ModalOverlay: ({ children }: any) => R.createElement("div", null, children),
+    Modal: ({ children }: any) => R.createElement("div", null, children),
+    Dialog: ({ children }: any) => R.createElement("div", null, children),
+  };
+});
+
+vi.mock("@/components/base/buttons/close-button", () => ({
+  CloseButton: ({ onPress }: any) => (
+    <button onClick={onPress} aria-label="close">×</button>
+  ),
 }));
 
-vi.mock("@/components/ui/glowing-effect", () => ({
-  GlowingEffect: () => null,
+vi.mock("@/components/foundations/featured-icon/featured-icon", () => ({
+  FeaturedIcon: () => null,
+}));
+
+vi.mock("@/components/shared-assets/background-patterns", () => ({
+  BackgroundPattern: () => null,
 }));
 
 vi.mock("@untitledui/icons", () => ({
-  X: () => <span>×</span>,
   Plus: () => <span>+</span>,
   Stars01: () => <span>★</span>,
 }));

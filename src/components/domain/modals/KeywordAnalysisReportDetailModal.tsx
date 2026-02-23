@@ -4,12 +4,15 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { useTranslations } from "next-intl";
-import { XClose, ArrowUpRight, AlertCircle, FileSearch02, RefreshCw01 } from "@untitledui/icons";
+import { ArrowUpRight, AlertCircle, FileSearch02, RefreshCw01 } from "@untitledui/icons";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
-import { useEscapeClose } from "@/hooks/useEscapeClose";
 import { toast } from "sonner";
-import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { DialogTrigger, ModalOverlay, Modal, Dialog } from "@/components/application/modals/modal";
+import { CloseButton } from "@/components/base/buttons/close-button";
+import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
+import { Heading as AriaHeading } from "react-aria-components";
 
 interface KeywordAnalysisReportDetailModalProps {
   reportId: Id<"competitorAnalysisReports">;
@@ -84,16 +87,12 @@ export function KeywordAnalysisReportDetailModal({
         return description;
     }
   };
-  useEscapeClose(onClose, isOpen);
-
   const report = useQuery(
     api.competitorAnalysisReports.getReport,
     isOpen ? { reportId } : "skip"
   );
   const deleteReport = useMutation(api.competitorAnalysisReports.deleteReport);
   const retryAnalysis = useMutation(api.competitorAnalysisReports.retryAnalysis);
-
-  if (!isOpen) return null;
 
   const handleRetry = async () => {
     try {
@@ -143,38 +142,40 @@ export function KeywordAnalysisReportDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh]">
-      <div className="fixed inset-0 bg-overlay/70 backdrop-blur-sm" onClick={onClose} />
+    <DialogTrigger isOpen={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <ModalOverlay isDismissable>
+        <Modal className="max-w-5xl">
+          <Dialog>
+            <div className="relative w-full overflow-hidden rounded-2xl bg-primary shadow-xl sm:max-w-5xl">
+              <CloseButton onPress={onClose} theme="light" size="lg" className="absolute top-3 right-3 z-10" />
 
-      <div className="relative z-10 w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-xl border border-secondary bg-primary dark:bg-[#1f2530] shadow-xl mx-4">
-        <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
-        {/* Header */}
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-secondary bg-primary px-6 py-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-3 mb-1">
-              <FileSearch02 className="h-5 w-5 text-brand-600 flex-shrink-0" />
-              <h2 className="text-lg font-semibold text-primary truncate">
-                {report?.keyword || tc("loading")}
-              </h2>
-              {report && (
-                <Badge color={getStatusColor(report.status)} size="sm">
-                  {translateStatus(report.status)}
-                </Badge>
-              )}
-            </div>
-            {report && (
-              <p className="text-sm text-tertiary">
-                {t('reportCreatedInfo', { date: new Date(report.createdAt).toLocaleDateString(), count: report.competitorPages.length })}
-              </p>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-quaternary hover:text-primary hover:bg-secondary transition-colors flex-shrink-0"
-          >
-            <XClose className="h-5 w-5" />
-          </button>
-        </div>
+              {/* Header with FeaturedIcon */}
+              <div className="flex flex-col gap-4 px-4 pt-5 sm:px-6 sm:pt-6">
+                <div className="relative w-max">
+                  <FeaturedIcon color="brand" size="lg" theme="light" icon={FileSearch02} />
+                  <BackgroundPattern pattern="circle" size="sm" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                </div>
+                <div className="z-10 flex flex-col gap-0.5">
+                  <AriaHeading slot="title" className="text-md font-semibold text-primary">
+                    {report?.keyword || tc("loading")}
+                  </AriaHeading>
+                  <div className="flex items-center gap-2">
+                    {report && (
+                      <Badge color={getStatusColor(report.status)} size="sm">
+                        {translateStatus(report.status)}
+                      </Badge>
+                    )}
+                    {report && (
+                      <span className="text-sm text-tertiary">
+                        {t('reportCreatedInfo', { date: new Date(report.createdAt).toLocaleDateString(), count: report.competitorPages.length })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="max-h-[60vh] overflow-y-auto px-4 sm:px-6">
 
         {/* Loading */}
         {!report && (
@@ -185,7 +186,7 @@ export function KeywordAnalysisReportDetailModal({
 
         {/* Failed state */}
         {report?.status === "failed" && (
-          <div className="px-6 py-12 text-center">
+          <div className="py-12 text-center">
             <AlertCircle className="h-12 w-12 text-error-600 mx-auto mb-4" />
             <h3 className="text-md font-semibold text-primary mb-2">{t('analysisFailed')}</h3>
             <p className="text-sm text-tertiary mb-4">{report.error || tc('unexpectedError')}</p>
@@ -197,7 +198,7 @@ export function KeywordAnalysisReportDetailModal({
 
         {/* Analyzing state */}
         {report?.status === "analyzing" && (
-          <div className="px-6 py-12 text-center">
+          <div className="py-12 text-center">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600 mb-4" />
             <h3 className="text-md font-semibold text-primary mb-2">{t('analysisInProgress')}</h3>
             <p className="text-sm text-tertiary">
@@ -208,7 +209,7 @@ export function KeywordAnalysisReportDetailModal({
 
         {/* Pending state */}
         {report?.status === "pending" && (
-          <div className="px-6 py-12 text-center">
+          <div className="py-12 text-center">
             <div className="inline-block animate-pulse rounded-full h-12 w-12 bg-secondary mb-4" />
             <h3 className="text-md font-semibold text-primary mb-2">{t('queued')}</h3>
             <p className="text-sm text-tertiary">{t('reportWaitingToProcess')}</p>
@@ -217,7 +218,7 @@ export function KeywordAnalysisReportDetailModal({
 
         {/* Completed report */}
         {report?.status === "completed" && (
-          <div className="px-6 py-6 space-y-6">
+          <div className="py-6 space-y-6">
             {/* User page info */}
             {report.userPage && (
               <div className="rounded-lg border border-secondary bg-secondary/30 p-4">
@@ -350,23 +351,28 @@ export function KeywordAnalysisReportDetailModal({
           </div>
         )}
 
-        {/* Footer */}
-        <div className="sticky bottom-0 flex items-center justify-between border-t border-secondary bg-primary px-6 py-4">
-          <Button color="tertiary-destructive" size="sm" onClick={handleDelete}>
-            {t('deleteReport')}
-          </Button>
-          <div className="flex items-center gap-2">
-            {report && (report.status === "completed" || report.status === "failed") && (
-              <Button color="secondary" size="sm" iconLeading={RefreshCw01} onClick={handleRetry}>
-                {t('reAnalyze')}
-              </Button>
-            )}
-            <Button color="secondary" size="sm" onClick={onClose}>
-              {tc('close')}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+              </div>
+
+              {/* Footer */}
+              <div className="z-10 flex items-center justify-between p-4 sm:px-6 sm:pb-6">
+                <Button color="tertiary-destructive" size="sm" onClick={handleDelete}>
+                  {t('deleteReport')}
+                </Button>
+                <div className="flex items-center gap-2">
+                  {report && (report.status === "completed" || report.status === "failed") && (
+                    <Button color="secondary" size="sm" iconLeading={RefreshCw01} onClick={handleRetry}>
+                      {t('reAnalyze')}
+                    </Button>
+                  )}
+                  <Button color="secondary" size="sm" onClick={onClose}>
+                    {tc('close')}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }

@@ -7,9 +7,12 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/base/buttons/button";
 import { toast } from "sonner";
-import { X, Plus, Stars01 } from "@untitledui/icons";
-import { useEscapeClose } from "@/hooks/useEscapeClose";
-import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { Plus, Stars01 } from "@untitledui/icons";
+import { DialogTrigger, ModalOverlay, Modal, Dialog } from "@/components/application/modals/modal";
+import { CloseButton } from "@/components/base/buttons/close-button";
+import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
+import { Heading as AriaHeading } from "react-aria-components";
 
 interface AddKeywordsModalProps {
   domainId: Id<"domains">;
@@ -20,15 +23,12 @@ interface AddKeywordsModalProps {
 export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModalProps) {
   const t = useTranslations('keywords');
   const tc = useTranslations('common');
-  useEscapeClose(onClose, isOpen);
   const [keywordsText, setKeywordsText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   const addKeywordsMutation = useMutation(api.keywords.addKeywords);
   const discoveredKeywords = useQuery(api.dataforseo.getDiscoveredKeywords, { domainId });
-
-  if (!isOpen) return null;
 
   // Client-side validation matching server rules (convex/lib/keywordValidation.ts)
   const validatePhrase = (phrase: string): string | null => {
@@ -134,87 +134,74 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
   };
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-overlay/70 z-50"
-        onClick={onClose}
-      />
+    <DialogTrigger isOpen={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <ModalOverlay isDismissable>
+        <Modal className="max-w-2xl">
+          <Dialog>
+            <div className="relative w-full overflow-hidden rounded-2xl bg-primary shadow-xl sm:max-w-2xl">
+              <CloseButton onPress={onClose} theme="light" size="lg" className="absolute top-3 right-3 z-10" />
 
-      {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="relative bg-primary dark:bg-[#1f2530] rounded-xl border border-secondary shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
-          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-secondary">
-            <div>
-              <h2 className="text-lg font-semibold text-primary">{t('addKeywordsToMonitor')}</h2>
-              <p className="text-sm text-tertiary mt-1">{t('addKeywordsDescription')}</p>
+              {/* Header with FeaturedIcon */}
+              <div className="flex flex-col gap-4 px-4 pt-5 sm:px-6 sm:pt-6">
+                <div className="relative w-max">
+                  <FeaturedIcon color="brand" size="lg" theme="light" icon={Plus} />
+                  <BackgroundPattern pattern="circle" size="sm" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                </div>
+                <div className="z-10 flex flex-col gap-0.5">
+                  <AriaHeading slot="title" className="text-md font-semibold text-primary">
+                    {t('addKeywordsToMonitor')}
+                  </AriaHeading>
+                  <p className="text-sm text-tertiary">{t('addKeywordsDescription')}</p>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="px-4 pt-4 sm:px-6">
+                {/* Suggestions Button */}
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-primary">
+                    {t('keywordsOnePerLine')}
+                  </label>
+                  <Button
+                    size="sm"
+                    color="secondary"
+                    iconLeading={Stars01}
+                    onClick={handleSuggestKeywords}
+                    disabled={isLoadingSuggestions || !discoveredKeywords}
+                  >
+                    {isLoadingSuggestions ? tc('loading') : t('suggestKeywords')}
+                  </Button>
+                </div>
+
+                {/* Textarea */}
+                <textarea
+                  value={keywordsText}
+                  onChange={(e) => setKeywordsText(e.target.value)}
+                  placeholder={t('keywordsPlaceholder')}
+                  className="mt-4 w-full h-64 px-3 py-2 rounded-lg border border-secondary bg-primary text-primary placeholder-tertiary resize-none focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+
+                {/* Info */}
+                <div className="mt-4 rounded-lg border border-utility-blue-200 bg-utility-blue-50 p-3">
+                  <p className="text-xs text-utility-blue-900">
+                    {t('suggestedKeywordsInfo')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="z-10 flex flex-1 flex-col-reverse gap-3 p-4 pt-6 *:grow sm:grid sm:grid-cols-2 sm:px-6 sm:pt-8 sm:pb-6">
+                <Button color="secondary" size="lg" onClick={onClose} disabled={isSubmitting}>
+                  {tc('cancel')}
+                </Button>
+                <Button color="primary" size="lg" iconLeading={Plus} onClick={handleSubmit} disabled={isSubmitting || keywordsText.trim().length === 0}>
+                  {isSubmitting ? t('adding') : t('addKeywords')}
+                </Button>
+              </div>
             </div>
-            <button
-              onClick={onClose}
-              className="text-tertiary hover:text-primary transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="p-6 space-y-4">
-            {/* Suggestions Button */}
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-primary">
-                {t('keywordsOnePerLine')}
-              </label>
-              <Button
-                size="sm"
-                color="secondary"
-                iconLeading={Stars01}
-                onClick={handleSuggestKeywords}
-                disabled={isLoadingSuggestions || !discoveredKeywords}
-              >
-                {isLoadingSuggestions ? tc('loading') : t('suggestKeywords')}
-              </Button>
-            </div>
-
-            {/* Textarea */}
-            <textarea
-              value={keywordsText}
-              onChange={(e) => setKeywordsText(e.target.value)}
-              placeholder={t('keywordsPlaceholder')}
-              className="w-full h-64 px-3 py-2 rounded-lg border border-secondary bg-primary text-primary placeholder-tertiary resize-none focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-
-            {/* Info */}
-            <div className="rounded-lg border border-utility-blue-200 bg-utility-blue-50 p-3">
-              <p className="text-xs text-utility-blue-900">
-                {t('suggestedKeywordsInfo')}
-              </p>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-secondary">
-            <Button
-              size="md"
-              color="secondary"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              {tc('cancel')}
-            </Button>
-            <Button
-              size="md"
-              color="primary"
-              iconLeading={Plus}
-              onClick={handleSubmit}
-              disabled={isSubmitting || keywordsText.trim().length === 0}
-            >
-              {isSubmitting ? t('adding') : t('addKeywords')}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }

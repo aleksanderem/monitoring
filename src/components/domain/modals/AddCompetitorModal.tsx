@@ -11,6 +11,8 @@ import { Dialog, Modal, ModalOverlay, DialogTrigger } from "@/components/applica
 import { CloseButton } from "@/components/base/buttons/close-button";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
+import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
 import { Heading } from "react-aria-components";
 
 interface AddCompetitorModalProps {
@@ -121,20 +123,27 @@ export function AddCompetitorModal({
       <ModalOverlay isDismissable>
         <Modal>
           <Dialog className="overflow-hidden">
-            <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-2xl">
+            <div className="relative w-full overflow-hidden rounded-2xl bg-primary shadow-xl sm:max-w-2xl">
               <CloseButton
-                onClick={handleClose}
+                onPress={handleClose}
                 theme="light"
                 size="lg"
                 className="absolute top-3 right-3 z-10"
               />
-              <div className="border-b border-secondary px-6 py-4">
-                <Heading slot="title" className="text-lg font-semibold text-primary">
-                  {t('addCompetitorTitle')}
-                </Heading>
-                <p className="mt-1 text-sm text-tertiary">
-                  {t('addCompetitorSubtitle')}
-                </p>
+              {/* Header */}
+              <div className="flex flex-col gap-4 px-4 pt-5 sm:px-6 sm:pt-6">
+                <div className="relative w-max">
+                  <FeaturedIcon color="brand" size="lg" theme="light" icon={Plus} />
+                  <BackgroundPattern pattern="circle" size="sm" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                </div>
+                <div className="z-10 flex flex-col gap-0.5">
+                  <Heading slot="title" className="text-md font-semibold text-primary">
+                    {t('addCompetitorTitle')}
+                  </Heading>
+                  <p className="text-sm text-tertiary">
+                    {t('addCompetitorSubtitle')}
+                  </p>
+                </div>
               </div>
 
               {/* Tabs */}

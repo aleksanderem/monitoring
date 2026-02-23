@@ -8,8 +8,10 @@ import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
 import { CloseButton } from "@/components/base/buttons/close-button";
+import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
 import { DialogTrigger, Heading } from "react-aria-components";
-import { Plus, Edit05, Trash01 } from "@untitledui/icons";
+import { Plus, Edit05, Trash01, Folder } from "@untitledui/icons";
 import { toast } from "sonner";
 import { BadgeWithIcon } from "@/components/base/badges/badges";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
@@ -121,22 +123,28 @@ export function GroupManagementModal({
       <ModalOverlay isDismissable>
         <Modal>
           <Dialog className="overflow-hidden">
-            <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-2xl">
+            <div className="relative w-full overflow-hidden rounded-2xl bg-primary shadow-xl sm:max-w-2xl">
               <CloseButton
-                onClick={() => onOpenChange(false)}
+                onPress={() => onOpenChange(false)}
                 theme="light"
                 size="lg"
                 className="absolute top-3 right-3 z-10"
               />
 
               {/* Header */}
-              <div className="border-b border-secondary px-6 py-4">
-                <Heading slot="title" className="text-lg font-semibold text-primary">
-                  {t("groupManagement")}
-                </Heading>
-                <p className="mt-1 text-sm text-tertiary">
-                  {t("groupManagementDescription")}
-                </p>
+              <div className="flex flex-col gap-4 px-4 pt-5 sm:px-6 sm:pt-6">
+                <div className="relative w-max">
+                  <FeaturedIcon color="brand" size="lg" theme="light" icon={Folder} />
+                  <BackgroundPattern pattern="circle" size="sm" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                </div>
+                <div className="z-10 flex flex-col gap-0.5">
+                  <Heading slot="title" className="text-md font-semibold text-primary">
+                    {t("groupManagement")}
+                  </Heading>
+                  <p className="text-sm text-tertiary">
+                    {t("groupManagementDescription")}
+                  </p>
+                </div>
               </div>
 
               {/* Create New Group Section */}

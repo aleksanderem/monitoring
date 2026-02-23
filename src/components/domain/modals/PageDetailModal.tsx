@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { Heading as AriaHeading } from "react-aria-components";
+import { ModalOverlay, Modal, Dialog } from "@/components/application/modals/modal";
+import { CloseButton } from "@/components/base/buttons/close-button";
+import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
 import {
-  XClose,
   ArrowUpRight,
   AlertCircle,
   AlertTriangle,
@@ -12,7 +15,7 @@ import {
   CheckCircle,
   Globe01,
   FileCode02,
-  Image01,
+  FileSearch02,
   Link01,
   Clock,
   Zap,
@@ -23,8 +26,6 @@ import {
   ChevronDown,
   ChevronUp,
 } from "@untitledui/icons";
-import { Button } from "@/components/base/buttons/button";
-import { useEscapeClose } from "@/hooks/useEscapeClose";
 
 interface PageIssue {
   type: "critical" | "warning" | "recommendation";
@@ -456,9 +457,8 @@ function PageScoreBreakdown({ pageScore }: { pageScore: NonNullable<PageData["pa
 
 export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps) {
   const t = useTranslations('onsite');
-  useEscapeClose(onClose, isOpen);
 
-  if (!isOpen || !page) return null;
+  if (!page) return null;
 
   const issues = page.issues || [];
   const criticalIssues = issues.filter((i) => i.type === "critical");
@@ -472,91 +472,82 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
   } catch { /* keep original */ }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-overlay/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
+    <ModalOverlay isOpen={isOpen} onOpenChange={(open) => !open && onClose()} isDismissable>
+      <Modal>
+        <Dialog className="overflow-hidden">
+          <div className="relative w-full overflow-hidden rounded-2xl bg-primary shadow-xl sm:max-w-4xl">
+            <CloseButton onPress={onClose} theme="light" size="lg" className="absolute top-3 right-3 z-10" />
 
-      {/* Modal */}
-      <div className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-y-auto mx-4">
-        <div className="relative rounded-xl border border-secondary bg-primary dark:bg-[#1f2530] shadow-xl">
-          <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
-          {/* Header */}
-          <div className="flex items-start justify-between border-b border-secondary p-6">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-3 mb-1">
-                <h2 className="text-lg font-semibold text-primary truncate" title={page.url}>
-                  {displayUrl}
-                </h2>
-                <a
-                  href={page.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-shrink-0 text-fg-quaternary hover:text-fg-primary transition-colors"
-                >
-                  <ArrowUpRight className="w-4 h-4" />
-                </a>
+            {/* Header */}
+            <div className="flex flex-col gap-4 px-4 pt-5 sm:px-6 sm:pt-6">
+              <div className="relative w-max">
+                <FeaturedIcon color="warning" size="lg" theme="light" icon={FileSearch02} />
+                <BackgroundPattern pattern="circle" size="sm" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
               </div>
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                {page.pageScore ? (
-                  <>
-                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${getGradeBg(page.pageScore.grade)}`}>
-                      {page.pageScore.grade}
+              <div className="z-10 flex flex-col gap-0.5">
+                <div className="flex items-center gap-3">
+                  <AriaHeading slot="title" className="text-md font-semibold text-primary truncate" title={page.url}>
+                    {displayUrl}
+                  </AriaHeading>
+                  <a
+                    href={page.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 text-fg-quaternary hover:text-fg-primary transition-colors"
+                  >
+                    <ArrowUpRight className="w-4 h-4" />
+                  </a>
+                </div>
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  {page.pageScore ? (
+                    <>
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${getGradeBg(page.pageScore.grade)}`}>
+                        {page.pageScore.grade}
+                      </span>
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold tabular-nums ${getScoreBg(page.pageScore.composite)}`}>
+                        {page.pageScore.composite}/100
+                      </span>
+                    </>
+                  ) : page.onpageScore != null ? (
+                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${getScoreBg(page.onpageScore)}`}>
+                      {t('scoreValue', { score: page.onpageScore })}
                     </span>
-                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold tabular-nums ${getScoreBg(page.pageScore.composite)}`}>
-                      {page.pageScore.composite}/100
-                    </span>
-                  </>
-                ) : page.onpageScore != null ? (
-                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${getScoreBg(page.onpageScore)}`}>
-                    {t('scoreValue', { score: page.onpageScore })}
+                  ) : null}
+                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${getStatusBg(page.statusCode)}`}>
+                    HTTP {page.statusCode}
                   </span>
-                ) : null}
-                <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${getStatusBg(page.statusCode)}`}>
-                  HTTP {page.statusCode}
-                </span>
-                {/* Lighthouse score badges */}
-                {page.lighthouseScores && (
-                  <>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${getLhBg(page.lighthouseScores.performance)} ${getLhColor(page.lighthouseScores.performance)}`}>
-                      P: {page.lighthouseScores.performance}
+                  {/* Lighthouse score badges */}
+                  {page.lighthouseScores && (
+                    <>
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${getLhBg(page.lighthouseScores.performance)} ${getLhColor(page.lighthouseScores.performance)}`}>
+                        P: {page.lighthouseScores.performance}
+                      </span>
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${getLhBg(page.lighthouseScores.accessibility)} ${getLhColor(page.lighthouseScores.accessibility)}`}>
+                        A: {page.lighthouseScores.accessibility}
+                      </span>
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${getLhBg(page.lighthouseScores.bestPractices)} ${getLhColor(page.lighthouseScores.bestPractices)}`}>
+                        BP: {page.lighthouseScores.bestPractices}
+                      </span>
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${getLhBg(page.lighthouseScores.seo)} ${getLhColor(page.lighthouseScores.seo)}`}>
+                        SEO: {page.lighthouseScores.seo}
+                      </span>
+                    </>
+                  )}
+                  {issues.length === 0 ? (
+                    <span className="inline-flex items-center gap-1 text-sm text-utility-success-600">
+                      <CheckCircle className="w-4 h-4" /> {t('noIssues')}
                     </span>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${getLhBg(page.lighthouseScores.accessibility)} ${getLhColor(page.lighthouseScores.accessibility)}`}>
-                      A: {page.lighthouseScores.accessibility}
+                  ) : (
+                    <span className="text-sm text-tertiary">
+                      {t('issueCount', { count: issues.length })}
                     </span>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${getLhBg(page.lighthouseScores.bestPractices)} ${getLhColor(page.lighthouseScores.bestPractices)}`}>
-                      BP: {page.lighthouseScores.bestPractices}
-                    </span>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${getLhBg(page.lighthouseScores.seo)} ${getLhColor(page.lighthouseScores.seo)}`}>
-                      SEO: {page.lighthouseScores.seo}
-                    </span>
-                  </>
-                )}
-                {issues.length === 0 ? (
-                  <span className="inline-flex items-center gap-1 text-sm text-utility-success-600">
-                    <CheckCircle className="w-4 h-4" /> {t('noIssues')}
-                  </span>
-                ) : (
-                  <span className="text-sm text-tertiary">
-                    {t('issueCount', { count: issues.length })}
-                  </span>
-                )}
+                  )}
+                </div>
               </div>
             </div>
-            <Button
-              size="sm"
-              color="secondary"
-              iconLeading={XClose}
-              onClick={onClose}
-            >
-              {t('close')}
-            </Button>
-          </div>
 
-          {/* Content */}
-          <div className="p-6 space-y-6">
+            {/* Content */}
+            <div className="max-h-[70vh] overflow-y-auto px-4 sm:px-6 pb-6 pt-6 space-y-6">
             {/* Page Score Breakdown */}
             {page.pageScore && <PageScoreBreakdown pageScore={page.pageScore} />}
 
@@ -1012,9 +1003,10 @@ export function PageDetailModal({ page, isOpen, onClose }: PageDetailModalProps)
                 </div>
               </div>
             )}
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }
