@@ -2025,18 +2025,34 @@ export const healthCheckConsistency = internalAction({
         (k: { currentPosition: number | null }) => k.currentPosition != null
       ).length;
 
-      const { count, error } = await sb
+      // Count distinct keywords with non-null position on the latest date
+      const { data: latestDate, error: dateErr } = await sb
         .from("keyword_positions")
-        .select("*", { count: "exact", head: true })
+        .select("date")
         .eq("convex_domain_id", domain._id)
-        .not("position", "is", null);
+        .order("date", { ascending: false })
+        .limit(1)
+        .single();
 
-      if (error) {
-        console.error(`[healthCheck] Supabase query failed for ${domain.domain}:`, error.message);
+      if (dateErr && dateErr.code !== "PGRST116") {
+        console.error(`[healthCheck] Supabase query failed for ${domain.domain}:`, dateErr.message);
         continue;
       }
 
-      const supabaseCount = count ?? 0;
+      let supabaseCount = 0;
+      if (latestDate) {
+        const { count, error } = await sb
+          .from("keyword_positions")
+          .select("*", { count: "exact", head: true })
+          .eq("convex_domain_id", domain._id)
+          .eq("date", latestDate.date)
+          .not("position", "is", null);
+        if (error) {
+          console.error(`[healthCheck] Supabase count failed for ${domain.domain}:`, error.message);
+          continue;
+        }
+        supabaseCount = count ?? 0;
+      }
       const drift = Math.abs(convexWithPosition - supabaseCount);
       const driftPct = convexWithPosition > 0
         ? Math.round((drift / convexWithPosition) * 100)
