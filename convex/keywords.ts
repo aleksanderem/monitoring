@@ -120,6 +120,15 @@ export const getPositionDistribution = query({
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
       .collect();
 
+    const allDiscovered = await ctx.db
+      .query("discoveredKeywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+    const discoveredMap = new Map<string, typeof allDiscovered[0]>();
+    for (const dk of allDiscovered) {
+      discoveredMap.set(dk.keyword, dk);
+    }
+
     const distribution = {
       top3: 0,
       pos4_10: 0,
@@ -130,7 +139,11 @@ export const getPositionDistribution = query({
     };
 
     for (const keyword of keywords) {
-      const pos = keyword.currentPosition;
+      const discovered = discoveredMap.get(keyword.phrase);
+      const pos = keyword.currentPosition ??
+        (discovered?.bestPosition && discovered.bestPosition !== 999
+          ? discovered.bestPosition
+          : null);
       if (pos == null) continue;
 
       if (pos > 0 && pos <= 3) distribution.top3++;
@@ -293,6 +306,15 @@ export const getMonitoringStats = query({
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
       .collect();
 
+    const allDiscovered = await ctx.db
+      .query("discoveredKeywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+    const discoveredMap = new Map<string, typeof allDiscovered[0]>();
+    for (const dk of allDiscovered) {
+      discoveredMap.set(dk.keyword, dk);
+    }
+
     const sevenDaysAgoStr = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     let totalPosition = 0;
@@ -305,7 +327,11 @@ export const getMonitoringStats = query({
     let stable = 0;
 
     for (const keyword of keywords) {
-      const currentPos = keyword.currentPosition;
+      const discovered = discoveredMap.get(keyword.phrase);
+      const currentPos = keyword.currentPosition ??
+        (discovered?.bestPosition && discovered.bestPosition !== 999
+          ? discovered.bestPosition
+          : null);
 
       if (currentPos != null && currentPos !== null) {
         totalPosition += currentPos;
