@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id, Doc } from "./_generated/dataModel";
+import { logCronStart, logCronEnd } from "./lib/supabase";
 
 // =================================================================
 // Notification Logging
@@ -83,10 +84,14 @@ async function refreshDomains(
   ctx: any,
   domains: Doc<"domains">[],
   label: string,
-): Promise<{ refreshed: number }> {
-  console.log(`Refreshing ${domains.length} ${label} domains`);
+): Promise<{ refreshed: number; failed: number }> {
+  console.log(`[scheduler] Refreshing ${domains.length} ${label} domains`);
+  let failed = 0;
 
-  for (const domain of domains) {
+  for (let i = 0; i < domains.length; i++) {
+    const domain = domains[i];
+    const execId = await logCronStart(`${label}-keyword-refresh`, domain._id);
+
     try {
       const keywords = await ctx.runQuery(internal.scheduler.getDomainKeywords, {
         domainId: domain._id,
@@ -102,18 +107,27 @@ async function refreshDomains(
           language: domain.settings.language,
         });
       }
-    } catch (error) {
-      console.error(`Failed to refresh domain ${domain.domain}:`, error);
+
+      await logCronEnd(execId, "success", { keywordsProcessed: keywords.length });
+    } catch (error: any) {
+      failed++;
+      console.error(`[scheduler] Failed to refresh domain ${domain.domain}:`, error);
+      await logCronEnd(execId, "failed", { errorMessage: error.message });
+    }
+
+    // Stagger: 2s between domains to avoid thundering herd
+    if (i < domains.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
 
-  return { refreshed: domains.length };
+  return { refreshed: domains.length - failed, failed };
 }
 
 // Refresh all daily domains
 export const refreshDailyDomains = internalAction({
   args: {},
-  handler: async (ctx): Promise<{ refreshed: number }> => {
+  handler: async (ctx): Promise<{ refreshed: number; failed: number }> => {
     const domains = await ctx.runQuery(internal.scheduler.getDailyDomains);
     return refreshDomains(ctx, domains, "daily");
   },
@@ -122,7 +136,7 @@ export const refreshDailyDomains = internalAction({
 // Refresh all weekly domains
 export const refreshWeeklyDomains = internalAction({
   args: {},
-  handler: async (ctx): Promise<{ refreshed: number }> => {
+  handler: async (ctx): Promise<{ refreshed: number; failed: number }> => {
     const domains = await ctx.runQuery(internal.scheduler.getWeeklyDomains);
     return refreshDomains(ctx, domains, "weekly");
   },

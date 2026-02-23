@@ -60,7 +60,7 @@ export async function writeKeywordPositions(rows: KeywordPositionRow[]): Promise
     .upsert(rows, { onConflict: "convex_keyword_id,date" });
 
   if (error) {
-    console.warn("[Supabase] Failed to write keyword positions:", error.message);
+    console.error(`[Supabase] writeKeywordPositions failed (${rows.length} rows):`, error.message);
   }
 }
 
@@ -76,6 +76,85 @@ export async function writeCompetitorPositions(rows: CompetitorPositionRow[]): P
     .upsert(rows, { onConflict: "convex_competitor_id,convex_keyword_id,date" });
 
   if (error) {
-    console.warn("[Supabase] Failed to write competitor positions:", error.message);
+    console.error(`[Supabase] writeCompetitorPositions failed (${rows.length} rows):`, error.message);
+  }
+}
+
+// ─── Monitoring helpers ───────────────────────────────────
+
+/**
+ * Log the start of a cron execution to Supabase for observability.
+ * Returns the execution ID for later completion logging, or null if Supabase is unavailable.
+ */
+export async function logCronStart(
+  jobName: string,
+  domainId?: string
+): Promise<number | null> {
+  const sb = getSupabaseAdmin();
+  if (!sb) return null;
+  const { data, error } = await sb
+    .from("cron_executions")
+    .insert({ job_name: jobName, domain_id: domainId, status: "running" })
+    .select("id")
+    .single();
+  if (error) {
+    console.error(`[Supabase] logCronStart failed:`, error.message);
+    return null;
+  }
+  return data.id;
+}
+
+/**
+ * Log the end of a cron execution with status and optional metrics.
+ * Computes duration_ms from the original started_at timestamp.
+ */
+export async function logCronEnd(
+  execId: number | null,
+  status: "success" | "failed" | "timeout",
+  metrics?: {
+    keywordsProcessed?: number;
+    keywordsFailed?: number;
+    supabaseRowsWritten?: number;
+    errorMessage?: string;
+  }
+): Promise<void> {
+  if (!execId) return;
+  const sb = getSupabaseAdmin();
+  if (!sb) return;
+  const startRow = await sb.from("cron_executions").select("started_at").eq("id", execId).single();
+  const durationMs = startRow.data
+    ? Date.now() - new Date(startRow.data.started_at).getTime()
+    : null;
+  await sb.from("cron_executions").update({
+    status,
+    finished_at: new Date().toISOString(),
+    duration_ms: durationMs,
+    keywords_processed: metrics?.keywordsProcessed ?? 0,
+    keywords_failed: metrics?.keywordsFailed ?? 0,
+    supabase_rows_written: metrics?.supabaseRowsWritten ?? 0,
+    error_message: metrics?.errorMessage,
+  }).eq("id", execId);
+}
+
+/**
+ * Wrap a Supabase query with timing and error logging.
+ * Warns on queries taking longer than 2 seconds.
+ */
+export async function trackedSupabaseQuery<T>(
+  name: string,
+  domainId: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  const start = Date.now();
+  try {
+    const result = await fn();
+    const ms = Date.now() - start;
+    if (ms > 2000) {
+      console.warn(`[Supabase:slow] ${name} took ${ms}ms for domain=${domainId}`);
+    }
+    return result;
+  } catch (err: any) {
+    console.error(`[Supabase:error] ${name} failed for domain=${domainId}:`, err.message);
+    throw err;
   }
 }
