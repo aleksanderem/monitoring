@@ -442,7 +442,9 @@ export const processSerpFetchJobInternal = internalAction({
             date: today,
             position: kwPosition,
             url: kwUrl,
-          }]).catch(() => {});
+          }]).catch((err) =>
+            console.error(`[Supabase] keywordSerpJobs write failed: keyword=${keyword._id}:`, err.message)
+          );
 
           // Auto-extract and track top competitors (positions 1-10, excluding own domain)
           const topCompetitors = organicResults
