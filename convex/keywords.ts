@@ -337,8 +337,9 @@ export const getMonitoringStats = query({
         totalPosition += currentPos;
         positionCount++;
 
-        if (currentPos <= 50 && keyword.searchVolume) {
-          estimatedMonthlyTraffic += keyword.searchVolume * getCTRForPosition(currentPos);
+        const sv = keyword.searchVolume ?? discovered?.searchVolume ?? 0;
+        if (currentPos <= 50 && sv) {
+          estimatedMonthlyTraffic += sv * getCTRForPosition(currentPos);
         }
       }
 

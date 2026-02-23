@@ -647,6 +647,50 @@ describe("getMonitoringStats", () => {
     expect(stats!.avgPosition).toBe(0);
     expect(stats!.estimatedMonthlyTraffic).toBe(0);
   });
+
+  test("falls back to discoveredKeywords.bestPosition when currentPosition is null", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, domainId } = await setupTestHierarchy(t);
+    const asUser = t.withIdentity({ subject: userId });
+
+    // Add keywords WITHOUT storing positions
+    await asUser.mutation(api.keywords.addKeywords, {
+      domainId,
+      phrases: ["fallback kw1", "fallback kw2"],
+    });
+
+    // Insert discoveredKeywords with bestPosition values
+    await t.run(async (ctx) => {
+      await ctx.db.insert("discoveredKeywords", {
+        domainId,
+        keyword: "fallback kw1",
+        bestPosition: 5,
+        url: "https://example.com/1",
+        lastSeenDate: "2024-06-01",
+        status: "discovered",
+        createdAt: Date.now(),
+        searchVolume: 1000,
+      });
+      await ctx.db.insert("discoveredKeywords", {
+        domainId,
+        keyword: "fallback kw2",
+        bestPosition: 15,
+        url: "https://example.com/2",
+        lastSeenDate: "2024-06-01",
+        status: "discovered",
+        createdAt: Date.now(),
+        searchVolume: 500,
+      });
+    });
+
+    const stats = await asUser.query(api.keywords.getMonitoringStats, { domainId });
+    expect(stats).not.toBeNull();
+    expect(stats!.totalKeywords).toBe(2);
+    // avg position = (5 + 15) / 2 = 10
+    expect(stats!.avgPosition).toBe(10);
+    // Should have traffic estimate since both have searchVolume and position <= 50
+    expect(stats!.estimatedMonthlyTraffic).toBeGreaterThan(0);
+  });
 });
 
 // =============================================
@@ -714,6 +758,89 @@ describe("getPositionDistribution", () => {
     expect(dist!.pos11_20).toBe(1);   // position 15
     expect(dist!.pos21_50).toBe(1);   // position 35
     expect(dist!.pos51_100).toBe(1);  // position 75
+  });
+
+  test("falls back to discoveredKeywords.bestPosition when currentPosition is null", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, domainId } = await setupTestHierarchy(t);
+    const asUser = t.withIdentity({ subject: userId });
+
+    // Add keywords WITHOUT storing positions (currentPosition stays null)
+    await asUser.mutation(api.keywords.addKeywords, {
+      domainId,
+      phrases: ["top keyword", "mid keyword", "low keyword"],
+    });
+
+    // Insert discoveredKeywords with bestPosition values (simulates DataForSEO scan)
+    await t.run(async (ctx) => {
+      await ctx.db.insert("discoveredKeywords", {
+        domainId,
+        keyword: "top keyword",
+        bestPosition: 2,
+        url: "https://example.com/top",
+        lastSeenDate: "2024-06-01",
+        status: "discovered",
+        createdAt: Date.now(),
+      });
+      await ctx.db.insert("discoveredKeywords", {
+        domainId,
+        keyword: "mid keyword",
+        bestPosition: 12,
+        url: "https://example.com/mid",
+        lastSeenDate: "2024-06-01",
+        status: "discovered",
+        createdAt: Date.now(),
+      });
+      await ctx.db.insert("discoveredKeywords", {
+        domainId,
+        keyword: "low keyword",
+        bestPosition: 55,
+        url: "https://example.com/low",
+        lastSeenDate: "2024-06-01",
+        status: "discovered",
+        createdAt: Date.now(),
+      });
+    });
+
+    const dist = await asUser.query(api.keywords.getPositionDistribution, { domainId });
+    expect(dist).not.toBeNull();
+    // Fallback positions should be bucketed correctly
+    expect(dist!.top3).toBe(1);       // bestPosition 2
+    expect(dist!.pos11_20).toBe(1);   // bestPosition 12
+    expect(dist!.pos51_100).toBe(1);  // bestPosition 55
+  });
+
+  test("ignores discoveredKeywords with bestPosition 999", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, domainId } = await setupTestHierarchy(t);
+    const asUser = t.withIdentity({ subject: userId });
+
+    await asUser.mutation(api.keywords.addKeywords, {
+      domainId,
+      phrases: ["ignored keyword"],
+    });
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("discoveredKeywords", {
+        domainId,
+        keyword: "ignored keyword",
+        bestPosition: 999,
+        url: "https://example.com/none",
+        lastSeenDate: "2024-06-01",
+        status: "discovered",
+        createdAt: Date.now(),
+      });
+    });
+
+    const dist = await asUser.query(api.keywords.getPositionDistribution, { domainId });
+    expect(dist).not.toBeNull();
+    // 999 should be treated as no position
+    expect(dist!.top3).toBe(0);
+    expect(dist!.pos4_10).toBe(0);
+    expect(dist!.pos11_20).toBe(0);
+    expect(dist!.pos21_50).toBe(0);
+    expect(dist!.pos51_100).toBe(0);
+    expect(dist!.pos100plus).toBe(0);
   });
 });
 
