@@ -94,4 +94,11 @@ crons.daily(
   internal.scheduledReports.processScheduledReports
 );
 
+// Check Convex vs Supabase data consistency weekly on Sundays at 5:30 AM UTC
+crons.weekly(
+  "health-check-data-consistency",
+  { dayOfWeek: "sunday", hourUTC: 5, minuteUTC: 30 },
+  internal.keywords.healthCheckConsistency
+);
+
 export default crons;

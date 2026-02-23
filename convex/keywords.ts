@@ -1997,3 +1997,59 @@ export const bulkToggleStatus = mutation({
     return args.keywordIds.length;
   },
 });
+
+// ─── Health Check ─────────────────────────────────────────
+
+/**
+ * Weekly health check: compare keyword position counts between Convex and Supabase.
+ * Flags domains where drift exceeds 10%.
+ */
+export const healthCheckConsistency = internalAction({
+  handler: async (ctx) => {
+    const sb = getSupabaseAdmin();
+    if (!sb) {
+      console.error("[healthCheck] Supabase not configured");
+      return;
+    }
+
+    const domains = await ctx.runQuery(internal.keywords.listAllDomainIds);
+    console.log(`[healthCheck] Checking ${domains.length} domains`);
+
+    for (const domain of domains) {
+      const convexKeywords = await ctx.runQuery(
+        internal.keywords.getDomainKeywordsWithPositionData,
+        { domainId: domain._id }
+      );
+      const convexWithPosition = convexKeywords.filter(
+        (k: { currentPosition: number | null }) => k.currentPosition != null
+      ).length;
+
+      const { count, error } = await sb
+        .from("keyword_positions")
+        .select("*", { count: "exact", head: true })
+        .eq("convex_domain_id", domain._id)
+        .not("position", "is", null);
+
+      if (error) {
+        console.error(`[healthCheck] Supabase query failed for ${domain.domain}:`, error.message);
+        continue;
+      }
+
+      const supabaseCount = count ?? 0;
+      const drift = Math.abs(convexWithPosition - supabaseCount);
+      const driftPct = convexWithPosition > 0
+        ? Math.round((drift / convexWithPosition) * 100)
+        : (supabaseCount > 0 ? 100 : 0);
+
+      if (driftPct > 10) {
+        console.error(
+          `[healthCheck] DRIFT domain=${domain.domain}: convex=${convexWithPosition} vs supabase=${supabaseCount} (${driftPct}% drift)`
+        );
+      } else {
+        console.log(
+          `[healthCheck] OK domain=${domain.domain}: convex=${convexWithPosition}, supabase=${supabaseCount}`
+        );
+      }
+    }
+  },
+});
