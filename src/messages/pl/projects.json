@@ -44,6 +44,8 @@
   "tabBacklinks": "Backlinki",
   "tabMonitoring": "Monitoring",
   "tabSettings": "Ustawienia",
+  "noOverviewData": "Brak danych projektu. Dodaj domeny, aby rozpocząć.",
+  "noBacklinksData": "Brak danych o backlinkach.",
   "overviewDomains": "Domeny",
   "overviewMonitoredKeywords": "Monitorowane słowa kluczowe",
   "overviewDiscovered": "{count} odkrytych",

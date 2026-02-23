@@ -335,10 +335,10 @@ describe("MonitoringStats", () => {
     expect(screen.queryByText("statistics")).not.toBeInTheDocument();
   });
 
-  test("renders null when stats is falsy", () => {
+  test("renders empty state when stats is falsy", () => {
     mockQueries([[api.keywords.getMonitoringStats, null]]);
     const { container } = render(<MonitoringStats domainId={DOMAIN_ID} />);
-    expect(container.innerHTML).toBe("");
+    expect(container.textContent).toContain("noKeywordsMonitored");
   });
 
   test("renders stats with data", () => {

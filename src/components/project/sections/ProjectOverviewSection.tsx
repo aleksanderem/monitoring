@@ -34,7 +34,13 @@ export function ProjectOverviewSection({ projectId }: ProjectOverviewSectionProp
         );
     }
 
-    if (!overview) return null;
+    if (!overview) {
+        return (
+            <div className="rounded-xl border border-secondary bg-primary p-6 text-center">
+                <p className="text-sm text-tertiary">{t("noOverviewData")}</p>
+            </div>
+        );
+    }
 
     const cards = [
         { label: t("overviewDomains"), value: overview.totalDomains, icon: Globe01, subtext: null },

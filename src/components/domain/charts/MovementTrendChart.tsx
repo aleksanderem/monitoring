@@ -20,9 +20,21 @@ export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
   const isDesktop = useBreakpoint("lg");
   const getMovementTrend = useAction(api.keywords.getMovementTrendSupabase);
   const [trend, setTrend] = useState<Array<{ date: number; gainers: number; losers: number }> | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getMovementTrend({ domainId, days: 30 }).then(setTrend).catch(() => setTrend([]));
+    let cancelled = false;
+    setError(null);
+    getMovementTrend({ domainId, days: 30 })
+      .then((data) => { if (!cancelled) setTrend(data); })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("[MovementTrendChart] Failed to load trend:", err.message);
+          setError(err.message ?? "Failed to load data");
+          setTrend([]);
+        }
+      });
+    return () => { cancelled = true; };
   }, [domainId, getMovementTrend]);
 
   if (trend === undefined) {
@@ -35,7 +47,7 @@ export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
     );
   }
 
-  // Check if there's no historical data yet
+  // Check if there's no historical data yet or if fetch failed
   if (trend.length === 0) {
     return (
       <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
@@ -45,8 +57,17 @@ export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
           <svg className="h-12 w-12 text-tertiary mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
           </svg>
-          <p className="text-sm font-medium text-primary">{t("noHistoricalDataYet")}</p>
-          <p className="text-sm text-tertiary mt-1">{t("refreshToFetchHistory")}</p>
+          {error ? (
+            <>
+              <p className="text-sm font-medium text-error-primary">{t("failedToLoadData")}</p>
+              <p className="text-sm text-tertiary mt-1">{error}</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-primary">{t("noHistoricalDataYet")}</p>
+              <p className="text-sm text-tertiary mt-1">{t("refreshToFetchHistory")}</p>
+            </>
+          )}
         </div>
       </div>
     );

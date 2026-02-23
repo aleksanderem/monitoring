@@ -40,8 +40,7 @@ export function ExecutiveSummary({ domainId }: ExecutiveSummaryProps) {
     );
   }
 
-  const top3Change = metrics.change?.top10 || 0;
-  const totalChange = metrics.change?.total || 0;
+  const top10Change = metrics.change?.top10 || 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -52,17 +51,14 @@ export function ExecutiveSummary({ domainId }: ExecutiveSummaryProps) {
           title={t("top3Positions")}
           value={metrics.top3}
           icon={TrendUp02}
-          trend={top3Change > 0 ? "positive" : top3Change < 0 ? "negative" : null}
-          change={top3Change > 0 ? `+${top3Change}` : top3Change < 0 ? `${top3Change}` : undefined}
-          changeDescription={t("vs7DaysAgo")}
         />
 
         <MetricCard
           title={t("top10Positions")}
           value={metrics.top10}
           icon={BarChart03}
-          trend={top3Change > 0 ? "positive" : top3Change < 0 ? "negative" : null}
-          change={top3Change > 0 ? `+${top3Change}` : top3Change < 0 ? `${top3Change}` : undefined}
+          trend={top10Change > 0 ? "positive" : top10Change < 0 ? "negative" : null}
+          change={top10Change > 0 ? `+${top10Change}` : top10Change < 0 ? `${top10Change}` : undefined}
           changeDescription={t("vs7DaysAgo")}
         />
 

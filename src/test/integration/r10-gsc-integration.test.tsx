@@ -412,11 +412,12 @@ describe("GscMetricsCard", () => {
     expect(container.querySelector(".animate-pulse")).toBeTruthy();
   });
 
-  it("returns null when no GSC data", async () => {
+  it("renders zero-clicks state when GSC data has no clicks", async () => {
     setupQueryMock({ getGscMetrics: GSC_METRICS_EMPTY });
     const Card = await loadGscMetricsCard();
     const { container } = render(<Card domainId={DOMAIN_ID} />);
-    expect(container.firstChild).toBeNull();
+    expect(container.firstChild).not.toBeNull();
+    expect(container.textContent).toContain("0");
   });
 
   it("returns null when metrics is null", async () => {

@@ -272,6 +272,7 @@
   "noClustersMatchSearch": "Non clusters match your search.",
   "paginationClusters": "Page {current} of {total} ({count} clusters)",
   "noHistoricalDataYet": "Non historical data yet",
+  "failedToLoadData": "Échec du chargement des données",
   "checkBackAfterRankingUpdate": "Check back after the first ranking update",
   "fetchHistoryButton": "Fetch history",
   "fetchingHistory": "Récupération en cours...",

@@ -16,7 +16,7 @@ export function GscMetricsCard({ domainId }: GscMetricsCardProps) {
     return <div className="animate-pulse h-32 bg-gray-100 dark:bg-gray-800 rounded-lg" />;
   }
 
-  if (!metrics || metrics.totalClicks === 0) {
+  if (!metrics) {
     return null;
   }
 

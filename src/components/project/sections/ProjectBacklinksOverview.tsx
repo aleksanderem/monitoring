@@ -30,7 +30,13 @@ export function ProjectBacklinksOverview({ projectId }: ProjectBacklinksOverview
         );
     }
 
-    if (!data) return null;
+    if (!data) {
+        return (
+            <div className="rounded-xl border border-secondary bg-primary p-6 text-center">
+                <p className="text-sm text-tertiary">{t("noBacklinksData")}</p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col gap-6">

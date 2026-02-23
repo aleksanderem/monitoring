@@ -21,7 +21,13 @@ export function MonitoringStats({ domainId }: MonitoringStatsProps) {
     return <LoadingState type="card" />;
   }
 
-  if (!stats) return null;
+  if (!stats || stats.totalKeywords === 0) {
+    return (
+      <div className="rounded-xl border border-secondary bg-primary p-6 text-center">
+        <p className="text-sm text-tertiary">{t('noKeywordsMonitored')}</p>
+      </div>
+    );
+  }
 
   const { totalKeywords, avgPosition, avgPositionChange7d, estimatedMonthlyTraffic, movementBreakdown, netMovement7d } = stats;
 

@@ -292,6 +292,7 @@
   "paginationClusters": "Strona {current} z {total} ({count} klastrów)",
 
   "noHistoricalDataYet": "Brak danych historycznych",
+  "failedToLoadData": "Nie udało się załadować danych",
   "checkBackAfterRankingUpdate": "Sprawdź ponownie po pierwszej aktualizacji pozycji",
   "fetchHistoryButton": "Pobierz historię",
   "fetchingHistory": "Pobieranie...",

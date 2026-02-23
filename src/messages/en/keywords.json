@@ -292,6 +292,7 @@
   "paginationClusters": "Page {current} of {total} ({count} clusters)",
 
   "noHistoricalDataYet": "No historical data yet",
+  "failedToLoadData": "Failed to load data",
   "checkBackAfterRankingUpdate": "Check back after the first ranking update",
   "fetchHistoryButton": "Fetch history",
   "fetchingHistory": "Fetching...",

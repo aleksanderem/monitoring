@@ -101,7 +101,7 @@ export function InsightsSection({ domainId }: InsightsSectionProps) {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {[1, 2, 3, 4].map((i) => (
-                        <div key={i} className="h-32 0 dark:bg-gray-800" />
+                        <div key={i} className="h-32 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
                     ))}
                 </div>
             </div>
