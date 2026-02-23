@@ -709,7 +709,7 @@ export const fetchPositionsInternal = internalAction({
 
       // Dual-write: batch upsert all positions to Supabase (non-blocking)
       writeKeywordPositions(supabaseRows).catch((err) =>
-        console.warn("[Supabase dual-write] keyword positions failed:", err)
+        console.error(`[Supabase] fetchPositionsInternal dual-write failed: ${supabaseRows.length} rows, domain=${args.domainId}:`, err.message)
       );
 
       // Fetch difficulty for keywords that don't have it yet (single batch query)
@@ -895,6 +895,11 @@ export const fetchHistoricalPositionsInternal = internalAction({
     const login = process.env.DATAFORSEO_LOGIN;
     const password = process.env.DATAFORSEO_PASSWORD;
 
+    // Look up keyword to get domainId for Supabase dual-write
+    const keyword = await ctx.runQuery(internal.keywords.getKeywordInternal, { keywordId: args.keywordId });
+    const domainId = keyword?.domainId;
+    const supabaseBuffer: KeywordPositionRow[] = [];
+
     // Generate dates for the past X months (1st of each month)
     const allDates: string[] = [];
     const now = new Date();
@@ -928,13 +933,29 @@ export const fetchHistoricalPositionsInternal = internalAction({
           : null;
 
         console.log(`Storing position for ${date}: ${position}`);
+        const searchVolume = Math.floor(Math.random() * 5000) + 500;
         await ctx.runMutation(internal.dataforseo.storePositionInternal, {
           keywordId: args.keywordId,
           date,
           position,
           url: position ? `https://${args.domain}/page` : null,
-          searchVolume: Math.floor(Math.random() * 5000) + 500,
+          searchVolume,
         });
+        if (domainId) {
+          supabaseBuffer.push({
+            convex_domain_id: domainId,
+            convex_keyword_id: args.keywordId,
+            date,
+            position,
+            url: position ? `https://${args.domain}/page` : null,
+            search_volume: searchVolume,
+          });
+        }
+      }
+      if (supabaseBuffer.length > 0) {
+        writeKeywordPositions(supabaseBuffer).catch((err) =>
+          console.error(`[Supabase] fetchHistoricalPositionsInternal write failed: ${supabaseBuffer.length} rows, keyword=${args.keywordId}:`, err.message)
+        );
       }
       console.log("=== Historical positions stored successfully ===");
       return;
@@ -1028,7 +1049,22 @@ export const fetchHistoricalPositionsInternal = internalAction({
           url,
           searchVolume,
         });
+        if (domainId) {
+          supabaseBuffer.push({
+            convex_domain_id: domainId,
+            convex_keyword_id: args.keywordId,
+            date,
+            position,
+            url,
+            search_volume: searchVolume ?? null,
+          });
+        }
         storedCount++;
+      }
+      if (supabaseBuffer.length > 0) {
+        writeKeywordPositions(supabaseBuffer).catch((err) =>
+          console.error(`[Supabase] fetchHistoricalPositionsInternal write failed: ${supabaseBuffer.length} rows, keyword=${args.keywordId}:`, err.message)
+        );
       }
       console.log(`=== Historical data complete: stored ${storedCount} positions ===`);
     } catch (error) {
