@@ -70,6 +70,10 @@ export const fetchSinglePositionInternal = internalAction({
     const password = process.env.DATAFORSEO_PASSWORD;
     const today = new Date().toISOString().split("T")[0];
 
+    // Look up keyword to get domainId for Supabase dual-write
+    const keyword = await ctx.runQuery(internal.keywords.getKeywordInternal, { keywordId: args.keywordId });
+    const domainId = keyword?.domainId;
+
     if (!login || !password) {
       // Mock data for dev mode
       const position = Math.random() > 0.05 ? Math.floor(Math.random() * 50) + 1 : null;
@@ -82,6 +86,19 @@ export const fetchSinglePositionInternal = internalAction({
         searchVolume: Math.floor(Math.random() * 10000),
         difficulty: Math.floor(Math.random() * 100),
       });
+
+      if (domainId) {
+        writeKeywordPositions([{
+          convex_domain_id: domainId,
+          convex_keyword_id: args.keywordId,
+          date: today,
+          position,
+          url: position ? `https://${args.domain}/page-${Math.floor(Math.random() * 10)}` : null,
+          search_volume: Math.floor(Math.random() * 10000),
+        }]).catch((err) =>
+          console.error(`[Supabase] fetchSinglePositionInternal mock write failed:`, err.message)
+        );
+      }
 
       // Fetch history if requested
       if (args.fetchHistoryIfEmpty) {
@@ -103,6 +120,19 @@ export const fetchSinglePositionInternal = internalAction({
             url: histPosition ? `https://${args.domain}/page` : null,
             searchVolume: Math.floor(Math.random() * 5000) + 500,
           });
+
+          if (domainId) {
+            writeKeywordPositions([{
+              convex_domain_id: domainId,
+              convex_keyword_id: args.keywordId,
+              date: histDate,
+              position: histPosition,
+              url: histPosition ? `https://${args.domain}/page` : null,
+              search_volume: Math.floor(Math.random() * 5000) + 500,
+            }]).catch((err) =>
+              console.error(`[Supabase] fetchSinglePositionInternal mock history write failed:`, err.message)
+            );
+          }
         }
       }
 
@@ -207,6 +237,20 @@ export const fetchSinglePositionInternal = internalAction({
         searchVolume: data.tasks[0].result[0].search_volume,
         difficulty,
       });
+
+      if (domainId) {
+        writeKeywordPositions([{
+          convex_domain_id: domainId,
+          convex_keyword_id: args.keywordId,
+          date: today,
+          position,
+          url: domainMatch?.url || null,
+          search_volume: data.tasks[0].result[0].search_volume,
+          difficulty,
+        }]).catch((err) =>
+          console.error(`[Supabase] fetchSinglePositionInternal write failed: keyword=${args.keywordId}:`, err.message)
+        );
+      }
 
       // Fetch history if requested
       if (args.fetchHistoryIfEmpty) {
