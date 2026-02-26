@@ -91,6 +91,8 @@
   "suggestKeywords": "Suggest Keywords",
   "keywordsPlaceholder": "best seo tools\nkeyword research\ncontent marketing strategy",
   "suggestedKeywordsInfo": "Suggested keywords are based on your top-ranking discovered keywords with high search volume. You can edit the list before adding.",
+  "keywordLimitReached": "Keyword limit reached ({current}/{limit}). You cannot add more keywords. Upgrade your plan or remove existing keywords.",
+  "keywordLimitWarning": "You have {remaining} keyword slots remaining on your current plan.",
   "pleaseEnterKeyword": "Please enter at least one keyword",
   "addedKeywordsToMonitoring": "Added {count} keywords to monitoring",
   "failedToAddKeywords": "Failed to add keywords",

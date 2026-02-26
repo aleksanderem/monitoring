@@ -165,6 +165,7 @@
   "failedToFetchVisibility": "Failed to fetch visibility data",
   "fetchedData": "Fetched {data}",
   "domainDeletedSuccess": "Domain deleted successfully",
+  "bulkDeleteSuccess": "Deleted {count} domains successfully",
   "failedToDeleteDomain": "Failed to delete domain",
   "noKeywordsToRefresh": "No keywords to refresh",
   "refreshingKeywords": "Refreshing {count} keywords...",

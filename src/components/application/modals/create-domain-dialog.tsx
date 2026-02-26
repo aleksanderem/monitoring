@@ -129,7 +129,7 @@ export function CreateDomainDialog({ defaultProjectId, children }: CreateDomainD
           <Dialog>
             <form
               onSubmit={handleSubmit}
-              className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-lg"
+              className="relative w-full overflow-y-auto max-h-[calc(100dvh-64px)] rounded-xl bg-primary shadow-xl sm:max-w-lg"
             >
               <CloseButton
                 onClick={() => setIsOpen(false)}

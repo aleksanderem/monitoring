@@ -22,6 +22,7 @@ import { getCountryFlag, getLanguageFlag } from "@/lib/countryFlags";
 import { EzIcon } from "@/components/foundations/ez-icon";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { PermissionGate } from "@/components/auth/PermissionGate";
+import { BulkActionBar } from "@/components/patterns/BulkActionBar";
 
 // Helper to format relative time
 function formatRelativeTime(timestamp: number, t: (key: any, params?: any) => string): string {
@@ -50,6 +51,7 @@ export default function DomainsPage() {
     column: "domain",
     direction: "ascending",
   });
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
   // Get all unique tags from domains
   const allTags = useMemo(() => {
@@ -175,14 +177,14 @@ export default function DomainsPage() {
         <div className="relative flex flex-col gap-5 bg-primary">
           <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
             <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+              <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 sm:flex">
                 <EzIcon name="globe" size={24} color="#2563eb" strokeColor="#2563eb" />
               </div>
               <div className="flex flex-col gap-0.5 lg:gap-1">
                 <p className="text-xl font-semibold text-primary lg:text-display-xs">
                   {t('domains')}
                 </p>
-                <p className="text-md text-tertiary">
+                <p className="text-sm text-tertiary sm:text-md">
                   {t('domainsDescription')}
                 </p>
               </div>
@@ -204,7 +206,7 @@ export default function DomainsPage() {
         <TableCard.Root>
           <TableCard.Header
             title={t('allDomains')}
-            badge={`${domains.length} ${domains.length !== 1 ? t('domainsPlural') : t('domainSingular')}`}
+            badge={`${filteredItems.length} ${filteredItems.length !== 1 ? t('domainsPlural') : t('domainSingular')}`}
           />
 
           {/* Filters section - inside TableCard */}
@@ -277,9 +279,45 @@ export default function DomainsPage() {
               </Button>
             </div>
           ) : (
+          <>
+          {selectedKeys.size > 0 && (
+            <div className="px-4 pb-3 lg:px-6">
+              <BulkActionBar
+                selectedCount={selectedKeys.size}
+                selectedIds={selectedKeys}
+                onClearSelection={() => setSelectedKeys(new Set())}
+                actions={[
+                  {
+                    label: t('delete'),
+                    variant: "destructive" as const,
+                    icon: Trash01,
+                    onClick: async (ids) => {
+                      try {
+                        for (const id of ids) {
+                          await deleteDomain({ id: id as Id<"domains"> });
+                        }
+                        toast.success(t('bulkDeleteSuccess', { count: ids.size }));
+                        setSelectedKeys(new Set());
+                      } catch {
+                        toast.error(t('failedToDeleteDomain'));
+                      }
+                    },
+                  },
+                ]}
+              />
+            </div>
+          )}
           <Table
             aria-label="Domains"
             selectionMode="multiple"
+            selectedKeys={selectedKeys}
+            onSelectionChange={(keys) => {
+              if (keys === "all") {
+                setSelectedKeys(new Set(sortedItems.map(d => d._id)));
+              } else {
+                setSelectedKeys(keys as Set<string>);
+              }
+            }}
             sortDescriptor={sortDescriptor}
             onSortChange={setSortDescriptor}
             onRowAction={(key) => router.push(`/domains/${key}`)}
@@ -383,10 +421,7 @@ export default function DomainsPage() {
                           color="tertiary"
                           tooltip={t('edit')}
                           icon={Edit05}
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            toast.info(t('editDialogComingSoon'));
-                          }}
+                          isDisabled
                         />
                       </PermissionGate>
                       <PermissionGate permission="domains.delete">
@@ -415,6 +450,7 @@ export default function DomainsPage() {
               )}
             </Table.Body>
           </Table>
+          </>
           )}
         </TableCard.Root>
         </>

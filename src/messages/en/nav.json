@@ -45,5 +45,17 @@
     "weeksAgo": "{count} weeks ago",
     "monthsAgo": "{count} months ago",
     "yearsAgo": "{count} years ago",
-    "searchOrJumpTo": "Search or jump to..."
+    "searchOrJumpTo": "Search or jump to...",
+    "calendarTitle": "AI SEO Strategist",
+    "calendarDescription": "Smart SEO calendar — AI automatically plans and prioritizes tasks.",
+    "calendarGenerating": "Generating...",
+    "calendarGenerate": "Generate plan",
+    "calendarNoDomains": "No domains",
+    "calendarNoDomainsDescription": "Add a domain so the AI SEO Strategist can plan actions.",
+    "calendarAll": "All",
+    "calendarRankingDrops": "Ranking drops",
+    "calendarOpportunities": "Opportunities",
+    "calendarContent": "Content",
+    "calendarLinkBuilding": "Link building",
+    "calendarAudits": "Audits"
 }

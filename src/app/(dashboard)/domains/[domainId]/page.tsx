@@ -91,6 +91,7 @@ import { ContentGapSection } from "@/components/domain/sections/ContentGapSectio
 import { InsightsSection } from "@/components/domain/sections/InsightsSection";
 import { Target04, LinkExternal02, Stars01 } from "@untitledui/icons";
 import { GenerateReportModal } from "@/components/domain/modals/GenerateReportModal";
+import { RefreshConfirmModal } from "@/components/domain/modals/RefreshConfirmModal";
 import { DomainSetupWizard } from "@/components/domain/onboarding/DomainSetupWizard";
 import { AIKeywordResearchSection } from "@/components/domain/sections/AIKeywordResearchSection";
 import { StrategySection } from "@/components/domain/sections/StrategySection";
@@ -546,6 +547,7 @@ export default function DomainDetailPage() {
   const [isFetchingVisibility, setIsFetchingVisibility] = useState(false);
   const [isAddKeywordsModalOpen, setIsAddKeywordsModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isRefreshConfirmOpen, setIsRefreshConfirmOpen] = useState(false);
   const [backlinksPage, setBacklinksPage] = useState(1);
   const backlinksPageSize = 50;
 
@@ -635,20 +637,19 @@ export default function DomainDetailPage() {
     }
   };
 
-  const handleRefresh = async () => {
-    try {
-      if (!keywords || keywords.length === 0) {
-        toast.error(t('noKeywordsToRefresh'));
-        return;
-      }
-
-      const keywordIds = keywords.map(k => k._id);
-      await refreshKeywords({ keywordIds });
-      toast.success(t('refreshingKeywords', { count: keywords.length }));
-    } catch (error) {
-      toast.error(t('failedToStartRefresh'));
-      console.error(error);
+  const handleRefreshClick = () => {
+    if (!keywords || keywords.length === 0) {
+      toast.error(t('noKeywordsToRefresh'));
+      return;
     }
+    setIsRefreshConfirmOpen(true);
+  };
+
+  const handleRefreshConfirm = async () => {
+    if (!keywords || keywords.length === 0) return;
+    const keywordIds = keywords.map(k => k._id);
+    await refreshKeywords({ keywordIds });
+    toast.success(t('refreshingKeywords', { count: keywords.length }));
   };
 
   const handleAddTag = () => {
@@ -777,7 +778,7 @@ export default function DomainDetailPage() {
                 </div>
               </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {onboardingStatus?.isCompleted !== false ? (
                 <>
                   <PermissionGate permission="reports.share">
@@ -805,7 +806,7 @@ export default function DomainDetailPage() {
                       color="tertiary"
                       tooltip={t('refreshRankings')}
                       icon={RefreshCw01}
-                      onClick={handleRefresh}
+                      onClick={handleRefreshClick}
                     />
                   </PermissionGate>
                   <PermissionGate permission="domains.edit">
@@ -906,7 +907,7 @@ export default function DomainDetailPage() {
 
             <div className="flex min-w-0 flex-1 flex-col gap-6">
               {/* Mobile Horizontal Navigation */}
-              <TabList size="sm" type="line" items={tabs} className="lg:hidden">
+              <TabList size="sm" type="line" items={tabs} className="overflow-x-auto lg:hidden">
                 {(item: any) => (
                   <Tab
                     id={item.id}
@@ -1495,27 +1496,27 @@ export default function DomainDetailPage() {
                     label={t('searchEngine')}
                     size="md"
                     value={editForm.searchEngine}
-                    onChange={(value) => setEditForm({ ...editForm, searchEngine: value })}
                     placeholder="google.pl"
                     className="sm:col-span-1"
+                    isDisabled
                   />
 
                   <Input
                     label={t('location')}
                     size="md"
                     value={editForm.location}
-                    onChange={(value) => setEditForm({ ...editForm, location: value })}
                     placeholder="Poland"
                     className="sm:col-span-1"
+                    isDisabled
                   />
 
                   <Input
                     label={t('language')}
                     size="md"
                     value={editForm.language}
-                    onChange={(value) => setEditForm({ ...editForm, language: value })}
                     placeholder="pl"
                     className="sm:col-span-2"
+                    isDisabled
                   />
                 </div>
 
@@ -1549,6 +1550,16 @@ export default function DomainDetailPage() {
           domainName={domain.domain}
         />
       )}
+
+      {/* Refresh Confirm Modal */}
+      <RefreshConfirmModal
+        isOpen={isRefreshConfirmOpen}
+        onClose={() => setIsRefreshConfirmOpen(false)}
+        onConfirm={handleRefreshConfirm}
+        domainId={domainId}
+        actionType="refresh"
+        keywordCount={keywords?.length ?? 0}
+      />
 
       {/* Domain Setup Wizard */}
       <DomainSetupWizard

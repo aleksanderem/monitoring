@@ -86,7 +86,7 @@ const TableCardHeader = ({ title, badge, description, contentTrailing, className
             )}
         >
             <div className="flex flex-1 flex-col gap-0.5">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <h2 className={cx("font-semibold text-primary", size === "sm" ? "text-md" : "text-lg")}>{title}</h2>
                     {badge ? (
                         isValidElement(badge) ? (

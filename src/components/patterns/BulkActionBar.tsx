@@ -28,7 +28,7 @@ export function BulkActionBar({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="flex items-center justify-between rounded-lg border border-secondary bg-secondary/50 px-4 py-3">
+    <div className="sticky bottom-4 z-20 flex items-center justify-between rounded-lg border border-secondary bg-secondary/50 px-4 py-3 shadow-lg backdrop-blur-sm">
       <div className="flex items-center gap-4">
         <span className="text-sm font-medium text-primary">
           {selectedCount} selected

@@ -29,6 +29,7 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
 
   const addKeywordsMutation = useMutation(api.keywords.addKeywords);
   const discoveredKeywords = useQuery(api.dataforseo.getDiscoveredKeywords, { domainId });
+  const limitStatus = useQuery(api.limits.checkAddKeywordsLimit, isOpen ? { domainId } : "skip");
 
   // Client-side validation matching server rules (convex/lib/keywordValidation.ts)
   const validatePhrase = (phrase: string): string | null => {
@@ -187,6 +188,26 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
                     {t('suggestedKeywordsInfo')}
                   </p>
                 </div>
+
+                {/* Keyword limit warning */}
+                {limitStatus && !limitStatus.allowed && (
+                  <div className="mt-3 rounded-lg border border-utility-error-200 bg-utility-error-50 p-3">
+                    <p className="text-xs font-medium text-utility-error-700">
+                      {t('keywordLimitReached', {
+                        current: limitStatus.currentCount,
+                        limit: limitStatus.limit,
+                        remaining: limitStatus.remaining ?? 0,
+                      })}
+                    </p>
+                  </div>
+                )}
+                {limitStatus && limitStatus.allowed && limitStatus.remaining !== undefined && limitStatus.remaining <= 10 && (
+                  <div className="mt-3 rounded-lg border border-utility-warning-200 bg-utility-warning-50 p-3">
+                    <p className="text-xs font-medium text-utility-warning-700">
+                      {t('keywordLimitWarning', { remaining: limitStatus.remaining })}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Footer */}
@@ -194,7 +215,7 @@ export function AddKeywordsModal({ domainId, isOpen, onClose }: AddKeywordsModal
                 <Button color="secondary" size="lg" onClick={onClose} disabled={isSubmitting}>
                   {tc('cancel')}
                 </Button>
-                <Button color="primary" size="lg" iconLeading={Plus} onClick={handleSubmit} disabled={isSubmitting || keywordsText.trim().length === 0}>
+                <Button color="primary" size="lg" iconLeading={Plus} onClick={handleSubmit} disabled={isSubmitting || keywordsText.trim().length === 0 || (limitStatus !== undefined && !limitStatus?.allowed)}>
                   {isSubmitting ? t('adding') : t('addKeywords')}
                 </Button>
               </div>

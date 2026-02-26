@@ -393,10 +393,15 @@ export const getKeywordMonitoring = query({
     if (!userId) return [];
     await requireTenantAccess(ctx, "domain", args.domainId);
 
-    const keywords = await ctx.db
-      .query("keywords")
-      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
-      .take(args.limit ?? 100);
+    const keywords = args.limit
+      ? await ctx.db
+          .query("keywords")
+          .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+          .take(args.limit)
+      : await ctx.db
+          .query("keywords")
+          .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+          .collect();
 
     // Batch: fetch ALL discoveredKeywords for domain once, build a Map by phrase
     const allDiscovered = await ctx.db
@@ -1533,7 +1538,7 @@ export const getSerpResultsForKeyword = query({
     if (!keyword) return null;
     await requireTenantAccess(ctx, "domain", keyword.domainId);
 
-    const limit = args.limit || 10;
+    const limit = args.limit || 20;
 
     // Get the most recent SERP results for this keyword
     const results = await ctx.db

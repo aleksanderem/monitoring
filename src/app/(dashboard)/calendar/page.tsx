@@ -13,15 +13,7 @@ import { Input } from "@/components/base/input/input";
 import { Button } from "@/components/base/buttons/button";
 import { useTranslations } from "next-intl";
 
-// Category filter tabs
-const CATEGORY_TABS = [
-  { id: "all", label: "Wszystkie" },
-  { id: "ranking_drop", label: "Spadki pozycji" },
-  { id: "ranking_opportunity", label: "Szanse" },
-  { id: "content_plan", label: "Treści" },
-  { id: "link_building", label: "Link building" },
-  { id: "audit_task", label: "Audyty" },
-];
+// Category filter tabs — labels are resolved dynamically via translation keys
 
 // Map backend color strings to EventViewColor
 const COLOR_MAP: Record<string, EventViewColor> = {
@@ -38,6 +30,15 @@ const COLOR_MAP: Record<string, EventViewColor> = {
 
 export default function CalendarPage() {
   const t = useTranslations("nav");
+
+  const CATEGORY_TABS = [
+    { id: "all", label: t("calendarAll") },
+    { id: "ranking_drop", label: t("calendarRankingDrops") },
+    { id: "ranking_opportunity", label: t("calendarOpportunities") },
+    { id: "content_plan", label: t("calendarContent") },
+    { id: "link_building", label: t("calendarLinkBuilding") },
+    { id: "audit_task", label: t("calendarAudits") },
+  ];
   const [selectedTab, setSelectedTab] = useState("all");
   const [selectedDomainId, setSelectedDomainId] = useState<
     Id<"domains"> | null
@@ -103,13 +104,12 @@ export default function CalendarPage() {
           <div className="flex flex-1 flex-col gap-0.5 md:gap-1">
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-semibold text-primary lg:text-display-xs">
-                AI SEO Strategist
+                {t("calendarTitle")}
               </h1>
               <Stars01 className="size-6 text-utility-brand-500" />
             </div>
             <p className="text-md text-tertiary">
-              Inteligentny kalendarz SEO — AI automatycznie planuje i
-              priorytetyzuje zadania.
+              {t("calendarDescription")}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -137,7 +137,7 @@ export default function CalendarPage() {
               onClick={handleRunStrategist}
               isDisabled={!activeDomainId || isRunning}
             >
-              {isRunning ? "Generowanie..." : "Generuj plan"}
+              {isRunning ? t("calendarGenerating") : t("calendarGenerate")}
             </Button>
           </div>
         </div>
@@ -159,10 +159,10 @@ export default function CalendarPage() {
           <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-secondary_subtle p-16 text-center">
             <Stars01 className="mb-4 size-12 text-tertiary" />
             <h3 className="text-lg font-semibold text-primary">
-              Brak domen
+              {t("calendarNoDomains")}
             </h3>
             <p className="mt-1 text-sm text-tertiary">
-              Dodaj domenę, aby AI SEO Strategist mógł zaplanować działania.
+              {t("calendarNoDomainsDescription")}
             </p>
           </div>
         ) : (

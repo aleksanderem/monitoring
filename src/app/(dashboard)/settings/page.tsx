@@ -998,7 +998,7 @@ function PlanUsageSection() {
       const url = await createPortal();
       window.location.href = url;
     } catch {
-      toast.error("Nie udało się otworzyć portalu rozliczeniowego");
+      toast.error(t("planPortalError"));
     }
   }
 
@@ -1012,7 +1012,7 @@ function PlanUsageSection() {
         const url = await createPortal();
         window.location.href = url;
       } catch {
-        toast.error("Nie udało się otworzyć aktualizacji płatności");
+        toast.error(t("planPaymentUpdateError"));
       }
     }
   }
@@ -1059,13 +1059,13 @@ function PlanUsageSection() {
     if (!isSubscribed) return "";
     const parts: string[] = [];
     if (isTrialing && daysLeft !== null) {
-      parts.push(`Trial: ${daysLeft} ${daysLeft === 1 ? "dzień" : "dni"} pozostało`);
+      parts.push(t("planTrialDaysRemaining", { days: daysLeft }));
     }
     if (!isTrialing && daysLeft !== null) {
-      parts.push(`Odnowienie za ${daysLeft} ${daysLeft === 1 ? "dzień" : "dni"}`);
+      parts.push(t("planRenewalIn", { days: daysLeft }));
     }
     if (firstOrg?.billingCycle) {
-      parts.push(firstOrg.billingCycle === "yearly" ? "Roczny" : "Miesięczny");
+      parts.push(firstOrg.billingCycle === "yearly" ? t("planBillingYearly") : t("planBillingMonthly"));
     }
     return parts.join(" · ");
   })();
@@ -1074,8 +1074,8 @@ function PlanUsageSection() {
     {
       value: "free",
       title: "Free",
-      secondaryTitle: planKey === "free" && !isSubscribed ? "Aktualny plan" : "$0/mies.",
-      description: "Monitoring do 50 słów kluczowych i 3 domen.",
+      secondaryTitle: planKey === "free" && !isSubscribed ? t("planCurrentPlan") : t("planFreePrice"),
+      description: t("planFreeDescription"),
       icon: LayersTwo01,
       disabled: isSubscribed,
     },
@@ -1083,11 +1083,11 @@ function PlanUsageSection() {
       value: "pro",
       title: "Pro",
       secondaryTitle: planKey === "pro" && isSubscribed
-        ? `Aktualny plan${isTrialing ? " (Trial)" : ""}`
-        : "$29/mies.",
+        ? `${t("planCurrentPlan")}${isTrialing ? ` (${t("planTrial")})` : ""}`
+        : t("planProPrice"),
       description: planKey === "pro" && isSubscribed && subscriptionDetail
         ? subscriptionDetail
-        : "Pełen zestaw narzędzi SEO, 500 słów kluczowych, 20 domen.",
+        : t("planProDescription"),
       icon: LayersThree01,
       disabled: isSubscribed && planKey === "pro",
     },
@@ -1119,7 +1119,7 @@ function PlanUsageSection() {
                 type="pill-color"
                 color={subscriptionStatus === "trialing" ? "brand" : "success"}
               >
-                {subscriptionStatus === "trialing" ? "Trial" : "Aktywna"}
+                {subscriptionStatus === "trialing" ? t("planTrial") : t("planActive")}
               </Badge>
               <span className="text-sm font-medium text-primary">
                 Plan {effectivePlan?.name ?? "Pro"}
@@ -1129,30 +1129,30 @@ function PlanUsageSection() {
               <>
                 {isTrialing && (
                   <div className="flex items-center gap-1.5 text-sm">
-                    <span className="text-tertiary">Trial kończy się za:</span>
+                    <span className="text-tertiary">{t("planTrialEndsIn")}</span>
                     <span className={`font-semibold tabular-nums ${daysLeft <= 2 ? "text-fg-error-primary" : "text-brand-700 dark:text-brand-300"}`}>
-                      {daysLeft} {daysLeft === 1 ? "dzień" : "dni"}
+                      {daysLeft} {daysLeft === 1 ? "day" : "days"}
                     </span>
                   </div>
                 )}
                 <div className="flex items-center gap-1.5 text-sm">
                   <span className="text-tertiary">
-                    {isTrialing ? "Pierwszy billing:" : "Odnowienie:"}
+                    {isTrialing ? t("planFirstBilling") : t("planRenewal")}
                   </span>
                   <span className="font-medium text-primary">
-                    {new Date(subscriptionEnd * 1000).toLocaleDateString("pl-PL")}
+                    {new Date(subscriptionEnd * 1000).toLocaleDateString()}
                   </span>
                   {!isTrialing && (
                     <span className="text-tertiary">
-                      (za {daysLeft} {daysLeft === 1 ? "dzień" : "dni"})
+                      ({daysLeft} {daysLeft === 1 ? "day" : "days"})
                     </span>
                   )}
                 </div>
                 {firstOrg?.billingCycle && (
                   <div className="flex items-center gap-1.5 text-sm">
-                    <span className="text-tertiary">Cykl:</span>
+                    <span className="text-tertiary">{t("planBillingCycle")}</span>
                     <span className="font-medium text-primary">
-                      {firstOrg.billingCycle === "yearly" ? "Roczny" : "Miesięczny"}
+                      {firstOrg.billingCycle === "yearly" ? t("planBillingYearly") : t("planBillingMonthly")}
                     </span>
                   </div>
                 )}
@@ -1165,20 +1165,20 @@ function PlanUsageSection() {
       {/* Past due warning */}
       {subscriptionStatus === "past_due" && !firstOrg?.degraded && (
         <div className="rounded-lg border border-warning-300 bg-warning-50 p-3 text-sm font-medium text-fg-warning-primary dark:bg-warning-50/10">
-          Płatność zaległa. Zaktualizuj metodę płatności, aby uniknąć przerwy w usłudze.
+          {t("planPastDueWarning")}
         </div>
       )}
 
       {/* Degraded (read-only) warning */}
       {firstOrg?.degraded && (
         <div className="rounded-lg border border-error-300 bg-error-50 p-4 dark:bg-error-50/10">
-          <p className="text-sm font-semibold text-fg-error-primary">Konto w trybie tylko do odczytu</p>
+          <p className="text-sm font-semibold text-fg-error-primary">{t("planDegradedTitle")}</p>
           <p className="mt-1 text-sm text-fg-error-secondary">
-            Okres karencji minął. Zaktualizuj metodę płatności, aby przywrócić pełny dostęp.
+            {t("planDegradedDescription")}
           </p>
           <div className="mt-3">
             <Button color="primary-destructive" size="sm" onClick={handlePaymentUpdate}>
-              Zaktualizuj metodę płatności
+              {t("planUpdatePayment")}
             </Button>
           </div>
         </div>
@@ -1189,8 +1189,8 @@ function PlanUsageSection() {
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(200px,280px)_1fr] lg:gap-8">
           <SectionLabel.Root
             size="sm"
-            title="Aktualny plan"
-            description="Wybierz plan dopasowany do Twoich potrzeb."
+            title={t("planCurrentPlan")}
+            description={t("planChoosePlan")}
           />
           <div className="flex flex-col gap-3">
             {/* Gradient border on selected card — static version of the GlowingEffect */}
@@ -1367,8 +1367,8 @@ function PlanUsageSection() {
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(200px,280px)_1fr] lg:gap-8">
           <SectionLabel.Root
             size="sm"
-            title="Metoda płatności"
-            description="Zarządzaj kartą i danymi rozliczeniowymi."
+            title={t("planPaymentMethodTitle")}
+            description={t("planChoosePlan")}
           />
           <div className="flex flex-col gap-3">
             {isSubscribed ? (
@@ -1376,17 +1376,17 @@ function PlanUsageSection() {
                 <div className="flex items-center gap-3">
                   <FeaturedIcon icon={CreditCard02} size="sm" color="gray" theme="modern" />
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium text-secondary">Karta płatnicza</span>
-                    <span className="text-sm text-tertiary">Zarządzana przez Stripe</span>
+                    <span className="text-sm font-medium text-secondary">{t("planPaymentCard")}</span>
+                    <span className="text-sm text-tertiary">{t("planManagedByStripe")}</span>
                   </div>
                 </div>
                 <Button color="link-gray" size="sm" onClick={handlePaymentUpdate}>
-                  Zmień
+                  {t("planChange")}
                 </Button>
               </div>
             ) : (
               <p className="text-sm text-tertiary">
-                Metoda płatności zostanie dodana przy wyborze planu Pro.
+                {t("planNoPaymentMethod")}
               </p>
             )}
           </div>
@@ -1398,8 +1398,8 @@ function PlanUsageSection() {
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(200px,280px)_1fr] lg:gap-8">
           <SectionLabel.Root
             size="sm"
-            title="Historia rozliczeń"
-            description="Faktury i historia płatności."
+            title={t("planBillingHistory")}
+            description={t("planInvoicesDescription")}
           />
           <div className="flex flex-col gap-3">
             {isSubscribed || subscriptionStatus === "canceled" ? (
@@ -1407,25 +1407,25 @@ function PlanUsageSection() {
                 {invoices === null && !invoicesLoading && (
                   <div>
                     <Button color="secondary" size="sm" onClick={loadInvoices}>
-                      Załaduj faktury
+                      {t("planLoadInvoices")}
                     </Button>
                   </div>
                 )}
                 {invoicesLoading && (
-                  <p className="text-sm text-tertiary">Ładowanie faktur...</p>
+                  <p className="text-sm text-tertiary">{t("planLoadingInvoices")}</p>
                 )}
                 {invoices !== null && invoices.length === 0 && (
-                  <p className="text-sm text-tertiary">Brak faktur.</p>
+                  <p className="text-sm text-tertiary">{t("planNoInvoices")}</p>
                 )}
                 {invoices !== null && invoices.length > 0 && (
                   <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-secondary">
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b border-secondary bg-secondary">
-                          <th className="px-4 py-2.5 font-medium text-secondary">Numer</th>
-                          <th className="px-4 py-2.5 font-medium text-secondary">Data</th>
-                          <th className="px-4 py-2.5 font-medium text-secondary">Kwota</th>
-                          <th className="px-4 py-2.5 font-medium text-secondary">Status</th>
+                          <th className="px-4 py-2.5 font-medium text-secondary">{t("planInvoiceNumber")}</th>
+                          <th className="px-4 py-2.5 font-medium text-secondary">{t("planInvoiceDate")}</th>
+                          <th className="px-4 py-2.5 font-medium text-secondary">{t("planInvoiceAmount")}</th>
+                          <th className="px-4 py-2.5 font-medium text-secondary">{t("planInvoiceStatus")}</th>
                           <th className="px-4 py-2.5 font-medium text-secondary"></th>
                         </tr>
                       </thead>
@@ -1434,7 +1434,7 @@ function PlanUsageSection() {
                           <tr key={inv.id} className="border-b border-secondary last:border-0">
                             <td className="px-4 py-2.5 text-primary">{inv.number ?? "—"}</td>
                             <td className="px-4 py-2.5 text-tertiary">
-                              {new Date(inv.date * 1000).toLocaleDateString("pl-PL")}
+                              {new Date(inv.date * 1000).toLocaleDateString()}
                             </td>
                             <td className="px-4 py-2.5 text-primary tabular-nums">
                               {(inv.amount / 100).toFixed(2)} {inv.currency.toUpperCase()}
@@ -1445,7 +1445,7 @@ function PlanUsageSection() {
                                 type="pill-color"
                                 color={inv.status === "paid" ? "success" : inv.status === "open" ? "warning" : "gray"}
                               >
-                                {inv.status === "paid" ? "Opłacona" : inv.status === "open" ? "Otwarta" : inv.status ?? "—"}
+                                {inv.status === "paid" ? t("planInvoicePaid") : inv.status === "open" ? t("planInvoiceOpen") : inv.status ?? "—"}
                               </Badge>
                             </td>
                             <td className="px-4 py-2.5 text-right">
@@ -1456,7 +1456,7 @@ function PlanUsageSection() {
                                   rel="noopener noreferrer"
                                   className="text-sm font-medium text-brand-600 hover:text-brand-700"
                                 >
-                                  Zobacz
+                                  {t("planInvoiceView")}
                                 </a>
                               )}
                             </td>
@@ -1469,7 +1469,7 @@ function PlanUsageSection() {
               </>
             ) : (
               <p className="text-sm text-tertiary">
-                Brak historii rozliczeń. Faktury pojawią się po aktywacji subskrypcji.
+                No billing history. Invoices will appear after activating a subscription.
               </p>
             )}
           </div>
@@ -1523,7 +1523,11 @@ function LimitsSection() {
   }
 
   if (limits === null) {
-    return null;
+    return (
+      <Section title={t("limitsTitle")} description={t("limitsDescription")}>
+        <p className="text-sm text-tertiary">{t("limitsNotAvailable")}</p>
+      </Section>
+    );
   }
 
   const fields = [

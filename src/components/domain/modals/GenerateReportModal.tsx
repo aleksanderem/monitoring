@@ -121,7 +121,6 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
   const handleProfileChange = useCallback((newProfile: ReportProfile) => {
     if (newProfile === "custom") {
       setProfile("custom");
-      setIsEditorOpen(true);
     } else {
       setProfile(newProfile);
       setCustomConfig(configFromPreset(newProfile));
