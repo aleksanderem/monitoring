@@ -22,6 +22,9 @@ import {
   Edit05,
 } from "@untitledui/icons";
 import { useTranslations } from "next-intl";
+import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
+import { AlertFloating } from "@/components/application/alerts/alerts";
 import {
   type ReportProfile,
   type ReportConfig,
@@ -197,9 +200,9 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
       <ModalOverlay isOpen={isOpen} onOpenChange={(open) => !open && handleClose()} isDismissable={!isInProgress}>
         <Modal>
           <Dialog className="overflow-hidden">
-            <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-lg">
+            <div className="relative w-full overflow-hidden rounded-2xl bg-primary shadow-xl sm:max-w-lg">
               <CloseButton
-                onClick={handleClose}
+                onPress={handleClose}
                 isDisabled={!!isInProgress}
                 theme="light"
                 size="lg"
@@ -207,13 +210,19 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
               />
 
               {/* Header */}
-              <div className="border-b border-secondary px-6 py-4">
-                <AriaHeading slot="title" className="text-lg font-semibold text-primary">
-                  {t('generateReportTitle')}
-                </AriaHeading>
-                <p className="mt-1 text-sm text-tertiary">
-                  {t('generateReportSubtitle', { domain: domainName })}
-                </p>
+              <div className="flex flex-col gap-4 px-4 pt-5 sm:px-6 sm:pt-6">
+                <div className="relative w-max">
+                  <FeaturedIcon color="brand" size="lg" theme="light" icon={File06} />
+                  <BackgroundPattern pattern="circle" size="sm" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                </div>
+                <div className="z-10 flex flex-col gap-0.5">
+                  <AriaHeading slot="title" className="text-md font-semibold text-primary">
+                    {t('generateReportTitle')}
+                  </AriaHeading>
+                  <p className="text-sm text-tertiary">
+                    {t('generateReportSubtitle', { domain: domainName })}
+                  </p>
+                </div>
               </div>
 
               {/* Content */}
@@ -361,13 +370,12 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
 
                 {/* State: Failed */}
                 {isFailed && (
-                  <div className="flex items-center gap-3 rounded-lg border border-error-200 bg-error-50 p-4">
-                    <AlertCircle className="size-5 text-error-600" />
-                    <div>
-                      <p className="text-sm font-medium text-error-700">{t('generateReportFailed')}</p>
-                      <p className="text-xs text-error-600">{report.error}</p>
-                    </div>
-                  </div>
+                  <AlertFloating
+                    color="error"
+                    title={t('generateReportFailed')}
+                    description={report?.error || tc('unexpectedError')}
+                    confirmLabel=""
+                  />
                 )}
               </div>
 

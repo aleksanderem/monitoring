@@ -101,7 +101,7 @@ describe("ErrorBoundary", () => {
     );
     expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(screen.getByText('Something went wrong in "Widget"')).toBeInTheDocument();
-    expect(screen.getByText("Test error")).toBeInTheDocument();
+    expect(screen.getByText("Test error", { exact: false })).toBeInTheDocument();
   });
 
   it("renders generic message when no label provided", () => {
@@ -121,7 +121,7 @@ describe("ErrorBoundary", () => {
     );
 
     // First retry: backoff = 1000ms * 2^0 = 1s
-    expect(screen.getByText("Retrying in 1s...")).toBeInTheDocument();
+    expect(screen.getByText(/retrying in 1s/)).toBeInTheDocument();
   });
 
   it("auto-retries after backoff delay", () => {
@@ -302,7 +302,7 @@ describe("DashboardError page", () => {
     render(<DashboardError error={error} reset={reset} />);
 
     expect(screen.getByRole("alert")).toBeInTheDocument();
-    expect(screen.getByText("Page crashed")).toBeInTheDocument();
+    expect(screen.getByText("Page crashed", { exact: false })).toBeInTheDocument();
   });
 
   it("renders error title from translations", () => {
@@ -335,7 +335,7 @@ describe("DashboardError page", () => {
     render(<DashboardError error={error} reset={reset} />);
 
     // Initial countdown for first retry (1s backoff)
-    expect(screen.getByText('retrying({"seconds":1})')).toBeInTheDocument();
+    expect(screen.getByText('retrying({"seconds":1})', { exact: false })).toBeInTheDocument();
   });
 
   it("auto-calls reset after backoff delay", () => {

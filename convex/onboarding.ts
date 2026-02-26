@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalAction } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { auth } from "./auth";
 
 // =================================================================
@@ -138,12 +139,72 @@ export const getOnboardingStatus = query({
 });
 
 /**
- * Mark domain onboarding as completed
+ * Mark domain onboarding as completed and schedule post-onboarding jobs
+ * (backlink fetch + on-site scan) if the org's plan includes those modules.
  */
 export const completeOnboarding = mutation({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.domainId, { onboardingCompleted: true });
+
+    // Schedule post-onboarding jobs (backlinks, on-site scan) in the background
+    await ctx.scheduler.runAfter(0, internal.onboarding.postOnboardingJobs, {
+      domainId: args.domainId,
+    });
+  },
+});
+
+/**
+ * Internal action that runs after onboarding completion.
+ * Checks org plan modules and triggers backlink fetch + on-site scan if included.
+ */
+export const postOnboardingJobs = internalAction({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    // Get domain → project → org → plan modules
+    const domain = await ctx.runQuery(internal.domains.getDomainInternal, {
+      domainId: args.domainId,
+    });
+    if (!domain) return;
+
+    const orgId = await ctx.runQuery(internal.permissions.getOrgFromProjectInternal, {
+      projectId: domain.projectId,
+    });
+    if (!orgId) return;
+
+    const modules = await ctx.runQuery(internal.permissions.getOrganizationModulesInternal, {
+      organizationId: orgId,
+    });
+
+    // Auto-fetch backlinks if plan includes backlinks module
+    const failures: string[] = [];
+
+    if (modules.includes("backlinks")) {
+      try {
+        await ctx.runAction(internal.backlinks.fetchBacklinksInternal, {
+          domainId: args.domainId,
+        });
+      } catch (error) {
+        console.error("[postOnboardingJobs] Failed to auto-fetch backlinks:", error);
+        failures.push("backlinks");
+      }
+    }
+
+    // Auto-trigger on-site scan if plan includes seo_audit module
+    if (modules.includes("seo_audit")) {
+      try {
+        await ctx.runMutation(internal.seoAudit_actions.triggerSeoAuditScanInternal, {
+          domainId: args.domainId,
+        });
+      } catch (error) {
+        console.error("[postOnboardingJobs] Failed to auto-trigger on-site scan:", error);
+        failures.push("seo_audit");
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new Error(`[postOnboardingJobs] Failed jobs for domain ${args.domainId}: ${failures.join(", ")}`);
+    }
   },
 });
 

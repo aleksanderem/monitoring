@@ -8,7 +8,6 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
-import { glob } from "glob";
 
 const MESSAGES_DIR = path.resolve(__dirname, "../../messages");
 const SRC_DIR = path.resolve(__dirname, "../..");
@@ -81,12 +80,19 @@ function extractTranslationUsages(filePath: string): TranslationUsage[] {
 }
 
 describe("Translation completeness", () => {
-  // Collect all TSX files
-  const tsxFiles = glob.sync("**/*.tsx", {
-    cwd: SRC_DIR,
-    absolute: true,
-    ignore: ["**/node_modules/**", "**/.next/**", "**/test/**", "**/*.test.*"],
-  });
+  // Collect all TSX files using Node built-in recursive readdir
+  const allFiles = fs.readdirSync(SRC_DIR, { recursive: true }) as string[];
+  const tsxFiles = allFiles
+    .filter(
+      (f) =>
+        f.endsWith(".tsx") &&
+        !f.includes("node_modules") &&
+        !f.includes(".next") &&
+        !f.includes("/test/") &&
+        !f.includes("\\test\\") &&
+        !f.endsWith(".test.tsx"),
+    )
+    .map((f) => path.join(SRC_DIR, f));
 
   // Extract all translation key usages from components
   const allUsages: TranslationUsage[] = [];

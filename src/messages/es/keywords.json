@@ -549,5 +549,16 @@
   "failedToFetchHistory": "[ES] Failed to fetch history",
   "drillDownFailed": "[ES] Drill-down failed",
   "unknownError": "[ES] Unknown error",
-  "unknownKeyword": "[ES] Unknown"
+  "unknownKeyword": "[ES] Unknown",
+
+  "limitReachedTitle": "[ES] Limit reached",
+  "limitReachedCooldown": "[ES] Please wait before refreshing again",
+  "limitReachedCooldownDetail": "[ES] You can refresh again in {minutes} minutes.",
+  "limitReachedDailyOrg": "[ES] Organization daily refresh limit reached",
+  "limitReachedDailyUser": "[ES] Your personal daily refresh limit reached",
+  "limitReachedDailyProject": "[ES] Project daily refresh limit reached",
+  "limitReachedDailyDomain": "[ES] Domain daily refresh limit reached",
+  "limitReachedDailyDetail": "[ES] The daily refresh limit has been reached. Try again tomorrow or contact your administrator to increase the limit.",
+  "limitReachedBulkCap": "[ES] Too many keywords selected",
+  "limitReachedBulkCapDetail": "[ES] Select fewer keywords and try again."
 }

@@ -21,7 +21,7 @@ export const createSerpFetchJob = mutation({
     const userId = await auth.getUserId(ctx);
 
     // Check refresh rate limits (cooldown + daily quota + per-user + per-project + per-domain + bulk cap)
-    await checkRefreshLimits(ctx, args.domainId, userId, args.keywordIds.length);
+    await checkRefreshLimits(ctx, args.domainId, userId, args.keywordIds.length, "serp");
 
     // Create job record
     const jobId = await ctx.db.insert("keywordSerpJobs", {
@@ -443,7 +443,7 @@ export const processSerpFetchJobInternal = internalAction({
             position: kwPosition,
             url: kwUrl,
           }]).catch((err) =>
-            console.error(`[Supabase] keywordSerpJobs write failed: keyword=${keyword._id}:`, err.message)
+            console.error(`[Supabase] keywordSerpJobs write failed: keyword=${keyword._id}:`, err)
           );
 
           // Auto-extract and track top competitors (positions 1-10, excluding own domain)
@@ -472,7 +472,9 @@ export const processSerpFetchJobInternal = internalAction({
                   date: sp.date,
                   position: sp.position,
                   url: sp.url,
-                }))).catch(() => {});
+                }))).catch((err) =>
+                  console.error(`[Supabase] keywordSerpJobs competitor write failed: keyword=${keyword._id}:`, err)
+                );
               }
             } catch (error) {
               console.error(`[processSerpFetchJob] Error tracking competitors:`, error);

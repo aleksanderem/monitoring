@@ -1445,8 +1445,10 @@ export const createKeywordInternal = internalMutation({
 });
 
 /**
- * Get full position history for a keyword (action — reads from Supabase).
- * Used in the keyword detail modal for a complete chart (not just 7-day sparkline).
+ * Get full position history for a keyword.
+ * Reads from Convex keywordPositions table (canonical source).
+ * Supplements with Supabase for any older data not in Convex.
+ * Used in the keyword detail modal for a complete chart.
  */
 export const getPositionHistory = action({
   args: {
@@ -1459,22 +1461,60 @@ export const getPositionHistory = action({
     });
     if (!keyword) return [];
 
+    // Primary source: Convex keywordPositions table
+    const convexPositions = await ctx.runQuery(internal.keywords.getKeywordPositionsForHistory, {
+      keywordId: args.keywordId,
+    });
+
+    // Build map keyed by date (Convex data takes priority)
+    const positionMap = new Map<string, number>();
+    for (const pos of convexPositions) {
+      if (pos.position != null) {
+        positionMap.set(pos.date, pos.position);
+      }
+    }
+
+    // Supplement with Supabase for older data not in Convex
     const sb = getSupabaseAdmin();
-    if (!sb) return [];
+    if (sb) {
+      const { data, error } = await sb
+        .from("keyword_positions")
+        .select("date, position")
+        .eq("convex_keyword_id", args.keywordId)
+        .not("position", "is", null)
+        .order("date", { ascending: true });
 
-    const { data, error } = await sb
-      .from("keyword_positions")
-      .select("date, position")
-      .eq("convex_keyword_id", args.keywordId)
-      .not("position", "is", null)
-      .order("date", { ascending: true });
+      if (error) {
+        console.error(`[getPositionHistory] Supabase query failed for keyword=${args.keywordId}:`, error.message);
+      }
 
-    if (error || !data) return [];
+      if (data) {
+        for (const row of data) {
+          if (!positionMap.has(row.date)) {
+            positionMap.set(row.date, row.position as number);
+          }
+        }
+      }
+    }
 
-    return data.map((row) => ({
-      date: new Date(row.date).getTime(),
-      position: row.position as number,
-    }));
+    // Sort by date and return
+    return Array.from(positionMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, position]) => ({
+        date: new Date(date).getTime(),
+        position,
+      }));
+  },
+});
+
+// Internal query: get all positions for a keyword from Convex
+export const getKeywordPositionsForHistory = internalQuery({
+  args: { keywordId: v.id("keywords") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("keywordPositions")
+      .withIndex("by_keyword_date", (q) => q.eq("keywordId", args.keywordId))
+      .collect();
   },
 });
 

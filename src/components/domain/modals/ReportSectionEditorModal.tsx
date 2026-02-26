@@ -6,6 +6,8 @@ import { CloseButton } from "@/components/base/buttons/close-button";
 import { Button } from "@/components/base/buttons/button";
 import { Heading as AriaHeading } from "react-aria-components";
 import { ChevronDown, ChevronUp, CheckDone01 } from "@untitledui/icons";
+import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
 import { useTranslations } from "next-intl";
 import {
   DndContext,
@@ -250,22 +252,28 @@ export function ReportSectionEditorModal({
     <ModalOverlay isOpen={isOpen} onOpenChange={handleOpenChange} isDismissable>
       <Modal>
         <Dialog className="overflow-hidden">
-          <div className="relative w-full overflow-hidden rounded-xl bg-primary dark:bg-[#1f2530] shadow-xl sm:max-w-md">
+          <div className="relative w-full overflow-hidden rounded-2xl bg-primary shadow-xl sm:max-w-md">
             <CloseButton
-              onClick={onClose}
+              onPress={onClose}
               theme="light"
               size="lg"
               className="absolute top-3 right-3 z-10"
             />
 
             {/* Header */}
-            <div className="border-b border-secondary px-6 py-4">
-              <AriaHeading slot="title" className="text-lg font-semibold text-primary">
-                {t("reportProfileCustom" as any)}
-              </AriaHeading>
-              <p className="mt-1 text-sm text-tertiary">
-                {t("reportEditorDragHint" as any)}
-              </p>
+            <div className="flex flex-col gap-4 px-4 pt-5 sm:px-6 sm:pt-6">
+              <div className="relative w-max">
+                <FeaturedIcon color="brand" size="lg" theme="light" icon={CheckDone01} />
+                <BackgroundPattern pattern="circle" size="sm" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+              </div>
+              <div className="z-10 flex flex-col gap-0.5">
+                <AriaHeading slot="title" className="text-md font-semibold text-primary">
+                  {t("reportProfileCustom" as any)}
+                </AriaHeading>
+                <p className="text-sm text-tertiary">
+                  {t("reportEditorDragHint" as any)}
+                </p>
+              </div>
             </div>
 
             {/* Content */}

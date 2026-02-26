@@ -11,7 +11,7 @@ const modules = import.meta.glob("./**/*.ts");
 // ---------------------------------------------------------------------------
 
 async function setupDomainWithScan(t: ReturnType<typeof convexTest>) {
-  const projectId = await t.run(async (ctx) => {
+  const { projectId, domainId, userId } = await t.run(async (ctx) => {
     const orgId = await ctx.db.insert("organizations", {
       name: "Test Org",
       slug: "test-org",
@@ -23,15 +23,12 @@ async function setupDomainWithScan(t: ReturnType<typeof convexTest>) {
       name: "Test Team",
       createdAt: Date.now(),
     });
-    return await ctx.db.insert("projects", {
+    const projectId = await ctx.db.insert("projects", {
       teamId,
       name: "Test Project",
       createdAt: Date.now(),
     });
-  });
-
-  const domainId = await t.run(async (ctx) => {
-    return await ctx.db.insert("domains", {
+    const domainId = await ctx.db.insert("domains", {
       projectId,
       domain: "example.com",
       createdAt: Date.now(),
@@ -42,6 +39,17 @@ async function setupDomainWithScan(t: ReturnType<typeof convexTest>) {
         language: "en",
       },
     });
+    const userId = await ctx.db.insert("users", {
+      name: "Owner",
+      email: "owner@test.com",
+    });
+    await ctx.db.insert("organizationMembers", {
+      organizationId: orgId,
+      userId,
+      role: "owner",
+      joinedAt: Date.now(),
+    });
+    return { projectId, domainId, userId };
   });
 
   const scanId = await t.run(async (ctx) => {
@@ -53,7 +61,7 @@ async function setupDomainWithScan(t: ReturnType<typeof convexTest>) {
     });
   });
 
-  return { projectId, domainId, scanId };
+  return { projectId, domainId, scanId, userId };
 }
 
 // ===========================================================================
@@ -64,7 +72,7 @@ describe("seoAudit_actions.triggerSeoAuditScan", () => {
   test("creates a scan record with status queued", async () => {
     const t = convexTest(schema, modules);
 
-    const projectId = await t.run(async (ctx) => {
+    const { domainId, userId } = await t.run(async (ctx) => {
       const orgId = await ctx.db.insert("organizations", {
         name: "Test Org",
         slug: "test-org",
@@ -76,15 +84,12 @@ describe("seoAudit_actions.triggerSeoAuditScan", () => {
         name: "Test Team",
         createdAt: Date.now(),
       });
-      return await ctx.db.insert("projects", {
+      const projectId = await ctx.db.insert("projects", {
         teamId,
         name: "Test Project",
         createdAt: Date.now(),
       });
-    });
-
-    const domainId = await t.run(async (ctx) => {
-      return await ctx.db.insert("domains", {
+      const domainId = await ctx.db.insert("domains", {
         projectId,
         domain: "example.com",
         createdAt: Date.now(),
@@ -95,9 +100,21 @@ describe("seoAudit_actions.triggerSeoAuditScan", () => {
           language: "en",
         },
       });
+      const userId = await ctx.db.insert("users", {
+        name: "Owner",
+        email: "owner@test.com",
+      });
+      await ctx.db.insert("organizationMembers", {
+        organizationId: orgId,
+        userId,
+        role: "owner",
+        joinedAt: Date.now(),
+      });
+      return { domainId, userId };
     });
 
-    const scanId = await t.mutation(api.seoAudit_actions.triggerSeoAuditScan, {
+    const asUser = t.withIdentity({ subject: userId });
+    const scanId = await asUser.mutation(api.seoAudit_actions.triggerSeoAuditScan, {
       domainId,
     });
 
@@ -114,11 +131,12 @@ describe("seoAudit_actions.triggerSeoAuditScan", () => {
 
   test("throws if a scan is already in progress", async () => {
     const t = convexTest(schema, modules);
-    const { domainId } = await setupDomainWithScan(t);
+    const { domainId, userId } = await setupDomainWithScan(t);
 
+    const asUser = t.withIdentity({ subject: userId });
     // First scan already exists from setupDomainWithScan (status: queued)
     await expect(
-      t.mutation(api.seoAudit_actions.triggerSeoAuditScan, { domainId })
+      asUser.mutation(api.seoAudit_actions.triggerSeoAuditScan, { domainId })
     ).rejects.toThrow("A scan is already in progress");
   });
 });

@@ -13,7 +13,16 @@
  *   MAILTRAP_SMTP_PASS    — SMTP password
  */
 
-import * as nodemailer from "nodemailer";
+// Lazy-import nodemailer so the module can be loaded without the package installed.
+// The e2e test file uses describe.skipIf() to skip when env vars are missing,
+// but importing this helper still runs at module load time.
+let _nodemailer: typeof import("nodemailer") | null = null;
+async function getNodemailer() {
+  if (!_nodemailer) {
+    _nodemailer = await import("nodemailer");
+  }
+  return _nodemailer;
+}
 
 const BASE = "https://mailtrap.io/api";
 
@@ -55,22 +64,25 @@ export interface MailtrapMessage {
 
 // ─── SMTP sending ────────────────────────────────────────
 
-let transporter: nodemailer.Transporter | null = null;
+let transporter: Awaited<ReturnType<typeof createTransporter>> | null = null;
 
-function getTransporter(): nodemailer.Transporter {
-  if (transporter) return transporter;
-
+async function createTransporter() {
+  const nodemailer = await getNodemailer();
   const user = process.env.MAILTRAP_SMTP_USER;
   const pass = process.env.MAILTRAP_SMTP_PASS;
   if (!user || !pass) {
     throw new Error("MAILTRAP_SMTP_USER and MAILTRAP_SMTP_PASS must be set");
   }
-
-  transporter = nodemailer.createTransport({
+  return nodemailer.createTransport({
     host: "sandbox.smtp.mailtrap.io",
     port: 2525,
     auth: { user, pass },
   });
+}
+
+async function getTransporter() {
+  if (transporter) return transporter;
+  transporter = await createTransporter();
   return transporter;
 }
 
@@ -81,7 +93,7 @@ export async function sendViaSMTP(params: {
   subject: string;
   html: string;
 }): Promise<string> {
-  const transport = getTransporter();
+  const transport = await getTransporter();
   const info = await transport.sendMail({
     from: params.from,
     to: params.to,

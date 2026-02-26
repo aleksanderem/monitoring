@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, action, internalAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { createDebugLogger } from "./lib/debugLogger";
+import { requireTenantAccess } from "./permissions";
 
 // SEO Audit API check types → severity, category, and analysis field mapping
 const CHECK_CONFIG: Record<
@@ -118,6 +119,8 @@ const CHECK_CONFIG: Record<
 export const triggerSeoAuditScan = mutation({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const existingScan = await ctx.db
       .query("onSiteScans")
       .withIndex("by_domain_status", (q) =>
@@ -157,6 +160,49 @@ export const triggerSeoAuditScan = mutation({
       message: "Crawling and analyzing all pages",
       jobType: "on_site_scan",
     });
+
+    return scanId;
+  },
+});
+
+/**
+ * Internal version of triggerSeoAuditScan for use by postOnboardingJobs.
+ * Same logic but no auth context required.
+ */
+export const triggerSeoAuditScanInternal = internalMutation({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const existingScan = await ctx.db
+      .query("onSiteScans")
+      .withIndex("by_domain_status", (q) =>
+        q.eq("domainId", args.domainId)
+      )
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("status"), "queued"),
+          q.eq(q.field("status"), "crawling"),
+          q.eq(q.field("status"), "processing")
+        )
+      )
+      .first();
+
+    if (existingScan) {
+      console.log(`[triggerSeoAuditScanInternal] Skipping: scan ${existingScan._id} already ${existingScan.status} for domain ${args.domainId}`);
+      return null;
+    }
+
+    const scanId = await ctx.db.insert("onSiteScans", {
+      domainId: args.domainId,
+      status: "queued",
+      startedAt: Date.now(),
+      source: "seo_audit",
+    });
+
+    await ctx.scheduler.runAfter(
+      0,
+      internal.seoAudit_actions.processSeoAuditInternal,
+      { scanId }
+    );
 
     return scanId;
   },

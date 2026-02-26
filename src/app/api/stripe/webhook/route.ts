@@ -3,11 +3,19 @@ import Stripe from "stripe";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../../convex/_generated/api";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+// Lazy-init: Stripe SDK throws at construction if apiKey is missing.
+// Deferring to request time lets `next build` succeed without the secret.
+let _stripe: Stripe | null = null;
+function getStripe() {
+  if (!_stripe) _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  return _stripe;
+}
 
-// We can't call internal mutations from ConvexHttpClient,
-// so we use a regular action that wraps the internal calls.
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+let _convex: ConvexHttpClient | null = null;
+function getConvex() {
+  if (!_convex) _convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+  return _convex;
+}
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -19,7 +27,7 @@ export async function POST(req: Request) {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       body,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET!
@@ -30,7 +38,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    await convex.action(api.stripe_webhook.handleWebhookEvent, {
+    await getConvex().action(api.stripe_webhook.handleWebhookEvent, {
       type: event.type,
       data: JSON.stringify(event.data.object),
     });

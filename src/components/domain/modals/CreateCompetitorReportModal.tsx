@@ -10,8 +10,10 @@ import { CloseButton } from "@/components/base/buttons/close-button";
 import { Badge } from "@/components/base/badges/badges";
 import { FileSearch02, CheckCircle } from "@untitledui/icons";
 import { toast } from "sonner";
-import { Heading } from "react-aria-components";
+import { Heading as AriaHeading } from "react-aria-components";
 import { useTranslations } from "next-intl";
+import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
 
 interface CreateCompetitorReportModalProps {
   domainId: Id<"domains">;
@@ -109,28 +111,34 @@ export function CreateCompetitorReportModal({
   };
 
   return (
-    <ModalOverlay isOpen={isOpen} onOpenChange={onClose} isDismissable style={{ zIndex: 9999 }}>
+    <ModalOverlay isOpen={isOpen} onOpenChange={onClose} isDismissable>
       <Modal>
         <Dialog className="overflow-hidden">
-          <div className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-4xl">
+          <div className="relative w-full overflow-hidden rounded-2xl bg-primary shadow-xl sm:max-w-4xl">
             <CloseButton
-              onClick={onClose}
+              onPress={onClose}
               theme="light"
               size="lg"
               className="absolute top-3 right-3 z-10"
             />
 
             {/* Header */}
-            <div className="border-b border-secondary px-6 py-4">
-              <Heading slot="title" className="text-lg font-semibold text-primary">
-                {t("createReportTitle")}
-              </Heading>
-              <p className="mt-1 text-sm text-tertiary">
-                {t("createReportForKeyword")}: <span className="font-medium text-primary">{keyword}</span>
-              </p>
-              <p className="mt-1 text-xs text-tertiary">
-                {t("createReportSelectHint")}
-              </p>
+            <div className="flex flex-col gap-4 px-4 pt-5 sm:px-6 sm:pt-6">
+              <div className="relative w-max">
+                <FeaturedIcon color="brand" size="lg" theme="light" icon={FileSearch02} />
+                <BackgroundPattern pattern="circle" size="sm" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+              </div>
+              <div className="z-10 flex flex-col gap-0.5">
+                <AriaHeading slot="title" className="text-md font-semibold text-primary">
+                  {t("createReportTitle")}
+                </AriaHeading>
+                <p className="text-sm text-tertiary">
+                  {t("createReportForKeyword")}: <span className="font-medium text-primary">{keyword}</span>
+                </p>
+                <p className="mt-0.5 text-xs text-tertiary">
+                  {t("createReportSelectHint")}
+                </p>
+              </div>
             </div>
 
             {/* Content */}

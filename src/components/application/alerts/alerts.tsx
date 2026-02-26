@@ -51,7 +51,7 @@ interface AlertFloatingProps {
 
 export const AlertFloating = ({ title, description, confirmLabel, onClose, onConfirm, color = "default", dismissLabel = "Dismiss" }: AlertFloatingProps) => {
     return (
-        <div className="relative flex flex-col gap-4 rounded-xl border border-primary bg-primary_alt p-4 shadow-xs md:flex-row">
+        <div role="alert" className="relative flex flex-col gap-4 rounded-xl border border-primary bg-primary_alt p-4 shadow-xs md:flex-row">
             <FeaturedIcon icon={iconMap[color]} color={color === "default" ? "gray" : color} theme={color === "default" ? "modern" : "outline"} size="md" />
 
             <div className="flex flex-1 flex-col gap-3 md:w-0">

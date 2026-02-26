@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo } from "react";
-import { X, Upload01, ChevronLeft, ChevronRight, AlertCircle, CheckCircle } from "@untitledui/icons";
+import { Upload01, ChevronLeft, ChevronRight, AlertCircle, CheckCircle } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
-import { useEscapeClose } from "@/hooks/useEscapeClose";
+import { DialogTrigger, ModalOverlay, Modal, Dialog } from "@/components/application/modals/modal";
+import { CloseButton } from "@/components/base/buttons/close-button";
+import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
+import { Heading as AriaHeading } from "react-aria-components";
 import { parseFile, autoDetectMapping, applyMapping, type FieldDefinition, type ParseResult } from "@/utils/csvParser";
 
 type WizardStep = "upload" | "preview" | "importing" | "done";
@@ -35,8 +39,6 @@ export function ImportWizardModal({
   onImport,
   maxRows = 10000,
 }: ImportWizardModalProps) {
-  useEscapeClose(onClose, isOpen);
-
   const [step, setStep] = useState<WizardStep>("upload");
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [mapping, setMapping] = useState<Record<number, string>>({});
@@ -161,215 +163,226 @@ export function ImportWizardModal({
     }
   }, [parseResult, mapping, validateRow, onImport]);
 
-  if (!isOpen) return null;
-
   const previewRows = parseResult?.rows.slice(0, 5) ?? [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="relative mx-4 flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-secondary bg-primary shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-secondary px-6 py-4">
-          <h2 className="text-lg font-semibold text-primary">{title}</h2>
-          <button onClick={handleClose} className="text-tertiary hover:text-primary">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <DialogTrigger isOpen={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
+      <ModalOverlay isDismissable>
+        <Modal className="max-w-3xl">
+          <Dialog>
+            <div className="relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-2xl bg-primary shadow-xl sm:max-w-3xl">
+              <CloseButton onPress={handleClose} theme="light" size="lg" className="absolute top-3 right-3 z-10" />
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {/* Upload Step */}
-          {step === "upload" && (
-            <div
-              className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-12 transition-colors ${
-                dragOver ? "border-brand-500 bg-brand-25" : "border-secondary"
-              }`}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-            >
-              <Upload01 className="mb-4 h-10 w-10 text-tertiary" />
-              <p className="mb-2 text-sm font-medium text-primary">
-                Drag & drop your file here, or{" "}
-                <button
-                  className="text-brand-600 hover:text-brand-700 underline"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  browse
-                </button>
-              </p>
-              <p className="text-xs text-tertiary">Supports CSV and XLSX files up to 5MB</p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                className="hidden"
-                onChange={handleFileInput}
-              />
-              {parseResult?.error && (
-                <div className="mt-4 flex items-center gap-2 text-sm text-error-600">
-                  <AlertCircle className="h-4 w-4" />
-                  {parseResult.error}
+              {/* Header */}
+              <div className="flex flex-col gap-4 px-4 pt-5 sm:px-6 sm:pt-6">
+                <div className="relative w-max">
+                  <FeaturedIcon color="brand" size="lg" theme="light" icon={Upload01} />
+                  <BackgroundPattern pattern="circle" size="sm" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Preview & Map Step */}
-          {step === "preview" && parseResult && (
-            <div className="space-y-6">
-              {/* Column Mapping */}
-              <div>
-                <h3 className="mb-3 text-sm font-semibold text-primary">Map Columns</h3>
-                <p className="mb-4 text-xs text-tertiary">
-                  Select which field each column maps to. Required fields are marked with *.
-                </p>
-                <div className="overflow-x-auto rounded-lg border border-secondary">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-secondary bg-secondary">
-                        {parseResult.headers.map((header, i) => (
-                          <th key={i} className="px-3 py-2 text-left font-medium text-secondary">
-                            <div className="mb-1 truncate text-xs text-tertiary">{header}</div>
-                            <select
-                              className="w-full rounded border border-secondary bg-primary px-2 py-1 text-xs text-primary"
-                              value={mapping[i] ?? ""}
-                              onChange={(e) => setColumnMapping(i, e.target.value)}
-                            >
-                              <option value="">— Skip —</option>
-                              {fields.map((field) => (
-                                <option key={field.key} value={field.key}>
-                                  {field.label}{field.required ? " *" : ""}
-                                </option>
-                              ))}
-                            </select>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {previewRows.map((row, ri) => (
-                        <tr key={ri} className="border-b border-secondary last:border-0">
-                          {row.map((cell, ci) => (
-                            <td key={ci} className="max-w-[200px] truncate px-3 py-2 text-xs text-primary">
-                              {cell?.toString() ?? ""}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="z-10 flex flex-col gap-0.5">
+                  <AriaHeading slot="title" className="text-md font-semibold text-primary">
+                    {title}
+                  </AriaHeading>
                 </div>
-                {parseResult.rows.length > 5 && (
-                  <p className="mt-2 text-xs text-tertiary">
-                    Showing 5 of {parseResult.rows.length} rows
-                  </p>
-                )}
               </div>
 
-              {/* Validation Preview */}
-              {validationPreview && (
-                <div className="rounded-lg border border-secondary p-4">
-                  <h3 className="mb-2 text-sm font-semibold text-primary">Validation Preview</h3>
-                  <div className="flex gap-6 text-sm">
-                    <span className="text-success-600">{validationPreview.valid} valid rows</span>
-                    {validationPreview.invalid > 0 && (
-                      <span className="text-error-600">{validationPreview.invalid} invalid rows (will be skipped)</span>
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto px-4 pt-4 sm:px-6">
+                {/* Upload Step */}
+                {step === "upload" && (
+                  <div
+                    className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-12 transition-colors ${
+                      dragOver ? "border-brand-500 bg-brand-25" : "border-secondary"
+                    }`}
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={handleDrop}
+                  >
+                    <Upload01 className="mb-4 h-10 w-10 text-tertiary" />
+                    <p className="mb-2 text-sm font-medium text-primary">
+                      Drag & drop your file here, or{" "}
+                      <button
+                        className="text-brand-600 hover:text-brand-700 underline"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        browse
+                      </button>
+                    </p>
+                    <p className="text-xs text-tertiary">Supports CSV and XLSX files up to 5MB</p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv,.xlsx,.xls"
+                      className="hidden"
+                      onChange={handleFileInput}
+                    />
+                    {parseResult?.error && (
+                      <div className="mt-4 flex items-center gap-2 text-sm text-error-600">
+                        <AlertCircle className="h-4 w-4" />
+                        {parseResult.error}
+                      </div>
                     )}
                   </div>
-                  {validationPreview.errors.length > 0 && (
-                    <div className="mt-3 space-y-1">
-                      {validationPreview.errors.map((err, i) => (
-                        <p key={i} className="text-xs text-error-600">{err}</p>
-                      ))}
-                      {validationPreview.invalid > 5 && (
-                        <p className="text-xs text-tertiary">
-                          ...and {validationPreview.invalid - 5} more errors
+                )}
+
+                {/* Preview & Map Step */}
+                {step === "preview" && parseResult && (
+                  <div className="space-y-6">
+                    {/* Column Mapping */}
+                    <div>
+                      <h3 className="mb-3 text-sm font-semibold text-primary">Map Columns</h3>
+                      <p className="mb-4 text-xs text-tertiary">
+                        Select which field each column maps to. Required fields are marked with *.
+                      </p>
+                      <div className="overflow-x-auto rounded-lg border border-secondary">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-secondary bg-secondary">
+                              {parseResult.headers.map((header, i) => (
+                                <th key={i} className="px-3 py-2 text-left font-medium text-secondary">
+                                  <div className="mb-1 truncate text-xs text-tertiary">{header}</div>
+                                  <select
+                                    className="w-full rounded border border-secondary bg-primary px-2 py-1 text-xs text-primary"
+                                    value={mapping[i] ?? ""}
+                                    onChange={(e) => setColumnMapping(i, e.target.value)}
+                                  >
+                                    <option value="">— Skip —</option>
+                                    {fields.map((field) => (
+                                      <option key={field.key} value={field.key}>
+                                        {field.label}{field.required ? " *" : ""}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {previewRows.map((row, ri) => (
+                              <tr key={ri} className="border-b border-secondary last:border-0">
+                                {row.map((cell, ci) => (
+                                  <td key={ci} className="max-w-[200px] truncate px-3 py-2 text-xs text-primary">
+                                    {cell?.toString() ?? ""}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {parseResult.rows.length > 5 && (
+                        <p className="mt-2 text-xs text-tertiary">
+                          Showing 5 of {parseResult.rows.length} rows
                         </p>
                       )}
                     </div>
-                  )}
-                </div>
-              )}
 
-              {!requiredFieldsMapped && (
-                <div className="flex items-center gap-2 text-sm text-warning-600">
-                  <AlertCircle className="h-4 w-4" />
-                  Please map all required fields before importing.
-                </div>
-              )}
-            </div>
-          )}
+                    {/* Validation Preview */}
+                    {validationPreview && (
+                      <div className="rounded-lg border border-secondary p-4">
+                        <h3 className="mb-2 text-sm font-semibold text-primary">Validation Preview</h3>
+                        <div className="flex gap-6 text-sm">
+                          <span className="text-success-600">{validationPreview.valid} valid rows</span>
+                          {validationPreview.invalid > 0 && (
+                            <span className="text-error-600">{validationPreview.invalid} invalid rows (will be skipped)</span>
+                          )}
+                        </div>
+                        {validationPreview.errors.length > 0 && (
+                          <div className="mt-3 space-y-1">
+                            {validationPreview.errors.map((err, i) => (
+                              <p key={i} className="text-xs text-error-600">{err}</p>
+                            ))}
+                            {validationPreview.invalid > 5 && (
+                              <p className="text-xs text-tertiary">
+                                ...and {validationPreview.invalid - 5} more errors
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-          {/* Importing Step */}
-          {step === "importing" && (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
-              <p className="text-sm text-primary">Importing data...</p>
-            </div>
-          )}
-
-          {/* Done Step */}
-          {step === "done" && importResult && (
-            <div className="flex flex-col items-center py-8">
-              {importResult.imported > 0 ? (
-                <CheckCircle className="mb-4 h-12 w-12 text-success-500" />
-              ) : (
-                <AlertCircle className="mb-4 h-12 w-12 text-error-500" />
-              )}
-              <h3 className="mb-2 text-lg font-semibold text-primary">Import Complete</h3>
-              <div className="mb-4 space-y-1 text-center text-sm">
-                {importResult.imported > 0 && (
-                  <p className="text-success-600">{importResult.imported} items imported successfully</p>
+                    {!requiredFieldsMapped && (
+                      <div className="flex items-center gap-2 text-sm text-warning-600">
+                        <AlertCircle className="h-4 w-4" />
+                        Please map all required fields before importing.
+                      </div>
+                    )}
+                  </div>
                 )}
-                {importResult.skipped > 0 && (
-                  <p className="text-tertiary">{importResult.skipped} duplicates skipped</p>
+
+                {/* Importing Step */}
+                {step === "importing" && (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+                    <p className="text-sm text-primary">Importing data...</p>
+                  </div>
                 )}
-                {importResult.errors.length > 0 && (
-                  <div className="mt-2 max-h-32 overflow-y-auto text-left">
-                    {importResult.errors.map((err, i) => (
-                      <p key={i} className="text-xs text-error-600">{err}</p>
-                    ))}
+
+                {/* Done Step */}
+                {step === "done" && importResult && (
+                  <div className="flex flex-col items-center py-8">
+                    {importResult.imported > 0 ? (
+                      <CheckCircle className="mb-4 h-12 w-12 text-success-500" />
+                    ) : (
+                      <AlertCircle className="mb-4 h-12 w-12 text-error-500" />
+                    )}
+                    <h3 className="mb-2 text-lg font-semibold text-primary">Import Complete</h3>
+                    <div className="mb-4 space-y-1 text-center text-sm">
+                      {importResult.imported > 0 && (
+                        <p className="text-success-600">{importResult.imported} items imported successfully</p>
+                      )}
+                      {importResult.skipped > 0 && (
+                        <p className="text-tertiary">{importResult.skipped} duplicates skipped</p>
+                      )}
+                      {importResult.errors.length > 0 && (
+                        <div className="mt-2 max-h-32 overflow-y-auto text-left">
+                          {importResult.errors.map((err, i) => (
+                            <p key={i} className="text-xs text-error-600">{err}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-        </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between border-t border-secondary px-6 py-4">
-          <div>
-            {step === "preview" && (
-              <Button color="tertiary" size="sm" onClick={() => { reset(); }}>
-                <ChevronLeft className="h-4 w-4" />
-                Back
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-3">
-            {step === "done" ? (
-              <Button color="primary" size="sm" onClick={handleClose}>
-                Close
-              </Button>
-            ) : step === "preview" ? (
-              <Button
-                color="primary"
-                size="sm"
-                onClick={handleImport}
-                isDisabled={!requiredFieldsMapped || isImporting || (validationPreview?.valid ?? 0) === 0}
-              >
-                Import {validationPreview?.valid ?? 0} rows
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button color="tertiary" size="sm" onClick={handleClose}>
-                Cancel
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+              {/* Footer */}
+              <div className="flex items-center justify-between border-t border-secondary px-6 py-4">
+                <div>
+                  {step === "preview" && (
+                    <Button color="tertiary" size="sm" onClick={() => { reset(); }}>
+                      <ChevronLeft className="h-4 w-4" />
+                      Back
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  {step === "done" ? (
+                    <Button color="primary" size="sm" onClick={handleClose}>
+                      Close
+                    </Button>
+                  ) : step === "preview" ? (
+                    <Button
+                      color="primary"
+                      size="sm"
+                      onClick={handleImport}
+                      isDisabled={!requiredFieldsMapped || isImporting || (validationPreview?.valid ?? 0) === 0}
+                    >
+                      Import {validationPreview?.valid ?? 0} rows
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <Button color="tertiary" size="sm" onClick={handleClose}>
+                      Cancel
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }

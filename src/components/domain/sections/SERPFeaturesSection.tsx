@@ -5,6 +5,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/base/badges/badges";
+import { AlertFloating } from "@/components/application/alerts/alerts";
 import { ArrowUp, ArrowDown } from "@untitledui/icons";
 import { useTranslations } from "next-intl";
 
@@ -54,14 +55,12 @@ export function SERPFeaturesSection({
 
   if (summary.totalDataPoints === 0) {
     return (
-      <Card className="p-6">
-        <div className="text-center">
-          <h3 className="mb-2 text-lg font-semibold">{t("serpFeatures")}</h3>
-          <p className="text-sm text-gray-500">
-            {t("noSerpFeaturesDataAvailable")}
-          </p>
-        </div>
-      </Card>
+      <AlertFloating
+        color="gray"
+        title={t("serpFeatures")}
+        description={t("noSerpFeaturesDataAvailable")}
+        confirmLabel=""
+      />
     );
   }
 

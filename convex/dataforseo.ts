@@ -96,7 +96,7 @@ export const fetchSinglePositionInternal = internalAction({
           url: position ? `https://${args.domain}/page-${Math.floor(Math.random() * 10)}` : null,
           search_volume: Math.floor(Math.random() * 10000),
         }]).catch((err) =>
-          console.error(`[Supabase] fetchSinglePositionInternal mock write failed:`, err.message)
+          console.error(`[Supabase] fetchSinglePositionInternal mock write failed:`, err)
         );
       }
 
@@ -130,7 +130,7 @@ export const fetchSinglePositionInternal = internalAction({
               url: histPosition ? `https://${args.domain}/page` : null,
               search_volume: Math.floor(Math.random() * 5000) + 500,
             }]).catch((err) =>
-              console.error(`[Supabase] fetchSinglePositionInternal mock history write failed:`, err.message)
+              console.error(`[Supabase] fetchSinglePositionInternal mock history write failed:`, err)
             );
           }
         }
@@ -248,7 +248,7 @@ export const fetchSinglePositionInternal = internalAction({
           search_volume: data.tasks[0].result[0].search_volume,
           difficulty,
         }]).catch((err) =>
-          console.error(`[Supabase] fetchSinglePositionInternal write failed: keyword=${args.keywordId}:`, err.message)
+          console.error(`[Supabase] fetchSinglePositionInternal write failed: keyword=${args.keywordId}:`, err)
         );
       }
 
@@ -587,15 +587,44 @@ export const fetchPositionsInternal = internalAction({
 
     if (!login || !password) {
       // Mock data for dev mode
+      const mockSupabaseRows: Array<{
+        convex_domain_id: string;
+        convex_keyword_id: string;
+        date: string;
+        position: number | null;
+        url: string | null;
+        search_volume: number | null;
+      }> = [];
+
       for (const kw of args.keywords) {
+        const position = Math.random() > 0.2 ? Math.floor(Math.random() * 50) + 1 : null;
+        const url = Math.random() > 0.2 ? `https://${args.domain}/page-${Math.floor(Math.random() * 10)}` : null;
+        const searchVolume = Math.floor(Math.random() * 10000);
+
         await ctx.runMutation(internal.dataforseo.storePositionInternal, {
           keywordId: kw.id,
           date: today,
-          position: Math.random() > 0.2 ? Math.floor(Math.random() * 50) + 1 : null,
-          url: Math.random() > 0.2 ? `https://${args.domain}/page-${Math.floor(Math.random() * 10)}` : null,
-          searchVolume: Math.floor(Math.random() * 10000),
+          position,
+          url,
+          searchVolume,
           difficulty: Math.floor(Math.random() * 100),
         });
+
+        mockSupabaseRows.push({
+          convex_domain_id: args.domainId,
+          convex_keyword_id: kw.id,
+          date: today,
+          position,
+          url,
+          search_volume: searchVolume,
+        });
+      }
+
+      // Dual-write mock positions to Supabase
+      if (mockSupabaseRows.length > 0) {
+        writeKeywordPositions(mockSupabaseRows).catch((err) =>
+          console.error(`[Supabase] fetchPositionsInternal mock dual-write failed: ${mockSupabaseRows.length} rows, domain=${args.domainId}:`, err)
+        );
       }
 
       await ctx.runMutation(internal.dataforseo.markDomainRefreshed, {
@@ -709,7 +738,7 @@ export const fetchPositionsInternal = internalAction({
 
       // Dual-write: batch upsert all positions to Supabase (non-blocking)
       writeKeywordPositions(supabaseRows).catch((err) =>
-        console.error(`[Supabase] fetchPositionsInternal dual-write failed: ${supabaseRows.length} rows, domain=${args.domainId}:`, err.message)
+        console.error(`[Supabase] fetchPositionsInternal dual-write failed: ${supabaseRows.length} rows, domain=${args.domainId}:`, err)
       );
 
       // Fetch difficulty for keywords that don't have it yet (single batch query)
@@ -954,7 +983,7 @@ export const fetchHistoricalPositionsInternal = internalAction({
       }
       if (supabaseBuffer.length > 0) {
         writeKeywordPositions(supabaseBuffer).catch((err) =>
-          console.error(`[Supabase] fetchHistoricalPositionsInternal write failed: ${supabaseBuffer.length} rows, keyword=${args.keywordId}:`, err.message)
+          console.error(`[Supabase] fetchHistoricalPositionsInternal write failed: ${supabaseBuffer.length} rows, keyword=${args.keywordId}:`, err)
         );
       }
       console.log("=== Historical positions stored successfully ===");
@@ -1063,7 +1092,7 @@ export const fetchHistoricalPositionsInternal = internalAction({
       }
       if (supabaseBuffer.length > 0) {
         writeKeywordPositions(supabaseBuffer).catch((err) =>
-          console.error(`[Supabase] fetchHistoricalPositionsInternal write failed: ${supabaseBuffer.length} rows, keyword=${args.keywordId}:`, err.message)
+          console.error(`[Supabase] fetchHistoricalPositionsInternal write failed: ${supabaseBuffer.length} rows, keyword=${args.keywordId}:`, err)
         );
       }
       console.log(`=== Historical data complete: stored ${storedCount} positions ===`);

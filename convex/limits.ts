@@ -402,41 +402,43 @@ export const getSidebarUsage = query({
 
 /**
  * Check cooldown between manual refreshes for a domain.
- * Looks at the most recent keywordCheckJob and keywordSerpJob for the domain.
+ * Only checks the job table matching the given jobType so that position
+ * refreshes and SERP fetches have independent cooldowns.
  * Throws if within cooldown window. Skips if cooldown is 0 or undefined.
  */
 export async function checkRefreshCooldown(
   ctx: QueryCtx | MutationCtx,
   domainId: Id<"domains">,
-  cooldownMinutes: number | undefined
+  cooldownMinutes: number | undefined,
+  jobType: "position" | "serp" = "position"
 ): Promise<void> {
   if (!cooldownMinutes || cooldownMinutes <= 0) return;
 
   const cooldownMs = cooldownMinutes * 60 * 1000;
   const now = Date.now();
 
-  // Check most recent keywordCheckJob for this domain
-  const lastCheckJob = await ctx.db
-    .query("keywordCheckJobs")
-    .withIndex("by_domain", (q) => q.eq("domainId", domainId))
-    .order("desc")
-    .first();
+  if (jobType === "position") {
+    const lastCheckJob = await ctx.db
+      .query("keywordCheckJobs")
+      .withIndex("by_domain", (q) => q.eq("domainId", domainId))
+      .order("desc")
+      .first();
 
-  if (lastCheckJob && (now - lastCheckJob.createdAt) < cooldownMs) {
-    const waitMinutes = Math.ceil((cooldownMs - (now - lastCheckJob.createdAt)) / 60000);
-    throw new Error(`Please wait ${waitMinutes} min before refreshing this domain again`);
-  }
+    if (lastCheckJob && (now - lastCheckJob.createdAt) < cooldownMs) {
+      const waitMinutes = Math.ceil((cooldownMs - (now - lastCheckJob.createdAt)) / 60000);
+      throw new Error(`Please wait ${waitMinutes} min before refreshing this domain again`);
+    }
+  } else {
+    const lastSerpJob = await ctx.db
+      .query("keywordSerpJobs")
+      .withIndex("by_domain", (q) => q.eq("domainId", domainId))
+      .order("desc")
+      .first();
 
-  // Check most recent keywordSerpJob for this domain
-  const lastSerpJob = await ctx.db
-    .query("keywordSerpJobs")
-    .withIndex("by_domain", (q) => q.eq("domainId", domainId))
-    .order("desc")
-    .first();
-
-  if (lastSerpJob && (now - lastSerpJob.createdAt) < cooldownMs) {
-    const waitMinutes = Math.ceil((cooldownMs - (now - lastSerpJob.createdAt)) / 60000);
-    throw new Error(`Please wait ${waitMinutes} min before refreshing this domain again`);
+    if (lastSerpJob && (now - lastSerpJob.createdAt) < cooldownMs) {
+      const waitMinutes = Math.ceil((cooldownMs - (now - lastSerpJob.createdAt)) / 60000);
+      throw new Error(`Please wait ${waitMinutes} min before fetching SERP for this domain again`);
+    }
   }
 }
 
@@ -459,23 +461,28 @@ async function countJobsTodayForDomains(
 ): Promise<number> {
   let total = 0;
   for (const domainId of domainIds) {
+    // Use server-side .filter() to avoid materializing old records
     const checkJobs = await ctx.db
       .query("keywordCheckJobs")
       .withIndex("by_domain", (q) => q.eq("domainId", domainId))
-      .order("desc")
+      .filter((q) =>
+        filterUserId
+          ? q.and(q.gte(q.field("createdAt"), todayStart), q.eq(q.field("createdBy"), filterUserId))
+          : q.gte(q.field("createdAt"), todayStart)
+      )
       .collect();
-    total += checkJobs.filter((j) =>
-      j.createdAt >= todayStart && (!filterUserId || j.createdBy === filterUserId)
-    ).length;
+    total += checkJobs.length;
 
     const serpJobs = await ctx.db
       .query("keywordSerpJobs")
       .withIndex("by_domain", (q) => q.eq("domainId", domainId))
-      .order("desc")
+      .filter((q) =>
+        filterUserId
+          ? q.and(q.gte(q.field("createdAt"), todayStart), q.eq(q.field("createdBy"), filterUserId))
+          : q.gte(q.field("createdAt"), todayStart)
+      )
       .collect();
-    total += serpJobs.filter((j) =>
-      j.createdAt >= todayStart && (!filterUserId || j.createdBy === filterUserId)
-    ).length;
+    total += serpJobs.length;
   }
   return total;
 }
@@ -542,7 +549,7 @@ export async function checkDailyRefreshQuota(
   const totalJobsToday = await countJobsTodayForDomains(ctx, domainIds, todayStart);
 
   if (totalJobsToday >= maxDaily) {
-    throw new Error(`Daily refresh limit reached (${maxDaily}/${maxDaily})`);
+    throw new Error(`Daily refresh limit reached (${totalJobsToday}/${maxDaily})`);
   }
 }
 
@@ -636,7 +643,8 @@ export async function checkRefreshLimits(
   ctx: QueryCtx | MutationCtx,
   domainId: Id<"domains">,
   userId?: Id<"users"> | null,
-  keywordCount?: number
+  keywordCount?: number,
+  jobType: "position" | "serp" = "position"
 ): Promise<void> {
   const hierarchy = await getDomainHierarchy(ctx, domainId);
   if (!hierarchy) return;
@@ -652,10 +660,12 @@ export async function checkRefreshLimits(
   }
 
   // 1. Cooldown between refreshes per domain (use org setting or default)
+  // Position refreshes and SERP fetches have independent cooldowns
   await checkRefreshCooldown(
     ctx,
     domainId,
-    orgLimits?.refreshCooldownMinutes ?? DEFAULT_REFRESH_LIMITS.refreshCooldownMinutes
+    orgLimits?.refreshCooldownMinutes ?? DEFAULT_REFRESH_LIMITS.refreshCooldownMinutes,
+    jobType
   );
 
   // 2. Org-wide daily quota (use org setting or default)
@@ -709,9 +719,9 @@ export const getRefreshLimitStatus = query({
     const now = Date.now();
     const todayStart = getTodayStartUtc();
 
-    // 1. Cooldown
+    // 1. Cooldown (apply same default as checkRefreshLimits enforcement)
     let cooldown: { minutes: number | null; lastRefreshAt: number | null; canRefreshAt: number | null; blocked: boolean } | null = null;
-    const cooldownMinutes = orgLimits?.refreshCooldownMinutes;
+    const cooldownMinutes = orgLimits?.refreshCooldownMinutes ?? DEFAULT_REFRESH_LIMITS.refreshCooldownMinutes;
     if (cooldownMinutes && cooldownMinutes > 0) {
       const cooldownMs = cooldownMinutes * 60 * 1000;
       let lastRefreshAt: number | null = null;
@@ -741,9 +751,9 @@ export const getRefreshLimitStatus = query({
       };
     }
 
-    // 2. Org daily
+    // 2. Org daily (apply same default as checkRefreshLimits enforcement)
     let orgDaily: { limit: number | null; used: number; blocked: boolean } | null = null;
-    const orgMax = orgLimits?.maxDailyRefreshes;
+    const orgMax = orgLimits?.maxDailyRefreshes ?? DEFAULT_REFRESH_LIMITS.maxDailyRefreshes;
     if (orgMax && orgMax > 0) {
       const orgDomainIds = await getOrgDomainIds(ctx, hierarchy.organization._id);
       const used = await countJobsTodayForDomains(ctx, orgDomainIds, todayStart);
@@ -754,8 +764,7 @@ export const getRefreshLimitStatus = query({
     let userDaily: { limit: number | null; used: number; blocked: boolean } | null = null;
     const userMax = orgLimits?.maxDailyRefreshesPerUser;
     if (userMax && userMax > 0 && userId) {
-      const orgDomainIds = orgDaily ? undefined : await getOrgDomainIds(ctx, hierarchy.organization._id);
-      const allOrgDomainIds = orgDomainIds ?? await getOrgDomainIds(ctx, hierarchy.organization._id);
+      const allOrgDomainIds = await getOrgDomainIds(ctx, hierarchy.organization._id);
       const used = await countJobsTodayForDomains(ctx, allOrgDomainIds, todayStart, userId);
       userDaily = { limit: userMax, used, blocked: used >= userMax };
     }

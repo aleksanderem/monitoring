@@ -404,6 +404,13 @@
   "lockReasonSetContext": "Set business context to unlock",
   "lockReasonAddKeywords": "Add keywords first to unlock",
 
+  "lockedTabTitle": "Module Locked",
+  "lockedTabFetchBacklinks": "Fetch Backlinks",
+  "lockedTabRunAudit": "Run Site Audit",
+  "lockedTabBacklinksFetched": "Backlinks fetch started — data will appear shortly",
+  "lockedTabAuditStarted": "Site audit started — results will appear shortly",
+  "lockedTabActionFailed": "Failed to start the action. Please try again.",
+
   "hubLocked": "Locked",
 
   "moduleWhatGives": "What does this give me?",
