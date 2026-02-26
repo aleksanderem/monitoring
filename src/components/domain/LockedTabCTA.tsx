@@ -9,8 +9,10 @@ import { Button } from "@/components/base/buttons/button";
 import { EzIcon } from "@/components/foundations/ez-icon";
 import { toast } from "sonner";
 
+export type LockedTabId = "backlinks" | "on-site";
+
 interface LockedTabCTAProps {
-  tabId: string;
+  tabId: LockedTabId;
   lockReason: string;
   domainId: Id<"domains">;
 }
@@ -70,7 +72,7 @@ export function LockedTabCTA({ tabId, lockReason, domainId }: LockedTabCTAProps)
   );
 }
 
-function getActionConfig(tabId: string): { buttonKey: string } | null {
+function getActionConfig(tabId: LockedTabId): { buttonKey: string } | null {
   switch (tabId) {
     case "backlinks":
       return { buttonKey: "lockedTabFetchBacklinks" };

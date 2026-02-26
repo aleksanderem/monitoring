@@ -17,7 +17,7 @@ export function KeywordPositionChart({ positionHistory }: KeywordPositionChartPr
     return [...positionHistory]
       .sort((a, b) => a.date - b.date)
       .map((item) => ({
-        date: new Date(item.date),
+        date: item.date,
         position: item.position,
       }));
   }, [positionHistory]);
@@ -64,7 +64,7 @@ export function KeywordPositionChart({ positionHistory }: KeywordPositionChartPr
             tickLine={false}
             dataKey="date"
             tickFormatter={(value) =>
-              value.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+              new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" })
             }
             padding={{ left: 10, right: 10 }}
           />
@@ -84,7 +84,7 @@ export function KeywordPositionChart({ positionHistory }: KeywordPositionChartPr
               value !== undefined ? [`#${value}`, t("columnPosition")] : ["-", t("columnPosition")]
             }
             labelFormatter={(value: any) =>
-              value.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+              new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
             }
             cursor={{
               className: "stroke-utility-brand-600 stroke-1",

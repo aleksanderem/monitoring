@@ -443,7 +443,7 @@ export const processSerpFetchJobInternal = internalAction({
             position: kwPosition,
             url: kwUrl,
           }]).catch((err) =>
-            console.error(`[Supabase] keywordSerpJobs write failed: keyword=${keyword._id}:`, err.message)
+            console.error(`[Supabase] keywordSerpJobs write failed: keyword=${keyword._id}:`, err)
           );
 
           // Auto-extract and track top competitors (positions 1-10, excluding own domain)
@@ -473,7 +473,7 @@ export const processSerpFetchJobInternal = internalAction({
                   position: sp.position,
                   url: sp.url,
                 }))).catch((err) =>
-                  console.error(`[Supabase] keywordSerpJobs competitor write failed: keyword=${keyword._id}:`, err.message)
+                  console.error(`[Supabase] keywordSerpJobs competitor write failed: keyword=${keyword._id}:`, err)
                 );
               }
             } catch (error) {

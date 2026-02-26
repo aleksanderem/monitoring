@@ -177,6 +177,8 @@ export const postOnboardingJobs = internalAction({
     });
 
     // Auto-fetch backlinks if plan includes backlinks module
+    const failures: string[] = [];
+
     if (modules.includes("backlinks")) {
       try {
         await ctx.runAction(internal.backlinks.fetchBacklinksInternal, {
@@ -184,6 +186,7 @@ export const postOnboardingJobs = internalAction({
         });
       } catch (error) {
         console.error("[postOnboardingJobs] Failed to auto-fetch backlinks:", error);
+        failures.push("backlinks");
       }
     }
 
@@ -195,7 +198,12 @@ export const postOnboardingJobs = internalAction({
         });
       } catch (error) {
         console.error("[postOnboardingJobs] Failed to auto-trigger on-site scan:", error);
+        failures.push("seo_audit");
       }
+    }
+
+    if (failures.length > 0) {
+      throw new Error(`[postOnboardingJobs] Failed jobs for domain ${args.domainId}: ${failures.join(", ")}`);
     }
   },
 });

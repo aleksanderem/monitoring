@@ -103,7 +103,7 @@ import { EzIcon } from "@/components/foundations/ez-icon";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { usePermissions } from "@/hooks/usePermissions";
-import { LockedTabCTA } from "@/components/domain/LockedTabCTA";
+import { LockedTabCTA, type LockedTabId } from "@/components/domain/LockedTabCTA";
 import { PermissionGate } from "@/components/auth/PermissionGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -416,7 +416,7 @@ function TabContentOrCTA({
 }) {
   const state = moduleReadiness[tabId];
   if (state?.locked) {
-    return <LockedTabCTA tabId={tabId} lockReason={state.lockReason} domainId={domainId} />;
+    return <LockedTabCTA tabId={tabId as LockedTabId} lockReason={state.lockReason} domainId={domainId} />;
   }
   return <>{children}</>;
 }

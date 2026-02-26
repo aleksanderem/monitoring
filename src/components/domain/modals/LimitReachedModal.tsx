@@ -73,7 +73,5 @@ function getLimitContent(
       return { title, description: t("limitReachedDailyDomain") };
     case "bulk_cap":
       return { title, description: t("limitReachedBulkCap") };
-    default:
-      return { title, description: t("limitReachedDailyOrg") };
   }
 }

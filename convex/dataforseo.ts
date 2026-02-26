@@ -96,7 +96,7 @@ export const fetchSinglePositionInternal = internalAction({
           url: position ? `https://${args.domain}/page-${Math.floor(Math.random() * 10)}` : null,
           search_volume: Math.floor(Math.random() * 10000),
         }]).catch((err) =>
-          console.error(`[Supabase] fetchSinglePositionInternal mock write failed:`, err.message)
+          console.error(`[Supabase] fetchSinglePositionInternal mock write failed:`, err)
         );
       }
 
@@ -130,7 +130,7 @@ export const fetchSinglePositionInternal = internalAction({
               url: histPosition ? `https://${args.domain}/page` : null,
               search_volume: Math.floor(Math.random() * 5000) + 500,
             }]).catch((err) =>
-              console.error(`[Supabase] fetchSinglePositionInternal mock history write failed:`, err.message)
+              console.error(`[Supabase] fetchSinglePositionInternal mock history write failed:`, err)
             );
           }
         }
@@ -248,7 +248,7 @@ export const fetchSinglePositionInternal = internalAction({
           search_volume: data.tasks[0].result[0].search_volume,
           difficulty,
         }]).catch((err) =>
-          console.error(`[Supabase] fetchSinglePositionInternal write failed: keyword=${args.keywordId}:`, err.message)
+          console.error(`[Supabase] fetchSinglePositionInternal write failed: keyword=${args.keywordId}:`, err)
         );
       }
 
@@ -623,7 +623,7 @@ export const fetchPositionsInternal = internalAction({
       // Dual-write mock positions to Supabase
       if (mockSupabaseRows.length > 0) {
         writeKeywordPositions(mockSupabaseRows).catch((err) =>
-          console.error(`[Supabase] fetchPositionsInternal mock dual-write failed: ${mockSupabaseRows.length} rows, domain=${args.domainId}:`, err.message)
+          console.error(`[Supabase] fetchPositionsInternal mock dual-write failed: ${mockSupabaseRows.length} rows, domain=${args.domainId}:`, err)
         );
       }
 
@@ -738,7 +738,7 @@ export const fetchPositionsInternal = internalAction({
 
       // Dual-write: batch upsert all positions to Supabase (non-blocking)
       writeKeywordPositions(supabaseRows).catch((err) =>
-        console.error(`[Supabase] fetchPositionsInternal dual-write failed: ${supabaseRows.length} rows, domain=${args.domainId}:`, err.message)
+        console.error(`[Supabase] fetchPositionsInternal dual-write failed: ${supabaseRows.length} rows, domain=${args.domainId}:`, err)
       );
 
       // Fetch difficulty for keywords that don't have it yet (single batch query)
@@ -983,7 +983,7 @@ export const fetchHistoricalPositionsInternal = internalAction({
       }
       if (supabaseBuffer.length > 0) {
         writeKeywordPositions(supabaseBuffer).catch((err) =>
-          console.error(`[Supabase] fetchHistoricalPositionsInternal write failed: ${supabaseBuffer.length} rows, keyword=${args.keywordId}:`, err.message)
+          console.error(`[Supabase] fetchHistoricalPositionsInternal write failed: ${supabaseBuffer.length} rows, keyword=${args.keywordId}:`, err)
         );
       }
       console.log("=== Historical positions stored successfully ===");
@@ -1092,7 +1092,7 @@ export const fetchHistoricalPositionsInternal = internalAction({
       }
       if (supabaseBuffer.length > 0) {
         writeKeywordPositions(supabaseBuffer).catch((err) =>
-          console.error(`[Supabase] fetchHistoricalPositionsInternal write failed: ${supabaseBuffer.length} rows, keyword=${args.keywordId}:`, err.message)
+          console.error(`[Supabase] fetchHistoricalPositionsInternal write failed: ${supabaseBuffer.length} rows, keyword=${args.keywordId}:`, err)
         );
       }
       console.log(`=== Historical data complete: stored ${storedCount} positions ===`);

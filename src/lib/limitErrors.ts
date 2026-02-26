@@ -6,16 +6,22 @@ export type LimitErrorType =
   | "domain_daily"
   | "bulk_cap";
 
-export interface LimitError {
-  type: LimitErrorType;
-  waitMinutes?: number;
-  limit?: number;
-  count?: number;
-}
+// Discriminated union: each variant carries only its relevant fields.
+// "cooldown" has waitMinutes; quota types have count/limit; bulk_cap has count/limit.
+export type LimitError =
+  | { type: "cooldown"; waitMinutes: number }
+  | { type: "org_daily"; count: number; limit: number }
+  | { type: "user_daily"; count: number; limit: number }
+  | { type: "project_daily"; count: number; limit: number }
+  | { type: "domain_daily"; count: number; limit: number }
+  | { type: "bulk_cap"; count: number; limit: number };
 
 /**
  * Parse a Convex error into a structured limit error.
  * Returns null if the error doesn't match any known limit pattern.
+ *
+ * IMPORTANT: Frontend regex patterns are coupled to exact error messages in convex/limits.ts.
+ * If you change error message wording there, update the patterns here too.
  *
  * Matches error messages thrown by convex/limits.ts:
  * - checkRefreshCooldown: "Please wait X min before refreshing/fetching..."
@@ -41,42 +47,42 @@ export function parseLimitError(error: unknown): LimitError | null {
   }
 
   // Org daily: "Daily refresh limit reached (N/N)"
-  if (/^Daily refresh limit reached/.test(message)) {
+  if (/Daily refresh limit reached/.test(message)) {
     const limitMatch = message.match(/\((\d+)\/(\d+)\)/);
     return {
       type: "org_daily",
-      count: limitMatch ? parseInt(limitMatch[1], 10) : undefined,
-      limit: limitMatch ? parseInt(limitMatch[2], 10) : undefined,
+      count: limitMatch ? parseInt(limitMatch[1], 10) : 0,
+      limit: limitMatch ? parseInt(limitMatch[2], 10) : 0,
     };
   }
 
   // User daily: "Your daily refresh limit reached (N/N)"
-  if (/^Your daily refresh limit reached/.test(message)) {
+  if (/Your daily refresh limit reached/.test(message)) {
     const limitMatch = message.match(/\((\d+)\/(\d+)\)/);
     return {
       type: "user_daily",
-      count: limitMatch ? parseInt(limitMatch[1], 10) : undefined,
-      limit: limitMatch ? parseInt(limitMatch[2], 10) : undefined,
+      count: limitMatch ? parseInt(limitMatch[1], 10) : 0,
+      limit: limitMatch ? parseInt(limitMatch[2], 10) : 0,
     };
   }
 
   // Project daily: "Project daily refresh limit reached (N/N)"
-  if (/^Project daily refresh limit reached/.test(message)) {
+  if (/Project daily refresh limit reached/.test(message)) {
     const limitMatch = message.match(/\((\d+)\/(\d+)\)/);
     return {
       type: "project_daily",
-      count: limitMatch ? parseInt(limitMatch[1], 10) : undefined,
-      limit: limitMatch ? parseInt(limitMatch[2], 10) : undefined,
+      count: limitMatch ? parseInt(limitMatch[1], 10) : 0,
+      limit: limitMatch ? parseInt(limitMatch[2], 10) : 0,
     };
   }
 
   // Domain daily: "Domain daily refresh limit reached (N/N)"
-  if (/^Domain daily refresh limit reached/.test(message)) {
+  if (/Domain daily refresh limit reached/.test(message)) {
     const limitMatch = message.match(/\((\d+)\/(\d+)\)/);
     return {
       type: "domain_daily",
-      count: limitMatch ? parseInt(limitMatch[1], 10) : undefined,
-      limit: limitMatch ? parseInt(limitMatch[2], 10) : undefined,
+      count: limitMatch ? parseInt(limitMatch[1], 10) : 0,
+      limit: limitMatch ? parseInt(limitMatch[2], 10) : 0,
     };
   }
 

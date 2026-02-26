@@ -542,7 +542,8 @@ export const syncPromotedKeywordPositions = internalAction({
         await writeKeywordPositions(rows);
         console.log(`[syncPromotedKeywordPositions] Synced ${rows.length} positions for ${args.keywordIds.length} promoted keywords`);
       } catch (err: any) {
-        console.error(`[syncPromotedKeywordPositions] Failed to sync ${rows.length} positions:`, err.message);
+        console.error(`[syncPromotedKeywordPositions] Failed to sync ${rows.length} positions:`, err);
+        throw err; // Re-throw so Convex marks scheduled job as failed (visible in dashboard, retriable)
       }
     }
   },

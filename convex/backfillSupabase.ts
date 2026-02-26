@@ -288,11 +288,12 @@ export const getKeywordsNeedingHistory = internalQuery({
  */
 export const backfillHistoricalPositions = internalAction({
   args: { minEntries: v.optional(v.number()) },
-  handler: async (ctx, args): Promise<{ totalKeywords: number; domainsProcessed: number }> => {
+  handler: async (ctx, args): Promise<{ totalKeywords: number; domainsProcessed: number; failedKeywords: number }> => {
     const minEntries = args.minEntries ?? 3;
     const domainIds: string[] = await ctx.runQuery(internal.backfillSupabase.getAllDomainIds);
 
     let totalKeywords = 0;
+    let failedKeywords = 0;
 
     for (const domainId of domainIds) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -301,6 +302,7 @@ export const backfillHistoricalPositions = internalAction({
         minEntries,
       });
 
+      let consecutiveFailures = 0;
       for (const kw of keywords) {
         console.log(`[backfillHistory] Fetching history for "${kw.phrase}" (${kw.positionCount} existing entries)`);
         try {
@@ -313,13 +315,20 @@ export const backfillHistoricalPositions = internalAction({
             months: 6,
           });
           totalKeywords++;
+          consecutiveFailures = 0;
         } catch (err: any) {
-          console.error(`[backfillHistory] Failed for "${kw.phrase}":`, err.message);
+          failedKeywords++;
+          consecutiveFailures++;
+          console.error(`[backfillHistory] Failed for "${kw.phrase}":`, err);
+          if (consecutiveFailures >= 5) {
+            console.error(`[backfillHistory] 5 consecutive failures for domain ${domainId}, skipping remaining keywords`);
+            break;
+          }
         }
       }
     }
 
-    console.log(`[backfillHistory] Completed: fetched history for ${totalKeywords} keywords across ${domainIds.length} domains`);
-    return { totalKeywords, domainsProcessed: domainIds.length };
+    console.log(`[backfillHistory] Completed: fetched ${totalKeywords}, failed ${failedKeywords} across ${domainIds.length} domains`);
+    return { totalKeywords, domainsProcessed: domainIds.length, failedKeywords };
   },
 });

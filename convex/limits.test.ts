@@ -294,7 +294,7 @@ describe("checkRefreshCooldown", () => {
     }
   });
 
-  test("no cooldown when not configured", async () => {
+  test("returns default cooldown when not configured at org level", async () => {
     const t = convexTest(schema, modules);
     const { domainId, userId } = await setupHierarchyWithLimits(t);
 
@@ -302,8 +302,10 @@ describe("checkRefreshCooldown", () => {
     const result = await asUser.query(api.limits.getRefreshLimitStatus, {
       domainId,
     });
-    // Cooldown not configured at org level, so field should be null
-    expect(result.cooldown).toBeNull();
+    // No org-level config, so defaults apply (5 min cooldown, not blocked)
+    expect(result.cooldown).not.toBeNull();
+    expect(result.cooldown!.blocked).toBe(false);
+    expect(result.cooldown!.minutes).toBe(5);
   });
 });
 

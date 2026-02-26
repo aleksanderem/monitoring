@@ -1477,12 +1477,16 @@ export const getPositionHistory = action({
     // Supplement with Supabase for older data not in Convex
     const sb = getSupabaseAdmin();
     if (sb) {
-      const { data } = await sb
+      const { data, error } = await sb
         .from("keyword_positions")
         .select("date, position")
         .eq("convex_keyword_id", args.keywordId)
         .not("position", "is", null)
         .order("date", { ascending: true });
+
+      if (error) {
+        console.error(`[getPositionHistory] Supabase query failed for keyword=${args.keywordId}:`, error.message);
+      }
 
       if (data) {
         for (const row of data) {

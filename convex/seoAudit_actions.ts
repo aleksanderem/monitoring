@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, action, internalAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { createDebugLogger } from "./lib/debugLogger";
+import { requireTenantAccess } from "./permissions";
 
 // SEO Audit API check types → severity, category, and analysis field mapping
 const CHECK_CONFIG: Record<
@@ -118,6 +119,8 @@ const CHECK_CONFIG: Record<
 export const triggerSeoAuditScan = mutation({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const existingScan = await ctx.db
       .query("onSiteScans")
       .withIndex("by_domain_status", (q) =>
@@ -184,7 +187,7 @@ export const triggerSeoAuditScanInternal = internalMutation({
       .first();
 
     if (existingScan) {
-      // Scan already in progress — skip silently
+      console.log(`[triggerSeoAuditScanInternal] Skipping: scan ${existingScan._id} already ${existingScan.status} for domain ${args.domainId}`);
       return null;
     }
 

@@ -373,7 +373,7 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
                   <AlertFloating
                     color="error"
                     title={t('generateReportFailed')}
-                    description={tc('unexpectedError')}
+                    description={report?.error || tc('unexpectedError')}
                     confirmLabel=""
                   />
                 )}
