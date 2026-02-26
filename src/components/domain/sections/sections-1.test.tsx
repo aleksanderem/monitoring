@@ -647,7 +647,7 @@ describe("WordFrequencySection", () => {
     const totalDiv = container.querySelector(".text-sm.text-tertiary");
     expect(totalDiv).not.toBeNull();
     expect(totalDiv!.textContent).toContain("totalWordsAnalyzed");
-    expect(totalDiv!.textContent).toContain("5000");
+    expect(totalDiv!.textContent).toContain("5,000");
   });
 
   test("has phrase length toggle buttons", () => {

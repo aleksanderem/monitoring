@@ -292,8 +292,8 @@ describe("TopKeywordsTable", () => {
     expect(screen.getByText("keyword tracker")).toBeInTheDocument();
     // "2" appears multiple times (position badge + change indicators), use getAllByText
     expect(screen.getAllByText("2").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("8000")).toBeInTheDocument();
-    expect(screen.getByText("5000")).toBeInTheDocument();
+    expect(screen.getByText("8,000")).toBeInTheDocument();
+    expect(screen.getByText("5,000")).toBeInTheDocument();
     expect(screen.getByText("25")).toBeInTheDocument();
     expect(screen.getByText("55")).toBeInTheDocument();
   });
