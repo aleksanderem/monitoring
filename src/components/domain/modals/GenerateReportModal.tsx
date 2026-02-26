@@ -24,6 +24,7 @@ import {
 import { useTranslations } from "next-intl";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
+import { AlertFloating } from "@/components/application/alerts/alerts";
 import {
   type ReportProfile,
   type ReportConfig,
@@ -369,13 +370,12 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
 
                 {/* State: Failed */}
                 {isFailed && (
-                  <div className="flex items-center gap-3 rounded-lg border border-error-200 bg-error-50 p-4">
-                    <AlertCircle className="size-5 text-error-600" />
-                    <div>
-                      <p className="text-sm font-medium text-error-700">{t('generateReportFailed')}</p>
-                      <p className="text-xs text-error-600">{report.error}</p>
-                    </div>
-                  </div>
+                  <AlertFloating
+                    color="error"
+                    title={t('generateReportFailed')}
+                    description={tc('unexpectedError')}
+                    confirmLabel=""
+                  />
                 )}
               </div>
 

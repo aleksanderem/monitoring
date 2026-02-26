@@ -567,6 +567,14 @@ export async function getOrganizationModules(
   return plan?.modules ?? ALL_MODULES;
 }
 
+// Internal query version for actions (used by postOnboardingJobs)
+export const getOrganizationModulesInternal = internalQuery({
+  args: { organizationId: v.id("organizations") },
+  handler: async (ctx, args) => {
+    return await getOrganizationModules(ctx, args.organizationId);
+  },
+});
+
 // =================================================================
 // Queries
 // =================================================================

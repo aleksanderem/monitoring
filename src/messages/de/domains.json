@@ -385,6 +385,14 @@
   "lockReasonRunAudit": "Run first site audit to unlock",
   "lockReasonSetContext": "Set business context to unlock",
   "lockReasonAddKeywords": "Keywords hinzufügen first to unlock",
+
+  "lockedTabTitle": "Modul gesperrt",
+  "lockedTabFetchBacklinks": "Backlinks abrufen",
+  "lockedTabRunAudit": "Website-Audit starten",
+  "lockedTabBacklinksFetched": "Backlink-Abruf gestartet — Daten erscheinen in Kürze",
+  "lockedTabAuditStarted": "Website-Audit gestartet — Ergebnisse erscheinen in Kürze",
+  "lockedTabActionFailed": "Aktion konnte nicht gestartet werden. Bitte erneut versuchen.",
+
   "hubLocked": "Locked",
   "moduleWhatGives": "What does this give me?",
   "moduleBenefitmonitoring": "Live Monitoring tracks every keyword position daily and instantly shows you what moved. You get a full ranking table with current position, change since last check, and a sparkline showing 7-day trend — all without opening separate reports.\n\nWhy it matters: Google updates its algorithm thousands of times a year. Without daily tracking, you could lose a top-3 position and not notice for weeks, costing you significant traffic. This module catches drops the same day they happen so you can investigate immediately — whether it's an algorithm update, a competitor pushing new content, or a technical issue on your site.\n\nPractical use cases: Set up keyword groups by landing page to see which pages perform best. Track branded vs. non-branded keywords separately. Use position distribution charts to see how many keywords sit in top 3, top 10, and top 100 — then set monthly goals to move keywords up from each bucket. The movement trend chart reveals if your overall SEO trajectory is improving or declining week over week.\n\nKey metrics you get: exact position per keyword, position change (daily/weekly/monthly), sparkline mini-charts, position distribution breakdown, net movement trend over time, per-keyword SERP URL tracking.",

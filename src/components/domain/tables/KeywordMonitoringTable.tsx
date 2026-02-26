@@ -42,7 +42,9 @@ import { BulkDeleteConfirmModal } from "../modals/BulkDeleteConfirmModal";
 import { BulkMoveToGroupModal } from "../modals/BulkMoveToGroupModal";
 import { BulkChangeTagsModal } from "../modals/BulkChangeTagsModal";
 import { useRowSelection } from "@/hooks/useRowSelection";
+import { useLimitErrorHandler } from "@/hooks/useLimitErrorHandler";
 import { BulkActionBar } from "@/components/patterns/BulkActionBar";
+import { LimitReachedModal } from "../modals/LimitReachedModal";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { exportToCsv } from "@/utils/exportCsv";
 import { SERPFeaturesBadges } from "./SERPFeaturesBadges";
@@ -158,6 +160,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const createSerpFetchJob = useMutation(api.keywordSerpJobs.createSerpFetchJob);
   const activeSerpJob = useQuery(api.keywordSerpJobs.getActiveJobForDomain, { domainId });
   const selection = useRowSelection();
+  const { limitError, handleError: handleLimitError, clearLimitError } = useLimitErrorHandler();
 
   // Track SERP job completion and show notification
   const [lastSerpJobId, setLastSerpJobId] = useState<string | null>(null);
@@ -183,7 +186,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
       await refreshPositions({ keywordIds: [keywordId] });
       toast.success(t('positionRefreshQueued'));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('failedToRefreshPosition'));
+      if (!handleLimitError(error)) {
+        toast.error(error instanceof Error ? error.message : t('failedToRefreshPosition'));
+      }
     }
   };
 
@@ -571,8 +576,10 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   await refreshPositions({ keywordIds: Array.from(ids) as Id<"keywords">[] });
                   toast.success(tc('bulkActionSuccess', { count: ids.size }));
                   selection.clear();
-                } catch {
-                  toast.error(tc('bulkActionFailed'));
+                } catch (error) {
+                  if (!handleLimitError(error)) {
+                    toast.error(tc('bulkActionFailed'));
+                  }
                 }
               },
             },
@@ -585,7 +592,9 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                   toast.success(t('serpFetchJobQueued', { count: ids.size }));
                   selection.clear();
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : tc('bulkActionFailed'));
+                  if (!handleLimitError(error)) {
+                    toast.error(error instanceof Error ? error.message : tc('bulkActionFailed'));
+                  }
                 }
               },
             },
@@ -1036,12 +1045,19 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
         onConfirm={async () => {
           if (!keywords || keywords.length === 0) return;
           const allKeywordIds = keywords.map(kw => kw.keywordId);
-          if (refreshModalAction === "refresh") {
-            await refreshPositions({ keywordIds: allKeywordIds });
-            toast.success(t('queuedRefreshForKeywords', { count: keywords.length }));
-          } else {
-            await createSerpFetchJob({ domainId, keywordIds: allKeywordIds });
-            toast.success(t('serpFetchJobQueued', { count: keywords.length }));
+          try {
+            if (refreshModalAction === "refresh") {
+              await refreshPositions({ keywordIds: allKeywordIds });
+              toast.success(t('queuedRefreshForKeywords', { count: keywords.length }));
+            } else {
+              await createSerpFetchJob({ domainId, keywordIds: allKeywordIds });
+              toast.success(t('serpFetchJobQueued', { count: keywords.length }));
+            }
+          } catch (error) {
+            if (!handleLimitError(error)) {
+              toast.error(error instanceof Error ? error.message : t('failedToRefreshPositions'));
+            }
+            throw error; // re-throw so RefreshConfirmModal knows it failed
           }
         }}
       />
@@ -1093,6 +1109,12 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
           toast.success(t('bulkTagsSuccess', { count }));
           selection.clear();
         }}
+      />
+
+      {/* Limit Reached Modal */}
+      <LimitReachedModal
+        limitError={limitError}
+        onClose={clearLimitError}
       />
     </>
   );

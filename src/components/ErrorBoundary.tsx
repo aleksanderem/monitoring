@@ -1,7 +1,7 @@
 "use client";
 
 import { Component, type ReactNode } from "react";
-import { AlertTriangle, RefreshCw05 } from "@untitledui/icons";
+import { AlertFloating } from "@/components/application/alerts/alerts";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -109,37 +109,29 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       const exhausted = this.state.retryCount >= maxRetries;
       const { countdown } = this.state;
 
+      const title = this.props.label
+        ? `Something went wrong in "${this.props.label}"`
+        : "Something went wrong";
+
+      const description = (
+        <>
+          {this.state.error?.message}
+          {countdown !== null && !exhausted && (
+            <span className="ml-1 text-tertiary">
+              — retrying in {countdown}s…
+            </span>
+          )}
+        </>
+      );
+
       return (
-        <div
-          role="alert"
-          className="flex flex-col items-center justify-center gap-4 rounded-xl border border-utility-error-200 bg-utility-error-50 p-8 text-center dark:border-utility-error-700 dark:bg-utility-error-950"
-        >
-          <AlertTriangle className="h-8 w-8 text-utility-error-600" />
-          <div>
-            <h3 className="text-sm font-semibold text-utility-error-700 dark:text-utility-error-300">
-              {this.props.label
-                ? `Something went wrong in "${this.props.label}"`
-                : "Something went wrong"}
-            </h3>
-            {this.state.error && (
-              <p className="mt-1 text-xs text-utility-error-600 dark:text-utility-error-400">
-                {this.state.error.message}
-              </p>
-            )}
-            {countdown !== null && !exhausted && (
-              <p className="mt-2 text-xs text-utility-error-500 dark:text-utility-error-400">
-                Retrying in {countdown}s...
-              </p>
-            )}
-          </div>
-          <button
-            onClick={this.handleRetry}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-utility-error-300 bg-white px-3 py-1.5 text-xs font-medium text-utility-error-700 transition-colors hover:bg-utility-error-50 dark:border-utility-error-600 dark:bg-utility-error-900 dark:text-utility-error-300 dark:hover:bg-utility-error-800"
-          >
-            <RefreshCw05 className="h-3.5 w-3.5" />
-            {countdown !== null ? "Retry now" : "Try again"}
-          </button>
-        </div>
+        <AlertFloating
+          color="error"
+          title={title}
+          description={description}
+          confirmLabel={countdown !== null ? "Retry now" : "Try again"}
+          onConfirm={this.handleRetry}
+        />
       );
     }
 

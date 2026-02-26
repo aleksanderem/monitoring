@@ -402,41 +402,43 @@ export const getSidebarUsage = query({
 
 /**
  * Check cooldown between manual refreshes for a domain.
- * Looks at the most recent keywordCheckJob and keywordSerpJob for the domain.
+ * Only checks the job table matching the given jobType so that position
+ * refreshes and SERP fetches have independent cooldowns.
  * Throws if within cooldown window. Skips if cooldown is 0 or undefined.
  */
 export async function checkRefreshCooldown(
   ctx: QueryCtx | MutationCtx,
   domainId: Id<"domains">,
-  cooldownMinutes: number | undefined
+  cooldownMinutes: number | undefined,
+  jobType: "position" | "serp" = "position"
 ): Promise<void> {
   if (!cooldownMinutes || cooldownMinutes <= 0) return;
 
   const cooldownMs = cooldownMinutes * 60 * 1000;
   const now = Date.now();
 
-  // Check most recent keywordCheckJob for this domain
-  const lastCheckJob = await ctx.db
-    .query("keywordCheckJobs")
-    .withIndex("by_domain", (q) => q.eq("domainId", domainId))
-    .order("desc")
-    .first();
+  if (jobType === "position") {
+    const lastCheckJob = await ctx.db
+      .query("keywordCheckJobs")
+      .withIndex("by_domain", (q) => q.eq("domainId", domainId))
+      .order("desc")
+      .first();
 
-  if (lastCheckJob && (now - lastCheckJob.createdAt) < cooldownMs) {
-    const waitMinutes = Math.ceil((cooldownMs - (now - lastCheckJob.createdAt)) / 60000);
-    throw new Error(`Please wait ${waitMinutes} min before refreshing this domain again`);
-  }
+    if (lastCheckJob && (now - lastCheckJob.createdAt) < cooldownMs) {
+      const waitMinutes = Math.ceil((cooldownMs - (now - lastCheckJob.createdAt)) / 60000);
+      throw new Error(`Please wait ${waitMinutes} min before refreshing this domain again`);
+    }
+  } else {
+    const lastSerpJob = await ctx.db
+      .query("keywordSerpJobs")
+      .withIndex("by_domain", (q) => q.eq("domainId", domainId))
+      .order("desc")
+      .first();
 
-  // Check most recent keywordSerpJob for this domain
-  const lastSerpJob = await ctx.db
-    .query("keywordSerpJobs")
-    .withIndex("by_domain", (q) => q.eq("domainId", domainId))
-    .order("desc")
-    .first();
-
-  if (lastSerpJob && (now - lastSerpJob.createdAt) < cooldownMs) {
-    const waitMinutes = Math.ceil((cooldownMs - (now - lastSerpJob.createdAt)) / 60000);
-    throw new Error(`Please wait ${waitMinutes} min before refreshing this domain again`);
+    if (lastSerpJob && (now - lastSerpJob.createdAt) < cooldownMs) {
+      const waitMinutes = Math.ceil((cooldownMs - (now - lastSerpJob.createdAt)) / 60000);
+      throw new Error(`Please wait ${waitMinutes} min before fetching SERP for this domain again`);
+    }
   }
 }
 
@@ -636,7 +638,8 @@ export async function checkRefreshLimits(
   ctx: QueryCtx | MutationCtx,
   domainId: Id<"domains">,
   userId?: Id<"users"> | null,
-  keywordCount?: number
+  keywordCount?: number,
+  jobType: "position" | "serp" = "position"
 ): Promise<void> {
   const hierarchy = await getDomainHierarchy(ctx, domainId);
   if (!hierarchy) return;
@@ -652,10 +655,12 @@ export async function checkRefreshLimits(
   }
 
   // 1. Cooldown between refreshes per domain (use org setting or default)
+  // Position refreshes and SERP fetches have independent cooldowns
   await checkRefreshCooldown(
     ctx,
     domainId,
-    orgLimits?.refreshCooldownMinutes ?? DEFAULT_REFRESH_LIMITS.refreshCooldownMinutes
+    orgLimits?.refreshCooldownMinutes ?? DEFAULT_REFRESH_LIMITS.refreshCooldownMinutes,
+    jobType
   );
 
   // 2. Org-wide daily quota (use org setting or default)

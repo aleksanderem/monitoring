@@ -233,3 +233,93 @@ export const backfillAll = internalAction({
     return { domainsScheduled: domainIds.length };
   },
 });
+
+/**
+ * Internal query: get keywords with sparse position data (fewer than minEntries).
+ * Returns keyword info needed for fetchHistoricalPositionsInternal.
+ */
+export const getKeywordsNeedingHistory = internalQuery({
+  args: { domainId: v.id("domains"), minEntries: v.number() },
+  handler: async (ctx, args) => {
+    const domain = await ctx.db.get(args.domainId);
+    if (!domain) return [];
+
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    const results: Array<{
+      keywordId: string;
+      phrase: string;
+      positionCount: number;
+      domain: string;
+      location: string;
+      language: string;
+    }> = [];
+
+    for (const kw of keywords) {
+      const positions = await ctx.db
+        .query("keywordPositions")
+        .withIndex("by_keyword_date", (q) => q.eq("keywordId", kw._id))
+        .collect();
+
+      if (positions.length < args.minEntries) {
+        results.push({
+          keywordId: kw._id,
+          phrase: kw.phrase,
+          positionCount: positions.length,
+          domain: domain.domain,
+          location: domain.settings?.location ?? "Poland",
+          language: domain.settings?.language ?? "pl",
+        });
+      }
+    }
+
+    return results;
+  },
+});
+
+/**
+ * Backfill historical positions for keywords that have sparse data.
+ * Calls fetchHistoricalPositionsInternal for each keyword with < minEntries positions.
+ * Schedules per-domain to avoid action timeouts.
+ */
+export const backfillHistoricalPositions = internalAction({
+  args: { minEntries: v.optional(v.number()) },
+  handler: async (ctx, args): Promise<{ totalKeywords: number; domainsProcessed: number }> => {
+    const minEntries = args.minEntries ?? 3;
+    const domainIds: string[] = await ctx.runQuery(internal.backfillSupabase.getAllDomainIds);
+
+    let totalKeywords = 0;
+
+    for (const domainId of domainIds) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const keywords = await ctx.runQuery(internal.backfillSupabase.getKeywordsNeedingHistory, {
+        domainId: domainId as any,
+        minEntries,
+      });
+
+      for (const kw of keywords) {
+        console.log(`[backfillHistory] Fetching history for "${kw.phrase}" (${kw.positionCount} existing entries)`);
+        try {
+          await ctx.runAction(internal.dataforseo.fetchHistoricalPositionsInternal, {
+            keywordId: kw.keywordId as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+            phrase: kw.phrase,
+            domain: kw.domain,
+            location: kw.location,
+            language: kw.language,
+            months: 6,
+          });
+          totalKeywords++;
+        } catch (err: any) {
+          console.error(`[backfillHistory] Failed for "${kw.phrase}":`, err.message);
+        }
+      }
+    }
+
+    console.log(`[backfillHistory] Completed: fetched history for ${totalKeywords} keywords across ${domainIds.length} domains`);
+    return { totalKeywords, domainsProcessed: domainIds.length };
+  },
+});

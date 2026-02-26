@@ -404,6 +404,13 @@
   "lockReasonSetContext": "Ustaw kontekst biznesowy, aby odblokować",
   "lockReasonAddKeywords": "Dodaj słowa kluczowe, aby odblokować",
 
+  "lockedTabTitle": "Moduł zablokowany",
+  "lockedTabFetchBacklinks": "Pobierz backlinki",
+  "lockedTabRunAudit": "Uruchom audyt strony",
+  "lockedTabBacklinksFetched": "Pobieranie backlinków rozpoczęte — dane pojawią się wkrótce",
+  "lockedTabAuditStarted": "Audyt strony rozpoczęty — wyniki pojawią się wkrótce",
+  "lockedTabActionFailed": "Nie udało się uruchomić akcji. Spróbuj ponownie.",
+
   "hubLocked": "Zablokowane",
 
   "moduleWhatGives": "Co mi to daje?",

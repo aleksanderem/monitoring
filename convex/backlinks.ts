@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation, action, internalMutation, internalQuery } from "./_generated/server";
+import { query, mutation, action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { api } from "./_generated/api";
 import { internal } from "./_generated/api";
 import { createDebugLogger } from "./lib/debugLogger";
@@ -331,6 +331,87 @@ export const fetchBacklinksFromAPI = action({
       };
     } catch (error) {
       console.error("Error fetching backlinks:", error);
+      throw new Error(`Failed to fetch backlinks: ${error}`);
+    }
+  },
+});
+
+// Internal version of fetchBacklinksFromAPI for use by postOnboardingJobs
+export const fetchBacklinksInternal = internalAction({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const domain = await ctx.runQuery(internal.domains.getDomainInternal, {
+      domainId: args.domainId,
+    });
+
+    if (!domain) {
+      throw new Error("Domain not found");
+    }
+
+    try {
+      const debug = await createDebugLogger(ctx, "backlinks", args.domainId);
+      const target = domain.domain.startsWith("http") ? domain.domain : `https://${domain.domain}`;
+
+      const locationParam = buildLocationParam(domain.settings.location);
+      const locationCode = "location_code" in locationParam ? locationParam.location_code : 0;
+      const languageCode = domain.settings.language || "en";
+      const requestBody = `domain=${encodeURIComponent(target)}&location_code=${locationCode}&language_code=${encodeURIComponent(languageCode)}`;
+
+      const data: any = await debug.logStep("n8n_backlinks", { url: "https://n8n.kolabogroup.pl/webhook/dfs", method: "POST", body: requestBody }, async () => {
+        const response = await fetch("https://n8n.kolabogroup.pl/webhook/dfs", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: requestBody,
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const text = await response.text();
+        if (!text) {
+          throw new Error("API returned empty response");
+        }
+        try {
+          return JSON.parse(text);
+        } catch {
+          throw new Error(`API returned invalid JSON (${text.length} chars): ${text.slice(0, 200)}`);
+        }
+      });
+
+      const backlink_summary = data[0]?.backlink_summary?.[0];
+      const result = backlink_summary?.result?.[0];
+      const backlinks_data = data[1]?.backlinks?.[0];
+      const backlinks = backlinks_data?.result?.[0]?.items || [];
+
+      await ctx.runMutation(internal.backlinks.saveBacklinkData, {
+        domainId: args.domainId,
+        summary: {
+          totalBacklinks: result?.backlinks || 0,
+          totalDomains: result?.referring_domains || 0,
+          totalIps: result?.referring_ips || 0,
+          totalSubnets: result?.referring_subnets || 0,
+          dofollow: (result?.backlinks || 0) - (result?.backlinks_nofollow || 0),
+          nofollow: result?.backlinks_nofollow || 0,
+        },
+        distributions: {
+          tldDistribution: result?.referring_links_tld || {},
+          platformTypes: result?.referring_links_platform_types || {},
+          countries: result?.referring_links_countries || {},
+          linkTypes: result?.referring_links_types || {},
+          linkAttributes: result?.referring_links_attributes || {},
+          semanticLocations: result?.referring_links_semantic_locations || {},
+        },
+        backlinks,
+      });
+
+      if (!result) {
+        console.warn(`No backlink data returned for domain ${domain.domain} — saved empty summary`);
+      }
+
+      return { success: true, backlinksCount: backlinks.length };
+    } catch (error) {
+      console.error("Error fetching backlinks (internal):", error);
       throw new Error(`Failed to fetch backlinks: ${error}`);
     }
   },

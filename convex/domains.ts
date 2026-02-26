@@ -5,6 +5,7 @@ import { auth } from "./auth";
 import { checkKeywordLimit } from "./limits";
 import type { Id } from "./_generated/dataModel";
 import { requirePermission, requireTenantAccess, getOrgFromProject, getContextFromDomain } from "./permissions";
+import { writeKeywordPositions } from "./lib/supabase";
 
 // Get domains for a project
 export const getDomains = query({
@@ -488,7 +489,73 @@ export const promoteDiscoveredKeywords = mutation({
       await ctx.db.patch(discoveredId, { status: "monitoring" });
     }
 
+    // Schedule Supabase sync for promoted keyword positions
+    if (addedKeywordIds.length > 0) {
+      await ctx.scheduler.runAfter(0, internal.domains.syncPromotedKeywordPositions, {
+        domainId: args.domainId,
+        keywordIds: addedKeywordIds as Id<"keywords">[],
+      });
+    }
+
     return addedKeywordIds;
+  },
+});
+
+// Sync promoted keyword positions to Supabase (scheduled after promoteDiscoveredKeywords)
+export const syncPromotedKeywordPositions = internalAction({
+  args: {
+    domainId: v.id("domains"),
+    keywordIds: v.array(v.id("keywords")),
+  },
+  handler: async (ctx, args) => {
+    const rows: Array<{
+      convex_domain_id: string;
+      convex_keyword_id: string;
+      date: string;
+      position: number | null;
+      url: string | null;
+      search_volume: number | null;
+      difficulty: number | null;
+      cpc: number | null;
+    }> = [];
+
+    for (const keywordId of args.keywordIds) {
+      const positions = await ctx.runQuery(internal.domains.getKeywordPositionsInternal, {
+        keywordId,
+      });
+      for (const pos of positions) {
+        rows.push({
+          convex_domain_id: args.domainId,
+          convex_keyword_id: keywordId,
+          date: pos.date,
+          position: pos.position,
+          url: pos.url ?? null,
+          search_volume: pos.searchVolume ?? null,
+          difficulty: pos.difficulty ?? null,
+          cpc: pos.cpc ?? null,
+        });
+      }
+    }
+
+    if (rows.length > 0) {
+      try {
+        await writeKeywordPositions(rows);
+        console.log(`[syncPromotedKeywordPositions] Synced ${rows.length} positions for ${args.keywordIds.length} promoted keywords`);
+      } catch (err: any) {
+        console.error(`[syncPromotedKeywordPositions] Failed to sync ${rows.length} positions:`, err.message);
+      }
+    }
+  },
+});
+
+// Internal query to get keyword positions for Supabase sync
+export const getKeywordPositionsInternal = internalQuery({
+  args: { keywordId: v.id("keywords") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("keywordPositions")
+      .withIndex("by_keyword_date", (q) => q.eq("keywordId", args.keywordId))
+      .collect();
   },
 });
 

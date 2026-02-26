@@ -20,6 +20,8 @@ export function KeywordDetailModal({ keyword, isOpen, onClose }: KeywordDetailMo
   const t = useTranslations('keywords');
   const tc = useTranslations('common');
 
+  if (!keyword) return null;
+
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <ModalOverlay isDismissable>

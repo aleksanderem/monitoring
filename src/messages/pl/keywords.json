@@ -585,5 +585,16 @@
   "failedToFetchHistory": "Nie udało się pobrać historii",
   "drillDownFailed": "Pogłębiona analiza nie powiodła się",
   "unknownError": "Nieznany błąd",
-  "unknownKeyword": "Nieznane"
+  "unknownKeyword": "Nieznane",
+
+  "limitReachedTitle": "Osiągnięto limit",
+  "limitReachedCooldown": "Poczekaj przed ponownym odświeżeniem",
+  "limitReachedCooldownDetail": "Możesz odświeżyć ponownie za {minutes} minut.",
+  "limitReachedDailyOrg": "Osiągnięto dzienny limit odświeżeń organizacji",
+  "limitReachedDailyUser": "Osiągnięto Twój dzienny limit odświeżeń",
+  "limitReachedDailyProject": "Osiągnięto dzienny limit odświeżeń projektu",
+  "limitReachedDailyDomain": "Osiągnięto dzienny limit odświeżeń domeny",
+  "limitReachedDailyDetail": "Dzienny limit odświeżeń został osiągnięty. Spróbuj ponownie jutro lub skontaktuj się z administratorem, aby zwiększyć limit.",
+  "limitReachedBulkCap": "Wybrano zbyt wiele słów kluczowych",
+  "limitReachedBulkCapDetail": "Wybierz mniej słów kluczowych i spróbuj ponownie."
 }

@@ -587,15 +587,44 @@ export const fetchPositionsInternal = internalAction({
 
     if (!login || !password) {
       // Mock data for dev mode
+      const mockSupabaseRows: Array<{
+        convex_domain_id: string;
+        convex_keyword_id: string;
+        date: string;
+        position: number | null;
+        url: string | null;
+        search_volume: number | null;
+      }> = [];
+
       for (const kw of args.keywords) {
+        const position = Math.random() > 0.2 ? Math.floor(Math.random() * 50) + 1 : null;
+        const url = Math.random() > 0.2 ? `https://${args.domain}/page-${Math.floor(Math.random() * 10)}` : null;
+        const searchVolume = Math.floor(Math.random() * 10000);
+
         await ctx.runMutation(internal.dataforseo.storePositionInternal, {
           keywordId: kw.id,
           date: today,
-          position: Math.random() > 0.2 ? Math.floor(Math.random() * 50) + 1 : null,
-          url: Math.random() > 0.2 ? `https://${args.domain}/page-${Math.floor(Math.random() * 10)}` : null,
-          searchVolume: Math.floor(Math.random() * 10000),
+          position,
+          url,
+          searchVolume,
           difficulty: Math.floor(Math.random() * 100),
         });
+
+        mockSupabaseRows.push({
+          convex_domain_id: args.domainId,
+          convex_keyword_id: kw.id,
+          date: today,
+          position,
+          url,
+          search_volume: searchVolume,
+        });
+      }
+
+      // Dual-write mock positions to Supabase
+      if (mockSupabaseRows.length > 0) {
+        writeKeywordPositions(mockSupabaseRows).catch((err) =>
+          console.error(`[Supabase] fetchPositionsInternal mock dual-write failed: ${mockSupabaseRows.length} rows, domain=${args.domainId}:`, err.message)
+        );
       }
 
       await ctx.runMutation(internal.dataforseo.markDomainRefreshed, {

@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { useTranslations } from "next-intl";
-import { ArrowUpRight, AlertCircle, FileSearch02, RefreshCw01 } from "@untitledui/icons";
+import { ArrowUpRight, FileSearch02, RefreshCw01 } from "@untitledui/icons";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { DialogTrigger, ModalOverlay, Modal, Dialog } from "@/components/applica
 import { CloseButton } from "@/components/base/buttons/close-button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
+import { AlertFloating } from "@/components/application/alerts/alerts";
 import { Heading as AriaHeading } from "react-aria-components";
 
 interface KeywordAnalysisReportDetailModalProps {
@@ -186,13 +187,21 @@ export function KeywordAnalysisReportDetailModal({
 
         {/* Failed state */}
         {report?.status === "failed" && (
-          <div className="py-12 text-center">
-            <AlertCircle className="h-12 w-12 text-error-600 mx-auto mb-4" />
-            <h3 className="text-md font-semibold text-primary mb-2">{t('analysisFailed')}</h3>
-            <p className="text-sm text-tertiary mb-4">{report.error || tc('unexpectedError')}</p>
-            <p className="text-xs text-quaternary">
-              {t('failedAtTime', { time: report.completedAt ? new Date(report.completedAt).toLocaleString() : "—" })}
-            </p>
+          <div className="py-6">
+            <AlertFloating
+              color="error"
+              title={t('analysisFailed')}
+              description={
+                <>
+                  {tc('unexpectedError')}
+                  <span className="block mt-1 text-xs text-quaternary">
+                    {t('failedAtTime', { time: report.completedAt ? new Date(report.completedAt).toLocaleString() : "—" })}
+                  </span>
+                </>
+              }
+              confirmLabel={t('reAnalyze')}
+              onConfirm={handleRetry}
+            />
           </div>
         )}
 

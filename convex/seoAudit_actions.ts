@@ -163,6 +163,49 @@ export const triggerSeoAuditScan = mutation({
 });
 
 /**
+ * Internal version of triggerSeoAuditScan for use by postOnboardingJobs.
+ * Same logic but no auth context required.
+ */
+export const triggerSeoAuditScanInternal = internalMutation({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const existingScan = await ctx.db
+      .query("onSiteScans")
+      .withIndex("by_domain_status", (q) =>
+        q.eq("domainId", args.domainId)
+      )
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("status"), "queued"),
+          q.eq(q.field("status"), "crawling"),
+          q.eq(q.field("status"), "processing")
+        )
+      )
+      .first();
+
+    if (existingScan) {
+      // Scan already in progress — skip silently
+      return null;
+    }
+
+    const scanId = await ctx.db.insert("onSiteScans", {
+      domainId: args.domainId,
+      status: "queued",
+      startedAt: Date.now(),
+      source: "seo_audit",
+    });
+
+    await ctx.scheduler.runAfter(
+      0,
+      internal.seoAudit_actions.processSeoAuditInternal,
+      { scanId }
+    );
+
+    return scanId;
+  },
+});
+
+/**
  * Create a scan record for "Scan Selected Pages" (no background processing).
  * The frontend calls scanSelectedUrlsV2 separately with the returned scanId.
  */

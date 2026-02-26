@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useTranslations } from "next-intl";
+import { GradientChartTooltip } from "@/components/application/charts/charts-base";
 
 interface KeywordPositionChartProps {
   positionHistory: Array<{ date: number; position: number }>;
@@ -16,7 +17,7 @@ export function KeywordPositionChart({ positionHistory }: KeywordPositionChartPr
     return [...positionHistory]
       .sort((a, b) => a.date - b.date)
       .map((item) => ({
-        date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        date: new Date(item.date),
         position: item.position,
       }));
   }, [positionHistory]);
@@ -27,7 +28,6 @@ export function KeywordPositionChart({ positionHistory }: KeywordPositionChartPr
     const positions = chartData.map((d) => d.position);
     const minPos = Math.min(...positions);
     const maxPos = Math.max(...positions);
-    // Pad by ~20% on each side, minimum range of 5
     const range = Math.max(maxPos - minPos, 5);
     const padding = Math.max(Math.ceil(range * 0.2), 2);
     return [Math.max(1, minPos - padding), maxPos + padding];
@@ -42,46 +42,78 @@ export function KeywordPositionChart({ positionHistory }: KeywordPositionChartPr
   }
 
   return (
-    <div className="h-48 w-full">
+    <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+        <AreaChart
+          data={chartData}
+          className="text-tertiary [&_.recharts-text]:text-xs"
+          margin={{ top: 8, right: 12, left: 0, bottom: 8 }}
+        >
+          <defs>
+            <linearGradient id="positionGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="currentColor" className="text-utility-brand-600" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="currentColor" className="text-utility-brand-600" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+
+          <CartesianGrid vertical={false} stroke="currentColor" className="text-secondary" strokeOpacity={0.3} />
+
           <XAxis
-            dataKey="date"
-            stroke="#9CA3AF"
-            tick={{ fill: '#9CA3AF' }}
-            fontSize={12}
+            fill="currentColor"
+            axisLine={false}
             tickLine={false}
+            dataKey="date"
+            tickFormatter={(value) =>
+              value.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+            }
+            padding={{ left: 10, right: 10 }}
           />
+
           <YAxis
-            stroke="#9CA3AF"
-            tick={{ fill: '#9CA3AF' }}
-            fontSize={12}
+            fill="currentColor"
+            axisLine={false}
             tickLine={false}
             reversed
             domain={yDomain}
-            label={{ value: t("columnPosition"), angle: -90, position: 'insideLeft', style: { fill: '#9CA3AF', fontSize: 12 } }}
+            width={40}
           />
+
           <Tooltip
-            contentStyle={{
-              backgroundColor: '#1F2937',
-              border: '1px solid #374151',
-              borderRadius: '8px',
-              fontSize: '12px',
-              color: '#F9FAFB',
+            content={<GradientChartTooltip />}
+            formatter={(value: number | undefined) =>
+              value !== undefined ? [`#${value}`, t("columnPosition")] : ["-", t("columnPosition")]
+            }
+            labelFormatter={(value: any) =>
+              value.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+            }
+            cursor={{
+              className: "stroke-utility-brand-600 stroke-1",
             }}
-            labelStyle={{ color: '#F9FAFB' }}
-            formatter={(value: number | undefined) => value !== undefined ? [`#${value}`, t("columnPosition")] : ['-', t("columnPosition")]}
           />
-          <Line
-            type="monotone"
+
+          <Area
+            isAnimationActive={false}
+            className="text-utility-brand-600"
             dataKey="position"
-            stroke="#3b82f6"
+            name={t("columnPosition")}
+            type="monotone"
+            stroke="currentColor"
             strokeWidth={2}
-            dot={{ r: 3, fill: '#3b82f6' }}
-            activeDot={{ r: 5 }}
+            fill="url(#positionGradient)"
+            fillOpacity={1}
+            baseValue={yDomain[1]}
+            dot={chartData.length <= 30 ? {
+              r: 3,
+              fill: "currentColor",
+              className: "text-utility-brand-600",
+              strokeWidth: 0,
+            } : false}
+            activeDot={{
+              className: "fill-bg-primary stroke-utility-brand-600 stroke-2",
+              r: 5,
+            }}
           />
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );

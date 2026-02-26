@@ -8,6 +8,7 @@ import { DialogTrigger, ModalOverlay, Modal, Dialog } from "@/components/applica
 import { CloseButton } from "@/components/base/buttons/close-button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
+import { AlertFloating } from "@/components/application/alerts/alerts";
 import { Heading as AriaHeading } from "react-aria-components";
 
 interface KeywordItem {
@@ -84,26 +85,26 @@ export function TopicClusterDetailModal({ cluster, onClose, isOpen }: TopicClust
             <ModalOverlay isDismissable>
                 <Modal className="max-w-4xl">
                     <Dialog>
-                        <div className="relative w-full overflow-hidden rounded-xl border border-secondary bg-primary shadow-xl">
+                        <div className="relative w-full overflow-hidden rounded-2xl bg-primary shadow-xl sm:max-w-4xl">
                             {/* Close button */}
                             <CloseButton onPress={onClose} theme="light" size="lg" className="absolute top-3 right-3 z-10" />
 
                             {/* Header */}
-                            <div className="relative border-b border-secondary px-6 pt-6 pb-5">
-                                <BackgroundPattern pattern="grid" className="absolute top-0 right-0" />
-                                <div className="relative flex items-start gap-4">
-                                    <FeaturedIcon icon={Grid01} color="brand" size="lg" />
-                                    <div>
-                                        <div className="flex items-center gap-3">
-                                            <AriaHeading slot="title" className="text-lg font-semibold text-primary">
-                                                {cluster.topic}
-                                            </AriaHeading>
-                                            <Badge color="brand" size="sm">{cluster.gapCount} keywords</Badge>
-                                        </div>
-                                        <p className="mt-1 text-sm text-tertiary">
-                                            {t('topicClusterWithGaps', { count: cluster.gapCount })}
-                                        </p>
+                            <div className="flex flex-col gap-4 px-4 pt-5 sm:px-6 sm:pt-6">
+                                <div className="relative w-max">
+                                    <FeaturedIcon icon={Grid01} color="brand" size="lg" theme="light" />
+                                    <BackgroundPattern pattern="circle" size="sm" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                </div>
+                                <div className="z-10 flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-3">
+                                        <AriaHeading slot="title" className="text-md font-semibold text-primary">
+                                            {cluster.topic}
+                                        </AriaHeading>
+                                        <Badge color="brand" size="sm">{cluster.gapCount} keywords</Badge>
                                     </div>
+                                    <p className="text-sm text-tertiary">
+                                        {t('topicClusterWithGaps', { count: cluster.gapCount })}
+                                    </p>
                                 </div>
                             </div>
 
@@ -140,14 +141,12 @@ export function TopicClusterDetailModal({ cluster, onClose, isOpen }: TopicClust
                                 </div>
 
                                 {/* Strategy recommendation */}
-                                <div className="rounded-lg border border-brand-200 bg-brand-25 p-4">
-                                    <h4 className="text-sm font-semibold text-brand-700 mb-1">
-                                        {t('recommendedStrategy')}
-                                    </h4>
-                                    <p className="text-sm text-brand-600">
-                                        {getClusterStrategy(cluster, t)}
-                                    </p>
-                                </div>
+                                <AlertFloating
+                                    color="success"
+                                    title={t('recommendedStrategy')}
+                                    description={getClusterStrategy(cluster, t)}
+                                    confirmLabel=""
+                                />
 
                                 {/* Keywords table */}
                                 <div>
