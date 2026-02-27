@@ -523,6 +523,7 @@ export const getKeywordMonitoring = query({
         isUp: discovered?.isUp || null,
         isDown: discovered?.isDown || null,
         proposedBy: keyword.proposedBy || null,
+        positionSource: keyword.positionSource ?? ("d4s" as const),
 
         // GSC real search data (aggregated last 28 days)
         ...(() => {

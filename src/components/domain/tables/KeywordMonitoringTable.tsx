@@ -837,13 +837,25 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                           {isRefreshing ? (
                             <RefreshCw01 className="h-4 w-4 animate-spin text-brand-600 inline-block" />
                           ) : keyword.currentPosition ? (
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPositionBadgeClass(
-                                keyword.currentPosition
-                              )}`}
-                            >
-                              {keyword.currentPosition}
-                            </span>
+                            <div className="inline-flex flex-col items-center gap-0.5">
+                              <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPositionBadgeClass(
+                                  keyword.currentPosition
+                                )}`}
+                              >
+                                {keyword.currentPosition}
+                              </span>
+                              {keyword.positionSource === "gsc" ? (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-utility-success-600" title="Real data from Google Search Console">
+                                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-utility-success-500" />
+                                  GSC
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-quaternary" title="Estimated from DataForSEO">
+                                  est.
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-xs text-tertiary">—</span>
                           )}

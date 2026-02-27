@@ -184,6 +184,21 @@ export const processStrategist = internalAction({
         },
         businessContext: domain.businessDescription || "",
         targetCustomer: domain.targetCustomer || "",
+        // GSC enrichment: real measured data when available
+        gscPrimary: domain.gscPrimary === true,
+        gscKeywordCount: activeKws.filter((kw: any) => kw.positionSource === "gsc").length,
+        topKeywordsGsc: withPositions
+          .filter((kw: any) => kw.gscClicks != null)
+          .sort((a: any, b: any) => (b.gscClicks ?? 0) - (a.gscClicks ?? 0))
+          .slice(0, 10)
+          .map((kw: any) => ({
+            phrase: kw.phrase,
+            position: kw.currentPosition,
+            clicks: kw.gscClicks,
+            impressions: kw.gscImpressions,
+            ctr: kw.gscCtr,
+            source: kw.positionSource ?? "d4s",
+          })),
       };
 
       // 3. If there are zero keywords, skip AI call
@@ -292,6 +307,13 @@ ${data.contentGaps.map((g: any) => `- "${g.keyword}" (opp: ${g.opportunityScore 
 ${data.topKeywords?.length > 0 ? `
 TOP TRACKED KEYWORDS (by position):
 ${data.topKeywords.map((kw: any) => `- "${kw.phrase}" at #${kw.position} (vol: ${kw.searchVolume ?? "?"}, change: ${kw.change != null ? (kw.change > 0 ? "+" : "") + kw.change : "n/a"})`).join("\n")}
+` : ""}
+
+${data.gscPrimary && data.topKeywordsGsc?.length > 0 ? `
+GSC REAL DATA (${data.gscKeywordCount} keywords with measured positions from Google Search Console):
+Note: Position data marked as GSC comes from real Google measurements, not estimates.
+Top keywords by real clicks:
+${data.topKeywordsGsc.map((kw: any) => `- "${kw.phrase}" pos #${kw.position} — ${kw.clicks} clicks, ${kw.impressions} impressions, CTR ${(kw.ctr * 100).toFixed(1)}%`).join("\n")}
 ` : ""}
 
 ${data.insights.recommendations?.length > 0 ? `
