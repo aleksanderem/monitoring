@@ -242,6 +242,7 @@ function HistorySessionCard({
               size="xs"
               color="tertiary"
               icon={Trash01}
+              tooltip={t("historyDeleteButton")}
             />
           </DeleteConfirmationDialog>
         </div>

@@ -79,7 +79,7 @@ export default function AdminHealthPage() {
         />
 
         {/* API Quota Widget */}
-        <ApiQuotaWidget costStatus={apiCostStatus} />
+        <ApiQuotaWidget costStatus={apiCostStatus ?? undefined} />
       </div>
 
       {/* Error Rate Chart */}

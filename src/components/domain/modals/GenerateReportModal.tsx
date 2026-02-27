@@ -21,6 +21,7 @@ import {
   Settings01,
   Edit05,
 } from "@untitledui/icons";
+import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
@@ -144,6 +145,7 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
       setReportId(result.reportId);
     } catch (error) {
       console.error("Failed to generate report:", error);
+      toast.error(t('generateReportFailed'));
       setIsGenerating(false);
     }
   }, [generateReport, domainId, profile, customConfig]);
@@ -155,6 +157,7 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
       await cancelReport({ reportId });
     } catch (error) {
       console.error("Failed to cancel report:", error);
+      toast.error(tc('unexpectedError'));
     } finally {
       setIsCancelling(false);
     }
@@ -178,6 +181,7 @@ export function GenerateReportModal({ isOpen, onClose, domainId, domainName }: G
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Failed to generate PDF:", error);
+      toast.error(tc('unexpectedError'));
     } finally {
       setIsDownloading(false);
     }

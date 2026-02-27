@@ -65,7 +65,7 @@ export function BacklinkQualityComparisonChart({
   const maxTotal = Math.max(...rows.map((r) => r.total), 1);
 
   return (
-    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+    <div role="img" aria-label="Stacked bar chart comparing backlink quality tiers across your domain and competitors" className="relative rounded-xl border border-secondary bg-primary p-6">
       <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="mb-5">
         <h3 className="text-lg font-semibold text-primary">

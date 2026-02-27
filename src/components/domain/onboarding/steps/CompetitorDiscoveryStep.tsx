@@ -76,8 +76,32 @@ export function CompetitorDiscoveryStep({
     const noSerpJob = !serpJobId;
 
     if (serpEmpty || noSerpJob) {
+      let cancelled = false;
       setAiSearchTriggered(true);
-      handleAISearch();
+
+      (async () => {
+        setAiSearching(true);
+        try {
+          const result = await searchCompetitorsWithAI({ domainId });
+          if (cancelled) return;
+          if (result.success && result.competitors) {
+            setAiResults(result.competitors);
+          } else {
+            console.error("AI competitor search failed:", result.error);
+            toast.error(t("aiSearchFailed"));
+          }
+        } catch (error) {
+          if (cancelled) return;
+          console.error("AI competitor search error:", error);
+          toast.error(t("aiSearchFailed"));
+        } finally {
+          if (!cancelled) {
+            setAiSearching(false);
+          }
+        }
+      })();
+
+      return () => { cancelled = true; };
     }
   }, [serpDone, serpSuggestions, serpJobId, aiSearchTriggered]);
 
@@ -89,9 +113,11 @@ export function CompetitorDiscoveryStep({
         setAiResults(result.competitors);
       } else {
         console.error("AI competitor search failed:", result.error);
+        toast.error(t("aiSearchFailed"));
       }
     } catch (error) {
       console.error("AI competitor search error:", error);
+      toast.error(t("aiSearchFailed"));
     } finally {
       setAiSearching(false);
     }

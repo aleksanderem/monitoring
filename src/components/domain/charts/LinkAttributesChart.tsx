@@ -84,7 +84,7 @@ export function LinkAttributesChart({ data, isLoading }: LinkAttributesChartProp
   const useBarChart = chartData.length < 3;
 
   return (
-    <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+    <div role="img" aria-label="Chart showing distribution of link attributes such as dofollow, nofollow, and sponsored" className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div>
         <h3 className="text-md font-semibold text-primary">{t('linkAttributesTitle')}</h3>

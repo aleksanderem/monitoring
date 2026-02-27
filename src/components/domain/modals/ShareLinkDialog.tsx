@@ -41,6 +41,7 @@ export function ShareLinkDialog({ domainId, children }: ShareLinkDialogProps) {
       await navigator.clipboard.writeText(url);
     } catch (error) {
       console.error(error);
+      toast.error(t("shareLinkFailed"));
     } finally {
       setIsCreating(false);
     }

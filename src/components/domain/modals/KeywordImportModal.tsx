@@ -5,15 +5,8 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { ImportWizardModal, type ImportResult } from "./ImportWizardModal";
 import type { FieldDefinition } from "@/utils/csvParser";
-import { useCallback } from "react";
-
-const KEYWORD_FIELDS: FieldDefinition[] = [
-  { key: "phrase", label: "Keyword Phrase", required: true, aliases: ["keyword", "query", "term", "search term", "keyphrase"] },
-  { key: "searchVolume", label: "Search Volume", aliases: ["volume", "monthly searches", "avg monthly searches", "search_volume"] },
-  { key: "difficulty", label: "Difficulty", aliases: ["kd", "keyword difficulty", "seo difficulty"] },
-  { key: "tags", label: "Tags", aliases: ["tag", "labels", "categories", "group"] },
-  { key: "keywordType", label: "Keyword Type", aliases: ["type", "intent type"] },
-];
+import { useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 
 const BATCH_SIZE = 100;
 
@@ -24,18 +17,27 @@ interface KeywordImportModalProps {
 }
 
 export function KeywordImportModal({ domainId, isOpen, onClose }: KeywordImportModalProps) {
+  const t = useTranslations("domains");
   const addKeywords = useMutation(api.keywords.addKeywords);
+
+  const keywordFields: FieldDefinition[] = useMemo(() => [
+    { key: "phrase", label: t("fieldKeywordPhrase"), required: true, aliases: ["keyword", "query", "term", "search term", "keyphrase"] },
+    { key: "searchVolume", label: t("fieldSearchVolume"), aliases: ["volume", "monthly searches", "avg monthly searches", "search_volume"] },
+    { key: "difficulty", label: t("fieldDifficulty"), aliases: ["kd", "keyword difficulty", "seo difficulty"] },
+    { key: "tags", label: t("fieldTags"), aliases: ["tag", "labels", "categories", "group"] },
+    { key: "keywordType", label: t("fieldKeywordType"), aliases: ["type", "intent type"] },
+  ], [t]);
 
   const validateRow = useCallback((row: Record<string, string>): string | null => {
     const phrase = row.phrase?.trim();
-    if (!phrase) return "Missing keyword phrase";
-    if (phrase.length < 2) return "Keyword too short (min 2 chars)";
-    if (phrase.length > 80) return "Keyword too long (max 80 chars)";
-    if (/^https?:\/\//i.test(phrase)) return "Looks like a URL, not a keyword";
-    if (/^[a-z0-9-]+\.[a-z]{2,}(\/\S*)?$/i.test(phrase) && !phrase.includes(" ")) return "Looks like a domain";
-    if (/^\d+$/.test(phrase)) return "Pure numbers are not valid keywords";
+    if (!phrase) return t("validationMissingPhrase");
+    if (phrase.length < 2) return t("validationKeywordTooShort");
+    if (phrase.length > 80) return t("validationKeywordTooLong");
+    if (/^https?:\/\//i.test(phrase)) return t("validationLooksLikeUrl");
+    if (/^[a-z0-9-]+\.[a-z]{2,}(\/\S*)?$/i.test(phrase) && !phrase.includes(" ")) return t("validationLooksLikeDomain");
+    if (/^\d+$/.test(phrase)) return t("validationPureNumbers");
     return null;
-  }, []);
+  }, [t]);
 
   const handleImport = useCallback(
     async (rows: Record<string, string>[]): Promise<ImportResult> => {
@@ -69,8 +71,8 @@ export function KeywordImportModal({ domainId, isOpen, onClose }: KeywordImportM
     <ImportWizardModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Import Keywords from CSV"
-      fields={KEYWORD_FIELDS}
+      title={t("importTitle")}
+      fields={keywordFields}
       validateRow={validateRow}
       onImport={handleImport}
       maxRows={10000}

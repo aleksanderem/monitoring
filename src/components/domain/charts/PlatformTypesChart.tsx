@@ -69,7 +69,7 @@ export function PlatformTypesChart({ data, isLoading }: PlatformTypesChartProps)
   } satisfies ChartConfig;
 
   return (
-    <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+    <div role="img" aria-label="Radar chart showing backlink distribution across platform types" className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div>
         <h3 className="text-md font-semibold text-primary">{t('platformsTitle')}</h3>

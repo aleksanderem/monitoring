@@ -23,26 +23,13 @@ import {
     AlertCircle,
 } from "@untitledui/icons";
 import { Badge } from "@/components/base/badges/badges";
+import { formatNumber, getPositionBadgeClass } from "@/lib/formatting";
 
 interface QuickWinDetailModalProps {
     domainId: Id<"domains">;
     discoveredKeywordId: Id<"discoveredKeywords">;
     isOpen: boolean;
     onClose: () => void;
-}
-
-function formatNumber(num: number | null | undefined): string {
-    if (num === null || num === undefined) return "—";
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
-}
-
-function getPositionBadgeClass(position: number): string {
-    if (position <= 3) return "bg-utility-success-50 text-utility-success-600";
-    if (position <= 10) return "bg-utility-success-25 text-utility-success-500";
-    if (position <= 20) return "bg-utility-warning-50 text-utility-warning-600";
-    return "bg-utility-gray-50 text-utility-gray-600";
 }
 
 const INTENT_LABEL_KEYS: Record<string, string> = {

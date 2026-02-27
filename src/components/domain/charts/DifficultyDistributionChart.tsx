@@ -7,6 +7,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { GradientChartTooltip } from "@/components/application/charts/charts-base";
+import { formatNumber } from "@/lib/formatting";
 
 interface DifficultyDistributionChartProps {
     domainId: Id<"domains">;
@@ -18,12 +19,6 @@ const TIER_CONFIG = [
     { key: "hard", labelKey: "difficultyHard", color: "#f97316" },
     { key: "very_hard", labelKey: "difficultyVeryHard", color: "#ef4444" },
 ] as const;
-
-function formatNumber(num: number): string {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
-}
 
 export function DifficultyDistributionChart({ domainId }: DifficultyDistributionChartProps) {
     const t = useTranslations('keywords');

@@ -5,12 +5,8 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { ImportWizardModal, type ImportResult } from "./ImportWizardModal";
 import type { FieldDefinition } from "@/utils/csvParser";
-import { useCallback } from "react";
-
-const COMPETITOR_FIELDS: FieldDefinition[] = [
-  { key: "competitorDomain", label: "Competitor Domain", required: true, aliases: ["domain", "url", "competitor", "site", "website"] },
-  { key: "name", label: "Name", aliases: ["display name", "label", "company", "brand"] },
-];
+import { useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 
 interface CompetitorImportModalProps {
   domainId: Id<"domains">;
@@ -19,17 +15,23 @@ interface CompetitorImportModalProps {
 }
 
 export function CompetitorImportModal({ domainId, isOpen, onClose }: CompetitorImportModalProps) {
+  const t = useTranslations("domains");
   const addCompetitor = useMutation(api.competitors.addCompetitor);
+
+  const competitorFields: FieldDefinition[] = useMemo(() => [
+    { key: "competitorDomain", label: t("fieldCompetitorDomain"), required: true, aliases: ["domain", "url", "competitor", "site", "website"] },
+    { key: "name", label: t("fieldName"), aliases: ["display name", "label", "company", "brand"] },
+  ], [t]);
 
   const validateRow = useCallback((row: Record<string, string>): string | null => {
     const domain = row.competitorDomain?.trim();
-    if (!domain) return "Missing competitor domain";
+    if (!domain) return t("validationMissingDomain");
     // Basic domain validation
     const cleaned = domain.replace(/^https?:\/\//, "").replace(/\/+$/, "");
-    if (!cleaned.includes(".") || cleaned.includes(" ")) return "Invalid domain format";
-    if (cleaned.length < 4) return "Domain too short";
+    if (!cleaned.includes(".") || cleaned.includes(" ")) return t("validationInvalidDomain");
+    if (cleaned.length < 4) return t("validationDomainTooShort");
     return null;
-  }, []);
+  }, [t]);
 
   const handleImport = useCallback(
     async (rows: Record<string, string>[]): Promise<ImportResult> => {
@@ -65,8 +67,8 @@ export function CompetitorImportModal({ domainId, isOpen, onClose }: CompetitorI
     <ImportWizardModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Import Competitors from CSV"
-      fields={COMPETITOR_FIELDS}
+      title={t("importCompetitorsTitle")}
+      fields={competitorFields}
       validateRow={validateRow}
       onImport={handleImport}
       maxRows={100}

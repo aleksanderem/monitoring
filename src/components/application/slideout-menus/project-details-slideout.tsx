@@ -7,7 +7,6 @@ import { Tabs, TabList, TabPanel } from "@/components/application/tabs/tabs";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { BadgeWithDot } from "@/components/base/badges/badges";
-import { MetricsChart04 } from "@/components/application/metrics/metrics";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -134,14 +133,20 @@ export function ProjectDetailsSlideout({
                 <section className="flex flex-col gap-3">
                   {domains && domains.length > 0 ? (
                     domains.map((domain) => (
-                      <MetricsChart04
-                        key={domain._id}
-                        title={domain.keywordCount.toString()}
-                        subtitle={domain.domain}
-                        change="+12%"
-                        changeTrend="positive"
-                        changeDescription={t('vsLastMonth')}
-                      />
+                      <div key={domain._id} className="flex items-center justify-between rounded-lg border border-secondary p-3">
+                        <div className="flex items-center gap-3">
+                          <Globe01 className="h-5 w-5 text-fg-quaternary" />
+                          <div>
+                            <p className="text-sm font-medium text-primary">{domain.domain}</p>
+                            <p className="text-xs text-tertiary">{domain.settings?.searchEngine ?? "google"}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Hash01 className="h-4 w-4 text-fg-quaternary" />
+                          <span className="text-sm font-semibold text-primary">{domain.keywordCount}</span>
+                          <span className="text-xs text-tertiary">{t('slideoutKeywords')}</span>
+                        </div>
+                      </div>
                     ))
                   ) : (
                     <p className="text-sm text-tertiary">{t('noDomainsAddedYet')}</p>

@@ -17,6 +17,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { useTranslations } from "next-intl";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { getPositionBadgeClass } from "@/lib/formatting";
 
 interface CompetitorOverlapTableProps {
     domainId: Id<"domains">;
@@ -28,13 +29,6 @@ function getPositionCellClass(position: number | null): string {
     if (position <= 10) return "text-utility-success-500";
     if (position <= 20) return "text-utility-warning-600";
     return "text-tertiary";
-}
-
-function getPositionBadgeClass(position: number): string {
-    if (position <= 3) return "bg-utility-success-50 text-utility-success-600";
-    if (position <= 10) return "bg-utility-success-25 text-utility-success-500";
-    if (position <= 20) return "bg-utility-warning-50 text-utility-warning-600";
-    return "bg-utility-gray-50 text-utility-gray-600";
 }
 
 type SortColumn = "keyword" | "yourPosition" | string; // string for competitor domains

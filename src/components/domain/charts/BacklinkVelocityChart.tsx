@@ -84,7 +84,7 @@ export function BacklinkVelocityChart({
   const netChange = totalNew - totalLost;
 
   return (
-    <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+    <div role="img" aria-label="Composed chart showing new and lost backlinks over time with net change trend line" className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="flex items-center justify-between">
         <div>

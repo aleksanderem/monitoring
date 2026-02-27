@@ -24,6 +24,18 @@ export function FirstTimeFlow() {
 
   const activeOrg = userOrgs?.[0];
 
+  // Resolve org -> team -> project chain for domain creation
+  const teams = useQuery(
+    api.teams.getTeams,
+    activeOrg ? { organizationId: activeOrg._id } : "skip"
+  );
+  const firstTeam = teams?.[0];
+  const projects = useQuery(
+    api.projects.getProjects,
+    firstTeam ? { teamId: firstTeam._id } : "skip"
+  );
+  const firstProject = projects?.[0];
+
   const stepNumber = currentStep === "welcome" ? 1 : currentStep === "orgSetup" ? 2 : 3;
 
   const handleSkip = async () => {
@@ -42,24 +54,23 @@ export function FirstTimeFlow() {
   };
 
   const handleDomainSubmit = async (domainUrl: string) => {
-    if (!activeOrg) return;
+    if (!activeOrg || !firstProject) return;
 
     setIsSubmitting(true);
     try {
-      // Get the first team's first project, or we need the project hierarchy
-      // The auth callback creates a default team, so we look up the team -> project
-      const teams = await new Promise<any[]>((resolve) => {
-        // Teams are loaded via org, we need to find or create a project
-        resolve([]);
+      const domainId = await createDomain({
+        projectId: firstProject._id,
+        domain: domainUrl.replace(/^https?:\/\//, "").replace(/\/+$/, ""),
+        settings: {
+          refreshFrequency: "weekly",
+          searchEngine: "google",
+          location: "Poland",
+          language: "pl",
+        },
       });
 
-      // For onboarding, we create a default project if none exists.
-      // Since the org was just auto-created by auth, there may not be a project yet.
-      // We'll use the existing project creation flow or create domain via the
-      // domains page. For simplicity in the onboarding flow, we mark onboarding
-      // complete and redirect to domains page where they can add the domain.
       await completeOnboarding();
-      router.push("/domains");
+      router.push(`/domains/${domainId}`);
     } catch {
       setIsSubmitting(false);
     }

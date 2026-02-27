@@ -121,7 +121,7 @@ export function CompetitorPositionScatterChart({
   const chartHeight = Math.max(200, chartData.length * 60 + 80);
 
   return (
-    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+    <div role="img" aria-label="Stacked bar chart showing keyword win rate comparison against each competitor" className="relative rounded-xl border border-secondary bg-primary p-6">
       <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-primary">

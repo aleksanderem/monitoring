@@ -28,19 +28,13 @@ import { DialogTrigger, ModalOverlay, Modal, Dialog } from "@/components/applica
 import { CloseButton } from "@/components/base/buttons/close-button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
+import { formatNumber } from "@/lib/formatting";
 
 interface ContentGapDetailModalProps {
   opportunity: any;
   isOpen: boolean;
   onClose: () => void;
   domainId: Id<"domains">;
-}
-
-function formatNumber(num: number | null | undefined): string {
-  if (!num && num !== 0) return "—";
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toLocaleString();
 }
 
 function getPriorityBadgeColor(priority: string): "success" | "warning" | "gray" {

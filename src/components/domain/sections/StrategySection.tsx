@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -39,6 +40,14 @@ export function StrategySection({ domainId }: StrategySectionProps) {
           </div>
         </div>
 
+        <div className="flex items-center gap-2">
+          <Link
+            href="/calendar"
+            className="flex items-center gap-1.5 rounded-lg border border-secondary px-3 py-1.5 text-sm font-medium text-secondary hover:bg-primary-hover transition-colors"
+          >
+            <EzIcon name="calendar-03" size={16} color="currentColor" strokeColor="currentColor" />
+            {t("viewCalendar")}
+          </Link>
         {hasActive && (
           <div className="flex items-center rounded-lg border border-secondary bg-primary p-0.5">
             <button
@@ -63,6 +72,7 @@ export function StrategySection({ domainId }: StrategySectionProps) {
             </button>
           </div>
         )}
+        </div>
       </div>
 
       {/* View content */}

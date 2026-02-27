@@ -75,7 +75,7 @@ export function PositionDistributionChart({ domainId }: PositionDistributionChar
   } satisfies ChartConfig;
 
   return (
-    <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+    <div role="img" aria-label="Radar chart showing keyword position distribution across ranking ranges" className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div>
         <h3 className="text-md font-semibold text-primary">{t('currentPositionDistribution')}</h3>

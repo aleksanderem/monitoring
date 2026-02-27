@@ -80,7 +80,7 @@ export function MovementTrendChart({ domainId }: MovementTrendChartProps) {
   }));
 
   return (
-    <div className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
+    <div role="img" aria-label="Line chart showing keyword position gainers and losers over time" className="relative flex flex-col gap-4 rounded-xl border border-secondary bg-primary p-6">
       <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <h3 className="text-sm font-semibold text-primary">{t('positionMovementTrend')}</h3>
 

@@ -22,15 +22,15 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function relativeTime(timestamp: number): string {
+function relativeTime(timestamp: number, translate: (key: string, params?: Record<string, string | number>) => string): string {
   const diff = Date.now() - timestamp;
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return translate("justNow");
+  if (minutes < 60) return translate("minutesAgo", { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return translate("hoursAgo", { count: hours });
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
+  if (days < 30) return translate("daysAgo", { count: days });
   return new Date(timestamp).toLocaleDateString();
 }
 
@@ -51,6 +51,7 @@ function DeviceIcon({ type }: { type: string }) {
 
 export function ActiveSessionsList() {
   const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const sessions = useQuery(api.security.getActiveSessions);
   const revokeSession = useMutation(api.security.revokeSession);
   const revokeAll = useMutation(api.security.revokeAllOtherSessions);
@@ -160,7 +161,7 @@ export function ActiveSessionsList() {
                     {session.ipAddress || session.location || "—"}
                   </td>
                   <td className="whitespace-nowrap py-3 pr-4 text-tertiary">
-                    {relativeTime(session.lastActivityAt)}
+                    {relativeTime(session.lastActivityAt, tc)}
                   </td>
                   <td className="py-3">
                     {!session.isCurrent && (

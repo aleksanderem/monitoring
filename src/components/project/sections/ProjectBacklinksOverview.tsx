@@ -6,15 +6,10 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { useTranslations } from "next-intl";
+import { formatNumber } from "@/lib/formatting";
 
 interface ProjectBacklinksOverviewProps {
     projectId: Id<"projects">;
-}
-
-function formatNumber(num: number): string {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
 }
 
 export function ProjectBacklinksOverview({ projectId }: ProjectBacklinksOverviewProps) {

@@ -3,6 +3,7 @@
 import { TrendUp02 } from "@untitledui/icons";
 import { useTranslations } from "next-intl";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { formatNumber } from "@/lib/formatting";
 
 interface Keyword {
   _id: string;
@@ -22,12 +23,6 @@ function getPositionColor(position: number): string {
   if (position <= 10) return "bg-utility-success-400";
   if (position <= 20) return "bg-utility-warning-500";
   return "bg-utility-gray-400";
-}
-
-function formatNumber(num: number): string {
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toString();
 }
 
 export function Top10KeywordsSection({ keywords, isLoading }: Top10KeywordsSectionProps) {

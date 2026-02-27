@@ -63,6 +63,7 @@ export const Toaster = () => (
     <>
         <SonnerToaster
             position={DEFAULT_TOAST_POSITION}
+            duration={3000}
             style={
                 {
                     "--width": "400px",

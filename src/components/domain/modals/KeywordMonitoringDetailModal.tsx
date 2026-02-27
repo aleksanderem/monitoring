@@ -16,18 +16,12 @@ import { api } from "../../../../convex/_generated/api";
 import { useAnalyticsQuery } from "@/hooks/useAnalyticsQuery";
 import { toast } from "sonner";
 import { CreateCompetitorReportModal } from "./CreateCompetitorReportModal";
+import { formatNumber } from "@/lib/formatting";
 
 interface KeywordMonitoringDetailModalProps {
   keyword: any;
   isOpen: boolean;
   onClose: () => void;
-}
-
-function formatNumber(num: number | null | undefined): string {
-  if (num === null || num === undefined) return "—";
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toString();
 }
 
 export function KeywordMonitoringDetailModal({ keyword, isOpen, onClose }: KeywordMonitoringDetailModalProps) {

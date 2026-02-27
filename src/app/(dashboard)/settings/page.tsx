@@ -1523,7 +1523,16 @@ function LimitsSection() {
   }
 
   if (limits === null) {
-    return null;
+    return (
+      <Section title={t("limitsTitle")} description={t("limitsDescription")}>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-secondary bg-secondary p-8 text-center">
+          <Lock01 className="mb-3 h-8 w-8 text-quaternary" />
+          <p className="text-sm font-medium text-secondary">
+            {t("limitsNoAccess")}
+          </p>
+        </div>
+      </Section>
+    );
   }
 
   const fields = [

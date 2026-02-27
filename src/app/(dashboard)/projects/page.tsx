@@ -6,6 +6,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { Edit05, Trash01, SearchLg, Eye, FilterLines, Globe01, Hash01 } from "@untitledui/icons";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { SortDescriptor } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/base/buttons/button";
@@ -39,6 +40,7 @@ function formatRelativeTime(timestamp: number): string {
 
 export default function ProjectsPage() {
   const t = useTranslations("projects");
+  const router = useRouter();
   const projects = useQuery(api.projects.list);
   const deleteProject = useMutation(api.projects.remove);
   usePageTitle("Projects");
@@ -194,6 +196,7 @@ export default function ProjectsPage() {
             selectionMode="multiple"
             sortDescriptor={sortDescriptor}
             onSortChange={setSortDescriptor}
+            onRowAction={(key) => router.push(`/projects/${key}`)}
           >
             <Table.Header>
               <Table.Head
