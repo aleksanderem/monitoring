@@ -130,6 +130,7 @@ export default defineSchema({
     cachedPageContent: v.optional(v.string()),
     cachedPageContentAt: v.optional(v.number()),
     gscPropertyUrl: v.optional(v.string()),
+    keywordCount: v.optional(v.number()),
   }).index("by_project", ["projectId"]),
 
   // Keywords within domains
@@ -2322,6 +2323,43 @@ export default defineSchema({
   })
     .index("by_domain_date", ["domainId", "date"])
     .index("by_domain_keyword", ["domainId", "keyword"]),
+
+  gscPageMetrics: defineTable({
+    domainId: v.id("domains"),
+    organizationId: v.id("organizations"),
+    page: v.string(),
+    date: v.string(),
+    clicks: v.number(),
+    impressions: v.number(),
+    ctr: v.number(),
+    position: v.number(),
+  })
+    .index("by_domain_date", ["domainId", "date"])
+    .index("by_domain_page", ["domainId", "page"]),
+
+  gscDeviceMetrics: defineTable({
+    domainId: v.id("domains"),
+    organizationId: v.id("organizations"),
+    device: v.string(),
+    date: v.string(),
+    clicks: v.number(),
+    impressions: v.number(),
+    ctr: v.number(),
+    position: v.number(),
+  })
+    .index("by_domain_date", ["domainId", "date"]),
+
+  gscCountryMetrics: defineTable({
+    domainId: v.id("domains"),
+    organizationId: v.id("organizations"),
+    country: v.string(),
+    date: v.string(),
+    clicks: v.number(),
+    impressions: v.number(),
+    ctr: v.number(),
+    position: v.number(),
+  })
+    .index("by_domain_date", ["domainId", "date"]),
 
   // =================================================================
   // Health Checks (R35)

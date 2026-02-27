@@ -148,6 +148,238 @@ export const getGscMetrics = query({
   },
 });
 
+export const getGscDeviceSplit = query({
+  args: {
+    domainId: v.id("domains"),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
+  },
+  handler: async (ctx, { domainId, startDate, endDate }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+
+    const domain = await ctx.db.get(domainId);
+    if (!domain) return null;
+
+    const project = await ctx.db.get(domain.projectId);
+    if (!project) return null;
+
+    const team = await ctx.db.get(project.teamId);
+    if (!team) return null;
+
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_user", (q) =>
+        q.eq("organizationId", team.organizationId).eq("userId", userId)
+      )
+      .first();
+    if (!membership) return null;
+
+    const now = new Date();
+    const end = endDate || now.toISOString().split("T")[0];
+    const start =
+      startDate ||
+      new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+
+    const metrics = await ctx.db
+      .query("gscDeviceMetrics")
+      .withIndex("by_domain_date", (q) =>
+        q.eq("domainId", domainId).gte("date", start)
+      )
+      .filter((q) => q.lte(q.field("date"), end))
+      .collect();
+
+    if (metrics.length === 0) return [];
+
+    const deviceMap = new Map<
+      string,
+      { clicks: number; impressions: number; positionSum: number }
+    >();
+    for (const m of metrics) {
+      const existing = deviceMap.get(m.device);
+      if (existing) {
+        existing.clicks += m.clicks;
+        existing.impressions += m.impressions;
+        existing.positionSum += m.position * m.impressions;
+      } else {
+        deviceMap.set(m.device, {
+          clicks: m.clicks,
+          impressions: m.impressions,
+          positionSum: m.position * m.impressions,
+        });
+      }
+    }
+
+    return Array.from(deviceMap.entries()).map(([device, data]) => ({
+      device,
+      clicks: data.clicks,
+      impressions: data.impressions,
+      ctr: data.impressions > 0 ? data.clicks / data.impressions : 0,
+      position: data.impressions > 0 ? data.positionSum / data.impressions : 0,
+    }));
+  },
+});
+
+export const getGscTopPages = query({
+  args: {
+    domainId: v.id("domains"),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { domainId, startDate, endDate, limit: maxResults }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+
+    const domain = await ctx.db.get(domainId);
+    if (!domain) return null;
+
+    const project = await ctx.db.get(domain.projectId);
+    if (!project) return null;
+
+    const team = await ctx.db.get(project.teamId);
+    if (!team) return null;
+
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_user", (q) =>
+        q.eq("organizationId", team.organizationId).eq("userId", userId)
+      )
+      .first();
+    if (!membership) return null;
+
+    const now = new Date();
+    const end = endDate || now.toISOString().split("T")[0];
+    const start =
+      startDate ||
+      new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+
+    const metrics = await ctx.db
+      .query("gscPageMetrics")
+      .withIndex("by_domain_date", (q) =>
+        q.eq("domainId", domainId).gte("date", start)
+      )
+      .filter((q) => q.lte(q.field("date"), end))
+      .collect();
+
+    if (metrics.length === 0) return [];
+
+    const pageMap = new Map<
+      string,
+      { clicks: number; impressions: number; positionSum: number }
+    >();
+    for (const m of metrics) {
+      const existing = pageMap.get(m.page);
+      if (existing) {
+        existing.clicks += m.clicks;
+        existing.impressions += m.impressions;
+        existing.positionSum += m.position * m.impressions;
+      } else {
+        pageMap.set(m.page, {
+          clicks: m.clicks,
+          impressions: m.impressions,
+          positionSum: m.position * m.impressions,
+        });
+      }
+    }
+
+    const limit = maxResults ?? 10;
+    return Array.from(pageMap.entries())
+      .map(([page, data]) => ({
+        page,
+        clicks: data.clicks,
+        impressions: data.impressions,
+        ctr: data.impressions > 0 ? data.clicks / data.impressions : 0,
+        position: data.impressions > 0 ? data.positionSum / data.impressions : 0,
+      }))
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, limit);
+  },
+});
+
+export const getGscCountryBreakdown = query({
+  args: {
+    domainId: v.id("domains"),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { domainId, startDate, endDate, limit: maxResults }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+
+    const domain = await ctx.db.get(domainId);
+    if (!domain) return null;
+
+    const project = await ctx.db.get(domain.projectId);
+    if (!project) return null;
+
+    const team = await ctx.db.get(project.teamId);
+    if (!team) return null;
+
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_user", (q) =>
+        q.eq("organizationId", team.organizationId).eq("userId", userId)
+      )
+      .first();
+    if (!membership) return null;
+
+    const now = new Date();
+    const end = endDate || now.toISOString().split("T")[0];
+    const start =
+      startDate ||
+      new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+
+    const metrics = await ctx.db
+      .query("gscCountryMetrics")
+      .withIndex("by_domain_date", (q) =>
+        q.eq("domainId", domainId).gte("date", start)
+      )
+      .filter((q) => q.lte(q.field("date"), end))
+      .collect();
+
+    if (metrics.length === 0) return [];
+
+    const countryMap = new Map<
+      string,
+      { clicks: number; impressions: number; positionSum: number }
+    >();
+    for (const m of metrics) {
+      const existing = countryMap.get(m.country);
+      if (existing) {
+        existing.clicks += m.clicks;
+        existing.impressions += m.impressions;
+        existing.positionSum += m.position * m.impressions;
+      } else {
+        countryMap.set(m.country, {
+          clicks: m.clicks,
+          impressions: m.impressions,
+          positionSum: m.position * m.impressions,
+        });
+      }
+    }
+
+    const limit = maxResults ?? 10;
+    return Array.from(countryMap.entries())
+      .map(([country, data]) => ({
+        country,
+        clicks: data.clicks,
+        impressions: data.impressions,
+        ctr: data.impressions > 0 ? data.clicks / data.impressions : 0,
+        position: data.impressions > 0 ? data.positionSum / data.impressions : 0,
+      }))
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, limit);
+  },
+});
+
 export const getGscKeywordComparison = query({
   args: {
     domainId: v.id("domains"),
@@ -275,7 +507,7 @@ export const initiateGscConnection = mutation({
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: "code",
-      scope: "https://www.googleapis.com/auth/webmasters.readonly",
+      scope: "https://www.googleapis.com/auth/webmasters.readonly email profile",
       state,
       access_type: "offline",
       prompt: "consent",
@@ -465,6 +697,26 @@ export const getConnectionInternal = internalQuery({
   },
 });
 
+export const getDomainOrgId = internalQuery({
+  args: { domainId: v.id("domains"), userId: v.id("users") },
+  handler: async (ctx, { domainId, userId }) => {
+    const domain = await ctx.db.get(domainId);
+    if (!domain) return null;
+    const project = await ctx.db.get(domain.projectId);
+    if (!project) return null;
+    const team = await ctx.db.get(project.teamId);
+    if (!team) return null;
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_user", (q) =>
+        q.eq("organizationId", team.organizationId).eq("userId", userId)
+      )
+      .first();
+    if (!membership) return null;
+    return { organizationId: team.organizationId };
+  },
+});
+
 export const getAllActiveConnections = internalQuery({
   args: {},
   handler: async (ctx) => {
@@ -495,7 +747,169 @@ export const storeGscMetrics = internalMutation({
   },
   handler: async (ctx, { metrics }) => {
     for (const metric of metrics) {
-      await ctx.db.insert("gscKeywordMetrics", metric);
+      const existing = await ctx.db
+        .query("gscKeywordMetrics")
+        .withIndex("by_domain_keyword", (q) =>
+          q.eq("domainId", metric.domainId).eq("keyword", metric.keyword)
+        )
+        .filter((q) => q.eq(q.field("date"), metric.date))
+        .first();
+
+      if (existing) {
+        await ctx.db.patch(existing._id, {
+          clicks: metric.clicks,
+          impressions: metric.impressions,
+          ctr: metric.ctr,
+          position: metric.position,
+          url: metric.url,
+        });
+      } else {
+        await ctx.db.insert("gscKeywordMetrics", metric);
+      }
+    }
+  },
+});
+
+export const storeGscPageMetrics = internalMutation({
+  args: {
+    metrics: v.array(
+      v.object({
+        domainId: v.id("domains"),
+        organizationId: v.id("organizations"),
+        page: v.string(),
+        date: v.string(),
+        clicks: v.number(),
+        impressions: v.number(),
+        ctr: v.number(),
+        position: v.number(),
+      })
+    ),
+  },
+  handler: async (ctx, { metrics }) => {
+    for (const metric of metrics) {
+      const existing = await ctx.db
+        .query("gscPageMetrics")
+        .withIndex("by_domain_page", (q) =>
+          q.eq("domainId", metric.domainId).eq("page", metric.page)
+        )
+        .filter((q) => q.eq(q.field("date"), metric.date))
+        .first();
+
+      if (existing) {
+        await ctx.db.patch(existing._id, {
+          clicks: metric.clicks,
+          impressions: metric.impressions,
+          ctr: metric.ctr,
+          position: metric.position,
+        });
+      } else {
+        await ctx.db.insert("gscPageMetrics", metric);
+      }
+    }
+  },
+});
+
+export const storeGscDeviceMetrics = internalMutation({
+  args: {
+    metrics: v.array(
+      v.object({
+        domainId: v.id("domains"),
+        organizationId: v.id("organizations"),
+        device: v.string(),
+        date: v.string(),
+        clicks: v.number(),
+        impressions: v.number(),
+        ctr: v.number(),
+        position: v.number(),
+      })
+    ),
+  },
+  handler: async (ctx, { metrics }) => {
+    for (const metric of metrics) {
+      const existing = await ctx.db
+        .query("gscDeviceMetrics")
+        .withIndex("by_domain_date", (q) =>
+          q.eq("domainId", metric.domainId).eq("date", metric.date)
+        )
+        .filter((q) => q.eq(q.field("device"), metric.device))
+        .first();
+
+      if (existing) {
+        await ctx.db.patch(existing._id, {
+          clicks: metric.clicks,
+          impressions: metric.impressions,
+          ctr: metric.ctr,
+          position: metric.position,
+        });
+      } else {
+        await ctx.db.insert("gscDeviceMetrics", metric);
+      }
+    }
+  },
+});
+
+export const storeGscCountryMetrics = internalMutation({
+  args: {
+    metrics: v.array(
+      v.object({
+        domainId: v.id("domains"),
+        organizationId: v.id("organizations"),
+        country: v.string(),
+        date: v.string(),
+        clicks: v.number(),
+        impressions: v.number(),
+        ctr: v.number(),
+        position: v.number(),
+      })
+    ),
+  },
+  handler: async (ctx, { metrics }) => {
+    for (const metric of metrics) {
+      const existing = await ctx.db
+        .query("gscCountryMetrics")
+        .withIndex("by_domain_date", (q) =>
+          q.eq("domainId", metric.domainId).eq("date", metric.date)
+        )
+        .filter((q) => q.eq(q.field("country"), metric.country))
+        .first();
+
+      if (existing) {
+        await ctx.db.patch(existing._id, {
+          clicks: metric.clicks,
+          impressions: metric.impressions,
+          ctr: metric.ctr,
+          position: metric.position,
+        });
+      } else {
+        await ctx.db.insert("gscCountryMetrics", metric);
+      }
+    }
+  },
+});
+
+export const clearGscMetricsForDateRange = internalMutation({
+  args: {
+    domainId: v.id("domains"),
+    startDate: v.string(),
+    endDate: v.string(),
+    table: v.union(
+      v.literal("gscKeywordMetrics"),
+      v.literal("gscPageMetrics"),
+      v.literal("gscDeviceMetrics"),
+      v.literal("gscCountryMetrics")
+    ),
+  },
+  handler: async (ctx, { domainId, startDate, endDate, table }) => {
+    const rows = await ctx.db
+      .query(table)
+      .withIndex("by_domain_date", (q) =>
+        q.eq("domainId", domainId).gte("date", startDate)
+      )
+      .filter((q) => q.lte(q.field("date"), endDate))
+      .collect();
+
+    for (const row of rows) {
+      await ctx.db.delete(row._id);
     }
   },
 });
@@ -507,5 +921,92 @@ export const updateConnectionSyncTime = internalMutation({
   },
   handler: async (ctx, { connectionId, lastSyncAt }) => {
     await ctx.db.patch(connectionId, { lastSyncAt });
+  },
+});
+
+export const upsertGscConnection = internalMutation({
+  args: {
+    organizationId: v.id("organizations"),
+    googleEmail: v.string(),
+    accessToken: v.string(),
+    refreshToken: v.string(),
+    tokenExpiresAt: v.number(),
+    properties: v.array(v.object({ url: v.string(), type: v.string() })),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("gscConnections")
+      .withIndex("by_org", (q) => q.eq("organizationId", args.organizationId))
+      .filter((q) => q.neq(q.field("status"), "disconnected"))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        googleEmail: args.googleEmail,
+        accessToken: args.accessToken,
+        refreshToken: args.refreshToken,
+        tokenExpiresAt: args.tokenExpiresAt,
+        properties: args.properties,
+        status: "active",
+        connectedAt: Date.now(),
+      });
+      return existing._id;
+    }
+
+    return await ctx.db.insert("gscConnections", {
+      organizationId: args.organizationId,
+      googleEmail: args.googleEmail,
+      accessToken: args.accessToken,
+      refreshToken: args.refreshToken,
+      tokenExpiresAt: args.tokenExpiresAt,
+      properties: args.properties,
+      status: "active",
+      connectedAt: Date.now(),
+    });
+  },
+});
+
+export const updateGscTokens = internalMutation({
+  args: {
+    connectionId: v.id("gscConnections"),
+    accessToken: v.string(),
+    tokenExpiresAt: v.number(),
+  },
+  handler: async (ctx, { connectionId, accessToken, tokenExpiresAt }) => {
+    await ctx.db.patch(connectionId, { accessToken, tokenExpiresAt });
+  },
+});
+
+export const getDomainsWithGscProperty = internalQuery({
+  args: { organizationId: v.id("organizations") },
+  handler: async (ctx, { organizationId }) => {
+    // Get all teams for this org, then projects, then domains with gscPropertyUrl
+    const teams = await ctx.db
+      .query("teams")
+      .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+      .collect();
+
+    const domains = [];
+    for (const team of teams) {
+      const projects = await ctx.db
+        .query("projects")
+        .withIndex("by_team", (q) => q.eq("teamId", team._id))
+        .collect();
+
+      for (const project of projects) {
+        const projectDomains = await ctx.db
+          .query("domains")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect();
+
+        for (const domain of projectDomains) {
+          if (domain.gscPropertyUrl) {
+            domains.push({ _id: domain._id, gscPropertyUrl: domain.gscPropertyUrl });
+          }
+        }
+      }
+    }
+
+    return domains;
   },
 });

@@ -30,6 +30,28 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
+vi.mock("next/link", () => ({
+  default: ({ children, href, ...props }: { children: React.ReactNode; href: string; [key: string]: unknown }) => (
+    <a href={href} {...props}>{children}</a>
+  ),
+}));
+
+vi.mock("recharts", () => ({
+  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="responsive-container">{children}</div>,
+  PieChart: ({ children }: { children: React.ReactNode }) => <div data-testid="pie-chart">{children}</div>,
+  Pie: () => null,
+  Cell: () => null,
+  Tooltip: () => null,
+}));
+
+vi.mock("@/components/ui/glowing-effect", () => ({
+  GlowingEffect: () => null,
+}));
+
+vi.mock("@/components/application/charts/charts-base", () => ({
+  GradientChartTooltip: () => null,
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -147,10 +169,10 @@ async function loadGscConnectionPanel() {
 }
 
 async function loadGscMetricsCard() {
-  const { GscMetricsCard } = await import(
+  const { GscOverviewSection } = await import(
     "@/components/domain/GscMetricsCard"
   );
-  return GscMetricsCard;
+  return GscOverviewSection;
 }
 
 // Inline GscPropertySection for testing (it's defined inside the domain page)
@@ -405,30 +427,48 @@ describe("GscMetricsCard", () => {
     setupMutationMock();
   });
 
-  it("renders loading state when metrics undefined", async () => {
-    setupQueryMock({}); // returns undefined
+  it("renders loading state when connection info undefined", async () => {
+    setupQueryMock({}); // returns undefined for everything
     const Card = await loadGscMetricsCard();
     const { container } = render(<Card domainId={DOMAIN_ID} />);
     expect(container.querySelector(".animate-pulse")).toBeTruthy();
   });
 
-  it("renders zero-clicks state when GSC data has no clicks", async () => {
-    setupQueryMock({ getGscMetrics: GSC_METRICS_EMPTY });
+  it("renders not-connected state when GSC not linked", async () => {
+    setupQueryMock({
+      getGscPropertiesForDomain: GSC_DOMAIN_NOT_CONNECTED,
+      getGscMetrics: null,
+    });
     const Card = await loadGscMetricsCard();
-    const { container } = render(<Card domainId={DOMAIN_ID} />);
-    expect(container.firstChild).not.toBeNull();
-    expect(container.textContent).toContain("0");
+    render(<Card domainId={DOMAIN_ID} />);
+    expect(screen.getByText("gscNotConnectedTitle")).toBeInTheDocument();
   });
 
-  it("returns null when metrics is null", async () => {
-    setupQueryMock({ getGscMetrics: null });
+  it("renders awaiting-sync state when connected but no data", async () => {
+    setupQueryMock({
+      getGscPropertiesForDomain: GSC_DOMAIN_CONNECTED,
+      getGscMetrics: GSC_METRICS_EMPTY,
+    });
+    const Card = await loadGscMetricsCard();
+    render(<Card domainId={DOMAIN_ID} />);
+    expect(screen.getByText("gscAwaitingSyncTitle")).toBeInTheDocument();
+  });
+
+  it("returns null when connection info is null (auth failure)", async () => {
+    setupQueryMock({
+      getGscPropertiesForDomain: null,
+      getGscMetrics: null,
+    });
     const Card = await loadGscMetricsCard();
     const { container } = render(<Card domainId={DOMAIN_ID} />);
     expect(container.firstChild).toBeNull();
   });
 
   it("renders metrics when data exists", async () => {
-    setupQueryMock({ getGscMetrics: GSC_METRICS });
+    setupQueryMock({
+      getGscPropertiesForDomain: GSC_DOMAIN_CONNECTED,
+      getGscMetrics: GSC_METRICS,
+    });
     const Card = await loadGscMetricsCard();
     render(<Card domainId={DOMAIN_ID} />);
     expect(screen.getByText("gscMetricsTitle")).toBeInTheDocument();
@@ -439,7 +479,10 @@ describe("GscMetricsCard", () => {
   });
 
   it("formats numbers correctly", async () => {
-    setupQueryMock({ getGscMetrics: GSC_METRICS });
+    setupQueryMock({
+      getGscPropertiesForDomain: GSC_DOMAIN_CONNECTED,
+      getGscMetrics: GSC_METRICS,
+    });
     const Card = await loadGscMetricsCard();
     render(<Card domainId={DOMAIN_ID} />);
     expect(screen.getByText(/12.?450/)).toBeInTheDocument();
