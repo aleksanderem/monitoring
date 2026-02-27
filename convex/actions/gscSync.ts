@@ -532,6 +532,61 @@ export const historicalBackfill = internalAction({
         await new Promise((r) => setTimeout(r, 500));
       }
     }
+
+    // After backfill, denormalize the most recent GSC data onto tracked keywords
+    // so effective position fields (currentPosition, positionSource, recentPositions)
+    // reflect real GSC data instead of D4S estimates.
+    try {
+      const latestEndDate = new Date(now.getFullYear(), now.getMonth(), 0)
+        .toISOString()
+        .split("T")[0];
+      const latestStartDate = new Date(
+        now.getFullYear(),
+        now.getMonth() - 1,
+        1
+      )
+        .toISOString()
+        .split("T")[0];
+
+      const latestRows = await fetchGscAnalytics({
+        accessToken,
+        propertyUrl,
+        startDate: latestStartDate,
+        endDate: latestEndDate,
+        dimensions: ["query"],
+        rowLimit: 5000,
+        dataState: "final",
+      });
+
+      if (latestRows.length > 0) {
+        const denormMetrics = latestRows.map((row) => ({
+          keyword: row.keys[0],
+          date: latestEndDate,
+          clicks: row.clicks,
+          impressions: row.impressions,
+          ctr: row.ctr,
+          position: row.position,
+          url: undefined as string | undefined,
+        }));
+        for (let i = 0; i < denormMetrics.length; i += 100) {
+          await ctx.runMutation(
+            internal.keywords.storeGscPositionDenormalized,
+            {
+              domainId,
+              metrics: denormMetrics.slice(i, i + 100),
+            }
+          );
+        }
+        console.log(
+          `Backfill denormalization: updated ${latestRows.length} keywords for domain ${domainId}`
+        );
+      }
+    } catch (error) {
+      console.error(
+        `Backfill denormalization error for domain ${domainId}:`,
+        error
+      );
+    }
   },
 });
 
