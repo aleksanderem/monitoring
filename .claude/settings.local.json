@@ -28,9 +28,19 @@
       "Bash(head:*)",
       "mcp__context7__resolve-library-id",
       "Bash(npx untitledui@latest:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npx jest --listTests)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(lsof:*)",
+      "Bash(ps:*)",
+      "Bash(claude --version)"
     ]
   },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "graphiti-memory",
+    "playwright"
+  ],
   "hooks": {
     "PreToolUse": [
       {
@@ -56,10 +66,5 @@
         ]
       }
     ]
-  },
-  "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "graphiti-memory",
-    "playwright"
-  ]
+  }
 }
