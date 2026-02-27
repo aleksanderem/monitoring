@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
+import { isSuperAdmin } from "./admin";
 
 const MAX_PAYLOAD_LENGTH = 8000;
 
@@ -49,6 +50,7 @@ export const saveLog = internalMutation({
 export const getStatus = query({
   args: {},
   handler: async (ctx) => {
+    if (!(await isSuperAdmin(ctx))) return false;
     const setting = await ctx.db
       .query("appSettings")
       .withIndex("by_key", (q) => q.eq("key", "debug_logging"))
@@ -60,6 +62,7 @@ export const getStatus = query({
 export const toggle = mutation({
   args: { enabled: v.boolean() },
   handler: async (ctx, args) => {
+    if (!(await isSuperAdmin(ctx))) throw new Error("Super admin access required");
     const existing = await ctx.db
       .query("appSettings")
       .withIndex("by_key", (q) => q.eq("key", "debug_logging"))
@@ -82,6 +85,7 @@ export const getLogs = query({
     action: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    if (!(await isSuperAdmin(ctx))) return [];
     const limit = args.limit ?? 50;
 
     if (args.action) {
@@ -103,6 +107,7 @@ export const getLogs = query({
 export const clearLogs = mutation({
   args: {},
   handler: async (ctx) => {
+    if (!(await isSuperAdmin(ctx))) throw new Error("Super admin access required");
     const logs = await ctx.db
       .query("debugLogs")
       .withIndex("by_created")

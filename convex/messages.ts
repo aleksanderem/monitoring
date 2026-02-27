@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { auth } from "./auth";
 
 // Get messages for a report (authenticated or by token)
 export const getMessages = query({
@@ -11,7 +12,7 @@ export const getMessages = query({
   handler: async (ctx, args) => {
     let reportId = args.reportId;
 
-    // If token provided, find report by token
+    // If token provided, find report by token (public access path)
     if (args.reportToken) {
       const report = await ctx.db
         .query("reports")
@@ -27,6 +28,10 @@ export const getMessages = query({
       }
 
       reportId = report._id;
+    } else {
+      // Non-token path requires authentication
+      const userId = await auth.getUserId(ctx);
+      if (!userId) return [];
     }
 
     if (!reportId) {

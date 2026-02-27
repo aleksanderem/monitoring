@@ -5,6 +5,8 @@ import type { Id } from "./_generated/dataModel";
 import { buildLocationParam } from "./dataforseoLocations";
 import { createDebugLogger } from "./lib/debugLogger";
 import { API_COSTS, extractApiCost } from "./apiUsage";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 // Sanitize a number that may be NaN/undefined/null to a safe default
 function safeNum(val: number | null | undefined, fallback: number): number {
@@ -327,6 +329,10 @@ export const getContentGapOpportunities = query({
     priority: v.optional(v.union(v.literal("high"), v.literal("medium"), v.literal("low"))),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const limit = args.limit || 50;
 
     let opportunities = await ctx.db
@@ -392,6 +398,10 @@ export const triggerContentGapAnalysis = mutation({
     competitorId: v.id("competitors"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Authentication required");
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Schedule the analysis
     await ctx.scheduler.runAfter(0, internal.contentGap.analyzeContentGap, {
       domainId: args.domainId,
@@ -410,10 +420,14 @@ export const markOpportunityAsMonitoring = mutation({
     gapId: v.id("contentGaps"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Authentication required");
+
     const gap = await ctx.db.get(args.gapId);
     if (!gap) {
       throw new Error("Content gap not found");
     }
+    await requireTenantAccess(ctx, "domain", gap.domainId);
 
     // Update status to monitoring
     await ctx.db.patch(args.gapId, {
@@ -435,6 +449,13 @@ export const dismissOpportunity = mutation({
     gapId: v.id("contentGaps"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Authentication required");
+
+    const gap = await ctx.db.get(args.gapId);
+    if (!gap) throw new Error("Content gap not found");
+    await requireTenantAccess(ctx, "domain", gap.domainId);
+
     await ctx.db.patch(args.gapId, {
       status: "dismissed",
     });
@@ -444,6 +465,16 @@ export const dismissOpportunity = mutation({
 export const dismissOpportunities = mutation({
   args: { gapIds: v.array(v.id("contentGaps")) },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Authentication required");
+
+    // Verify tenant access for the first gap (all gaps should belong to same domain)
+    if (args.gapIds.length > 0) {
+      const firstGap = await ctx.db.get(args.gapIds[0]);
+      if (!firstGap) throw new Error("Content gap not found");
+      await requireTenantAccess(ctx, "domain", firstGap.domainId);
+    }
+
     for (const gapId of args.gapIds) {
       await ctx.db.patch(gapId, { status: "dismissed" });
     }
@@ -492,6 +523,7 @@ export const createKeywordsBatch = internalMutation({
     const phraseMap = new Map(existingKeywords.map((kw) => [kw.phrase, kw._id]));
 
     const results: (Id<"keywords"> | null)[] = [];
+    let insertedCount = 0;
     for (const kw of args.keywords) {
       const existing = phraseMap.get(kw.phrase);
       if (existing) {
@@ -508,8 +540,18 @@ export const createKeywordsBatch = internalMutation({
         // Add to map so subsequent items in this batch dedup correctly
         phraseMap.set(kw.phrase, id);
         results.push(id);
+        insertedCount++;
       }
     }
+
+    // Increment denormalized keyword count on domain
+    if (insertedCount > 0) {
+      const domain = await ctx.db.get(args.domainId);
+      if (domain) {
+        await ctx.db.patch(args.domainId, { keywordCount: (domain.keywordCount ?? 0) + insertedCount });
+      }
+    }
+
     return results;
   },
 });

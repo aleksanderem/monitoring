@@ -104,8 +104,9 @@ describe("backlinks.getBacklinkSummary", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
-    const summary = await t.query(api.backlinks.getBacklinkSummary, { domainId });
+    const summary = await asUser.query(api.backlinks.getBacklinkSummary, { domainId });
     expect(summary).toBeNull();
   });
 
@@ -116,6 +117,7 @@ describe("backlinks.getBacklinkSummary", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
     await t.run(async (ctx: any) => {
       await ctx.db.insert("domainBacklinksSummary", {
@@ -130,7 +132,7 @@ describe("backlinks.getBacklinkSummary", () => {
       });
     });
 
-    const summary = await t.query(api.backlinks.getBacklinkSummary, { domainId });
+    const summary = await asUser.query(api.backlinks.getBacklinkSummary, { domainId });
     expect(summary).not.toBeNull();
     expect(summary!.totalBacklinks).toBe(100);
     expect(summary!.totalDomains).toBe(50);
@@ -151,8 +153,9 @@ describe("backlinks.isBacklinkDataStale", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
-    const stale = await t.query(api.backlinks.isBacklinkDataStale, { domainId });
+    const stale = await asUser.query(api.backlinks.isBacklinkDataStale, { domainId });
     expect(stale).toBe(true);
   });
 
@@ -163,6 +166,7 @@ describe("backlinks.isBacklinkDataStale", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
     await t.run(async (ctx: any) => {
       await ctx.db.insert("domainBacklinksSummary", {
@@ -177,7 +181,7 @@ describe("backlinks.isBacklinkDataStale", () => {
       });
     });
 
-    const stale = await t.query(api.backlinks.isBacklinkDataStale, { domainId });
+    const stale = await asUser.query(api.backlinks.isBacklinkDataStale, { domainId });
     expect(stale).toBe(false);
   });
 
@@ -188,6 +192,7 @@ describe("backlinks.isBacklinkDataStale", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
     const eightDaysAgo = Date.now() - 8 * 24 * 60 * 60 * 1000;
     await t.run(async (ctx: any) => {
@@ -203,7 +208,7 @@ describe("backlinks.isBacklinkDataStale", () => {
       });
     });
 
-    const stale = await t.query(api.backlinks.isBacklinkDataStale, { domainId });
+    const stale = await asUser.query(api.backlinks.isBacklinkDataStale, { domainId });
     expect(stale).toBe(true);
   });
 });
@@ -220,8 +225,9 @@ describe("backlinks.getBacklinks", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
-    const result = await t.query(api.backlinks.getBacklinks, { domainId });
+    const result = await asUser.query(api.backlinks.getBacklinks, { domainId });
     expect(result.total).toBe(0);
     expect(result.items).toHaveLength(0);
   });
@@ -233,6 +239,7 @@ describe("backlinks.getBacklinks", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
     await insertBacklink(t, domainId, {
       domainFrom: "site-a.com",
@@ -247,7 +254,7 @@ describe("backlinks.getBacklinks", () => {
       backlink_spam_score: 30,
     });
 
-    const result = await t.query(api.backlinks.getBacklinks, { domainId });
+    const result = await asUser.query(api.backlinks.getBacklinks, { domainId });
     expect(result.total).toBe(2);
     expect(result.items).toHaveLength(2);
     expect(result.stats.totalDofollow).toBe(1);
@@ -263,18 +270,19 @@ describe("backlinks.getBacklinks", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
     await insertBacklink(t, domainId, { dofollow: true, urlFrom: "https://a.com/1" });
     await insertBacklink(t, domainId, { dofollow: false, urlFrom: "https://b.com/2" });
     await insertBacklink(t, domainId, { dofollow: true, urlFrom: "https://c.com/3" });
 
-    const dofollow = await t.query(api.backlinks.getBacklinks, {
+    const dofollow = await asUser.query(api.backlinks.getBacklinks, {
       domainId,
       filterDofollow: true,
     });
     expect(dofollow.total).toBe(2);
 
-    const nofollow = await t.query(api.backlinks.getBacklinks, {
+    const nofollow = await asUser.query(api.backlinks.getBacklinks, {
       domainId,
       filterDofollow: false,
     });
@@ -288,12 +296,13 @@ describe("backlinks.getBacklinks", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
     for (let i = 0; i < 5; i++) {
       await insertBacklink(t, domainId, { urlFrom: `https://site${i}.com/page` });
     }
 
-    const page1 = await t.query(api.backlinks.getBacklinks, {
+    const page1 = await asUser.query(api.backlinks.getBacklinks, {
       domainId,
       limit: 2,
       offset: 0,
@@ -301,14 +310,14 @@ describe("backlinks.getBacklinks", () => {
     expect(page1.total).toBe(5);
     expect(page1.items).toHaveLength(2);
 
-    const page2 = await t.query(api.backlinks.getBacklinks, {
+    const page2 = await asUser.query(api.backlinks.getBacklinks, {
       domainId,
       limit: 2,
       offset: 2,
     });
     expect(page2.items).toHaveLength(2);
 
-    const page3 = await t.query(api.backlinks.getBacklinks, {
+    const page3 = await asUser.query(api.backlinks.getBacklinks, {
       domainId,
       limit: 2,
       offset: 4,
@@ -323,12 +332,13 @@ describe("backlinks.getBacklinks", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
     await insertBacklink(t, domainId, { rank: 50, urlFrom: "https://low.com" });
     await insertBacklink(t, domainId, { rank: 500, urlFrom: "https://high.com" });
     await insertBacklink(t, domainId, { rank: 200, urlFrom: "https://mid.com" });
 
-    const result = await t.query(api.backlinks.getBacklinks, {
+    const result = await asUser.query(api.backlinks.getBacklinks, {
       domainId,
       sortBy: "rank",
     });
@@ -502,8 +512,9 @@ describe("backlinks.getBacklinkDistributions", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
-    const dist = await t.query(api.backlinks.getBacklinkDistributions, { domainId });
+    const dist = await asUser.query(api.backlinks.getBacklinkDistributions, { domainId });
     expect(dist.tldDistribution).toEqual({});
     expect(dist.countries).toEqual({});
   });
@@ -515,6 +526,7 @@ describe("backlinks.getBacklinkDistributions", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
     await t.run(async (ctx: any) => {
       await ctx.db.insert("domainBacklinksDistributions", {
@@ -539,7 +551,7 @@ describe("backlinks.getBacklinkDistributions", () => {
       });
     });
 
-    const dist = await t.query(api.backlinks.getBacklinkDistributions, { domainId });
+    const dist = await asUser.query(api.backlinks.getBacklinkDistributions, { domainId });
     expect(dist.tldDistribution).toEqual({ ".com": 50 });
     expect(dist.linkAttributes.dofollow).toBe(80);
     expect(dist.linkAttributes.nofollow).toBe(20);
@@ -559,12 +571,13 @@ describe("backlinks.getBacklinksHistory", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
     await insertBacklink(t, domainId, { firstSeen: "2025-01-15T00:00:00Z", urlFrom: "https://a.com/1" });
     await insertBacklink(t, domainId, { firstSeen: "2025-01-20T00:00:00Z", urlFrom: "https://a.com/2" });
     await insertBacklink(t, domainId, { firstSeen: "2025-02-10T00:00:00Z", urlFrom: "https://b.com/1" });
 
-    const history = await t.query(api.backlinks.getBacklinksHistory, {
+    const history = await asUser.query(api.backlinks.getBacklinksHistory, {
       domainId,
       granularity: "monthly",
     });
@@ -601,6 +614,7 @@ describe("backlinkAnalysis_queries.getToxicLinks", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
     await insertBacklink(t, domainId, {
       domainFrom: "clean.com",
@@ -618,7 +632,6 @@ describe("backlinkAnalysis_queries.getToxicLinks", () => {
       urlFrom: "https://toxic.com/1",
     });
 
-    const asUser = t.withIdentity({ subject: userId });
     const result = await asUser.query(api.backlinkAnalysis_queries.getToxicLinks, {
       domainId,
       threshold: 70,
@@ -701,6 +714,7 @@ describe("backlinkAnalysis_queries.getLinkQualityScores", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
     // High quality: high rank, dofollow, low spam
     await insertBacklink(t, domainId, {
@@ -719,7 +733,6 @@ describe("backlinkAnalysis_queries.getLinkQualityScores", () => {
       urlFrom: "https://bad.com/1",
     });
 
-    const asUser = t.withIdentity({ subject: userId });
     const result = await asUser.query(
       api.backlinkAnalysis_queries.getLinkQualityScores,
       { domainId }
@@ -759,6 +772,7 @@ describe("backlinkAnalysis_queries.getBacklinkGap", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
     // Our backlink: from shared.com
     await insertBacklink(t, domainId, { domainFrom: "shared.com", urlFrom: "https://shared.com/1" });
@@ -794,7 +808,6 @@ describe("backlinkAnalysis_queries.getBacklinkGap", () => {
       });
     });
 
-    const asUser = t.withIdentity({ subject: userId });
     const result = await asUser.query(api.backlinkAnalysis_queries.getBacklinkGap, { domainId });
 
     expect(result.competitorCount).toBe(1);
@@ -818,12 +831,13 @@ describe("backlinks.deleteBacklinks", () => {
     });
     const { projectId } = await setupHierarchy(t, userId);
     const domainId = await createDomain(t, projectId);
+    const asUser = t.withIdentity({ subject: userId });
 
     const id1 = await insertBacklink(t, domainId, { urlFrom: "https://a.com/1" });
     const id2 = await insertBacklink(t, domainId, { urlFrom: "https://b.com/1" });
     await insertBacklink(t, domainId, { urlFrom: "https://c.com/1" });
 
-    await t.mutation(api.backlinks.deleteBacklinks, { backlinkIds: [id1, id2] });
+    await asUser.mutation(api.backlinks.deleteBacklinks, { backlinkIds: [id1, id2] });
 
     const remaining = await t.run(async (ctx: any) => {
       return ctx.db

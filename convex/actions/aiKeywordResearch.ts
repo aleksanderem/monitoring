@@ -117,6 +117,14 @@ export const generateKeywordIdeas = action({
     error?: string;
     dataSources?: { pageContent: boolean; dataforseoKeywords: number; discoveredKeywords: number; monitoredKeywords: number };
   }> => {
+    // Auth: verify caller has access to this domain
+    const domainAccess = await ctx.runQuery(internal.lib.analyticsHelpers.verifyDomainAccess, {
+      domainId: args.domainId,
+    });
+    if (!domainAccess) {
+      return { success: false, error: "Not authorized" };
+    }
+
     // 0. Check if debug logging is enabled
     const debugEnabled = await ctx.runQuery(internal.debugLog.isEnabled, {});
 

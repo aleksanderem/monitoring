@@ -11,7 +11,7 @@ const modules = import.meta.glob("./**/*.ts");
 
 async function setupDomain(t: any) {
   const userId = await t.run(async (ctx: any) => {
-    return ctx.db.insert("users", { email: "alice@test.com" });
+    return ctx.db.insert("users", { email: "alice@test.com", emailVerificationTime: Date.now() });
   });
 
   const orgId = await t.run(async (ctx: any) => {
@@ -62,7 +62,8 @@ async function setupDomain(t: any) {
     });
   });
 
-  return { userId, orgId, teamId, projectId, domainId };
+  const asUser = t.withIdentity({ subject: userId });
+  return { userId, orgId, teamId, projectId, domainId, asUser };
 }
 
 function makeKeyword(overrides: Partial<{
@@ -96,15 +97,15 @@ function makeKeyword(overrides: Partial<{
 describe("aiResearch.getHistory", () => {
   test("returns empty array when no sessions exist", async () => {
     const t = convexTest(schema, modules);
-    const { domainId } = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
-    const result = await t.query(api.aiResearch.getHistory, { domainId });
+    const result = await asUser.query(api.aiResearch.getHistory, { domainId });
     expect(result).toEqual([]);
   });
 
   test("returns sessions ordered desc by creation time", async () => {
     const t = convexTest(schema, modules);
-    const { domainId } = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
     // Insert sessions with different timestamps
     await t.run(async (ctx: any) => {
@@ -128,7 +129,7 @@ describe("aiResearch.getHistory", () => {
       });
     });
 
-    const result = await t.query(api.aiResearch.getHistory, { domainId });
+    const result = await asUser.query(api.aiResearch.getHistory, { domainId });
     expect(result).toHaveLength(2);
     // desc order: newest first
     expect(result[0].businessDescription).toBe("Second");
@@ -137,7 +138,7 @@ describe("aiResearch.getHistory", () => {
 
   test("limits to 20 results", async () => {
     const t = convexTest(schema, modules);
-    const { domainId } = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
     await t.run(async (ctx: any) => {
       for (let i = 0; i < 25; i++) {
@@ -153,13 +154,13 @@ describe("aiResearch.getHistory", () => {
       }
     });
 
-    const result = await t.query(api.aiResearch.getHistory, { domainId });
+    const result = await asUser.query(api.aiResearch.getHistory, { domainId });
     expect(result).toHaveLength(20);
   });
 
   test("only returns sessions for specified domain", async () => {
     const t = convexTest(schema, modules);
-    const { domainId, projectId } = await setupDomain(t);
+    const { domainId, projectId, asUser } = await setupDomain(t);
 
     const otherDomainId = await t.run(async (ctx: any) => {
       return ctx.db.insert("domains", {
@@ -196,7 +197,7 @@ describe("aiResearch.getHistory", () => {
       });
     });
 
-    const result = await t.query(api.aiResearch.getHistory, { domainId });
+    const result = await asUser.query(api.aiResearch.getHistory, { domainId });
     expect(result).toHaveLength(1);
     expect(result[0].businessDescription).toBe("My domain");
   });
@@ -263,7 +264,7 @@ describe("aiResearch.saveSession", () => {
 describe("aiResearch.deleteSession", () => {
   test("deletes an existing session", async () => {
     const t = convexTest(schema, modules);
-    const { domainId } = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
     const sessionId = await t.run(async (ctx: any) => {
       return ctx.db.insert("aiResearchSessions", {
@@ -277,7 +278,7 @@ describe("aiResearch.deleteSession", () => {
       });
     });
 
-    await t.mutation(api.aiResearch.deleteSession, { id: sessionId });
+    await asUser.mutation(api.aiResearch.deleteSession, { id: sessionId });
 
     const deleted = await t.run(async (ctx: any) => ctx.db.get(sessionId));
     expect(deleted).toBeNull();

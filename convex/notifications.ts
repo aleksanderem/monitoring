@@ -49,6 +49,14 @@ export const getUnreadCount = query({
 export const markAsRead = mutation({
   args: { notificationId: v.id("notifications") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Authentication required");
+
+    // Verify the notification belongs to the current user
+    const notification = await ctx.db.get(args.notificationId);
+    if (!notification) throw new Error("Notification not found");
+    if (notification.userId !== userId) throw new Error("Access denied");
+
     await ctx.db.patch(args.notificationId, { isRead: true });
   },
 });

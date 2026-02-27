@@ -903,6 +903,14 @@ export const addKeywordsInternal = internalMutation({
       console.log(`[addKeywordsInternal] Added ${added}/${args.phrases.length} keywords (limit: ${limitCheck.limit})`);
     }
 
+    // Increment denormalized keyword count on domain
+    if (added > 0) {
+      const domain = await ctx.db.get(args.domainId);
+      if (domain) {
+        await ctx.db.patch(args.domainId, { keywordCount: (domain.keywordCount ?? 0) + added });
+      }
+    }
+
     return results;
   },
 });

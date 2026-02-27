@@ -1424,6 +1424,14 @@ export const generateDomainStrategy = action({
     generateContentMockups: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
+    // Auth: verify caller has access to this domain
+    const domainAccess = await ctx.runQuery(internal.lib.analyticsHelpers.verifyDomainAccess, {
+      domainId: args.domainId,
+    });
+    if (!domainAccess) {
+      return { success: false, error: "Not authorized" };
+    }
+
     const sessionId = await ctx.runMutation(internal.aiStrategy.createSession, {
       domainId: args.domainId,
       businessDescription: args.businessDescription,
@@ -2380,6 +2388,14 @@ export const drillDownSection = action({
     });
     if (!session || session.status !== "completed" || !session.strategy) {
       return { success: false, error: "Session not found or not completed" };
+    }
+
+    // Auth: verify caller has access to the session's domain
+    const domainAccess = await ctx.runQuery(internal.lib.analyticsHelpers.verifyDomainAccess, {
+      domainId: session.domainId,
+    });
+    if (!domainAccess) {
+      return { success: false, error: "Not authorized" };
     }
 
     // 2. Resolve AI provider config from organization

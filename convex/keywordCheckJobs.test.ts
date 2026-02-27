@@ -247,7 +247,8 @@ describe("getAllActiveJobs", () => {
       currentKeywordId: keywordId,
     });
 
-    const result = await t.query(api.keywordCheckJobs.getAllActiveJobs, {});
+    const asUser = t.withIdentity({ subject: tenant.userId });
+    const result = await asUser.query(api.keywordCheckJobs.getAllActiveJobs, {});
     expect(result).toHaveLength(1);
     expect(result[0].domainName).toBe("mysite.com");
     expect(result[0].currentKeywordPhrase).toBe("seo tools");
@@ -267,7 +268,8 @@ describe("getAllActiveJobs", () => {
       completedAt: Date.now(),
     });
 
-    const result = await t.query(api.keywordCheckJobs.getAllActiveJobs, {});
+    const asUser = t.withIdentity({ subject: tenant.userId });
+    const result = await asUser.query(api.keywordCheckJobs.getAllActiveJobs, {});
     expect(result).toEqual([]);
   });
 });
@@ -291,7 +293,8 @@ describe("getRecentCompletedJobs", () => {
       totalKeywords: 10,
     });
 
-    const result = await t.query(api.keywordCheckJobs.getRecentCompletedJobs, {});
+    const asUser = t.withIdentity({ subject: tenant.userId });
+    const result = await asUser.query(api.keywordCheckJobs.getRecentCompletedJobs, {});
     expect(result).toHaveLength(1);
     expect(result[0].domainName).toBe("mysite.com");
     expect(result[0].status).toBe("completed");
@@ -310,7 +313,8 @@ describe("getRecentCompletedJobs", () => {
       completedAt: Date.now() - 3 * 60 * 1000, // 3 minutes ago
     });
 
-    const result = await t.query(api.keywordCheckJobs.getRecentCompletedJobs, {});
+    const asUser = t.withIdentity({ subject: tenant.userId });
+    const result = await asUser.query(api.keywordCheckJobs.getRecentCompletedJobs, {});
     expect(result).toEqual([]);
   });
 
@@ -332,7 +336,8 @@ describe("getRecentCompletedJobs", () => {
       completedAt: Date.now(),
     });
 
-    const result = await t.query(api.keywordCheckJobs.getRecentCompletedJobs, {});
+    const asUser = t.withIdentity({ subject: tenant.userId });
+    const result = await asUser.query(api.keywordCheckJobs.getRecentCompletedJobs, {});
     expect(result).toHaveLength(2);
   });
 });

@@ -69,12 +69,23 @@ export function resolveKeywordLimitSource(
 }
 
 /**
- * Count active keywords in a domain
+ * Count active keywords in a domain.
+ * Uses denormalized keywordCount on domain record when available,
+ * falling back to a full scan for domains not yet backfilled.
  */
 export async function countDomainKeywords(
   ctx: QueryCtx | MutationCtx,
   domainId: Id<"domains">
 ): Promise<number> {
+  const domain = await ctx.db.get(domainId);
+  if (!domain) return 0;
+
+  // Use denormalized count if available
+  if (domain.keywordCount !== undefined) {
+    return domain.keywordCount;
+  }
+
+  // Fallback: full scan for domains not yet backfilled
   const keywords = await ctx.db
     .query("keywords")
     .withIndex("by_domain", (q) => q.eq("domainId", domainId))
@@ -377,7 +388,7 @@ export const getSidebarUsage = query({
           .collect();
 
         for (const domain of projectDomains) {
-          const currentCount = await countDomainKeywords(ctx, domain._id);
+          const currentCount = domain.keywordCount ?? 0;
           const limit = resolveKeywordLimit(domain, project, org);
           domains.push({
             domainId: domain._id,

@@ -29,6 +29,14 @@ export const runStrategist = action({
     domainId: v.id("domains"),
   },
   handler: async (ctx, args) => {
+    // Auth: verify caller has access to this domain
+    const domainAccess = await ctx.runQuery(internal.lib.analyticsHelpers.verifyDomainAccess, {
+      domainId: args.domainId,
+    });
+    if (!domainAccess) {
+      throw new Error("Not authorized");
+    }
+
     // Schedule the background processing
     await ctx.scheduler.runAfter(
       0,

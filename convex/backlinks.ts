@@ -4,11 +4,17 @@ import { api } from "./_generated/api";
 import { internal } from "./_generated/api";
 import { createDebugLogger } from "./lib/debugLogger";
 import { buildLocationParam } from "./dataforseoLocations";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 // Get backlink summary for a domain
 export const getBacklinkSummary = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const summary = await ctx.db
       .query("domainBacklinksSummary")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -22,6 +28,10 @@ export const getBacklinkSummary = query({
 export const isBacklinkDataStale = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return true;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const summary = await ctx.db
       .query("domainBacklinksSummary")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -38,6 +48,10 @@ export const isBacklinkDataStale = query({
 export const fetchBacklinks = mutation({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Authentication required");
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const domain = await ctx.db.get(args.domainId);
     if (!domain) {
       throw new Error("Domain not found");
@@ -59,6 +73,10 @@ export const getBacklinks = query({
     filterDofollow: v.optional(v.boolean()), // null = all, true = dofollow, false = nofollow
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { total: 0, items: [], stats: { totalDofollow: 0, totalNofollow: 0, avgRank: 0, avgSpamScore: 0 } };
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const limit = args.limit || 50;
     const offset = args.offset || 0;
 
@@ -100,11 +118,14 @@ export const getBacklinks = query({
   },
 });
 
-// Cleanup function to delete all old backlinks with incompatible schema
+// Cleanup function to delete all backlinks for a domain (uses index instead of full table scan)
 export const deleteAllBacklinks = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const allBacklinks = await ctx.db.query("domainBacklinks").collect();
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const allBacklinks = await ctx.db
+      .query("domainBacklinks")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
     for (const backlink of allBacklinks) {
       await ctx.db.delete(backlink._id);
     }
@@ -115,6 +136,16 @@ export const deleteAllBacklinks = internalMutation({
 export const deleteBacklinks = mutation({
   args: { backlinkIds: v.array(v.id("domainBacklinks")) },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Authentication required");
+
+    // Verify tenant access using the first backlink's domain
+    if (args.backlinkIds.length > 0) {
+      const firstBacklink = await ctx.db.get(args.backlinkIds[0]);
+      if (!firstBacklink) throw new Error("Backlink not found");
+      await requireTenantAccess(ctx, "domain", firstBacklink.domainId);
+    }
+
     for (const id of args.backlinkIds) {
       await ctx.db.delete(id);
     }
@@ -200,33 +231,39 @@ export const saveBacklinkData = internalMutation({
       await ctx.db.delete(backlink._id);
     }
 
-    // Insert new backlinks (limit to first 1000 to avoid timeout)
+    // Insert new backlinks in batches of 100 (limit to first 1000 to avoid timeout)
     const backlinksToInsert = args.backlinks.slice(0, 1000);
-    for (const backlink of backlinksToInsert) {
-      await ctx.db.insert("domainBacklinks", {
-        domainId: args.domainId,
-        domainFrom: backlink.domain_from ?? undefined,
-        urlFrom: backlink.url_from ?? "",
-        urlTo: backlink.url_to ?? "",
-        tldFrom: backlink.tld_from ?? undefined,
-        anchor: backlink.anchor ?? undefined,
-        textPre: backlink.text_pre ?? undefined,
-        textPost: backlink.text_post ?? undefined,
-        dofollow: backlink.dofollow ?? undefined,
-        itemType: backlink.item_type ?? undefined,
-        rank: backlink.rank ?? undefined,
-        pageFromRank: backlink.page_from_rank ?? undefined,
-        domainFromRank: backlink.domain_from_rank ?? undefined,
-        backlink_spam_score: backlink.backlink_spam_score ?? undefined,
-        firstSeen: backlink.first_seen ?? undefined,
-        lastSeen: backlink.last_seen ?? undefined,
-        isNew: backlink.is_new ?? undefined,
-        isLost: backlink.is_lost ?? undefined,
-        pageFromTitle: backlink.page_from_title ?? undefined,
-        semanticLocation: backlink.semantic_location ?? undefined,
-        domainFromCountry: backlink.domain_from_country ?? undefined,
-        fetchedAt,
-      });
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < backlinksToInsert.length; i += BATCH_SIZE) {
+      const batch = backlinksToInsert.slice(i, i + BATCH_SIZE);
+      await Promise.all(
+        batch.map((backlink) =>
+          ctx.db.insert("domainBacklinks", {
+            domainId: args.domainId,
+            domainFrom: backlink.domain_from ?? undefined,
+            urlFrom: backlink.url_from ?? "",
+            urlTo: backlink.url_to ?? "",
+            tldFrom: backlink.tld_from ?? undefined,
+            anchor: backlink.anchor ?? undefined,
+            textPre: backlink.text_pre ?? undefined,
+            textPost: backlink.text_post ?? undefined,
+            dofollow: backlink.dofollow ?? undefined,
+            itemType: backlink.item_type ?? undefined,
+            rank: backlink.rank ?? undefined,
+            pageFromRank: backlink.page_from_rank ?? undefined,
+            domainFromRank: backlink.domain_from_rank ?? undefined,
+            backlink_spam_score: backlink.backlink_spam_score ?? undefined,
+            firstSeen: backlink.first_seen ?? undefined,
+            lastSeen: backlink.last_seen ?? undefined,
+            isNew: backlink.is_new ?? undefined,
+            isLost: backlink.is_lost ?? undefined,
+            pageFromTitle: backlink.page_from_title ?? undefined,
+            semanticLocation: backlink.semantic_location ?? undefined,
+            domainFromCountry: backlink.domain_from_country ?? undefined,
+            fetchedAt,
+          })
+        )
+      );
     }
 
     // Rebuild velocity history from actual firstSeen/lastSeen dates
@@ -245,6 +282,9 @@ export const saveBacklinkData = internalMutation({
 export const fetchBacklinksFromAPI = action({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Authentication required");
+
     // Get domain info
     const domain = await ctx.runQuery(api.domains.getDomain, {
       domainId: args.domainId,
@@ -421,6 +461,10 @@ export const fetchBacklinksInternal = internalAction({
 export const getBacklinkDistributions = query({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { tldDistribution: {}, platformTypes: {}, countries: {}, linkTypes: {}, linkAttributes: {}, semanticLocations: {} };
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const distributions = await ctx.db
       .query("domainBacklinksDistributions")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -477,6 +521,10 @@ export const getBacklinksHistory = query({
     granularity: v.optional(v.union(v.literal("daily"), v.literal("monthly"))),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const backlinks = await ctx.db
       .query("domainBacklinks")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
@@ -517,6 +565,12 @@ export const getBacklinksHistory = query({
 export const getCompetitorBacklinkSummary = query({
   args: { competitorId: v.id("competitors") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) return null;
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     const summary = await ctx.db
       .query("competitorBacklinksSummary")
       .withIndex("by_competitor", (q) => q.eq("competitorId", args.competitorId))
@@ -547,6 +601,12 @@ export const getCompetitorBacklinksSummaryInternal = internalQuery({
 export const isCompetitorBacklinkDataStale = query({
   args: { competitorId: v.id("competitors") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return true;
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) return true;
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     const summary = await ctx.db
       .query("competitorBacklinksSummary")
       .withIndex("by_competitor", (q) => q.eq("competitorId", args.competitorId))
@@ -571,6 +631,12 @@ export const getCompetitorBacklinks = query({
     filterDofollow: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { total: 0, items: [], stats: { totalDofollow: 0, totalNofollow: 0, avgRank: 0, avgSpamScore: 0 } };
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) return { total: 0, items: [], stats: { totalDofollow: 0, totalNofollow: 0, avgRank: 0, avgSpamScore: 0 } };
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     const limit = args.limit || 50;
     const offset = args.offset || 0;
 
@@ -618,6 +684,12 @@ export const getCompetitorBacklinks = query({
 export const getCompetitorBacklinkDistributions = query({
   args: { competitorId: v.id("competitors") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return { tldDistribution: {}, platformTypes: {}, countries: {}, linkTypes: {}, linkAttributes: {}, semanticLocations: {} };
+    const competitor = await ctx.db.get(args.competitorId);
+    if (!competitor) return { tldDistribution: {}, platformTypes: {}, countries: {}, linkTypes: {}, linkAttributes: {}, semanticLocations: {} };
+    await requireTenantAccess(ctx, "domain", competitor.domainId);
+
     const distributions = await ctx.db
       .query("competitorBacklinksDistributions")
       .withIndex("by_competitor", (q) => q.eq("competitorId", args.competitorId))
@@ -768,6 +840,9 @@ export const saveCompetitorBacklinkData = internalMutation({
 export const fetchCompetitorBacklinksFromAPI = action({
   args: { competitorId: v.id("competitors") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Authentication required");
+
     // Get competitor info
     const competitor = await ctx.runQuery(internal.competitors.getCompetitorInternal, {
       competitorId: args.competitorId,
