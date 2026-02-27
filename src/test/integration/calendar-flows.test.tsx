@@ -132,8 +132,8 @@ describe("Calendar Flows", () => {
     setupQueries({ "domains:list": [] });
     render(<CalendarPage />);
 
-    expect(screen.getByText("Brak domen")).toBeInTheDocument();
-    expect(screen.getByText(/Dodaj domenę/)).toBeInTheDocument();
+    expect(screen.getByText("noDomains")).toBeInTheDocument();
+    expect(screen.getByText("noDomainsDescription")).toBeInTheDocument();
     expect(screen.queryByTestId("calendar-component")).not.toBeInTheDocument();
   });
 
@@ -217,14 +217,14 @@ describe("Calendar Flows", () => {
     const user = userEvent.setup();
 
     // Click the "Treści" (content_plan) tab
-    const contentTab = screen.getByText("Treści");
+    const contentTab = screen.getByText("categoryContentPlan");
     await user.click(contentTab);
 
     // Tab should become selected
     expect(contentTab.closest("[role='tab']")).toHaveAttribute("aria-selected", "true");
 
     // The "Wszystkie" tab should no longer be selected
-    const allTab = screen.getByText("Wszystkie");
+    const allTab = screen.getByText("categoryAll");
     expect(allTab.closest("[role='tab']")).toHaveAttribute("aria-selected", "false");
   });
 
@@ -245,14 +245,14 @@ describe("Calendar Flows", () => {
     const user = userEvent.setup();
 
     // Click generate plan button
-    await user.click(screen.getByText("Generuj plan"));
+    await user.click(screen.getByText("generatePlan"));
 
     // Action should have been called with the domain ID
     expect(mockRunStrategist).toHaveBeenCalledWith({ domainId: DOMAIN_ACTIVE._id });
 
     // Button should show loading text
-    expect(screen.getByText("Generowanie...")).toBeInTheDocument();
-    expect(screen.queryByText("Generuj plan")).not.toBeInTheDocument();
+    expect(screen.getByText("generating")).toBeInTheDocument();
+    expect(screen.queryByText("generatePlan")).not.toBeInTheDocument();
 
     // Resolve to clean up
     resolveAction();

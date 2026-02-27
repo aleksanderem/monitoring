@@ -102,13 +102,14 @@ describe("calendarEvents.getEvents", () => {
       ctx.db.insert("users", { name: "Alice", email: "alice@test.com" })
     );
     const { domainId } = await setupHierarchy(t, userId);
+    const asUser = t.withIdentity({ subject: userId });
 
     const now = Date.now();
     await insertEvent(t, domainId, { title: "In Range", scheduledAt: now + 1000 });
     await insertEvent(t, domainId, { title: "Before Range", scheduledAt: now - 100000 });
     await insertEvent(t, domainId, { title: "After Range", scheduledAt: now + 200000 });
 
-    const events = await t.query(api.calendarEvents.getEvents, {
+    const events = await asUser.query(api.calendarEvents.getEvents, {
       domainId,
       startDate: now,
       endDate: now + 50000,
@@ -124,6 +125,7 @@ describe("calendarEvents.getEvents", () => {
       ctx.db.insert("users", { name: "Alice", email: "alice@test.com" })
     );
     const { domainId } = await setupHierarchy(t, userId);
+    const asUser = t.withIdentity({ subject: userId });
 
     const now = Date.now();
     await insertEvent(t, domainId, {
@@ -137,7 +139,7 @@ describe("calendarEvents.getEvents", () => {
       scheduledAt: now + 200,
     });
 
-    const events = await t.query(api.calendarEvents.getEvents, {
+    const events = await asUser.query(api.calendarEvents.getEvents, {
       domainId,
       startDate: now,
       endDate: now + 10000,
@@ -154,6 +156,7 @@ describe("calendarEvents.getEvents", () => {
       ctx.db.insert("users", { name: "Alice", email: "alice@test.com" })
     );
     const { domainId } = await setupHierarchy(t, userId);
+    const asUser = t.withIdentity({ subject: userId });
 
     const now = Date.now();
     await insertEvent(t, domainId, {
@@ -167,7 +170,7 @@ describe("calendarEvents.getEvents", () => {
       scheduledAt: now + 200,
     });
 
-    const events = await t.query(api.calendarEvents.getEvents, {
+    const events = await asUser.query(api.calendarEvents.getEvents, {
       domainId,
       startDate: now,
       endDate: now + 10000,
@@ -184,8 +187,9 @@ describe("calendarEvents.getEvents", () => {
       ctx.db.insert("users", { name: "Alice", email: "alice@test.com" })
     );
     const { domainId } = await setupHierarchy(t, userId);
+    const asUser = t.withIdentity({ subject: userId });
 
-    const events = await t.query(api.calendarEvents.getEvents, {
+    const events = await asUser.query(api.calendarEvents.getEvents, {
       domainId,
       startDate: Date.now(),
       endDate: Date.now() + 10000,
@@ -206,6 +210,7 @@ describe("calendarEvents.getUpcomingEvents", () => {
       ctx.db.insert("users", { name: "Alice", email: "alice@test.com" })
     );
     const { domainId } = await setupHierarchy(t, userId);
+    const asUser = t.withIdentity({ subject: userId });
 
     const now = Date.now();
     const oneDay = 24 * 60 * 60 * 1000;
@@ -235,7 +240,7 @@ describe("calendarEvents.getUpcomingEvents", () => {
       scheduledAt: now + oneDay * 4,
     });
 
-    const events = await t.query(api.calendarEvents.getUpcomingEvents, {
+    const events = await asUser.query(api.calendarEvents.getUpcomingEvents, {
       domainId,
     });
 
@@ -251,6 +256,7 @@ describe("calendarEvents.getUpcomingEvents", () => {
       ctx.db.insert("users", { name: "Alice", email: "alice@test.com" })
     );
     const { domainId } = await setupHierarchy(t, userId);
+    const asUser = t.withIdentity({ subject: userId });
 
     const now = Date.now();
     const oneDay = 24 * 60 * 60 * 1000;
@@ -264,7 +270,7 @@ describe("calendarEvents.getUpcomingEvents", () => {
       });
     }
 
-    const events = await t.query(api.calendarEvents.getUpcomingEvents, {
+    const events = await asUser.query(api.calendarEvents.getUpcomingEvents, {
       domainId,
       limit: 2,
     });
@@ -278,6 +284,7 @@ describe("calendarEvents.getUpcomingEvents", () => {
       ctx.db.insert("users", { name: "Alice", email: "alice@test.com" })
     );
     const { domainId } = await setupHierarchy(t, userId);
+    const asUser = t.withIdentity({ subject: userId });
 
     const now = Date.now();
     const oneDay = 24 * 60 * 60 * 1000;
@@ -298,7 +305,7 @@ describe("calendarEvents.getUpcomingEvents", () => {
       scheduledAt: now + oneDay * 2,
     });
 
-    const events = await t.query(api.calendarEvents.getUpcomingEvents, {
+    const events = await asUser.query(api.calendarEvents.getUpcomingEvents, {
       domainId,
     });
 
@@ -319,13 +326,14 @@ describe("calendarEvents.getEventCounts", () => {
       ctx.db.insert("users", { name: "Alice", email: "alice@test.com" })
     );
     const { domainId } = await setupHierarchy(t, userId);
+    const asUser = t.withIdentity({ subject: userId });
 
     const now = Date.now();
     await insertEvent(t, domainId, { category: "custom", scheduledAt: now + 100 });
     await insertEvent(t, domainId, { category: "custom", scheduledAt: now + 200 });
     await insertEvent(t, domainId, { category: "audit_task", scheduledAt: now + 300 });
 
-    const counts = await t.query(api.calendarEvents.getEventCounts, {
+    const counts = await asUser.query(api.calendarEvents.getEventCounts, {
       domainId,
       startDate: now,
       endDate: now + 10000,
@@ -452,6 +460,7 @@ describe("calendarEvents.batchCreateEvents", () => {
       ctx.db.insert("users", { name: "Alice", email: "alice@test.com" })
     );
     const { domainId } = await setupHierarchy(t, userId);
+    const asUser = t.withIdentity({ subject: userId });
 
     const now = Date.now();
     const ids = await t.mutation(

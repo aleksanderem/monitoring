@@ -8,20 +8,11 @@ import { SearchLg, Stars01, RefreshCw01 } from "@untitledui/icons";
 import { Calendar } from "@/components/application/calendar/calendar";
 import type { CalendarEvent } from "@/components/application/calendar/calendar";
 import type { EventViewColor } from "@/components/application/calendar/base-components/calendar-month-view-event";
+import { CalendarEventDetailModal } from "@/components/application/modals/calendar-event-detail-modal";
 import { TabList, Tabs } from "@/components/application/tabs/tabs";
 import { Input } from "@/components/base/input/input";
 import { Button } from "@/components/base/buttons/button";
 import { useTranslations } from "next-intl";
-
-// Category filter tabs
-const CATEGORY_TABS = [
-  { id: "all", label: "Wszystkie" },
-  { id: "ranking_drop", label: "Spadki pozycji" },
-  { id: "ranking_opportunity", label: "Szanse" },
-  { id: "content_plan", label: "Treści" },
-  { id: "link_building", label: "Link building" },
-  { id: "audit_task", label: "Audyty" },
-];
 
 // Map backend color strings to EventViewColor
 const COLOR_MAP: Record<string, EventViewColor> = {
@@ -37,11 +28,21 @@ const COLOR_MAP: Record<string, EventViewColor> = {
 };
 
 export default function CalendarPage() {
-  const t = useTranslations("nav");
+  const t = useTranslations("calendar");
   const [selectedTab, setSelectedTab] = useState("all");
+
+  const CATEGORY_TABS = useMemo(() => [
+    { id: "all", label: t("categoryAll") },
+    { id: "ranking_drop", label: t("categoryRankingDrop") },
+    { id: "ranking_opportunity", label: t("categoryRankingOpportunity") },
+    { id: "content_plan", label: t("categoryContentPlan") },
+    { id: "link_building", label: t("categoryLinkBuilding") },
+    { id: "audit_task", label: t("categoryAuditTask") },
+  ], [t]);
   const [selectedDomainId, setSelectedDomainId] = useState<
     Id<"domains"> | null
   >(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
 
   // Fetch user's domains
@@ -103,13 +104,12 @@ export default function CalendarPage() {
           <div className="flex flex-1 flex-col gap-0.5 md:gap-1">
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-semibold text-primary lg:text-display-xs">
-                AI SEO Strategist
+                {t("title")}
               </h1>
               <Stars01 className="size-6 text-utility-brand-500" />
             </div>
             <p className="text-md text-tertiary">
-              Inteligentny kalendarz SEO — AI automatycznie planuje i
-              priorytetyzuje zadania.
+              {t("description")}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -137,7 +137,7 @@ export default function CalendarPage() {
               onClick={handleRunStrategist}
               isDisabled={!activeDomainId || isRunning}
             >
-              {isRunning ? "Generowanie..." : "Generuj plan"}
+              {isRunning ? t("generating") : t("generatePlan")}
             </Button>
           </div>
         </div>
@@ -159,16 +159,23 @@ export default function CalendarPage() {
           <div className="flex flex-col items-center justify-center rounded-xl border border-secondary bg-secondary_subtle p-16 text-center">
             <Stars01 className="mb-4 size-12 text-tertiary" />
             <h3 className="text-lg font-semibold text-primary">
-              Brak domen
+              {t("noDomains")}
             </h3>
             <p className="mt-1 text-sm text-tertiary">
-              Dodaj domenę, aby AI SEO Strategist mógł zaplanować działania.
+              {t("noDomainsDescription")}
             </p>
           </div>
         ) : (
-          <Calendar events={calendarEvents} view="month" />
+          <Calendar events={calendarEvents} view="month" onEventClick={(id) => setSelectedEventId(id)} />
         )}
       </div>
+
+      {/* Event detail modal */}
+      <CalendarEventDetailModal
+        event={rawEvents?.find((e) => e._id === selectedEventId) ?? null}
+        isOpen={!!selectedEventId}
+        onClose={() => setSelectedEventId(null)}
+      />
     </div>
   );
 }

@@ -115,9 +115,10 @@ interface PositionedEventProps {
     totalOverlapping: number; // To potentially calculate width more dynamically later
     setSelectedDate: (date: CalendarDate) => void;
     timeFormatter: DateFormatter;
+    onEventClick?: (eventId: string) => void;
 }
 
-const PositionedEvent = ({ event, dayStart, timeZone, slotHeight, overlapIndex, setSelectedDate, timeFormatter }: PositionedEventProps) => {
+const PositionedEvent = ({ event, dayStart, timeZone, slotHeight, overlapIndex, setSelectedDate, timeFormatter, onEventClick }: PositionedEventProps) => {
     const formatTime = (dateTime: ZonedDateTime) => timeFormatter.format(dateTime.toDate());
 
     const startZoned = event.start;
@@ -153,7 +154,7 @@ const PositionedEvent = ({ event, dayStart, timeZone, slotHeight, overlapIndex, 
                 left: `${horizontalOffset}px`,
                 zIndex: overlapIndex,
             }}
-            onClick={() => setSelectedDate(toCalendarDate(startZoned))}
+            onClick={() => { setSelectedDate(toCalendarDate(startZoned)); onEventClick?.(event.id); }}
         >
             <CalendarDwViewEvent label={event.title} supportingText={supportingText} color={event.color} withDot={event.dot} />
         </div>
@@ -171,6 +172,7 @@ interface MonthViewProps {
     shortWeekdayFormatter: DateFormatter;
     timeFormatter: DateFormatter;
     className?: string;
+    onEventClick?: (eventId: string) => void;
 }
 
 const MonthView = ({
@@ -184,6 +186,7 @@ const MonthView = ({
     shortWeekdayFormatter,
     timeFormatter, // Needed for formatTime inside
     className,
+    onEventClick,
 }: MonthViewProps) => {
     const monthStart = startOfMonth(currentMonthDate);
     const monthEnd = endOfMonth(currentMonthDate);
@@ -487,7 +490,8 @@ const MonthView = ({
                                             : undefined;
 
                                     return (
-                                        <div key={event.id} style={spanStyle} className={cx(!isCurrentMonthFlag && "opacity-60")}>
+                                        <div key={event.id} style={spanStyle} className={cx(!isCurrentMonthFlag && "opacity-60", "cursor-pointer")}
+                                            onClick={(e) => { e.stopPropagation(); onEventClick?.(event.id); }}>
                                             <CalendarMonthViewEvent
                                                 label={event.title}
                                                 collapseOnMobile={true}
@@ -523,13 +527,14 @@ const MonthView = ({
                                 const supportingText = isAllDay ? "All day" : formatTimeForMonth(event.start);
 
                                 return (
-                                    <CalendarMonthViewEvent
-                                        key={`footer-${event.id}`}
-                                        label={event.title}
-                                        supportingText={supportingText}
-                                        color={event.color}
-                                        withDot={event.dot}
-                                    />
+                                    <div key={`footer-${event.id}`} className="cursor-pointer" onClick={() => onEventClick?.(event.id)}>
+                                        <CalendarMonthViewEvent
+                                            label={event.title}
+                                            supportingText={supportingText}
+                                            color={event.color}
+                                            withDot={event.dot}
+                                        />
+                                    </div>
                                 );
                             })}
                         </div>
@@ -551,9 +556,10 @@ interface MobileSingleDayGridProps {
     setSelectedDate: (date: CalendarDate | null) => void;
     timeFormatter: DateFormatter;
     className?: string;
+    onEventClick?: (eventId: string) => void;
 }
 
-const MobileSingleDayGrid = ({ dayToDisplay, dayEvents, timeZone, setSelectedDate, timeFormatter, className }: MobileSingleDayGridProps) => {
+const MobileSingleDayGrid = ({ dayToDisplay, dayEvents, timeZone, setSelectedDate, timeFormatter, className, onEventClick }: MobileSingleDayGridProps) => {
     const dayStart = useMemo(() => getStartOfDay(dayToDisplay, timeZone), [dayToDisplay, timeZone]); // Calculate once
 
     return (
@@ -580,6 +586,7 @@ const MobileSingleDayGrid = ({ dayToDisplay, dayEvents, timeZone, setSelectedDat
                         totalOverlapping={totalOverlapping}
                         setSelectedDate={setSelectedDate}
                         timeFormatter={timeFormatter}
+                        onEventClick={onEventClick}
                     />
                 );
             })}
@@ -595,9 +602,10 @@ interface WeekViewDayProps {
     slotHeight: number;
     setSelectedDate: (date: CalendarDate | null) => void;
     timeFormatter: DateFormatter;
+    onEventClick?: (eventId: string) => void;
 }
 
-const WeekViewDay = ({ day, isLastDay, visibleEvents, timeZone, slotHeight, setSelectedDate, timeFormatter }: WeekViewDayProps) => {
+const WeekViewDay = ({ day, isLastDay, visibleEvents, timeZone, slotHeight, setSelectedDate, timeFormatter, onEventClick }: WeekViewDayProps) => {
     const dateKey = day.toString();
     const dayEvents = useMemo(() => getEventsForDay(visibleEvents, day, timeZone), [visibleEvents, day, timeZone]);
     const dayStart = useMemo(() => getStartOfDay(day, timeZone), [day, timeZone]);
@@ -624,6 +632,7 @@ const WeekViewDay = ({ day, isLastDay, visibleEvents, timeZone, slotHeight, setS
                             totalOverlapping={totalOverlapping}
                             setSelectedDate={setSelectedDate}
                             timeFormatter={timeFormatter}
+                            onEventClick={onEventClick}
                         />
                     );
                 })}
@@ -645,6 +654,7 @@ interface WeekViewProps {
     hourOnlyFormatter: DateFormatter;
     className?: string;
     view?: string;
+    onEventClick?: (eventId: string) => void;
 }
 
 const WeekView = ({
@@ -660,6 +670,7 @@ const WeekView = ({
     hourOnlyFormatter,
     className,
     view,
+    onEventClick,
 }: WeekViewProps) => {
     const currentWeekStart = startOfWeek(currentMonthDate, locale);
     const currentWeekEnd = endOfWeek(currentMonthDate, locale);
@@ -772,6 +783,7 @@ const WeekView = ({
                                 slotHeight={SLOT_HEIGHT}
                                 setSelectedDate={setSelectedDate}
                                 timeFormatter={timeFormatter}
+                                onEventClick={onEventClick}
                             />
                         );
                     })}
@@ -797,6 +809,7 @@ interface DayViewProps {
     hourOnlyFormatter: DateFormatter;
     className?: string;
     view?: string;
+    onEventClick?: (eventId: string) => void;
 }
 
 const DayView = ({
@@ -812,6 +825,7 @@ const DayView = ({
     selectedDate,
     className,
     view,
+    onEventClick,
 }: DayViewProps) => {
     const currentWeekStart = startOfWeek(dayToDisplay, locale);
     const currentWeekEnd = endOfWeek(dayToDisplay, locale);
@@ -925,6 +939,7 @@ const DayView = ({
                         currentTime={currentTime}
                         setSelectedDate={setSelectedDate}
                         timeFormatter={timeFormatter}
+                        onEventClick={onEventClick}
                     />
                     {showTimeMarker && <CalendarTimeMarker style={{ top: `${timeMarkerTop}px` }}>{formatTime(localCurrentTime)}</CalendarTimeMarker>}
                 </div>
@@ -1049,9 +1064,10 @@ interface CalendarProps {
     events: CalendarEvent[];
     view?: "month" | "week" | "day";
     className?: string;
+    onEventClick?: (eventId: string) => void;
 }
 
-export const Calendar = ({ events, view: defaultView = "month", className }: CalendarProps) => {
+export const Calendar = ({ events, view: defaultView = "month", className, onEventClick }: CalendarProps) => {
     const { locale } = useLocale();
     const timeZone = useMemo(() => getLocalTimeZone(), []);
 
@@ -1149,6 +1165,7 @@ export const Calendar = ({ events, view: defaultView = "month", className }: Cal
                         fullDateFormatter={fullDateFormatter}
                         shortWeekdayFormatter={shortWeekdayFormatter}
                         timeFormatter={timeFormatter}
+                        onEventClick={onEventClick}
                     />
                 )}
                 {view === "week" && (
@@ -1166,6 +1183,7 @@ export const Calendar = ({ events, view: defaultView = "month", className }: Cal
                             hourOnlyFormatter={hourOnlyFormatter}
                             view={view}
                             className="md:hidden"
+                            onEventClick={onEventClick}
                         />
 
                         <WeekView
@@ -1181,6 +1199,7 @@ export const Calendar = ({ events, view: defaultView = "month", className }: Cal
                             hourOnlyFormatter={hourOnlyFormatter}
                             view={view}
                             className="max-md:hidden"
+                            onEventClick={onEventClick}
                         />
                     </>
                 )}
@@ -1197,6 +1216,7 @@ export const Calendar = ({ events, view: defaultView = "month", className }: Cal
                         timeFormatter={timeFormatter}
                         hourOnlyFormatter={hourOnlyFormatter}
                         view={view}
+                        onEventClick={onEventClick}
                     />
                 )}
             </main>
