@@ -251,8 +251,42 @@ describe("getUnreadCount", () => {
 describe("markAsRead", () => {
   const handler = markAsRead as unknown as (ctx: any, args: any) => Promise<void>;
 
-  it("calls db.patch with notificationId and isRead true", async () => {
+  it("throws when not authenticated", async () => {
+    mockGetUserId.mockResolvedValue(null);
     const ctx = createMockCtx();
+
+    await expect(handler(ctx, { notificationId: NOTIF_ID_1 })).rejects.toThrow(
+      "Authentication required"
+    );
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+
+  it("throws when notification not found", async () => {
+    mockGetUserId.mockResolvedValue(USER_ID);
+    const ctx = createMockCtx();
+    ctx.db.get.mockResolvedValue(null);
+
+    await expect(handler(ctx, { notificationId: NOTIF_ID_1 })).rejects.toThrow(
+      "Notification not found"
+    );
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+
+  it("throws when notification belongs to another user", async () => {
+    mockGetUserId.mockResolvedValue(USER_ID);
+    const ctx = createMockCtx();
+    ctx.db.get.mockResolvedValue(makeNotification({ _id: NOTIF_ID_1, userId: OTHER_USER_ID }));
+
+    await expect(handler(ctx, { notificationId: NOTIF_ID_1 })).rejects.toThrow(
+      "Access denied"
+    );
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+
+  it("calls db.patch with notificationId and isRead true", async () => {
+    mockGetUserId.mockResolvedValue(USER_ID);
+    const ctx = createMockCtx();
+    ctx.db.get.mockResolvedValue(makeNotification({ _id: NOTIF_ID_1, userId: USER_ID }));
 
     await handler(ctx, { notificationId: NOTIF_ID_1 });
 
@@ -261,7 +295,9 @@ describe("markAsRead", () => {
   });
 
   it("patches the specific notification passed in args", async () => {
+    mockGetUserId.mockResolvedValue(USER_ID);
     const ctx = createMockCtx();
+    ctx.db.get.mockResolvedValue(makeNotification({ _id: NOTIF_ID_3, userId: USER_ID }));
 
     await handler(ctx, { notificationId: NOTIF_ID_3 });
 
