@@ -130,6 +130,7 @@ export default defineSchema({
     cachedPageContent: v.optional(v.string()),
     cachedPageContentAt: v.optional(v.number()),
     gscPropertyUrl: v.optional(v.string()),
+    gscPrimary: v.optional(v.boolean()),  // true when GSC is connected and authoritative for position data
     keywordCount: v.optional(v.number()),
   }).index("by_project", ["projectId"]),
 
@@ -154,17 +155,23 @@ export default defineSchema({
     checkJobId: v.optional(v.id("keywordCheckJobs")),
     searchVolume: v.optional(v.number()),
     difficulty: v.optional(v.number()),
-    // Denormalized position data (updated by storePosition to avoid N+1 queries)
+    // Denormalized position data (updated by storePosition/storeGscPositionDenormalized to avoid N+1 queries)
     currentPosition: v.optional(v.union(v.number(), v.null())),
     previousPosition: v.optional(v.union(v.number(), v.null())),
     positionChange: v.optional(v.union(v.number(), v.null())),
     currentUrl: v.optional(v.union(v.string(), v.null())),
     latestCpc: v.optional(v.number()),
     positionUpdatedAt: v.optional(v.number()),
+    positionSource: v.optional(v.union(v.literal("d4s"), v.literal("gsc"))),  // tracks origin of effective position data
     recentPositions: v.optional(v.array(v.object({
       date: v.string(),
       position: v.union(v.number(), v.null()),
     }))),
+    // Denormalized GSC metrics (always populated when GSC data exists, regardless of gscPrimary)
+    gscClicks: v.optional(v.float64()),
+    gscImpressions: v.optional(v.float64()),
+    gscCtr: v.optional(v.float64()),
+    gscUrl: v.optional(v.string()),
     tags: v.optional(v.array(v.string())), // Tags for keyword organization
     keywordType: v.optional(v.union(
       v.literal("core"),

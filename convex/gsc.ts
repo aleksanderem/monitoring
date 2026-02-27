@@ -607,6 +607,40 @@ export const disconnectGsc = mutation({
         accessToken: "",
         refreshToken: "",
       });
+
+      // Reset gscPrimary on all domains that were using this GSC connection
+      // and reset positionSource on their keywords so D4S resumes writing positions
+      const teams = await ctx.db
+        .query("teams")
+        .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
+        .collect();
+      for (const team of teams) {
+        const projects = await ctx.db
+          .query("projects")
+          .withIndex("by_team", (q) => q.eq("teamId", team._id))
+          .collect();
+        for (const project of projects) {
+          const domains = await ctx.db
+            .query("domains")
+            .withIndex("by_project", (q) => q.eq("projectId", project._id))
+            .collect();
+          for (const domain of domains) {
+            if (domain.gscPrimary) {
+              await ctx.db.patch(domain._id, { gscPrimary: false, gscPropertyUrl: undefined });
+              // Reset positionSource on keywords
+              const keywords = await ctx.db
+                .query("keywords")
+                .withIndex("by_domain", (q) => q.eq("domainId", domain._id))
+                .collect();
+              for (const kw of keywords) {
+                if (kw.positionSource === "gsc") {
+                  await ctx.db.patch(kw._id, { positionSource: "d4s" as const });
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
 });
@@ -680,7 +714,22 @@ export const setDomainGscProperty = mutation({
 
     await ctx.db.patch(domainId, {
       gscPropertyUrl: propertyUrl ?? undefined,
+      gscPrimary: propertyUrl ? true : false,
     });
+
+    // When GSC is disconnected (propertyUrl cleared), reset positionSource on all keywords
+    // so D4S can resume writing effective position data
+    if (!propertyUrl) {
+      const keywords = await ctx.db
+        .query("keywords")
+        .withIndex("by_domain", (q) => q.eq("domainId", domainId))
+        .collect();
+      for (const kw of keywords) {
+        if (kw.positionSource === "gsc") {
+          await ctx.db.patch(kw._id, { positionSource: "d4s" as const });
+        }
+      }
+    }
   },
 });
 

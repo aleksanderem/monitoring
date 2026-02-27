@@ -336,6 +336,23 @@ async function syncGscDataInternal(ctx: any, organizationId: any) {
             metrics: metrics.slice(i, i + 100),
           });
         }
+
+        // Denormalize GSC data onto tracked keywords (writes to effective position fields when gscPrimary)
+        const denormMetrics = rows.map((row) => ({
+          keyword: row.keys[0],
+          date: endDate,
+          clicks: row.clicks,
+          impressions: row.impressions,
+          ctr: row.ctr,
+          position: row.position,
+          url: undefined as string | undefined,
+        }));
+        for (let i = 0; i < denormMetrics.length; i += 100) {
+          await ctx.runMutation(internal.keywords.storeGscPositionDenormalized, {
+            domainId: domain._id,
+            metrics: denormMetrics.slice(i, i + 100),
+          });
+        }
       }
     } catch (error) {
       console.error(`GSC keyword sync error for domain ${domain._id}:`, error);

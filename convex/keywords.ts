@@ -1069,39 +1069,139 @@ export const storePosition = mutation({
     // Denormalize: update keyword record with current position data
     const keyword = await ctx.db.get(args.keywordId);
     if (keyword) {
-      const oldPosition = keyword.currentPosition;
-      const recentPositions = keyword.recentPositions ?? [];
+      // GSC guard: when GSC owns the effective position, D4S only updates supplementary fields
+      // (searchVolume, difficulty, cpc) — it does NOT overwrite position/recentPositions.
+      if (keyword.positionSource === "gsc") {
+        await ctx.db.patch(args.keywordId, {
+          searchVolume: args.searchVolume,
+          difficulty: args.difficulty,
+          latestCpc: args.cpc,
+        });
+      } else {
+        const oldPosition = keyword.currentPosition;
+        const recentPositions = keyword.recentPositions ?? [];
 
-      // Update recentPositions: add/replace entry for this date, keep last 7 by date
-      const filtered = recentPositions.filter((p) => p.date !== args.date);
-      filtered.push({ date: args.date, position: args.position });
-      filtered.sort((a, b) => a.date.localeCompare(b.date));
-      const trimmed = filtered.slice(-7);
+        // Update recentPositions: add/replace entry for this date, keep last 7 by date
+        const filtered = recentPositions.filter((p) => p.date !== args.date);
+        filtered.push({ date: args.date, position: args.position });
+        filtered.sort((a, b) => a.date.localeCompare(b.date));
+        const trimmed = filtered.slice(-7);
 
-      // Determine current and previous from the sorted recent list
-      const latestEntry = trimmed[trimmed.length - 1];
-      const prevEntry = trimmed.length >= 2 ? trimmed[trimmed.length - 2] : null;
+        // Determine current and previous from the sorted recent list
+        const latestEntry = trimmed[trimmed.length - 1];
+        const prevEntry = trimmed.length >= 2 ? trimmed[trimmed.length - 2] : null;
 
-      const currentPos = latestEntry?.position ?? null;
-      const previousPos = prevEntry?.position ?? oldPosition ?? null;
-      const change = (currentPos != null && previousPos != null)
-        ? previousPos - currentPos
-        : null;
+        const currentPos = latestEntry?.position ?? null;
+        const previousPos = prevEntry?.position ?? oldPosition ?? null;
+        const change = (currentPos != null && previousPos != null)
+          ? previousPos - currentPos
+          : null;
 
-      await ctx.db.patch(args.keywordId, {
-        currentPosition: currentPos,
-        previousPosition: previousPos,
-        positionChange: change,
-        currentUrl: args.url,
-        searchVolume: args.searchVolume,
-        difficulty: args.difficulty,
-        latestCpc: args.cpc,
-        positionUpdatedAt: Date.now(),
-        recentPositions: trimmed,
-      });
+        await ctx.db.patch(args.keywordId, {
+          currentPosition: currentPos,
+          previousPosition: previousPos,
+          positionChange: change,
+          currentUrl: args.url,
+          positionSource: "d4s" as const,
+          searchVolume: args.searchVolume,
+          difficulty: args.difficulty,
+          latestCpc: args.cpc,
+          positionUpdatedAt: Date.now(),
+          recentPositions: trimmed,
+        });
+      }
     }
 
     return positionId;
+  },
+});
+
+// Denormalize GSC metrics onto tracked keywords after a GSC sync.
+// For each GSC keyword metric, finds matching tracked keyword by phrase (case-insensitive).
+// When gscPrimary is true on the domain, writes GSC position to effective fields
+// (currentPosition, previousPosition, positionChange, currentUrl) so all consumers
+// automatically get real GSC data. Always writes gscClicks/gscImpressions/gscCtr/gscUrl.
+export const storeGscPositionDenormalized = internalMutation({
+  args: {
+    domainId: v.id("domains"),
+    metrics: v.array(
+      v.object({
+        keyword: v.string(),
+        clicks: v.number(),
+        impressions: v.number(),
+        ctr: v.number(),
+        position: v.number(),
+        url: v.optional(v.string()),
+        date: v.string(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const domain = await ctx.db.get(args.domainId);
+    if (!domain) return;
+
+    const isGscPrimary = domain.gscPrimary === true;
+
+    // Load all keywords for this domain and build a case-insensitive lookup map
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    const keywordsByPhrase = new Map<string, typeof keywords[number]>();
+    for (const kw of keywords) {
+      keywordsByPhrase.set(kw.phrase.toLowerCase(), kw);
+    }
+
+    let updated = 0;
+    for (const metric of args.metrics) {
+      const kw = keywordsByPhrase.get(metric.keyword.toLowerCase());
+      if (!kw) continue;
+
+      // Always write GSC supplementary fields
+      const patch: Record<string, any> = {
+        gscClicks: metric.clicks,
+        gscImpressions: metric.impressions,
+        gscCtr: metric.ctr,
+        gscUrl: metric.url,
+      };
+
+      // When GSC is primary, also write to effective position fields
+      if (isGscPrimary) {
+        const gscPosition = Math.round(metric.position * 10) / 10; // 1 decimal
+        const oldPosition = kw.currentPosition;
+        const recentPositions = kw.recentPositions ?? [];
+
+        // Update recentPositions: add/replace entry for this date, keep last 7 by date
+        const filtered = recentPositions.filter((p) => p.date !== metric.date);
+        filtered.push({ date: metric.date, position: gscPosition });
+        filtered.sort((a, b) => a.date.localeCompare(b.date));
+        const trimmed = filtered.slice(-7);
+
+        // Determine current and previous from the sorted recent list
+        const latestEntry = trimmed[trimmed.length - 1];
+        const prevEntry = trimmed.length >= 2 ? trimmed[trimmed.length - 2] : null;
+
+        const currentPos = latestEntry?.position ?? null;
+        const previousPos = prevEntry?.position ?? oldPosition ?? null;
+        const change = (currentPos != null && previousPos != null)
+          ? previousPos - currentPos
+          : null;
+
+        patch.currentPosition = currentPos;
+        patch.previousPosition = previousPos;
+        patch.positionChange = change;
+        patch.currentUrl = metric.url ?? kw.currentUrl;
+        patch.positionSource = "gsc" as const;
+        patch.positionUpdatedAt = Date.now();
+        patch.recentPositions = trimmed;
+      }
+
+      await ctx.db.patch(kw._id, patch);
+      updated++;
+    }
+
+    return { updated, total: args.metrics.length };
   },
 });
 
