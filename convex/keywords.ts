@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, mutation, query, internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 import { auth } from "./auth";
 import { checkKeywordLimit, checkRefreshLimits } from "./limits";
 import { requirePermission, requireTenantAccess, getContextFromDomain, getContextFromKeyword } from "./permissions";
@@ -408,6 +409,38 @@ export const getKeywordMonitoring = query({
       discoveredMap.set(dk.keyword, dk);
     }
 
+    // Batch: fetch GSC keyword metrics (last 28 days), aggregate per keyword
+    const gscStart = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+    const gscMetrics = await ctx.db
+      .query("gscKeywordMetrics")
+      .withIndex("by_domain_date", (q) =>
+        q.eq("domainId", args.domainId).gte("date", gscStart)
+      )
+      .collect();
+    const gscMap = new Map<
+      string,
+      { clicks: number; impressions: number; positionSum: number; count: number }
+    >();
+    for (const m of gscMetrics) {
+      const key = m.keyword.toLowerCase();
+      const existing = gscMap.get(key);
+      if (existing) {
+        existing.clicks += m.clicks;
+        existing.impressions += m.impressions;
+        existing.positionSum += m.position * m.impressions;
+        existing.count += 1;
+      } else {
+        gscMap.set(key, {
+          clicks: m.clicks,
+          impressions: m.impressions,
+          positionSum: m.position * m.impressions,
+          count: 1,
+        });
+      }
+    }
+
     return keywords.map((keyword) => {
       const discovered = discoveredMap.get(keyword.phrase) ?? null;
 
@@ -490,6 +523,18 @@ export const getKeywordMonitoring = query({
         isUp: discovered?.isUp || null,
         isDown: discovered?.isDown || null,
         proposedBy: keyword.proposedBy || null,
+
+        // GSC real search data (aggregated last 28 days)
+        ...(() => {
+          const g = gscMap.get(keyword.phrase.toLowerCase());
+          if (!g) return { gscClicks: null, gscImpressions: null, gscCtr: null, gscPosition: null };
+          return {
+            gscClicks: g.clicks,
+            gscImpressions: g.impressions,
+            gscCtr: g.impressions > 0 ? g.clicks / g.impressions : null,
+            gscPosition: g.impressions > 0 ? g.positionSum / g.impressions : null,
+          };
+        })(),
       };
     });
   },
@@ -735,12 +780,20 @@ export const addKeyword = mutation({
       throw new Error("Keyword already exists");
     }
 
-    return await ctx.db.insert("keywords", {
+    const keywordId = await ctx.db.insert("keywords", {
       domainId: args.domainId,
       phrase: normalized,
       status: "active",
       createdAt: Date.now(),
     });
+
+    // Increment denormalized keyword count on domain
+    const domain = await ctx.db.get(args.domainId);
+    if (domain) {
+      await ctx.db.patch(args.domainId, { keywordCount: (domain.keywordCount ?? 0) + 1 });
+    }
+
+    return keywordId;
   },
 });
 
@@ -816,6 +869,14 @@ export const addKeywords = mutation({
       results.push(id);
     }
 
+    // Increment denormalized keyword count on domain
+    if (results.length > 0) {
+      const domain = await ctx.db.get(args.domainId);
+      if (domain) {
+        await ctx.db.patch(args.domainId, { keywordCount: (domain.keywordCount ?? 0) + results.length });
+      }
+    }
+
     return results;
   },
 });
@@ -888,6 +949,12 @@ export const deleteKeyword = mutation({
     }
 
     await ctx.db.delete(args.keywordId);
+
+    // Decrement denormalized keyword count on domain
+    const domain = await ctx.db.get(keyword.domainId);
+    if (domain) {
+      await ctx.db.patch(keyword.domainId, { keywordCount: Math.max(0, (domain.keywordCount ?? 0) - 1) });
+    }
   },
 });
 
@@ -908,7 +975,12 @@ export const deleteKeywords = mutation({
       }
     }
 
+    const deletedPerDomain = new Map<string, number>();
+
     for (const keywordId of args.keywordIds) {
+      const keyword = await ctx.db.get(keywordId);
+      if (!keyword) continue;
+
       // Check permission for each keyword
       const context = await getContextFromKeyword(ctx, keywordId);
       if (!context) {
@@ -927,6 +999,18 @@ export const deleteKeywords = mutation({
       }
 
       await ctx.db.delete(keywordId);
+      deletedPerDomain.set(
+        keyword.domainId as string,
+        (deletedPerDomain.get(keyword.domainId as string) ?? 0) + 1
+      );
+    }
+
+    // Decrement denormalized keyword counts per domain
+    for (const [domainId, count] of deletedPerDomain) {
+      const domain = await ctx.db.get(domainId as Id<"domains">);
+      if (domain) {
+        await ctx.db.patch(domainId as Id<"domains">, { keywordCount: Math.max(0, (domain.keywordCount ?? 0) - count) });
+      }
     }
   },
 });
@@ -1297,6 +1381,7 @@ export const importKeywords = mutation({
     }
 
     // Insert keywords
+    let insertedCount = 0;
     for (const kw of toImport) {
       try {
         await ctx.db.insert("keywords", {
@@ -1306,11 +1391,20 @@ export const importKeywords = mutation({
           createdAt: Date.now(),
         });
         results.imported.push(kw.phrase);
+        insertedCount++;
       } catch (error) {
         results.errors.push({
           phrase: kw.phrase,
           error: error instanceof Error ? error.message : "Unknown error",
         });
+      }
+    }
+
+    // Increment denormalized keyword count on domain
+    if (insertedCount > 0) {
+      const domain = await ctx.db.get(args.domainId);
+      if (domain) {
+        await ctx.db.patch(args.domainId, { keywordCount: (domain.keywordCount ?? 0) + insertedCount });
       }
     }
 
@@ -1439,6 +1533,12 @@ export const createKeywordInternal = internalMutation({
       searchVolume: args.searchVolume,
       difficulty: args.difficulty,
     });
+
+    // Increment denormalized keyword count on domain
+    const domain = await ctx.db.get(args.domainId);
+    if (domain) {
+      await ctx.db.patch(args.domainId, { keywordCount: (domain.keywordCount ?? 0) + 1 });
+    }
 
     return keywordId;
   },
@@ -1918,6 +2018,7 @@ export const bulkDeleteKeywords = mutation({
     if (!context) throw new Error("Domain not found");
     await requirePermission(ctx, "keywords.remove", context);
 
+    let deletedCount = 0;
     for (const id of args.keywordIds) {
       // Delete position history
       const positions = await ctx.db
@@ -1934,6 +2035,15 @@ export const bulkDeleteKeywords = mutation({
       for (const m of memberships) await ctx.db.delete(m._id);
 
       await ctx.db.delete(id);
+      deletedCount++;
+    }
+
+    // Decrement denormalized keyword count on domain
+    if (deletedCount > 0) {
+      const domain = await ctx.db.get(args.domainId);
+      if (domain) {
+        await ctx.db.patch(args.domainId, { keywordCount: Math.max(0, (domain.keywordCount ?? 0) - deletedCount) });
+      }
     }
 
     return args.keywordIds.length;

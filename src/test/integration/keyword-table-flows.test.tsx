@@ -529,16 +529,19 @@ describe("KeywordMonitoringTable — Data Flow Tests", () => {
       const columnsButton = screen.getByRole("button", { name: /Columns/i });
       await user.click(columnsButton);
 
-      // Find the volume checkbox
-      const volumeLabel = screen.getByText("volume").closest("label");
+      // Find the volume checkbox (translated label is "Volume")
+      const volumeLabels = screen.getAllByText("Volume");
+      const volumeLabel = volumeLabels.find((el) => el.closest("label"))?.closest("label");
       expect(volumeLabel).toBeTruthy();
       const volumeCheckbox = volumeLabel!.querySelector("input[type='checkbox']") as HTMLInputElement;
       expect(volumeCheckbox.checked).toBe(true);
 
       await user.click(volumeCheckbox);
 
-      // Volume header should now be gone
-      expect(screen.queryByText("Volume")).not.toBeInTheDocument();
+      // Volume header (in <th>) should now be gone, but picker label remains
+      const volumeElements = screen.queryAllByText("Volume");
+      const volumeInTh = volumeElements.find((el) => el.closest("th"));
+      expect(volumeInTh).toBeFalsy();
     });
 
     it("column picker renders and is interactive", async () => {
