@@ -1,18 +1,18 @@
 {
-  "session_id": "S0125",
-  "started_at": "2026-02-26T21:05:00Z",
-  "last_updated": "2026-02-26T21:12:00Z",
+  "session_id": "S0147",
+  "started_at": "2026-02-27T12:00:00Z",
+  "last_updated": "2026-02-27T12:00:00Z",
   "status": "active",
-  "focus": "Fix all pre-existing test failures (8 tests across 4 files)",
+  "focus": "Deploy repairGscPrimary, verify GSC-first end-to-end flow",
   "tasks_snapshot": {
-    "total": 16,
-    "not_started": 0,
-    "in_progress": 0,
-    "passing": 16,
+    "total": 3,
+    "not_started": 2,
+    "in_progress": 1,
+    "passing": 0,
     "failing": 0,
     "blocked": 0
   },
-  "active_task_ids": [],
+  "active_task_ids": [1],
   "blockers": [],
-  "notes": "S0125: Fixed 8 pre-existing test failures across 4 files. Added role=alert to AlertFloating, fixed text assertions for countdown format, fixed toLocaleString number formatting in test expectations, made nodemailer import lazy in mailtrap-client. All 158 test files pass (3156 tests)."
+  "notes": "Continuing from S0146. gscPrimary=None on all GSC-connected domains. repairGscPrimary mutation written but not deployed."
 }

@@ -44,10 +44,37 @@ export interface CompetitorPositionRow {
   url: string | null;
 }
 
+// ─── Retry helper ─────────────────────────────────────────
+
+/**
+ * Retry an async function with exponential backoff.
+ * Delays: 200ms, 400ms, 800ms (doubles each attempt).
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  label: string,
+  maxAttempts = 3
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxAttempts) {
+        const delayMs = 200 * Math.pow(2, attempt - 1);
+        console.warn(`[Supabase] ${label} attempt ${attempt}/${maxAttempts} failed, retrying in ${delayMs}ms`);
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+  }
+  throw lastError;
+}
+
 // ─── Write helpers ─────────────────────────────────────────
 
 /**
- * Upsert keyword positions to Supabase.
+ * Upsert keyword positions to Supabase with retry (3 attempts, exponential backoff).
  * Uses ON CONFLICT (convex_keyword_id, date) DO UPDATE for idempotency.
  * Silently skips if Supabase is not configured.
  */
@@ -55,29 +82,33 @@ export async function writeKeywordPositions(rows: KeywordPositionRow[]): Promise
   const sb = getSupabaseAdmin();
   if (!sb || rows.length === 0) return;
 
-  const { error } = await sb
-    .from("keyword_positions")
-    .upsert(rows, { onConflict: "convex_keyword_id,date" });
+  await withRetry(async () => {
+    const { error } = await sb
+      .from("keyword_positions")
+      .upsert(rows, { onConflict: "convex_keyword_id,date" });
 
-  if (error) {
-    console.error(`[Supabase] writeKeywordPositions failed (${rows.length} rows):`, error.message);
-  }
+    if (error) {
+      throw new Error(`writeKeywordPositions failed (${rows.length} rows): ${error.message}`);
+    }
+  }, `writeKeywordPositions(${rows.length} rows)`);
 }
 
 /**
- * Upsert competitor keyword positions to Supabase.
+ * Upsert competitor keyword positions to Supabase with retry.
  */
 export async function writeCompetitorPositions(rows: CompetitorPositionRow[]): Promise<void> {
   const sb = getSupabaseAdmin();
   if (!sb || rows.length === 0) return;
 
-  const { error } = await sb
-    .from("competitor_keyword_positions")
-    .upsert(rows, { onConflict: "convex_competitor_id,convex_keyword_id,date" });
+  await withRetry(async () => {
+    const { error } = await sb
+      .from("competitor_keyword_positions")
+      .upsert(rows, { onConflict: "convex_competitor_id,convex_keyword_id,date" });
 
-  if (error) {
-    console.error(`[Supabase] writeCompetitorPositions failed (${rows.length} rows):`, error.message);
-  }
+    if (error) {
+      throw new Error(`writeCompetitorPositions failed (${rows.length} rows): ${error.message}`);
+    }
+  }, `writeCompetitorPositions(${rows.length} rows)`);
 }
 
 // ─── Monitoring helpers ───────────────────────────────────

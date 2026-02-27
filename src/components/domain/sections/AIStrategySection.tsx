@@ -698,7 +698,7 @@ export function AIStrategySection({ domainId }: AIStrategySectionProps) {
                             toast.success(t("deleteSession"));
                           }}
                         >
-                          <ButtonUtility size="xs" color="tertiary" icon={Trash01} />
+                          <ButtonUtility size="xs" color="tertiary" icon={Trash01} tooltip={t("deleteSession")} />
                         </DeleteConfirmationDialog>
                       </div>
                     </div>

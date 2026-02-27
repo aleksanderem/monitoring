@@ -5,6 +5,19 @@ import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
 
+// Helper: create a super admin user and return authenticated test client
+async function createSuperAdmin(t: any) {
+  const userId = await t.run(async (ctx: any) => {
+    const uid = await ctx.db.insert("users", {
+      email: "admin@example.com",
+      emailVerificationTime: Date.now(),
+    });
+    await ctx.db.insert("superAdmins", { userId: uid, grantedAt: Date.now() });
+    return uid;
+  });
+  return t.withIdentity({ subject: userId });
+}
+
 // ---------------------------------------------------------------------------
 // isEnabled (internalQuery)
 // ---------------------------------------------------------------------------
@@ -131,17 +144,25 @@ describe("saveLog", () => {
 describe("getStatus", () => {
   test("returns false when no setting exists", async () => {
     const t = convexTest(schema, modules);
-    const result = await t.query(api.debugLog.getStatus, {});
+    const asAdmin = await createSuperAdmin(t);
+    const result = await asAdmin.query(api.debugLog.getStatus, {});
     expect(result).toBe(false);
   });
 
   test("returns true when debug logging enabled", async () => {
     const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
+    const asAdmin = await createSuperAdmin(t);
+    await t.run(async (ctx: any) => {
       await ctx.db.insert("appSettings", { key: "debug_logging", value: "true" });
     });
-    const result = await t.query(api.debugLog.getStatus, {});
+    const result = await asAdmin.query(api.debugLog.getStatus, {});
     expect(result).toBe(true);
+  });
+
+  test("returns false for non-superAdmin user", async () => {
+    const t = convexTest(schema, modules);
+    const result = await t.query(api.debugLog.getStatus, {});
+    expect(result).toBe(false);
   });
 });
 
@@ -152,35 +173,45 @@ describe("getStatus", () => {
 describe("toggle", () => {
   test("creates setting when none exists and enables", async () => {
     const t = convexTest(schema, modules);
-    await t.mutation(api.debugLog.toggle, { enabled: true });
+    const asAdmin = await createSuperAdmin(t);
+    await asAdmin.mutation(api.debugLog.toggle, { enabled: true });
 
-    const status = await t.query(api.debugLog.getStatus, {});
+    const status = await asAdmin.query(api.debugLog.getStatus, {});
     expect(status).toBe(true);
   });
 
   test("updates existing setting to disabled", async () => {
     const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
+    const asAdmin = await createSuperAdmin(t);
+    await t.run(async (ctx: any) => {
       await ctx.db.insert("appSettings", { key: "debug_logging", value: "true" });
     });
 
-    await t.mutation(api.debugLog.toggle, { enabled: false });
+    await asAdmin.mutation(api.debugLog.toggle, { enabled: false });
 
-    const status = await t.query(api.debugLog.getStatus, {});
+    const status = await asAdmin.query(api.debugLog.getStatus, {});
     expect(status).toBe(false);
   });
 
   test("toggles back and forth", async () => {
     const t = convexTest(schema, modules);
+    const asAdmin = await createSuperAdmin(t);
 
-    await t.mutation(api.debugLog.toggle, { enabled: true });
-    expect(await t.query(api.debugLog.getStatus, {})).toBe(true);
+    await asAdmin.mutation(api.debugLog.toggle, { enabled: true });
+    expect(await asAdmin.query(api.debugLog.getStatus, {})).toBe(true);
 
-    await t.mutation(api.debugLog.toggle, { enabled: false });
-    expect(await t.query(api.debugLog.getStatus, {})).toBe(false);
+    await asAdmin.mutation(api.debugLog.toggle, { enabled: false });
+    expect(await asAdmin.query(api.debugLog.getStatus, {})).toBe(false);
 
-    await t.mutation(api.debugLog.toggle, { enabled: true });
-    expect(await t.query(api.debugLog.getStatus, {})).toBe(true);
+    await asAdmin.mutation(api.debugLog.toggle, { enabled: true });
+    expect(await asAdmin.query(api.debugLog.getStatus, {})).toBe(true);
+  });
+
+  test("throws for non-superAdmin user", async () => {
+    const t = convexTest(schema, modules);
+    await expect(
+      t.mutation(api.debugLog.toggle, { enabled: true })
+    ).rejects.toThrow("Super admin access required");
   });
 });
 
@@ -191,13 +222,15 @@ describe("toggle", () => {
 describe("getLogs", () => {
   test("returns empty array when no logs", async () => {
     const t = convexTest(schema, modules);
-    const logs = await t.query(api.debugLog.getLogs, {});
+    const asAdmin = await createSuperAdmin(t);
+    const logs = await asAdmin.query(api.debugLog.getLogs, {});
     expect(logs).toHaveLength(0);
   });
 
   test("returns logs ordered descending by creation", async () => {
     const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
+    const asAdmin = await createSuperAdmin(t);
+    await t.run(async (ctx: any) => {
       await ctx.db.insert("debugLogs", {
         action: "a", step: "s", request: "r", response: "r",
         durationMs: 1, status: "success", createdAt: 1000,
@@ -208,7 +241,7 @@ describe("getLogs", () => {
       });
     });
 
-    const logs = await t.query(api.debugLog.getLogs, {});
+    const logs = await asAdmin.query(api.debugLog.getLogs, {});
     expect(logs).toHaveLength(2);
     expect(logs[0].action).toBe("b");
     expect(logs[1].action).toBe("a");
@@ -216,7 +249,8 @@ describe("getLogs", () => {
 
   test("respects limit parameter", async () => {
     const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
+    const asAdmin = await createSuperAdmin(t);
+    await t.run(async (ctx: any) => {
       for (let i = 0; i < 10; i++) {
         await ctx.db.insert("debugLogs", {
           action: "test", step: "s", request: "r", response: "r",
@@ -225,13 +259,14 @@ describe("getLogs", () => {
       }
     });
 
-    const logs = await t.query(api.debugLog.getLogs, { limit: 3 });
+    const logs = await asAdmin.query(api.debugLog.getLogs, { limit: 3 });
     expect(logs).toHaveLength(3);
   });
 
   test("filters by action", async () => {
     const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
+    const asAdmin = await createSuperAdmin(t);
+    await t.run(async (ctx: any) => {
       await ctx.db.insert("debugLogs", {
         action: "fetchPositions", step: "s", request: "r", response: "r",
         durationMs: 1, status: "success", createdAt: 1000,
@@ -242,9 +277,15 @@ describe("getLogs", () => {
       });
     });
 
-    const logs = await t.query(api.debugLog.getLogs, { action: "fetchPositions" });
+    const logs = await asAdmin.query(api.debugLog.getLogs, { action: "fetchPositions" });
     expect(logs).toHaveLength(1);
     expect(logs[0].action).toBe("fetchPositions");
+  });
+
+  test("returns empty array for non-superAdmin user", async () => {
+    const t = convexTest(schema, modules);
+    const logs = await t.query(api.debugLog.getLogs, {});
+    expect(logs).toHaveLength(0);
   });
 });
 
@@ -255,7 +296,8 @@ describe("getLogs", () => {
 describe("clearLogs", () => {
   test("deletes logs and returns count", async () => {
     const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
+    const asAdmin = await createSuperAdmin(t);
+    await t.run(async (ctx: any) => {
       for (let i = 0; i < 5; i++) {
         await ctx.db.insert("debugLogs", {
           action: "test", step: "s", request: "r", response: "r",
@@ -264,16 +306,24 @@ describe("clearLogs", () => {
       }
     });
 
-    const result = await t.mutation(api.debugLog.clearLogs, {});
+    const result = await asAdmin.mutation(api.debugLog.clearLogs, {});
     expect(result.deleted).toBe(5);
 
-    const remaining = await t.query(api.debugLog.getLogs, {});
+    const remaining = await asAdmin.query(api.debugLog.getLogs, {});
     expect(remaining).toHaveLength(0);
   });
 
   test("returns zero when no logs exist", async () => {
     const t = convexTest(schema, modules);
-    const result = await t.mutation(api.debugLog.clearLogs, {});
+    const asAdmin = await createSuperAdmin(t);
+    const result = await asAdmin.mutation(api.debugLog.clearLogs, {});
     expect(result.deleted).toBe(0);
+  });
+
+  test("throws for non-superAdmin user", async () => {
+    const t = convexTest(schema, modules);
+    await expect(
+      t.mutation(api.debugLog.clearLogs, {})
+    ).rejects.toThrow("Super admin access required");
   });
 });

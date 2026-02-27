@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from "recharts";
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from "recharts";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
@@ -54,8 +54,8 @@ export function ProjectPositionMonitoring({ projectId }: ProjectPositionMonitori
                                     <YAxis tick={{ fontSize: 12 }} />
                                     <Tooltip formatter={(value: any) => [value, t("columnKeywords")]} labelFormatter={(label) => BUCKET_LABELS[label] || label} />
                                     <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                                        {distribution.map((entry) => (
-                                            <Bar key={entry.bucket} dataKey="count" fill={BUCKET_COLORS[entry.bucket] || "#6b7280"} />
+                                        {distribution.map((entry, index) => (
+                                            <Cell key={index} fill={BUCKET_COLORS[entry.bucket] || "#6b7280"} />
                                         ))}
                                     </Bar>
                                 </BarChart>

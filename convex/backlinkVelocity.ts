@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { query, internalMutation, internalAction, QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 // Helper function to fetch velocity history
 async function fetchVelocityHistory(
@@ -31,6 +33,10 @@ export const getVelocityHistory = query({
     days: v.optional(v.number()), // Default: 30 days
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const days = args.days || 30;
     return fetchVelocityHistory(ctx, args.domainId, days);
   },
@@ -43,6 +49,10 @@ export const getVelocityStats = query({
     days: v.optional(v.number()), // Period to calculate stats for (default: 30)
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return null;
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const days = args.days || 30;
     const history = await fetchVelocityHistory(ctx, args.domainId, days);
 
@@ -81,6 +91,10 @@ export const detectVelocityAnomalies = query({
     days: v.optional(v.number()), // Period to analyze (default: 30)
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const days = args.days || 30;
     const history = await fetchVelocityHistory(ctx, args.domainId, days);
 

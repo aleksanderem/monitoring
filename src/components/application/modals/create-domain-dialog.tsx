@@ -14,6 +14,7 @@ import { ComboBox } from "@/components/base/select/combobox";
 import { SelectItem } from "@/components/base/select/select-item";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 
 interface CreateDomainDialogProps {
   defaultProjectId?: Id<"projects">;
@@ -23,6 +24,7 @@ interface CreateDomainDialogProps {
 export function CreateDomainDialog({ defaultProjectId, children }: CreateDomainDialogProps) {
   const t = useTranslations("domains");
   const tc = useTranslations("common");
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [domain, setDomain] = useState("");
   const [projectId, setProjectId] = useState<Id<"projects"> | "">(defaultProjectId || "");
@@ -87,7 +89,7 @@ export function CreateDomainDialog({ defaultProjectId, children }: CreateDomainD
 
     try {
       setIsSubmitting(true);
-      await createDomain({
+      const newDomainId = await createDomain({
         projectId: projectId as Id<"projects">,
         domain: stripped,
         searchEngine,
@@ -98,6 +100,7 @@ export function CreateDomainDialog({ defaultProjectId, children }: CreateDomainD
 
       toast.success(t("domainAddedSuccess"));
       setIsOpen(false);
+      router.push(`/domains/${newDomainId}`);
       setDomain("");
       setProjectId(defaultProjectId || "");
       setSearchEngine("google.com");
@@ -129,7 +132,7 @@ export function CreateDomainDialog({ defaultProjectId, children }: CreateDomainD
           <Dialog>
             <form
               onSubmit={handleSubmit}
-              className="relative w-full overflow-hidden rounded-xl bg-primary shadow-xl sm:max-w-lg"
+              className="relative w-full max-h-[85dvh] overflow-y-auto rounded-xl bg-primary shadow-xl sm:max-w-lg"
             >
               <CloseButton
                 onClick={() => setIsOpen(false)}

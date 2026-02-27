@@ -6,6 +6,22 @@ import { serpCostForDepth, extractApiCost, API_COSTS } from "./apiUsage";
 
 const modules = import.meta.glob("./**/*.ts");
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+async function createSuperAdmin(t: any) {
+  const userId = await t.run(async (ctx: any) => {
+    const uid = await ctx.db.insert("users", {
+      email: "admin@example.com",
+      emailVerificationTime: Date.now(),
+    });
+    await ctx.db.insert("superAdmins", { userId: uid, grantedAt: Date.now() });
+    return uid;
+  });
+  return t.withIdentity({ subject: userId });
+}
+
 // ===========================================================================
 // Pure function tests
 // ===========================================================================
@@ -126,6 +142,7 @@ describe("apiUsage.logApiUsage", () => {
 describe("apiUsage.getUsageSummary", () => {
   test("aggregates usage by endpoint, caller, and domain", async () => {
     const t = convexTest(schema, modules);
+    const asAdmin = await createSuperAdmin(t);
     const now = Date.now();
 
     await t.run(async (ctx: any) => {
@@ -152,7 +169,7 @@ describe("apiUsage.getUsageSummary", () => {
       });
     });
 
-    const summary = await t.query(api.apiUsage.getUsageSummary, {
+    const summary = await asAdmin.query(api.apiUsage.getUsageSummary, {
       startDate: now - 2000,
       endDate: now,
     });
@@ -171,6 +188,7 @@ describe("apiUsage.getUsageSummary", () => {
 
   test("returns zeroes for empty date range", async () => {
     const t = convexTest(schema, modules);
+    const asAdmin = await createSuperAdmin(t);
     const now = Date.now();
 
     await t.run(async (ctx: any) => {
@@ -184,7 +202,7 @@ describe("apiUsage.getUsageSummary", () => {
     });
 
     // Query a range that excludes the log
-    const summary = await t.query(api.apiUsage.getUsageSummary, {
+    const summary = await asAdmin.query(api.apiUsage.getUsageSummary, {
       startDate: now - 100000,
       endDate: now - 50000,
     });
@@ -202,6 +220,7 @@ describe("apiUsage.getUsageSummary", () => {
 describe("apiUsage.getRecentLogs", () => {
   test("returns recent logs in descending order", async () => {
     const t = convexTest(schema, modules);
+    const asAdmin = await createSuperAdmin(t);
     const now = Date.now();
 
     await t.run(async (ctx: any) => {
@@ -228,7 +247,7 @@ describe("apiUsage.getRecentLogs", () => {
       });
     });
 
-    const logs = await t.query(api.apiUsage.getRecentLogs, { limit: 2 });
+    const logs = await asAdmin.query(api.apiUsage.getRecentLogs, { limit: 2 });
     expect(logs).toHaveLength(2);
     expect(logs[0].caller).toBe("third"); // most recent first
     expect(logs[1].caller).toBe("second");
@@ -236,8 +255,9 @@ describe("apiUsage.getRecentLogs", () => {
 
   test("defaults to 100 limit", async () => {
     const t = convexTest(schema, modules);
+    const asAdmin = await createSuperAdmin(t);
 
-    const logs = await t.query(api.apiUsage.getRecentLogs, {});
+    const logs = await asAdmin.query(api.apiUsage.getRecentLogs, {});
     expect(logs).toHaveLength(0); // empty db, just verifying no error
   });
 });
@@ -249,6 +269,7 @@ describe("apiUsage.getRecentLogs", () => {
 describe("apiUsage.getUsageByDomain", () => {
   test("returns usage filtered by domain", async () => {
     const t = convexTest(schema, modules);
+    const asAdmin = await createSuperAdmin(t);
     const now = Date.now();
 
     // Set up minimal hierarchy for a domain
@@ -309,7 +330,7 @@ describe("apiUsage.getUsageByDomain", () => {
       });
     });
 
-    const usage = await t.query(api.apiUsage.getUsageByDomain, { domainId });
+    const usage = await asAdmin.query(api.apiUsage.getUsageByDomain, { domainId });
 
     expect(usage.totalCalls).toBe(2);
     expect(usage.totalTasks).toBe(4);
@@ -319,6 +340,7 @@ describe("apiUsage.getUsageByDomain", () => {
 
   test("filters by startDate", async () => {
     const t = convexTest(schema, modules);
+    const asAdmin = await createSuperAdmin(t);
     const now = Date.now();
 
     const domainId = await t.run(async (ctx: any) => {
@@ -370,7 +392,7 @@ describe("apiUsage.getUsageByDomain", () => {
       });
     });
 
-    const usage = await t.query(api.apiUsage.getUsageByDomain, {
+    const usage = await asAdmin.query(api.apiUsage.getUsageByDomain, {
       domainId,
       startDate: now - 1000,
     });
@@ -388,6 +410,7 @@ describe("apiUsage.getUsageByDomain", () => {
 describe("apiUsage.getDailyApiCostStatus", () => {
   test("returns today's cost status", async () => {
     const t = convexTest(schema, modules);
+    const asAdmin = await createSuperAdmin(t);
 
     // Insert a log entry with current timestamp
     await t.run(async (ctx: any) => {
@@ -400,7 +423,7 @@ describe("apiUsage.getDailyApiCostStatus", () => {
       });
     });
 
-    const status = await t.query(api.apiUsage.getDailyApiCostStatus, {});
+    const status = await asAdmin.query(api.apiUsage.getDailyApiCostStatus, {});
 
     expect(status.todayCost).toBeGreaterThanOrEqual(0.025);
     expect(status.defaultCap).toBe(5);

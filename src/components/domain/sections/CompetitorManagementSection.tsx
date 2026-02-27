@@ -28,6 +28,7 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [editingCompetitor, setEditingCompetitor] = useState<{ id: Id<"competitors">; name: string } | null>(null);
   const [editName, setEditName] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [selectedCompetitors, setSelectedCompetitors] = useState<Set<Id<"competitors">>>(new Set());
 
   const competitors = useQuery(api.competitors.getCompetitors, { domainId });
@@ -67,8 +68,9 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
   };
 
   const handleSaveEdit = async () => {
-    if (!editingCompetitor || !editName.trim()) return;
+    if (!editingCompetitor || !editName.trim() || isSavingEdit) return;
 
+    setIsSavingEdit(true);
     try {
       await updateCompetitor({
         competitorId: editingCompetitor.id,
@@ -79,6 +81,8 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
       setEditName("");
     } catch (error: any) {
       toast.error(error.message || t('competitorMgmtToastUpdateFailed'));
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -370,8 +374,8 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
                   <Button color="secondary" size="md" onClick={() => setEditingCompetitor(null)}>
                     {tc('cancel')}
                   </Button>
-                  <Button color="primary" size="md" onClick={handleSaveEdit}>
-                    {t('competitorMgmtSaveChanges')}
+                  <Button color="primary" size="md" onClick={handleSaveEdit} isDisabled={isSavingEdit}>
+                    {isSavingEdit ? tc('saving') : t('competitorMgmtSaveChanges')}
                   </Button>
                 </div>
               </div>

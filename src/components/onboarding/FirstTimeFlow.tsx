@@ -5,17 +5,20 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
 import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { WelcomeStep } from "./WelcomeStep";
 import { OrgSetupStep } from "./OrgSetupStep";
 import { FirstDomainStep } from "./FirstDomainStep";
+import { GscOnboardingStep } from "./GscOnboardingStep";
 
-type Step = "welcome" | "orgSetup" | "firstDomain";
+type Step = "welcome" | "orgSetup" | "firstDomain" | "gscConnect";
 
 export function FirstTimeFlow() {
   const t = useTranslations("onboarding");
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState<Step>("welcome");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createdDomainId, setCreatedDomainId] = useState<Id<"domains"> | null>(null);
 
   const userOrgs = useQuery(api.organizations.getUserOrganizations);
   const completeOnboarding = useMutation(api.onboarding.completeUserOnboarding);
@@ -24,7 +27,28 @@ export function FirstTimeFlow() {
 
   const activeOrg = userOrgs?.[0];
 
-  const stepNumber = currentStep === "welcome" ? 1 : currentStep === "orgSetup" ? 2 : 3;
+  // Resolve org -> team -> project chain for domain creation
+  const teams = useQuery(
+    api.teams.getTeams,
+    activeOrg ? { organizationId: activeOrg._id } : "skip"
+  );
+  const firstTeam = teams?.[0];
+  const projects = useQuery(
+    api.projects.getProjects,
+    firstTeam ? { teamId: firstTeam._id } : "skip"
+  );
+  const firstProject = projects?.[0];
+
+  const stepNumber =
+    currentStep === "welcome" ? 1 :
+    currentStep === "orgSetup" ? 2 :
+    currentStep === "firstDomain" ? 3 : 4;
+  const totalSteps = 4;
+
+  const handleFinish = async () => {
+    await completeOnboarding();
+    router.push(createdDomainId ? `/domains/${createdDomainId}` : "/domains");
+  };
 
   const handleSkip = async () => {
     await completeOnboarding();
@@ -42,24 +66,25 @@ export function FirstTimeFlow() {
   };
 
   const handleDomainSubmit = async (domainUrl: string) => {
-    if (!activeOrg) return;
+    if (!activeOrg || !firstProject) return;
 
     setIsSubmitting(true);
     try {
-      // Get the first team's first project, or we need the project hierarchy
-      // The auth callback creates a default team, so we look up the team -> project
-      const teams = await new Promise<any[]>((resolve) => {
-        // Teams are loaded via org, we need to find or create a project
-        resolve([]);
+      const domainId = await createDomain({
+        projectId: firstProject._id,
+        domain: domainUrl.replace(/^https?:\/\//, "").replace(/\/+$/, ""),
+        settings: {
+          refreshFrequency: "weekly",
+          searchEngine: "google",
+          location: "Poland",
+          language: "pl",
+        },
       });
 
-      // For onboarding, we create a default project if none exists.
-      // Since the org was just auto-created by auth, there may not be a project yet.
-      // We'll use the existing project creation flow or create domain via the
-      // domains page. For simplicity in the onboarding flow, we mark onboarding
-      // complete and redirect to domains page where they can add the domain.
-      await completeOnboarding();
-      router.push("/domains");
+      setCreatedDomainId(domainId);
+      setIsSubmitting(false);
+      // After domain creation, show GSC connect step
+      setCurrentStep("gscConnect");
     } catch {
       setIsSubmitting(false);
     }
@@ -70,7 +95,7 @@ export function FirstTimeFlow() {
       <div className="bg-primary rounded-2xl shadow-xl border border-primary p-8">
         {/* Step indicator */}
         <div className="text-center text-sm text-tertiary mb-6">
-          {t("stepOf", { current: stepNumber, total: 3 })}
+          {t("stepOf", { current: stepNumber, total: totalSteps })}
         </div>
 
         {currentStep === "welcome" && (
@@ -95,6 +120,14 @@ export function FirstTimeFlow() {
             onBack={() => setCurrentStep("orgSetup")}
             onSkip={handleSkip}
             isSubmitting={isSubmitting}
+          />
+        )}
+
+        {currentStep === "gscConnect" && activeOrg && (
+          <GscOnboardingStep
+            organizationId={activeOrg._id}
+            onComplete={handleFinish}
+            onSkip={handleFinish}
           />
         )}
       </div>

@@ -28,6 +28,7 @@ import { useTranslations } from "next-intl";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { BulkActionBar } from "@/components/patterns/BulkActionBar";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { formatNumber } from "@/lib/formatting";
 
 interface ContentGapOpportunitiesTableProps {
   domainId: Id<"domains">;
@@ -53,13 +54,6 @@ interface ColumnVisibility {
   status: boolean;
   priority: boolean;
   actions: boolean;
-}
-
-function formatNumber(num: number | null | undefined): string {
-  if (!num && num !== 0) return "—";
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toLocaleString();
 }
 
 function getPriorityBadgeColor(priority: string): "success" | "warning" | "gray" {

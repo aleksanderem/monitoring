@@ -108,7 +108,7 @@ export function CompetitorOverviewChart({ domainId, days = 30 }: CompetitorOverv
   });
 
   return (
-    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+    <div role="img" aria-label="Area chart comparing average keyword rankings against competitors over time" className="relative rounded-xl border border-secondary bg-primary p-6">
       <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-primary">{t('competitorOverviewTitle')}</h3>

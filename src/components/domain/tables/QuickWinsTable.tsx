@@ -27,23 +27,10 @@ import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { QuickWinDetailModal } from "../modals/QuickWinDetailModal";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { BulkActionBar } from "@/components/patterns/BulkActionBar";
+import { formatNumber, getPositionBadgeClass } from "@/lib/formatting";
 
 interface QuickWinsTableProps {
     domainId: Id<"domains">;
-}
-
-function getPositionBadgeClass(position: number): string {
-    if (position <= 3) return "bg-utility-success-50 text-utility-success-600";
-    if (position <= 10) return "bg-utility-success-25 text-utility-success-500";
-    if (position <= 20) return "bg-utility-warning-50 text-utility-warning-600";
-    return "bg-utility-gray-50 text-utility-gray-600";
-}
-
-function formatNumber(num: number | null | undefined): string {
-    if (num === null || num === undefined) return "—";
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
 }
 
 const INTENT_BADGES: Record<string, { bg: string; text: string; label: string }> = {

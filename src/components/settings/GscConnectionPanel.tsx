@@ -1,8 +1,13 @@
 "use client";
-import { useQuery, useMutation } from "convex/react";
+import { useState, useEffect, useCallback } from "react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useTranslations } from "next-intl";
+import { Globe01 } from "@untitledui/icons";
+import { Button } from "@/components/base/buttons/button";
+import { Badge } from "@/components/base/badges/badges";
+import { GoogleIcon } from "@/components/shared/GoogleIcon";
 
 interface GscConnectionPanelProps {
   organizationId: Id<"organizations">;
@@ -13,55 +18,153 @@ export function GscConnectionPanel({ organizationId }: GscConnectionPanelProps) 
   const connection = useQuery(api.gsc.getGscConnection, { organizationId });
   const initiate = useMutation(api.gsc.initiateGscConnection);
   const disconnect = useMutation(api.gsc.disconnectGsc);
+  const exchangeCode = useAction(api.actions.gscSync.exchangeGscCode);
+  const triggerSync = useAction(api.actions.gscSync.triggerGscSync);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  // Listen for OAuth callback from popup window
+  const handleMessage = useCallback(
+    async (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== "gsc-callback") return;
+
+      const { code, state } = event.data;
+      if (!code || !state) return;
+
+      setIsConnecting(true);
+      try {
+        const stateData = JSON.parse(atob(state));
+        const redirectUri = `${window.location.origin}/auth/gsc-callback`;
+
+        await exchangeCode({
+          organizationId: stateData.organizationId,
+          code,
+          redirectUri,
+        });
+      } catch (err) {
+        console.error("GSC exchange failed:", err);
+      } finally {
+        setIsConnecting(false);
+      }
+    },
+    [exchangeCode]
+  );
+
+  useEffect(() => {
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [handleMessage]);
 
   // Loading state
   if (connection === undefined) {
-    return <div className="animate-pulse h-32 bg-gray-100 dark:bg-gray-800 rounded-lg" />;
+    return <div className="animate-pulse h-32 rounded-lg bg-primary" />;
   }
 
   // Not connected
   if (!connection) {
     return (
-      <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold mb-2">{t("gscTitle")}</h3>
-        <p className="text-sm text-gray-500 mb-4">{t("gscDescription")}</p>
-        <button
+      <div className="rounded-lg border border-secondary p-5">
+        <div className="mb-1 flex items-center gap-2">
+          <GoogleIcon />
+          <h3 className="font-medium text-primary">{t("gscTitle")}</h3>
+        </div>
+        <p className="mb-3 text-sm text-tertiary">{t("gscDescription")}</p>
+        <Button
+          size="sm"
           onClick={async () => {
             const result = await initiate({ organizationId });
             if (result?.authUrl) {
-              window.open(result.authUrl, "_blank", "width=600,height=700");
+              const popup = window.open(result.authUrl, "gsc-auth", "width=600,height=700");
+              if (!popup) {
+                window.location.href = result.authUrl;
+              }
             }
           }}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          disabled={isConnecting}
         >
-          {t("gscConnect")}
-        </button>
+          {isConnecting ? t("gscConnecting") : t("gscConnect")}
+        </Button>
       </div>
     );
   }
 
   // Connected
   return (
-    <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">{t("gscTitle")}</h3>
-        <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+    <div className="rounded-lg border border-secondary p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <GoogleIcon />
+          <h3 className="font-medium text-primary">{t("gscTitle")}</h3>
+        </div>
+        <Badge color="success" size="sm">
           {t("gscConnected")}
-        </span>
+        </Badge>
       </div>
-      <p className="text-sm text-gray-500 mb-2">{connection.googleEmail}</p>
+
+      <p className="text-sm text-tertiary">{connection.googleEmail}</p>
       {connection.lastSyncAt && (
-        <p className="text-xs text-gray-400 mb-4">
+        <p className="mt-1 text-xs text-quaternary">
           {t("gscLastSync")}: {new Date(connection.lastSyncAt).toLocaleString()}
         </p>
       )}
 
-      <button
-        onClick={() => disconnect({ organizationId })}
-        className="px-4 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
-      >
-        {t("gscDisconnect")}
-      </button>
+      {/* Properties list */}
+      {connection.properties && connection.properties.length > 0 && (
+        <div className="mt-4 divide-y divide-secondary rounded-lg border border-secondary">
+          {connection.properties.map((prop) => {
+            const isDomain = prop.url.startsWith("sc-domain:");
+            const displayUrl = isDomain ? prop.url.replace("sc-domain:", "") : prop.url;
+
+            return (
+              <div key={prop.url} className="flex items-center gap-3 px-4 py-3">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-secondary bg-secondary">
+                  <Globe01 className="size-4 text-tertiary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-primary">{displayUrl}</p>
+                </div>
+                <Badge color={isDomain ? "blue" : "gray"} size="sm">
+                  {isDomain ? "Domain" : "URL prefix"}
+                </Badge>
+                <Badge color={prop.type === "siteOwner" ? "success" : "warning"} size="sm">
+                  {prop.type === "siteOwner" ? "Owner" : "Unverified"}
+                </Badge>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-4 flex gap-2">
+        <Button
+          size="sm"
+          color="secondary"
+          onClick={async () => {
+            setIsSyncing(true);
+            try {
+              await triggerSync({ organizationId });
+            } catch (err) {
+              console.error("GSC sync failed:", err);
+            } finally {
+              setIsSyncing(false);
+            }
+          }}
+          disabled={isSyncing}
+        >
+          {isSyncing ? t("gscSyncing") : t("gscSyncNow")}
+        </Button>
+        <Button
+          size="sm"
+          color="secondary-destructive"
+          onClick={() => disconnect({ organizationId })}
+        >
+          {t("gscDisconnect")}
+        </Button>
+      </div>
+      <p className="mt-2 text-xs text-quaternary">
+        {t("gscHistoricalNote")}
+      </p>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-ic
 import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
 import { AlertFloating } from "@/components/application/alerts/alerts";
 import { Heading as AriaHeading } from "react-aria-components";
+import { formatNumber } from "@/lib/formatting";
 
 interface KeywordItem {
     phrase: string;
@@ -38,12 +39,6 @@ interface TopicClusterDetailModalProps {
     isOpen?: boolean;
 }
 
-function formatNumber(num: number | null | undefined): string {
-    if (num == null) return "—";
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toLocaleString();
-}
 
 function getDifficultyColor(d: number): string {
     if (d < 30) return "text-utility-success-600";

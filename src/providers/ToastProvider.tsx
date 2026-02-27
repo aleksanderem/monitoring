@@ -9,7 +9,7 @@ export function ToastProvider() {
       expand={false}
       richColors
       closeButton
-      duration={4000}
+      duration={3000}
     />
   );
 }

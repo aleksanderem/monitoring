@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import type { Id } from "../../../../../convex/_generated/dataModel";
-import { ArrowLeft, BarChart03, Hash01, Link03, Activity, Settings01 } from "@untitledui/icons";
+import { ArrowLeft, BarChart03, Hash01, Link03, Settings01 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { toast } from "sonner";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
@@ -96,7 +96,6 @@ export default function ProjectDetailPage() {
         { id: "overview", label: t("tabOverview"), icon: BarChart03 },
         { id: "keywords", label: t("tabKeywords"), icon: Hash01 },
         { id: "backlinks", label: t("tabBacklinks"), icon: Link03 },
-        { id: "monitoring", label: t("tabMonitoring"), icon: Activity },
         { id: "settings", label: t("tabSettings"), icon: Settings01 },
     ];
     const params = useParams();
@@ -158,11 +157,6 @@ export default function ProjectDetailPage() {
                 {/* Backlinks Tab */}
                 <TabPanel id="backlinks">
                     <ProjectBacklinksOverview projectId={projectId} />
-                </TabPanel>
-
-                {/* Monitoring Tab */}
-                <TabPanel id="monitoring">
-                    <ProjectPositionMonitoring projectId={projectId} />
                 </TabPanel>
 
                 {/* Settings Tab */}

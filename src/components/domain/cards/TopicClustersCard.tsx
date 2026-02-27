@@ -21,6 +21,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { TopicClusterDetailModal } from "../modals/TopicClusterDetailModal";
+import { formatNumber } from "@/lib/formatting";
 
 interface TopicClustersCardProps {
     domainId: Id<"domains">;
@@ -44,13 +45,6 @@ const COLUMN_LABEL_KEYS: Record<keyof ColumnVisibility, string> = {
     avgDifficulty: "columnAvgDifficulty",
     estTraffic: "columnEstTraffic",
 };
-
-function formatNumber(num: number | null | undefined): string {
-    if (num == null) return "—";
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toLocaleString();
-}
 
 function getDifficultyBadge(d: number): { color: "success" | "warning" | "orange" | "error"; labelKey: string } {
     if (d < 30) return { color: "success", labelKey: "difficultyLabelEasy" };

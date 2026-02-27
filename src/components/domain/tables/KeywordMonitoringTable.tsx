@@ -48,6 +48,7 @@ import { LimitReachedModal } from "../modals/LimitReachedModal";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { exportToCsv } from "@/utils/exportCsv";
 import { SERPFeaturesBadges } from "./SERPFeaturesBadges";
+import { formatNumber, getPositionBadgeClass } from "@/lib/formatting";
 
 interface KeywordMonitoringTableProps {
   domainId: Id<"domains">;
@@ -61,6 +62,10 @@ interface ColumnVisibility {
   position: boolean;
   previous: boolean;
   change: boolean;
+  gscClicks: boolean;
+  gscImpressions: boolean;
+  gscCtr: boolean;
+  gscPosition: boolean;
   volume: boolean;
   difficulty: boolean;
   cpc: boolean;
@@ -69,22 +74,6 @@ interface ColumnVisibility {
   intent: boolean;
   serp: boolean;
   actions: boolean;
-}
-
-function getPositionBadgeClass(position: number | null): string {
-  if (!position) return "bg-utility-gray-50 text-utility-gray-600";
-  if (position <= 3) return "bg-utility-success-50 text-utility-success-600";
-  if (position <= 10) return "bg-utility-success-25 text-utility-success-500";
-  if (position <= 20) return "bg-utility-warning-50 text-utility-warning-600";
-  if (position <= 50) return "bg-utility-gray-50 text-utility-gray-600";
-  return "bg-utility-gray-25 text-utility-gray-500";
-}
-
-function formatNumber(num: number | null | undefined): string {
-  if (num === null || num === undefined) return "—";
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toString();
 }
 
 export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps) {
@@ -122,6 +111,10 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
       position: true,
       previous: true,
       change: true,
+      gscClicks: true,
+      gscImpressions: true,
+      gscCtr: false,
+      gscPosition: false,
       volume: true,
       difficulty: true,
       cpc: true,
@@ -203,6 +196,26 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
 
   const toggleColumn = (column: keyof ColumnVisibility) => {
     setColumnVisibility((prev) => ({ ...prev, [column]: !prev[column] }));
+  };
+
+  // Column picker labels (use i18n keys where available, fall back to key name)
+  const columnLabels: Record<keyof ColumnVisibility, string> = {
+    keyword: t('columnKeyword'),
+    position: t('columnPosition'),
+    previous: t('columnPrevious'),
+    change: t('columnChange'),
+    gscClicks: t('columnGscClicks'),
+    gscImpressions: t('columnGscImpressions'),
+    gscCtr: t('columnGscCtr'),
+    gscPosition: t('columnGscPosition'),
+    volume: t('columnVolume'),
+    difficulty: t('columnDifficulty'),
+    cpc: t('columnCpc'),
+    etv: t('columnEtv'),
+    competition: t('columnCompetition'),
+    intent: t('columnIntent'),
+    serp: "SERP",
+    actions: tc('actions'),
   };
 
   const toggleRowExpansion = (keywordId: string) => {
@@ -408,7 +421,7 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                           onChange={() => toggleColumn(key as keyof ColumnVisibility)}
                           className="h-4 w-4 rounded border-gray-300"
                         />
-                        <span className="text-primary capitalize">{key}</span>
+                        <span className="text-primary">{columnLabels[key as keyof ColumnVisibility] || key}</span>
                       </label>
                     ))}
                   </div>
@@ -474,12 +487,16 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                           toast.error("No keywords to export");
                           return;
                         }
-                        const headers = ["Keyword", "Position", "Previous Position", "Change", "Search Volume", "Difficulty", "CPC", "URL", "Status"];
+                        const headers = ["Keyword", "Position", "Previous Position", "Change", "GSC Clicks", "GSC Impressions", "GSC CTR", "GSC Position", "Search Volume", "Difficulty", "CPC", "URL", "Status"];
                         const rows = keywords.map((kw: any) => [
                           kw.phrase,
                           kw.currentPosition,
                           kw.previousPosition,
                           kw.change,
+                          kw.gscClicks,
+                          kw.gscImpressions,
+                          kw.gscCtr !== null && kw.gscCtr !== undefined ? (kw.gscCtr * 100).toFixed(2) + "%" : "",
+                          kw.gscPosition !== null && kw.gscPosition !== undefined ? kw.gscPosition.toFixed(1) : "",
                           kw.searchVolume,
                           kw.difficulty,
                           kw.latestCpc,
@@ -696,6 +713,26 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                     {t('columnChange')}
                   </th>
                 )}
+                {columnVisibility.gscClicks && (
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-medium text-tertiary">
+                    {t('columnGscClicks')}
+                  </th>
+                )}
+                {columnVisibility.gscImpressions && (
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-medium text-tertiary">
+                    {t('columnGscImpressions')}
+                  </th>
+                )}
+                {columnVisibility.gscCtr && (
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-medium text-tertiary">
+                    {t('columnGscCtr')}
+                  </th>
+                )}
+                {columnVisibility.gscPosition && (
+                  <th className="whitespace-nowrap px-4 py-3 text-center text-xs font-medium text-tertiary">
+                    {t('columnGscPosition')}
+                  </th>
+                )}
                 {columnVisibility.volume && (
                   <th
                     className="cursor-pointer px-4 py-3 text-right text-xs font-medium text-tertiary transition-colors hover:bg-secondary/70"
@@ -800,13 +837,25 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                           {isRefreshing ? (
                             <RefreshCw01 className="h-4 w-4 animate-spin text-brand-600 inline-block" />
                           ) : keyword.currentPosition ? (
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPositionBadgeClass(
-                                keyword.currentPosition
-                              )}`}
-                            >
-                              {keyword.currentPosition}
-                            </span>
+                            <div className="inline-flex flex-col items-center gap-0.5">
+                              <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPositionBadgeClass(
+                                  keyword.currentPosition
+                                )}`}
+                              >
+                                {keyword.currentPosition}
+                              </span>
+                              {keyword.positionSource === "gsc" ? (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-utility-success-600" title="Real data from Google Search Console">
+                                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-utility-success-500" />
+                                  GSC
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-quaternary" title="Estimated from DataForSEO">
+                                  est.
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-xs text-tertiary">—</span>
                           )}
@@ -834,6 +883,38 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                               }`}
                             >
                               {keyword.change > 0 ? "↑" : "↓"} {Math.abs(keyword.change)}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-tertiary">—</span>
+                          )}
+                        </td>
+                      )}
+                      {columnVisibility.gscClicks && (
+                        <td className="px-4 py-3 text-right text-sm text-primary">
+                          {keyword.gscClicks !== null && keyword.gscClicks !== undefined
+                            ? formatNumber(keyword.gscClicks)
+                            : <span className="text-xs text-tertiary">—</span>}
+                        </td>
+                      )}
+                      {columnVisibility.gscImpressions && (
+                        <td className="px-4 py-3 text-right text-sm text-primary">
+                          {keyword.gscImpressions !== null && keyword.gscImpressions !== undefined
+                            ? formatNumber(keyword.gscImpressions)
+                            : <span className="text-xs text-tertiary">—</span>}
+                        </td>
+                      )}
+                      {columnVisibility.gscCtr && (
+                        <td className="px-4 py-3 text-right text-sm text-primary">
+                          {keyword.gscCtr !== null && keyword.gscCtr !== undefined
+                            ? `${(keyword.gscCtr * 100).toFixed(1)}%`
+                            : <span className="text-xs text-tertiary">—</span>}
+                        </td>
+                      )}
+                      {columnVisibility.gscPosition && (
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                          {keyword.gscPosition !== null && keyword.gscPosition !== undefined ? (
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPositionBadgeClass(Math.round(keyword.gscPosition))}`}>
+                              {keyword.gscPosition.toFixed(1)}
                             </span>
                           ) : (
                             <span className="text-xs text-tertiary">—</span>

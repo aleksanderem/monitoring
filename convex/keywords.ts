@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, mutation, query, internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 import { auth } from "./auth";
 import { checkKeywordLimit, checkRefreshLimits } from "./limits";
 import { requirePermission, requireTenantAccess, getContextFromDomain, getContextFromKeyword } from "./permissions";
@@ -408,6 +409,38 @@ export const getKeywordMonitoring = query({
       discoveredMap.set(dk.keyword, dk);
     }
 
+    // Batch: fetch GSC keyword metrics (last 28 days), aggregate per keyword
+    const gscStart = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+    const gscMetrics = await ctx.db
+      .query("gscKeywordMetrics")
+      .withIndex("by_domain_date", (q) =>
+        q.eq("domainId", args.domainId).gte("date", gscStart)
+      )
+      .collect();
+    const gscMap = new Map<
+      string,
+      { clicks: number; impressions: number; positionSum: number; count: number }
+    >();
+    for (const m of gscMetrics) {
+      const key = m.keyword.toLowerCase();
+      const existing = gscMap.get(key);
+      if (existing) {
+        existing.clicks += m.clicks;
+        existing.impressions += m.impressions;
+        existing.positionSum += m.position * m.impressions;
+        existing.count += 1;
+      } else {
+        gscMap.set(key, {
+          clicks: m.clicks,
+          impressions: m.impressions,
+          positionSum: m.position * m.impressions,
+          count: 1,
+        });
+      }
+    }
+
     return keywords.map((keyword) => {
       const discovered = discoveredMap.get(keyword.phrase) ?? null;
 
@@ -490,6 +523,19 @@ export const getKeywordMonitoring = query({
         isUp: discovered?.isUp || null,
         isDown: discovered?.isDown || null,
         proposedBy: keyword.proposedBy || null,
+        positionSource: keyword.positionSource ?? ("d4s" as const),
+
+        // GSC real search data (aggregated last 28 days)
+        ...(() => {
+          const g = gscMap.get(keyword.phrase.toLowerCase());
+          if (!g) return { gscClicks: null, gscImpressions: null, gscCtr: null, gscPosition: null };
+          return {
+            gscClicks: g.clicks,
+            gscImpressions: g.impressions,
+            gscCtr: g.impressions > 0 ? g.clicks / g.impressions : null,
+            gscPosition: g.impressions > 0 ? g.positionSum / g.impressions : null,
+          };
+        })(),
       };
     });
   },
@@ -735,12 +781,20 @@ export const addKeyword = mutation({
       throw new Error("Keyword already exists");
     }
 
-    return await ctx.db.insert("keywords", {
+    const keywordId = await ctx.db.insert("keywords", {
       domainId: args.domainId,
       phrase: normalized,
       status: "active",
       createdAt: Date.now(),
     });
+
+    // Increment denormalized keyword count on domain
+    const domain = await ctx.db.get(args.domainId);
+    if (domain) {
+      await ctx.db.patch(args.domainId, { keywordCount: (domain.keywordCount ?? 0) + 1 });
+    }
+
+    return keywordId;
   },
 });
 
@@ -816,6 +870,47 @@ export const addKeywords = mutation({
       results.push(id);
     }
 
+    // Increment denormalized keyword count on domain
+    if (results.length > 0) {
+      const domain = await ctx.db.get(args.domainId);
+      if (domain) {
+        await ctx.db.patch(args.domainId, { keywordCount: (domain.keywordCount ?? 0) + results.length });
+
+        // Pre-populate GSC data for newly added keywords when GSC is primary.
+        // Looks up existing gscKeywordMetrics (from previous syncs) so the user
+        // sees real data immediately instead of waiting for the next scheduled sync.
+        if (domain.gscPrimary === true) {
+          for (let i = 0; i < uniquePhrases.length; i++) {
+            const phrase = uniquePhrases[i];
+            const keywordId = results[i];
+            // Find most recent GSC metric for this phrase
+            const gscRows = await ctx.db
+              .query("gscKeywordMetrics")
+              .withIndex("by_domain_keyword", (q) =>
+                q.eq("domainId", args.domainId).eq("keyword", phrase)
+              )
+              .collect();
+            if (gscRows.length === 0) continue;
+
+            // Pick the most recent date
+            const latest = gscRows.sort((a, b) => b.date.localeCompare(a.date))[0];
+            const gscPosition = Math.round(latest.position * 10) / 10;
+
+            await ctx.db.patch(keywordId, {
+              currentPosition: gscPosition,
+              positionSource: "gsc" as const,
+              gscClicks: latest.clicks,
+              gscImpressions: latest.impressions,
+              gscCtr: latest.ctr,
+              gscUrl: latest.url,
+              positionUpdatedAt: Date.now(),
+              recentPositions: [{ date: latest.date, position: gscPosition }],
+            });
+          }
+        }
+      }
+    }
+
     return results;
   },
 });
@@ -888,6 +983,12 @@ export const deleteKeyword = mutation({
     }
 
     await ctx.db.delete(args.keywordId);
+
+    // Decrement denormalized keyword count on domain
+    const domain = await ctx.db.get(keyword.domainId);
+    if (domain) {
+      await ctx.db.patch(keyword.domainId, { keywordCount: Math.max(0, (domain.keywordCount ?? 0) - 1) });
+    }
   },
 });
 
@@ -908,7 +1009,12 @@ export const deleteKeywords = mutation({
       }
     }
 
+    const deletedPerDomain = new Map<string, number>();
+
     for (const keywordId of args.keywordIds) {
+      const keyword = await ctx.db.get(keywordId);
+      if (!keyword) continue;
+
       // Check permission for each keyword
       const context = await getContextFromKeyword(ctx, keywordId);
       if (!context) {
@@ -927,6 +1033,18 @@ export const deleteKeywords = mutation({
       }
 
       await ctx.db.delete(keywordId);
+      deletedPerDomain.set(
+        keyword.domainId as string,
+        (deletedPerDomain.get(keyword.domainId as string) ?? 0) + 1
+      );
+    }
+
+    // Decrement denormalized keyword counts per domain
+    for (const [domainId, count] of deletedPerDomain) {
+      const domain = await ctx.db.get(domainId as Id<"domains">);
+      if (domain) {
+        await ctx.db.patch(domainId as Id<"domains">, { keywordCount: Math.max(0, (domain.keywordCount ?? 0) - count) });
+      }
     }
   },
 });
@@ -985,39 +1103,139 @@ export const storePosition = mutation({
     // Denormalize: update keyword record with current position data
     const keyword = await ctx.db.get(args.keywordId);
     if (keyword) {
-      const oldPosition = keyword.currentPosition;
-      const recentPositions = keyword.recentPositions ?? [];
+      // GSC guard: when GSC owns the effective position, D4S only updates supplementary fields
+      // (searchVolume, difficulty, cpc) — it does NOT overwrite position/recentPositions.
+      if (keyword.positionSource === "gsc") {
+        await ctx.db.patch(args.keywordId, {
+          searchVolume: args.searchVolume,
+          difficulty: args.difficulty,
+          latestCpc: args.cpc,
+        });
+      } else {
+        const oldPosition = keyword.currentPosition;
+        const recentPositions = keyword.recentPositions ?? [];
 
-      // Update recentPositions: add/replace entry for this date, keep last 7 by date
-      const filtered = recentPositions.filter((p) => p.date !== args.date);
-      filtered.push({ date: args.date, position: args.position });
-      filtered.sort((a, b) => a.date.localeCompare(b.date));
-      const trimmed = filtered.slice(-7);
+        // Update recentPositions: add/replace entry for this date, keep last 7 by date
+        const filtered = recentPositions.filter((p) => p.date !== args.date);
+        filtered.push({ date: args.date, position: args.position });
+        filtered.sort((a, b) => a.date.localeCompare(b.date));
+        const trimmed = filtered.slice(-7);
 
-      // Determine current and previous from the sorted recent list
-      const latestEntry = trimmed[trimmed.length - 1];
-      const prevEntry = trimmed.length >= 2 ? trimmed[trimmed.length - 2] : null;
+        // Determine current and previous from the sorted recent list
+        const latestEntry = trimmed[trimmed.length - 1];
+        const prevEntry = trimmed.length >= 2 ? trimmed[trimmed.length - 2] : null;
 
-      const currentPos = latestEntry?.position ?? null;
-      const previousPos = prevEntry?.position ?? oldPosition ?? null;
-      const change = (currentPos != null && previousPos != null)
-        ? previousPos - currentPos
-        : null;
+        const currentPos = latestEntry?.position ?? null;
+        const previousPos = prevEntry?.position ?? oldPosition ?? null;
+        const change = (currentPos != null && previousPos != null)
+          ? previousPos - currentPos
+          : null;
 
-      await ctx.db.patch(args.keywordId, {
-        currentPosition: currentPos,
-        previousPosition: previousPos,
-        positionChange: change,
-        currentUrl: args.url,
-        searchVolume: args.searchVolume,
-        difficulty: args.difficulty,
-        latestCpc: args.cpc,
-        positionUpdatedAt: Date.now(),
-        recentPositions: trimmed,
-      });
+        await ctx.db.patch(args.keywordId, {
+          currentPosition: currentPos,
+          previousPosition: previousPos,
+          positionChange: change,
+          currentUrl: args.url,
+          positionSource: "d4s" as const,
+          searchVolume: args.searchVolume,
+          difficulty: args.difficulty,
+          latestCpc: args.cpc,
+          positionUpdatedAt: Date.now(),
+          recentPositions: trimmed,
+        });
+      }
     }
 
     return positionId;
+  },
+});
+
+// Denormalize GSC metrics onto tracked keywords after a GSC sync.
+// For each GSC keyword metric, finds matching tracked keyword by phrase (case-insensitive).
+// When gscPrimary is true on the domain, writes GSC position to effective fields
+// (currentPosition, previousPosition, positionChange, currentUrl) so all consumers
+// automatically get real GSC data. Always writes gscClicks/gscImpressions/gscCtr/gscUrl.
+export const storeGscPositionDenormalized = internalMutation({
+  args: {
+    domainId: v.id("domains"),
+    metrics: v.array(
+      v.object({
+        keyword: v.string(),
+        clicks: v.number(),
+        impressions: v.number(),
+        ctr: v.number(),
+        position: v.number(),
+        url: v.optional(v.string()),
+        date: v.string(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const domain = await ctx.db.get(args.domainId);
+    if (!domain) return;
+
+    const isGscPrimary = domain.gscPrimary === true;
+
+    // Load all keywords for this domain and build a case-insensitive lookup map
+    const keywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+
+    const keywordsByPhrase = new Map<string, typeof keywords[number]>();
+    for (const kw of keywords) {
+      keywordsByPhrase.set(kw.phrase.toLowerCase(), kw);
+    }
+
+    let updated = 0;
+    for (const metric of args.metrics) {
+      const kw = keywordsByPhrase.get(metric.keyword.toLowerCase());
+      if (!kw) continue;
+
+      // Always write GSC supplementary fields
+      const patch: Record<string, any> = {
+        gscClicks: metric.clicks,
+        gscImpressions: metric.impressions,
+        gscCtr: metric.ctr,
+        gscUrl: metric.url,
+      };
+
+      // When GSC is primary, also write to effective position fields
+      if (isGscPrimary) {
+        const gscPosition = Math.round(metric.position * 10) / 10; // 1 decimal
+        const oldPosition = kw.currentPosition;
+        const recentPositions = kw.recentPositions ?? [];
+
+        // Update recentPositions: add/replace entry for this date, keep last 7 by date
+        const filtered = recentPositions.filter((p) => p.date !== metric.date);
+        filtered.push({ date: metric.date, position: gscPosition });
+        filtered.sort((a, b) => a.date.localeCompare(b.date));
+        const trimmed = filtered.slice(-7);
+
+        // Determine current and previous from the sorted recent list
+        const latestEntry = trimmed[trimmed.length - 1];
+        const prevEntry = trimmed.length >= 2 ? trimmed[trimmed.length - 2] : null;
+
+        const currentPos = latestEntry?.position ?? null;
+        const previousPos = prevEntry?.position ?? oldPosition ?? null;
+        const change = (currentPos != null && previousPos != null)
+          ? previousPos - currentPos
+          : null;
+
+        patch.currentPosition = currentPos;
+        patch.previousPosition = previousPos;
+        patch.positionChange = change;
+        patch.currentUrl = metric.url ?? kw.currentUrl;
+        patch.positionSource = "gsc" as const;
+        patch.positionUpdatedAt = Date.now();
+        patch.recentPositions = trimmed;
+      }
+
+      await ctx.db.patch(kw._id, patch);
+      updated++;
+    }
+
+    return { updated, total: args.metrics.length };
   },
 });
 
@@ -1297,6 +1515,7 @@ export const importKeywords = mutation({
     }
 
     // Insert keywords
+    let insertedCount = 0;
     for (const kw of toImport) {
       try {
         await ctx.db.insert("keywords", {
@@ -1306,11 +1525,20 @@ export const importKeywords = mutation({
           createdAt: Date.now(),
         });
         results.imported.push(kw.phrase);
+        insertedCount++;
       } catch (error) {
         results.errors.push({
           phrase: kw.phrase,
           error: error instanceof Error ? error.message : "Unknown error",
         });
+      }
+    }
+
+    // Increment denormalized keyword count on domain
+    if (insertedCount > 0) {
+      const domain = await ctx.db.get(args.domainId);
+      if (domain) {
+        await ctx.db.patch(args.domainId, { keywordCount: (domain.keywordCount ?? 0) + insertedCount });
       }
     }
 
@@ -1439,6 +1667,36 @@ export const createKeywordInternal = internalMutation({
       searchVolume: args.searchVolume,
       difficulty: args.difficulty,
     });
+
+    // Increment denormalized keyword count on domain
+    const domain = await ctx.db.get(args.domainId);
+    if (domain) {
+      await ctx.db.patch(args.domainId, { keywordCount: (domain.keywordCount ?? 0) + 1 });
+
+      // Pre-populate GSC data when GSC is primary
+      if (domain.gscPrimary === true) {
+        const gscRows = await ctx.db
+          .query("gscKeywordMetrics")
+          .withIndex("by_domain_keyword", (q) =>
+            q.eq("domainId", args.domainId).eq("keyword", args.phrase)
+          )
+          .collect();
+        if (gscRows.length > 0) {
+          const latest = gscRows.sort((a, b) => b.date.localeCompare(a.date))[0];
+          const gscPosition = Math.round(latest.position * 10) / 10;
+          await ctx.db.patch(keywordId, {
+            currentPosition: gscPosition,
+            positionSource: "gsc" as const,
+            gscClicks: latest.clicks,
+            gscImpressions: latest.impressions,
+            gscCtr: latest.ctr,
+            gscUrl: latest.url,
+            positionUpdatedAt: Date.now(),
+            recentPositions: [{ date: latest.date, position: gscPosition }],
+          });
+        }
+      }
+    }
 
     return keywordId;
   },
@@ -1918,6 +2176,7 @@ export const bulkDeleteKeywords = mutation({
     if (!context) throw new Error("Domain not found");
     await requirePermission(ctx, "keywords.remove", context);
 
+    let deletedCount = 0;
     for (const id of args.keywordIds) {
       // Delete position history
       const positions = await ctx.db
@@ -1934,6 +2193,15 @@ export const bulkDeleteKeywords = mutation({
       for (const m of memberships) await ctx.db.delete(m._id);
 
       await ctx.db.delete(id);
+      deletedCount++;
+    }
+
+    // Decrement denormalized keyword count on domain
+    if (deletedCount > 0) {
+      const domain = await ctx.db.get(args.domainId);
+      if (domain) {
+        await ctx.db.patch(args.domainId, { keywordCount: Math.max(0, (domain.keywordCount ?? 0) - deletedCount) });
+      }
     }
 
     return args.keywordIds.length;

@@ -19,6 +19,14 @@ export const generateBusinessContext = action({
     targetCustomer: string;
     scraped: boolean;
   }> => {
+    // Auth: verify caller has access to this domain
+    const domainAccess = await ctx.runQuery(internal.lib.analyticsHelpers.verifyDomainAccess, {
+      domainId: args.domainId,
+    });
+    if (!domainAccess) {
+      throw new Error("Not authorized");
+    }
+
     // 1. Get domain info
     const domain = await ctx.runQuery(internal.domains.getDomainInternal, {
       domainId: args.domainId,

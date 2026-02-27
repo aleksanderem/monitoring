@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, query } from "./_generated/server";
+import { isSuperAdmin } from "./admin";
 
 // Fallback cost constants per task (used only when API response lacks cost field)
 // Based on DataForSEO pricing as of 2026-02:
@@ -74,6 +75,8 @@ export const getUsageSummary = query({
     endDate: v.number(),   // timestamp
   },
   handler: async (ctx, args) => {
+    if (!(await isSuperAdmin(ctx))) return null;
+
     const logs = await ctx.db
       .query("apiUsageLog")
       .withIndex("by_date", (q) =>
@@ -138,6 +141,8 @@ export const getRecentLogs = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    if (!(await isSuperAdmin(ctx))) return [];
+
     const limit = args.limit || 100;
     const logs = await ctx.db
       .query("apiUsageLog")
@@ -156,6 +161,8 @@ export const getUsageByDomain = query({
     startDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    if (!(await isSuperAdmin(ctx))) return null;
+
     let q = ctx.db
       .query("apiUsageLog")
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId));
@@ -254,6 +261,8 @@ export const checkDailyCostCap = internalQuery({
 export const getDailyApiCostStatus = query({
   args: {},
   handler: async (ctx) => {
+    if (!(await isSuperAdmin(ctx))) return null;
+
     const todayStart = getTodayStartUtc();
     const logs = await ctx.db
       .query("apiUsageLog")

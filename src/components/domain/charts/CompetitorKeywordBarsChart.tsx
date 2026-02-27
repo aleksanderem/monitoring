@@ -69,7 +69,7 @@ export function CompetitorKeywordBarsChart({
   }));
 
   return (
-    <div className="relative rounded-xl border border-secondary bg-primary p-6">
+    <div role="img" aria-label="Table comparing keyword position rankings across your domain and competitors" className="relative rounded-xl border border-secondary bg-primary p-6">
       <GlowingEffect spread={40} glow proximity={64} inactiveZone={0.01} disabled={false} />
       <div className="mb-5">
         <h3 className="text-lg font-semibold text-primary">

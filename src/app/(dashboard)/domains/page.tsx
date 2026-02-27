@@ -182,7 +182,7 @@ export default function DomainsPage() {
                 <p className="text-xl font-semibold text-primary lg:text-display-xs">
                   {t('domains')}
                 </p>
-                <p className="text-md text-tertiary">
+                <p className="text-md text-tertiary break-words">
                   {t('domainsDescription')}
                 </p>
               </div>
@@ -204,7 +204,7 @@ export default function DomainsPage() {
         <TableCard.Root>
           <TableCard.Header
             title={t('allDomains')}
-            badge={`${domains.length} ${domains.length !== 1 ? t('domainsPlural') : t('domainSingular')}`}
+            badge={`${filteredItems.length} ${filteredItems.length !== 1 ? t('domainsPlural') : t('domainSingular')}`}
           />
 
           {/* Filters section - inside TableCard */}
@@ -313,11 +313,11 @@ export default function DomainsPage() {
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                         <Globe01 className="h-5 w-5" />
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-primary">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-primary break-words">
                           {item.domain}
                         </p>
-                        <p className="text-sm text-tertiary">
+                        <p className="text-sm text-tertiary break-words">
                           {getCountryFlag(item.settings.location)} {item.settings.location} · {getLanguageFlag(item.settings.language)} {item.settings.language} · {item.settings.searchEngine}
                         </p>
                       </div>
@@ -339,6 +339,7 @@ export default function DomainsPage() {
                             key={tag}
                             size="sm"
                             color="gray"
+                            className="truncate max-w-[120px]"
                           >
                             {tag}
                           </Badge>
@@ -385,7 +386,7 @@ export default function DomainsPage() {
                           icon={Edit05}
                           onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
-                            toast.info(t('editDialogComingSoon'));
+                            router.push(`/domains/${item._id}?tab=settings`);
                           }}
                         />
                       </PermissionGate>

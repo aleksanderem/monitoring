@@ -117,7 +117,8 @@ describe("getMessages", () => {
       });
     });
 
-    const messages = await t.query(api.messages.getMessages, { reportId });
+    const asUser = t.withIdentity({ subject: userId });
+    const messages = await asUser.query(api.messages.getMessages, { reportId });
     expect(messages).toHaveLength(2);
     expect(messages[0].content).toBe("Hello from team");
     expect(messages[1].content).toBe("Follow up");
@@ -194,9 +195,13 @@ describe("getMessages", () => {
 
   test("throws when neither reportId nor token provided", async () => {
     const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => {
+      return ctx.db.insert("users", { name: "User", email: "u@t.com" });
+    });
+    const asUser = t.withIdentity({ subject: userId });
 
     await expect(
-      t.query(api.messages.getMessages, {})
+      asUser.query(api.messages.getMessages, {})
     ).rejects.toThrow("Report ID or token required");
   });
 
@@ -228,7 +233,8 @@ describe("getMessages", () => {
       });
     });
 
-    const messages = await t.query(api.messages.getMessages, { reportId });
+    const asUser = t.withIdentity({ subject: userId });
+    const messages = await asUser.query(api.messages.getMessages, { reportId });
     expect(messages).toHaveLength(1);
     expect(messages[0].authorName).toBe("Test Client");
   });
@@ -259,7 +265,8 @@ describe("getMessages", () => {
       });
     });
 
-    const messages = await t.query(api.messages.getMessages, { reportId });
+    const asUser = t.withIdentity({ subject: userId });
+    const messages = await asUser.query(api.messages.getMessages, { reportId });
     expect(messages[0].content).toBe("First");
     expect(messages[1].content).toBe("Second");
   });

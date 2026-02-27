@@ -16,6 +16,7 @@ import { Tooltip, TooltipTrigger } from "react-aria-components";
 import { Button } from "@/components/base/buttons/button";
 import { toast } from "sonner";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { formatNumber } from "@/lib/formatting";
 
 interface KeywordMapSectionProps {
     domainId: Id<"domains">;
@@ -50,12 +51,6 @@ const SERP_FEATURE_STATIC: Record<string, SerpFeatureStaticInfo> = {
     jobs: { icon: Globe01, color: "text-utility-success-300", importance: "low", labelKey: "serpFeatureLabelJobs", descKey: "serpFeatureDescJobs", optKey: "serpFeatureOptJobs" },
     recipes: { icon: Globe01, color: "text-utility-orange-400", importance: "medium", labelKey: "serpFeatureLabelRecipes", descKey: "serpFeatureDescRecipes", optKey: "serpFeatureOptRecipes" },
 };
-
-function formatNumber(num: number): string {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
-}
 
 export function KeywordMapSection({ domainId }: KeywordMapSectionProps) {
     const t = useTranslations('keywords');

@@ -441,16 +441,17 @@ describe("KeywordMonitoringTable — Column Visibility", () => {
     const columnsButton = screen.getByRole("button", { name: /Columns/i });
     await user.click(columnsButton);
 
-    // All 11 column names should appear as checkbox labels
-    // The column picker renders the key name with capitalize class
+    // All 15 column names should appear as checkbox labels (translated)
     const expectedColumns = [
-      "keyword", "position", "previous", "change",
-      "volume", "difficulty", "cpc", "etv",
-      "competition", "intent", "actions",
+      "Keyword", "Position", "Previous", "Change",
+      "Clicks (GSC)", "Impr. (GSC)", "CTR (GSC)", "Pos. (GSC)",
+      "Volume", "Difficulty", "CPC", "ETV",
+      "Competition", "Intent", "Actions",
     ];
 
     for (const col of expectedColumns) {
-      expect(screen.getByText(col)).toBeInTheDocument();
+      // Some labels appear both in picker and table header, so use getAllByText
+      expect(screen.getAllByText(col).length).toBeGreaterThanOrEqual(1);
     }
   });
 

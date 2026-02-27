@@ -8,6 +8,7 @@ import { CloseButton } from "@/components/base/buttons/close-button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
 import { Heading as AriaHeading } from "react-aria-components";
+import { useTranslations } from "next-intl";
 import { parseFile, autoDetectMapping, applyMapping, type FieldDefinition, type ParseResult } from "@/utils/csvParser";
 
 type WizardStep = "upload" | "preview" | "importing" | "done";
@@ -39,6 +40,8 @@ export function ImportWizardModal({
   onImport,
   maxRows = 10000,
 }: ImportWizardModalProps) {
+  const t = useTranslations("domains");
+  const tc = useTranslations("common");
   const [step, setStep] = useState<WizardStep>("upload");
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [mapping, setMapping] = useState<Record<number, string>>({});
@@ -63,7 +66,7 @@ export function ImportWizardModal({
   const handleFile = useCallback(
     async (file: File) => {
       if (file.size > 5 * 1024 * 1024) {
-        setParseResult({ headers: [], rows: [], error: "File too large (max 5MB)" });
+        setParseResult({ headers: [], rows: [], error: t("importFileTooLarge") });
         return;
       }
       const result = await parseFile(file);
@@ -72,7 +75,7 @@ export function ImportWizardModal({
         return;
       }
       if (result.rows.length > maxRows) {
-        setParseResult({ ...result, error: `Too many rows (${result.rows.length}). Maximum is ${maxRows}.` });
+        setParseResult({ ...result, error: t("importTooManyRows", { count: result.rows.length, max: maxRows }) });
         return;
       }
       setParseResult(result);
@@ -200,15 +203,15 @@ export function ImportWizardModal({
                   >
                     <Upload01 className="mb-4 h-10 w-10 text-tertiary" />
                     <p className="mb-2 text-sm font-medium text-primary">
-                      Drag & drop your file here, or{" "}
+                      {t("importDragDropText")}{" "}
                       <button
                         className="text-brand-600 hover:text-brand-700 underline"
                         onClick={() => fileInputRef.current?.click()}
                       >
-                        browse
+                        {t("importBrowse")}
                       </button>
                     </p>
-                    <p className="text-xs text-tertiary">Supports CSV and XLSX files up to 5MB</p>
+                    <p className="text-xs text-tertiary">{t("importFileSupport")}</p>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -230,9 +233,9 @@ export function ImportWizardModal({
                   <div className="space-y-6">
                     {/* Column Mapping */}
                     <div>
-                      <h3 className="mb-3 text-sm font-semibold text-primary">Map Columns</h3>
+                      <h3 className="mb-3 text-sm font-semibold text-primary">{t("importMapColumns")}</h3>
                       <p className="mb-4 text-xs text-tertiary">
-                        Select which field each column maps to. Required fields are marked with *.
+                        {t("importMapColumnsDesc")}
                       </p>
                       <div className="overflow-x-auto rounded-lg border border-secondary">
                         <table className="w-full text-sm">
@@ -246,7 +249,7 @@ export function ImportWizardModal({
                                     value={mapping[i] ?? ""}
                                     onChange={(e) => setColumnMapping(i, e.target.value)}
                                   >
-                                    <option value="">— Skip —</option>
+                                    <option value="">{t("importSkipColumn")}</option>
                                     {fields.map((field) => (
                                       <option key={field.key} value={field.key}>
                                         {field.label}{field.required ? " *" : ""}
@@ -272,7 +275,7 @@ export function ImportWizardModal({
                       </div>
                       {parseResult.rows.length > 5 && (
                         <p className="mt-2 text-xs text-tertiary">
-                          Showing 5 of {parseResult.rows.length} rows
+                          {t("importShowingRows", { count: parseResult.rows.length })}
                         </p>
                       )}
                     </div>
@@ -280,11 +283,11 @@ export function ImportWizardModal({
                     {/* Validation Preview */}
                     {validationPreview && (
                       <div className="rounded-lg border border-secondary p-4">
-                        <h3 className="mb-2 text-sm font-semibold text-primary">Validation Preview</h3>
+                        <h3 className="mb-2 text-sm font-semibold text-primary">{t("importValidationPreview")}</h3>
                         <div className="flex gap-6 text-sm">
-                          <span className="text-success-600">{validationPreview.valid} valid rows</span>
+                          <span className="text-success-600">{t("importValidRows", { count: validationPreview.valid })}</span>
                           {validationPreview.invalid > 0 && (
-                            <span className="text-error-600">{validationPreview.invalid} invalid rows (will be skipped)</span>
+                            <span className="text-error-600">{t("importInvalidRows", { count: validationPreview.invalid })}</span>
                           )}
                         </div>
                         {validationPreview.errors.length > 0 && (
@@ -294,7 +297,7 @@ export function ImportWizardModal({
                             ))}
                             {validationPreview.invalid > 5 && (
                               <p className="text-xs text-tertiary">
-                                ...and {validationPreview.invalid - 5} more errors
+                                {t("importMoreErrors", { count: validationPreview.invalid - 5 })}
                               </p>
                             )}
                           </div>
@@ -305,7 +308,7 @@ export function ImportWizardModal({
                     {!requiredFieldsMapped && (
                       <div className="flex items-center gap-2 text-sm text-warning-600">
                         <AlertCircle className="h-4 w-4" />
-                        Please map all required fields before importing.
+                        {t("importMapRequired")}
                       </div>
                     )}
                   </div>
@@ -315,7 +318,7 @@ export function ImportWizardModal({
                 {step === "importing" && (
                   <div className="flex flex-col items-center justify-center py-12">
                     <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
-                    <p className="text-sm text-primary">Importing data...</p>
+                    <p className="text-sm text-primary">{t("importImporting")}</p>
                   </div>
                 )}
 
@@ -327,13 +330,13 @@ export function ImportWizardModal({
                     ) : (
                       <AlertCircle className="mb-4 h-12 w-12 text-error-500" />
                     )}
-                    <h3 className="mb-2 text-lg font-semibold text-primary">Import Complete</h3>
+                    <h3 className="mb-2 text-lg font-semibold text-primary">{t("importComplete")}</h3>
                     <div className="mb-4 space-y-1 text-center text-sm">
                       {importResult.imported > 0 && (
-                        <p className="text-success-600">{importResult.imported} items imported successfully</p>
+                        <p className="text-success-600">{t("importSuccessCount", { count: importResult.imported })}</p>
                       )}
                       {importResult.skipped > 0 && (
-                        <p className="text-tertiary">{importResult.skipped} duplicates skipped</p>
+                        <p className="text-tertiary">{t("importDuplicatesSkipped", { count: importResult.skipped })}</p>
                       )}
                       {importResult.errors.length > 0 && (
                         <div className="mt-2 max-h-32 overflow-y-auto text-left">
@@ -353,14 +356,14 @@ export function ImportWizardModal({
                   {step === "preview" && (
                     <Button color="tertiary" size="sm" onClick={() => { reset(); }}>
                       <ChevronLeft className="h-4 w-4" />
-                      Back
+                      {tc("back")}
                     </Button>
                   )}
                 </div>
                 <div className="flex gap-3">
                   {step === "done" ? (
                     <Button color="primary" size="sm" onClick={handleClose}>
-                      Close
+                      {tc("close")}
                     </Button>
                   ) : step === "preview" ? (
                     <Button
@@ -369,12 +372,12 @@ export function ImportWizardModal({
                       onClick={handleImport}
                       isDisabled={!requiredFieldsMapped || isImporting || (validationPreview?.valid ?? 0) === 0}
                     >
-                      Import {validationPreview?.valid ?? 0} rows
+                      {t("importRowsBtn", { count: validationPreview?.valid ?? 0 })}
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   ) : (
                     <Button color="tertiary" size="sm" onClick={handleClose}>
-                      Cancel
+                      {tc("cancel")}
                     </Button>
                   )}
                 </div>

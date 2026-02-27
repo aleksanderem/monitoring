@@ -623,7 +623,14 @@ export function BacklinksTable({ backlinks, isLoading }: BacklinksTableProps) {
           </thead>
           <tbody className="divide-y divide-secondary">
             {paginatedBacklinks.map((backlink) => {
-              const referringDomain = backlink.domainFrom || new URL(backlink.urlFrom).hostname;
+              let referringDomain = backlink.domainFrom;
+              if (!referringDomain) {
+                try {
+                  referringDomain = new URL(backlink.urlFrom).hostname;
+                } catch {
+                  referringDomain = backlink.urlFrom;
+                }
+              }
               const spamBadge = getSpamBadge(backlink.backlink_spam_score);
 
               return (

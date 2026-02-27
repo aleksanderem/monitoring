@@ -209,6 +209,12 @@ export const approveProposal = mutation({
         createdAt: Date.now(),
         proposedBy: proposal.clientId,
       });
+
+      // Increment denormalized keyword count on domain
+      const domain = await ctx.db.get(args.domainId);
+      if (domain) {
+        await ctx.db.patch(args.domainId, { keywordCount: (domain.keywordCount ?? 0) + 1 });
+      }
     }
 
     await ctx.db.patch(args.proposalId, {
@@ -255,6 +261,7 @@ export const bulkApproveProposals = mutation({
     await requireTenantAccess(ctx, "domain", args.domainId);
 
     const results: Id<"keywordProposals">[] = [];
+    let insertedCount = 0;
 
     for (const proposalId of args.proposalIds) {
       const proposal = await ctx.db.get(proposalId);
@@ -280,6 +287,7 @@ export const bulkApproveProposals = mutation({
           createdAt: Date.now(),
           proposedBy: proposal.clientId,
         });
+        insertedCount++;
       }
 
       await ctx.db.patch(proposalId, {
@@ -289,6 +297,14 @@ export const bulkApproveProposals = mutation({
       });
 
       results.push(proposalId);
+    }
+
+    // Increment denormalized keyword count on domain
+    if (insertedCount > 0) {
+      const domain = await ctx.db.get(args.domainId);
+      if (domain) {
+        await ctx.db.patch(args.domainId, { keywordCount: (domain.keywordCount ?? 0) + insertedCount });
+      }
     }
 
     return results;

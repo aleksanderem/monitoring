@@ -20,6 +20,7 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { Input } from "@/components/base/input/input";
 import { Button } from "@/components/base/buttons/button";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { formatNumber, getPositionBadgeClass } from "@/lib/formatting";
 
 interface AllKeywordsTableProps {
   domainId: Id<"domains">;
@@ -34,21 +35,6 @@ interface ColumnVisibility {
   change: boolean;
   volume: boolean;
   actions: boolean;
-}
-
-function getPositionBadgeClass(position: number | null): string {
-  if (!position) return "bg-utility-gray-50 text-utility-gray-600";
-  if (position <= 3) return "bg-utility-success-50 text-utility-success-600";
-  if (position <= 10) return "bg-utility-success-25 text-utility-success-500";
-  if (position <= 20) return "bg-utility-warning-50 text-utility-warning-600";
-  if (position <= 50) return "bg-utility-gray-50 text-utility-gray-600";
-  return "bg-utility-gray-25 text-utility-gray-500";
-}
-
-function formatNumber(num: number): string {
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toString();
 }
 
 export function AllKeywordsTable({ domainId }: AllKeywordsTableProps) {

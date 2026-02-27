@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import type { Id } from "../../../../../convex/_generated/dataModel";
@@ -28,7 +28,7 @@ import {
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
-import { BadgeWithDot } from "@/components/base/badges/badges";
+import { Badge, BadgeWithDot } from "@/components/base/badges/badges";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { DeleteConfirmationDialog } from "@/components/application/modals/delete-confirmation-dialog";
 import { ShareLinkDialog } from "@/components/domain/modals/ShareLinkDialog";
@@ -58,7 +58,7 @@ import { KeywordMonitoringTable } from "@/components/domain/tables/KeywordMonito
 import { LiveBadge } from "@/components/domain/badges/LiveBadge";
 import { Activity } from "@untitledui/icons";
 import { VisibilityStats } from "@/components/domain/sections/VisibilityStats";
-import { GscMetricsCard } from "@/components/domain/GscMetricsCard";
+import { GscOverviewSection, GscAlertBanner } from "@/components/domain/GscMetricsCard";
 import { TopKeywordsTable } from "@/components/domain/tables/TopKeywordsTable";
 import { AllKeywordsTable } from "@/components/domain/tables/AllKeywordsTable";
 import { DiscoveredKeywordsTable } from "@/components/domain/tables/DiscoveredKeywordsTable";
@@ -168,20 +168,22 @@ function formatDate(timestamp: number) {
 }
 
 // Helper to format relative time
-function formatRelativeTime(timestamp: number) {
+function formatRelativeTime(timestamp: number, t: (key: string, params?: Record<string, number>) => string) {
   const days = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
-  if (days < 365) return `${Math.floor(days / 30)} months ago`;
-  return `${Math.floor(days / 365)} years ago`;
+  if (days === 0) return t("relativeTimeToday");
+  if (days === 1) return t("relativeTimeYesterday");
+  if (days < 7) return t("relativeTimeDaysAgo", { days });
+  if (days < 30) return t("relativeTimeWeeksAgo", { weeks: Math.floor(days / 7) });
+  if (days < 365) return t("relativeTimeMonthsAgo", { months: Math.floor(days / 30) });
+  return t("relativeTimeYearsAgo", { years: Math.floor(days / 365) });
 }
 
 function GscPropertySection({ domainId }: { domainId: Id<"domains"> }) {
   const t = useTranslations("domains");
   const gscData = useQuery(api.gsc.getGscPropertiesForDomain, { domainId });
   const setGscProperty = useMutation(api.gsc.setDomainGscProperty);
+  const triggerSync = useAction(api.actions.gscSync.triggerGscSyncForDomain);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   if (gscData === undefined) {
     return <div className="animate-pulse h-24 rounded-xl border border-secondary bg-primary" />;
@@ -190,33 +192,90 @@ function GscPropertySection({ domainId }: { domainId: Id<"domains"> }) {
   if (!gscData || !gscData.connected) {
     return (
       <div className="rounded-xl border border-secondary bg-primary p-6">
-        <h3 className="text-sm font-semibold text-primary mb-2">{t("gscProperty")}</h3>
-        <p className="text-sm text-tertiary">{t("gscConnectHint")}</p>
+        <div className="mb-3 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-primary">{t("gscProperty")}</h3>
+          <Badge color="blue" size="sm">GSC</Badge>
+        </div>
+        <div className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 p-3 dark:border-orange-800/40 dark:bg-orange-950/20">
+          <Settings01 className="mt-0.5 size-4 shrink-0 text-orange-600 dark:text-orange-400" />
+          <div>
+            <p className="text-sm font-medium text-orange-800 dark:text-orange-300">{t("gscNotConnectedTitle")}</p>
+            <p className="mt-0.5 text-sm text-orange-700/80 dark:text-orange-400/70">{t("gscConnectHint")}</p>
+          </div>
+        </div>
       </div>
     );
   }
 
+  const selectItems = gscData.properties.map((p: { url: string; type: string }) => {
+    const isDomain = p.url.startsWith("sc-domain:");
+    const displayUrl = isDomain ? p.url.replace("sc-domain:", "") : p.url;
+    return {
+      id: p.url,
+      label: displayUrl,
+      supportingText: isDomain ? "Domain" : "URL prefix",
+      icon: Globe01,
+    };
+  });
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      await triggerSync({ domainId });
+      toast.success(t("gscSyncStarted"));
+    } catch {
+      toast.error(t("gscSyncFailed"));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="rounded-xl border border-secondary bg-primary p-6">
-      <h3 className="text-sm font-semibold text-primary mb-3">{t("gscProperty")}</h3>
-      {gscData.properties.length > 0 ? (
-        <select
-          value={gscData.selectedPropertyUrl || ""}
-          onChange={async (e) => {
-            await setGscProperty({
-              domainId,
-              propertyUrl: e.target.value || null,
-            });
-          }}
-          className="w-full rounded-lg border border-secondary bg-primary px-3 py-2 text-sm text-primary focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/20"
-        >
-          <option value="">{t("gscSelectProperty")}</option>
-          {gscData.properties.map((p: { url: string; type: string }) => (
-            <option key={p.url} value={p.url}>
-              {p.url} ({p.type})
-            </option>
-          ))}
-        </select>
+      <div className="mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-primary">{t("gscProperty")}</h3>
+        <Badge color="blue" size="sm">GSC</Badge>
+        {gscData.selectedPropertyUrl && (
+          <BadgeWithDot color="success" size="sm">{t("gscConnectedStatus")}</BadgeWithDot>
+        )}
+      </div>
+      {selectItems.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          <Select
+            size="sm"
+            placeholder={t("gscSelectProperty")}
+            placeholderIcon={Globe01}
+            items={selectItems}
+            selectedKey={gscData.selectedPropertyUrl || null}
+            onSelectionChange={async (key) => {
+              await setGscProperty({
+                domainId,
+                propertyUrl: key ? String(key) : null,
+              });
+            }}
+          >
+            {(item) => (
+              <Select.Item
+                id={item.id}
+                label={item.label}
+                supportingText={item.supportingText}
+                icon={item.icon}
+              />
+            )}
+          </Select>
+          {gscData.selectedPropertyUrl && (
+            <Button
+              size="sm"
+              color="secondary"
+              iconLeading={RefreshCw01}
+              isLoading={isSyncing}
+              isDisabled={isSyncing}
+              onClick={handleSync}
+            >
+              {isSyncing ? t("gscSyncing") : t("gscSyncNow")}
+            </Button>
+          )}
+        </div>
       ) : (
         <p className="text-sm text-tertiary">{t("gscNotConnected")}</p>
       )}
@@ -430,8 +489,22 @@ export default function DomainDetailPage() {
   const router = useRouter();
   const domainId = params.domainId as Id<"domains">;
 
+  const searchParams = useSearchParams();
+  const [selectedTab, setSelectedTabState] = useState<string>(searchParams.get("tab") || "overview");
+
+  const handleTabChange = (tab: string) => {
+    setSelectedTabState(tab);
+    const url = new URL(window.location.href);
+    if (tab === "overview") {
+      url.searchParams.delete("tab");
+    } else {
+      url.searchParams.set("tab", tab);
+    }
+    window.history.replaceState({}, "", url.toString());
+  };
+
   // Strategy tab — active strategy for sidebar badge
-  const activeStrategySession = useQuery(api.aiStrategy.getActiveStrategy, { domainId });
+  const activeStrategySession = useQuery(api.aiStrategy.getActiveStrategy, selectedTab === "strategy" || selectedTab === "overview" ? { domainId } : "skip");
   const strategyBadge = (() => {
     if (!activeStrategySession || activeStrategySession.status !== "completed") return undefined;
     const s = activeStrategySession as any;
@@ -469,8 +542,6 @@ export default function DomainDetailPage() {
     ...(isSuperAdmin ? [{ id: "diagnostics", label: t('tabDiagnostics'), icon: Settings01 }] : []),
   ];
 
-  const [selectedTab, setSelectedTab] = useState<string>("overview");
-
   const domain = useQuery(api.domains.getDomain, { domainId });
   const keywords = useQuery(api.keywords.getKeywords, { domainId });
   const projects = useQuery(api.projects.list);
@@ -482,28 +553,28 @@ export default function DomainDetailPage() {
   usePageTitle(domain?.domain, tabLabel);
 
   // Visibility tab queries
-  const visibilityStats = useQuery(api.domains.getVisibilityStats, { domainId });
-  const top3Keywords = useQuery(api.domains.getTopKeywords, {
+  const visibilityStats = useQuery(api.domains.getVisibilityStats, selectedTab === "visibility" || selectedTab === "overview" ? { domainId } : "skip");
+  const top3Keywords = useQuery(api.domains.getTopKeywords, selectedTab === "visibility" || selectedTab === "overview" ? {
     domainId,
     limit: 10,
     positionRange: { min: 1, max: 3 }
-  });
-  const top10Keywords = useQuery(api.domains.getTopKeywords, {
+  } : "skip");
+  const top10Keywords = useQuery(api.domains.getTopKeywords, selectedTab === "visibility" || selectedTab === "overview" ? {
     domainId,
     limit: 10,
     positionRange: { min: 4, max: 10 }
-  });
+  } : "skip");
 
   // Backlinks tab queries and state
-  const backlinksSummary = useQuery(api.backlinks.getBacklinkSummary, { domainId });
-  const isBacklinkDataStale = useQuery(api.backlinks.isBacklinkDataStale, { domainId });
-  const backlinksDistributions = useQuery(api.backlinks.getBacklinkDistributions, { domainId });
+  const backlinksSummary = useQuery(api.backlinks.getBacklinkSummary, selectedTab === "backlinks" || selectedTab === "overview" ? { domainId } : "skip");
+  const isBacklinkDataStale = useQuery(api.backlinks.isBacklinkDataStale, selectedTab === "backlinks" ? { domainId } : "skip");
+  const backlinksDistributions = useQuery(api.backlinks.getBacklinkDistributions, selectedTab === "backlinks" ? { domainId } : "skip");
   const fetchBacklinksAction = useAction(api.backlinks.fetchBacklinksFromAPI);
 
   // Backlink velocity queries
-  const velocityHistory = useQuery(api.backlinkVelocity.getVelocityHistory, { domainId, days: 30 });
-  const velocityStats = useQuery(api.backlinkVelocity.getVelocityStats, { domainId, days: 30 });
-  const velocity7Day = useQuery(api.backlinkVelocity.getVelocityStats, { domainId, days: 7 });
+  const velocityHistory = useQuery(api.backlinkVelocity.getVelocityHistory, selectedTab === "backlinks" ? { domainId, days: 30 } : "skip");
+  const velocityStats = useQuery(api.backlinkVelocity.getVelocityStats, selectedTab === "backlinks" ? { domainId, days: 30 } : "skip");
+  const velocity7Day = useQuery(api.backlinkVelocity.getVelocityStats, selectedTab === "backlinks" ? { domainId, days: 7 } : "skip");
 
   // Content gaps queries (now handled inside ContentGapSection)
 
@@ -549,11 +620,11 @@ export default function DomainDetailPage() {
   const [backlinksPage, setBacklinksPage] = useState(1);
   const backlinksPageSize = 50;
 
-  const backlinksData = useQuery(api.backlinks.getBacklinks, {
+  const backlinksData = useQuery(api.backlinks.getBacklinks, selectedTab === "backlinks" ? {
     domainId,
     limit: backlinksPageSize,
     offset: (backlinksPage - 1) * backlinksPageSize,
-  });
+  } : "skip");
 
   const handleFetchBacklinks = async () => {
     try {
@@ -641,6 +712,11 @@ export default function DomainDetailPage() {
         toast.error(t('noKeywordsToRefresh'));
         return;
       }
+
+      const confirmed = window.confirm(
+        t('confirmRefreshKeywords', { count: keywords.length })
+      );
+      if (!confirmed) return;
 
       const keywordIds = keywords.map(k => k._id);
       await refreshKeywords({ keywordIds });
@@ -835,11 +911,11 @@ export default function DomainDetailPage() {
                 </>
               ) : (
                 <>
-                  <ButtonUtility size="sm" color="tertiary" icon={Link03} isDisabled />
-                  <ButtonUtility size="sm" color="tertiary" icon={FileCheck02} isDisabled />
-                  <ButtonUtility size="sm" color="tertiary" icon={RefreshCw01} isDisabled />
-                  <ButtonUtility size="sm" color="tertiary" icon={Edit01} isDisabled />
-                  <ButtonUtility size="sm" color="tertiary" icon={Trash01} isDisabled />
+                  <ButtonUtility size="sm" color="tertiary" icon={Link03} isDisabled tooltip={t('shareMonitoring')} />
+                  <ButtonUtility size="sm" color="tertiary" icon={FileCheck02} isDisabled tooltip={t('generateFullReport')} />
+                  <ButtonUtility size="sm" color="tertiary" icon={RefreshCw01} isDisabled tooltip={t('refreshRankings')} />
+                  <ButtonUtility size="sm" color="tertiary" icon={Edit01} isDisabled tooltip={t('edit')} />
+                  <ButtonUtility size="sm" color="tertiary" icon={Trash01} isDisabled tooltip={t('delete')} />
                 </>
               )}
             </div>
@@ -877,7 +953,7 @@ export default function DomainDetailPage() {
             </div>
           </div>
         )}
-        <Tabs orientation="vertical" selectedKey={selectedTab} onSelectionChange={(key) => setSelectedTab(key as string)}>
+        <Tabs orientation="vertical" selectedKey={selectedTab} onSelectionChange={(key) => handleTabChange(key as string)}>
           <div className="flex w-full gap-8 lg:gap-16">
             {/* Desktop Sidebar Navigation — sticky below TopBar */}
             <div className="sticky top-20 self-start max-lg:hidden">
@@ -906,7 +982,7 @@ export default function DomainDetailPage() {
 
             <div className="flex min-w-0 flex-1 flex-col gap-6">
               {/* Mobile Horizontal Navigation */}
-              <TabList size="sm" type="line" items={tabs} className="lg:hidden">
+              <TabList size="sm" type="line" items={tabs} className="overflow-x-auto flex-nowrap lg:hidden">
                 {(item: any) => (
                   <Tab
                     id={item.id}
@@ -954,8 +1030,8 @@ export default function DomainDetailPage() {
                             icon={TAB_EZICONS[card.tabId] || "settings-05"}
                             state={moduleReadiness[card.tabId]}
                             colors={card.colors}
-                            onClick={() => setSelectedTab(card.tabId)}
-                            onNavigateToTab={(tid) => setSelectedTab(tid)}
+                            onClick={() => handleTabChange(card.tabId)}
+                            onNavigateToTab={(tid) => handleTabChange(tid)}
                             data={hubData}
                             benefitText={t(`moduleBenefit${card.tabId}`)}
                             benefitLabel={t("moduleWhatGives")}
@@ -992,6 +1068,9 @@ export default function DomainDetailPage() {
                   </PermissionGate>
                 </div>
 
+                {/* GSC Alert Banner — prominent CTA when not connected */}
+                <GscAlertBanner domainId={domainId} onSwitchToSettings={() => handleTabChange("settings")} />
+
                 {/* Charts Section */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   <PositionDistributionChart domainId={domainId} />
@@ -999,7 +1078,7 @@ export default function DomainDetailPage() {
                 </div>
 
                 {/* GSC Metrics (renders null if not connected) */}
-                <GscMetricsCard domainId={domainId} />
+                <GscOverviewSection domainId={domainId} />
 
                 {/* Statistics Section */}
                 <MonitoringStats domainId={domainId} />
@@ -1498,6 +1577,7 @@ export default function DomainDetailPage() {
                     onChange={(value) => setEditForm({ ...editForm, searchEngine: value })}
                     placeholder="google.pl"
                     className="sm:col-span-1"
+                    isDisabled
                   />
 
                   <Input
@@ -1507,6 +1587,7 @@ export default function DomainDetailPage() {
                     onChange={(value) => setEditForm({ ...editForm, location: value })}
                     placeholder="Poland"
                     className="sm:col-span-1"
+                    isDisabled
                   />
 
                   <Input
@@ -1516,6 +1597,7 @@ export default function DomainDetailPage() {
                     onChange={(value) => setEditForm({ ...editForm, language: value })}
                     placeholder="pl"
                     className="sm:col-span-2"
+                    isDisabled
                   />
                 </div>
 

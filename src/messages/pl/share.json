@@ -38,5 +38,6 @@
   "clearFilters": "Wyczyść filtry",
   "paginationInfo": "Strona {current} z {total} ({count} wyników)",
   "previous": "Poprzednia",
-  "next": "Następna"
+  "next": "Następna",
+  "shareLinkFailed": "Nie udało się utworzyć linku udostępniania. Spróbuj ponownie."
 }

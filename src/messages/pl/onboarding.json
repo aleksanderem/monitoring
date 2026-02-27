@@ -30,6 +30,16 @@
         "namePlaceholder": "Moja Strona",
         "cta": "Dodaj domenę"
     },
+    "gscConnect": {
+        "heading": "Połącz Google Search Console",
+        "description": "Pobieraj prawdziwe dane z Google — rzeczywiste kliknięcia, wyświetlenia i pozycje zamiast szacunków.",
+        "cta": "Połącz Google Search Console",
+        "connecting": "Łączenie...",
+        "connected": "Połączono!",
+        "syncing": "Synchronizacja danych wyszukiwania — to chwilę potrwa...",
+        "skipForNow": "Pomiń na razie — możesz połączyć później w ustawieniach",
+        "whyConnect": "Dlaczego warto połączyć? GSC dostarcza 100% prawdziwe dane z Google: rzeczywiste kliknięcia, wyświetlenia, CTR i pozycje. Bez tego dane pozycji pochodzą z szacunków zewnętrznych. Możesz połączyć później w ustawieniach domeny."
+    },
     "skip": "Pomiń",
     "stepOf": "Krok {current} z {total}",
     "back": "Wróć"

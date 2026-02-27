@@ -246,14 +246,13 @@ describe("ProjectDetailPage", () => {
   });
 
   // 7. All 5 tabs render
-  it("renders all 5 tabs: Overview, Keywords, Backlinks, Monitoring, Settings", () => {
+  it("renders all 4 tabs: Overview, Keywords, Backlinks, Settings", () => {
     setupQueryMock(baseQueries());
     renderWithProviders(<ProjectDetailPage />);
 
     expect(screen.getByRole("tab", { name: /Overview/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Keywords/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Backlinks/ })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Monitoring/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Settings/ })).toBeInTheDocument();
   });
 

@@ -13,6 +13,8 @@ export const getPlans = query({
   },
 });
 
+// No auth required: plan definitions are public reference data used by
+// billing/signup flows and need to be accessible before authentication.
 export const getPlan = query({
   args: { planId: v.id("plans") },
   handler: async (ctx, args) => {
@@ -20,6 +22,7 @@ export const getPlan = query({
   },
 });
 
+// No auth required: plan lookup by key is public reference data.
 export const getPlanByKey = query({
   args: { key: v.string() },
   handler: async (ctx, args) => {
@@ -30,6 +33,7 @@ export const getPlanByKey = query({
   },
 });
 
+// No auth required: default plan info is needed for unauthenticated signup flow.
 export const getDefaultPlan = query({
   args: {},
   handler: async (ctx) => {

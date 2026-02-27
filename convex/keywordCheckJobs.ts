@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query, action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { auth } from "./auth";
 import type { Id } from "./_generated/dataModel";
 
 // Get active job for domain
@@ -31,10 +32,20 @@ export const getJob = query({
   },
 });
 
-// Get all active jobs (for global status indicator)
+// Get all active jobs (for global status indicator) — scoped to user's organization
 export const getAllActiveJobs = query({
   args: {},
-  handler: async (ctx, args) => {
+  handler: async (ctx) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+
+    // Get user's org membership to scope results
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (!membership) return [];
+
     const activeJobs = await ctx.db
       .query("keywordCheckJobs")
       .filter((q) =>
@@ -46,40 +57,53 @@ export const getAllActiveJobs = query({
       .order("desc")
       .collect();
 
-    // Enrich with domain and current keyword info
-    const enrichedJobs = await Promise.all(
-      activeJobs.map(async (job) => {
-        const domain = await ctx.db.get(job.domainId);
-        let currentKeywordPhrase: string | undefined;
+    // Enrich with domain info and filter to user's org
+    const enrichedJobs = [];
+    for (const job of activeJobs) {
+      const domain = await ctx.db.get(job.domainId);
+      if (!domain) continue;
+      const project = await ctx.db.get(domain.projectId);
+      if (!project) continue;
+      const team = await ctx.db.get(project.teamId);
+      if (!team || team.organizationId !== membership.organizationId) continue;
 
-        if (job.currentKeywordId) {
-          const currentKeyword = await ctx.db.get(job.currentKeywordId);
-          currentKeywordPhrase = currentKeyword?.phrase;
-        }
+      let currentKeywordPhrase: string | undefined;
+      if (job.currentKeywordId) {
+        const currentKeyword = await ctx.db.get(job.currentKeywordId);
+        currentKeywordPhrase = currentKeyword?.phrase;
+      }
 
-        return {
-          _id: job._id,
-          domainId: job.domainId,
-          domainName: domain?.domain,
-          status: job.status,
-          totalKeywords: job.totalKeywords,
-          processedKeywords: job.processedKeywords,
-          failedKeywords: job.failedKeywords,
-          currentKeywordPhrase,
-          createdAt: job.createdAt,
-          startedAt: job.startedAt,
-        };
-      })
-    );
+      enrichedJobs.push({
+        _id: job._id,
+        domainId: job.domainId,
+        domainName: domain.domain,
+        status: job.status,
+        totalKeywords: job.totalKeywords,
+        processedKeywords: job.processedKeywords,
+        failedKeywords: job.failedKeywords,
+        currentKeywordPhrase,
+        createdAt: job.createdAt,
+        startedAt: job.startedAt,
+      });
+    }
 
     return enrichedJobs;
   },
 });
 
-// Get recently completed jobs (last 2 minutes) for toast notifications
+// Get recently completed jobs (last 2 minutes) for toast notifications — scoped to user's organization
 export const getRecentCompletedJobs = query({
   args: {},
-  handler: async (ctx, args) => {
+  handler: async (ctx) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (!membership) return [];
+
     const twoMinutesAgo = Date.now() - (2 * 60 * 1000);
 
     const recentJobs = await ctx.db
@@ -97,24 +121,28 @@ export const getRecentCompletedJobs = query({
       .order("desc")
       .collect();
 
-    // Enrich with domain info
-    const enrichedJobs = await Promise.all(
-      recentJobs.map(async (job) => {
-        const domain = await ctx.db.get(job.domainId);
+    // Enrich with domain info and filter to user's org
+    const enrichedJobs = [];
+    for (const job of recentJobs) {
+      const domain = await ctx.db.get(job.domainId);
+      if (!domain) continue;
+      const project = await ctx.db.get(domain.projectId);
+      if (!project) continue;
+      const team = await ctx.db.get(project.teamId);
+      if (!team || team.organizationId !== membership.organizationId) continue;
 
-        return {
-          _id: job._id,
-          domainId: job.domainId,
-          domainName: domain?.domain,
-          status: job.status,
-          totalKeywords: job.totalKeywords,
-          processedKeywords: job.processedKeywords,
-          failedKeywords: job.failedKeywords,
-          error: job.error,
-          completedAt: job.completedAt,
-        };
-      })
-    );
+      enrichedJobs.push({
+        _id: job._id,
+        domainId: job.domainId,
+        domainName: domain.domain,
+        status: job.status,
+        totalKeywords: job.totalKeywords,
+        processedKeywords: job.processedKeywords,
+        failedKeywords: job.failedKeywords,
+        error: job.error,
+        completedAt: job.completedAt,
+      });
+    }
 
     return enrichedJobs;
   },

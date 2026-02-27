@@ -38,5 +38,6 @@
   "clearFilters": "Limpiar filtros",
   "paginationInfo": "Página {current} de {total} ({count} resultados)",
   "previous": "Anterior",
-  "next": "Siguiente"
+  "next": "Siguiente",
+  "shareLinkFailed": "[ES] Failed to create share link. Please try again."
 }

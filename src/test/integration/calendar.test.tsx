@@ -3,7 +3,7 @@
  * Tests loading, empty state, domain selection, category tabs, events, and AI plan generation.
  *
  * useTranslations is globally mocked as a key passthrough (from setup.ts),
- * so t("nav.someKey") returns "someKey".
+ * so t("someKey") returns "someKey".
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -164,12 +164,11 @@ beforeEach(async () => {
 describe("Calendar Page", () => {
   describe("Loading state", () => {
     it("shows empty state placeholder when domains query returns undefined", () => {
-      // domains = undefined (loading), so activeDomainId is undefined
+      // domains = undefined (loading), so activeDomainId is undefined,
+      // so the "noDomains" empty state should be shown
       render(<CalendarPage />);
 
-      // When domains is still loading (undefined), activeDomainId is undefined,
-      // so the "Brak domen" empty state should be shown
-      expect(screen.getByText("Brak domen")).toBeInTheDocument();
+      expect(screen.getByText("noDomains")).toBeInTheDocument();
     });
   });
 
@@ -181,9 +180,9 @@ describe("Calendar Page", () => {
 
       render(<CalendarPage />);
 
-      expect(screen.getByText("Brak domen")).toBeInTheDocument();
+      expect(screen.getByText("noDomains")).toBeInTheDocument();
       expect(
-        screen.getByText(/Dodaj domenę, aby AI SEO Strategist/)
+        screen.getByText("noDomainsDescription")
       ).toBeInTheDocument();
     });
   });
@@ -232,12 +231,13 @@ describe("Calendar Page", () => {
 
       render(<CalendarPage />);
 
-      expect(screen.getByText("Wszystkie")).toBeInTheDocument();
-      expect(screen.getByText("Spadki pozycji")).toBeInTheDocument();
-      expect(screen.getByText("Szanse")).toBeInTheDocument();
-      expect(screen.getByText("Treści")).toBeInTheDocument();
-      expect(screen.getByText("Link building")).toBeInTheDocument();
-      expect(screen.getByText("Audyty")).toBeInTheDocument();
+      // i18n mock returns keys as-is
+      expect(screen.getByText("categoryAll")).toBeInTheDocument();
+      expect(screen.getByText("categoryRankingDrop")).toBeInTheDocument();
+      expect(screen.getByText("categoryRankingOpportunity")).toBeInTheDocument();
+      expect(screen.getByText("categoryContentPlan")).toBeInTheDocument();
+      expect(screen.getByText("categoryLinkBuilding")).toBeInTheDocument();
+      expect(screen.getByText("categoryAuditTask")).toBeInTheDocument();
     });
 
     it("switches active tab when clicking a category", async () => {
@@ -249,8 +249,8 @@ describe("Calendar Page", () => {
       render(<CalendarPage />);
       const user = userEvent.setup();
 
-      // Click the "Spadki pozycji" tab
-      const rankingTab = screen.getByText("Spadki pozycji");
+      // Click the ranking drop tab
+      const rankingTab = screen.getByText("categoryRankingDrop");
       await user.click(rankingTab);
 
       // The tab should now be selected (react-aria sets aria-selected)
@@ -301,7 +301,7 @@ describe("Calendar Page", () => {
 
       render(<CalendarPage />);
 
-      expect(screen.getByText("Generuj plan")).toBeInTheDocument();
+      expect(screen.getByText("generatePlan")).toBeInTheDocument();
     });
 
     it("calls runStrategist action when generate button is clicked", async () => {
@@ -316,7 +316,7 @@ describe("Calendar Page", () => {
       render(<CalendarPage />);
       const user = userEvent.setup();
 
-      await user.click(screen.getByText("Generuj plan"));
+      await user.click(screen.getByText("generatePlan"));
 
       expect(mockRunStrategist).toHaveBeenCalledWith({ domainId: "domain_1" });
     });
@@ -339,10 +339,10 @@ describe("Calendar Page", () => {
       const user = userEvent.setup();
 
       // Click generate
-      await user.click(screen.getByText("Generuj plan"));
+      await user.click(screen.getByText("generatePlan"));
 
-      // While running, button text should change
-      expect(screen.getByText("Generowanie...")).toBeInTheDocument();
+      // While running, button text should change to "generating" key
+      expect(screen.getByText("generating")).toBeInTheDocument();
 
       // Resolve the action
       resolveAction();
@@ -355,7 +355,7 @@ describe("Calendar Page", () => {
 
       render(<CalendarPage />);
 
-      const button = screen.getByText("Generuj plan").closest("button");
+      const button = screen.getByText("generatePlan").closest("button");
       expect(button).toBeDisabled();
     });
   });
@@ -369,10 +369,8 @@ describe("Calendar Page", () => {
 
       render(<CalendarPage />);
 
-      expect(screen.getByText("AI SEO Strategist")).toBeInTheDocument();
-      expect(
-        screen.getByText(/Inteligentny kalendarz SEO/)
-      ).toBeInTheDocument();
+      expect(screen.getByText("title")).toBeInTheDocument();
+      expect(screen.getByText("description")).toBeInTheDocument();
     });
   });
 });

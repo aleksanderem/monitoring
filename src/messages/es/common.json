@@ -231,5 +231,6 @@
   "mobileNavDashboard": "[ES] Dashboard",
   "mobileNavDomains": "[ES] Domains",
   "mobileNavKeywords": "[ES] Keywords",
-  "mobileNavSettings": "[ES] Settings"
+  "mobileNavSettings": "[ES] Settings",
+  "saving": "[ES] Saving..."
 }

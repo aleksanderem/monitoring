@@ -42,9 +42,53 @@ export function UrlSelectionModal({
   const scanUrls = useAction(api.seoAudit_actions.scanSelectedUrlsV2);
 
   useEffect(() => {
-    if (isOpen) {
-      handleFetchUrls();
+    if (!isOpen) return;
+    let cancelled = false;
+
+    async function doFetch() {
+      console.log("[UrlSelectionModal] Starting fetch URLs...");
+      setLoading(true);
+      setError(null);
+
+      try {
+        console.log("[UrlSelectionModal] Calling fetchUrls action with domainId:", domainId);
+        const result = await fetchUrls({
+          domainId,
+          sitemapUrl: customSitemapUrl || undefined
+        });
+
+        if (cancelled) return;
+
+        console.log("[UrlSelectionModal] fetchUrls result:", result);
+
+        if (result.error) {
+          console.error("[UrlSelectionModal] Error from fetchUrls:", result.error);
+          setError(result.error);
+          setSitemapSource("manual");
+        } else {
+          console.log("[UrlSelectionModal] Got", result.urls.length, "URLs");
+          setUrls(result.urls);
+          setSitemapSource(result.source === "custom_sitemap" ? "custom" : "auto");
+
+          const firstTwenty = new Set(result.urls.slice(0, 20));
+          setSelectedUrls(firstTwenty);
+          console.log("[UrlSelectionModal] Auto-selected first", firstTwenty.size, "URLs");
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.error("[UrlSelectionModal] Exception in handleFetchUrls:", err);
+        setError(err instanceof Error ? err.message : t('failedToFetchUrls'));
+        setSitemapSource("manual");
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          console.log("[UrlSelectionModal] Fetch complete, loading =", false);
+        }
+      }
     }
+
+    doFetch();
+    return () => { cancelled = true; };
   }, [isOpen]);
 
   const handleFetchUrls = async () => {

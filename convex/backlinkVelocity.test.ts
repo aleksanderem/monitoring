@@ -17,12 +17,22 @@ const DEFAULT_SETTINGS = {
 };
 
 async function setupDomain(t: any) {
-  return t.run(async (ctx: any) => {
+  const ids = await t.run(async (ctx: any) => {
+    const userId = await ctx.db.insert("users", {
+      email: "test@example.com",
+      emailVerificationTime: Date.now(),
+    });
     const orgId = await ctx.db.insert("organizations", {
       name: "Test Org",
       slug: "test-org",
       createdAt: Date.now(),
       settings: { defaultRefreshFrequency: "weekly" as const },
+    });
+    await ctx.db.insert("organizationMembers", {
+      organizationId: orgId,
+      userId,
+      role: "owner" as const,
+      joinedAt: Date.now(),
     });
     const teamId = await ctx.db.insert("teams", {
       organizationId: orgId,
@@ -40,8 +50,10 @@ async function setupDomain(t: any) {
       createdAt: Date.now(),
       settings: DEFAULT_SETTINGS,
     });
-    return domainId;
+    return { userId, domainId };
   });
+  const asUser = t.withIdentity({ subject: ids.userId });
+  return { domainId: ids.domainId, asUser };
 }
 
 function dateStr(daysAgo: number): string {
@@ -78,8 +90,8 @@ async function insertVelocityRecord(
 describe("getVelocityHistory", () => {
   test("returns empty for domain with no history", async () => {
     const t = convexTest(schema, modules);
-    const domainId = await setupDomain(t);
-    const result = await t.query(api.backlinkVelocity.getVelocityHistory, {
+    const { domainId, asUser } = await setupDomain(t);
+    const result = await asUser.query(api.backlinkVelocity.getVelocityHistory, {
       domainId,
     });
     expect(result).toEqual([]);
@@ -87,13 +99,13 @@ describe("getVelocityHistory", () => {
 
   test("returns records within the requested days window", async () => {
     const t = convexTest(schema, modules);
-    const domainId = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
     await insertVelocityRecord(t, domainId, 5, 10, 2);
     await insertVelocityRecord(t, domainId, 15, 8, 3);
     await insertVelocityRecord(t, domainId, 45, 20, 5); // outside 30-day window
 
-    const result = await t.query(api.backlinkVelocity.getVelocityHistory, {
+    const result = await asUser.query(api.backlinkVelocity.getVelocityHistory, {
       domainId,
       days: 30,
     });
@@ -105,18 +117,18 @@ describe("getVelocityHistory", () => {
 
   test("respects custom days parameter", async () => {
     const t = convexTest(schema, modules);
-    const domainId = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
     await insertVelocityRecord(t, domainId, 3, 5, 1);
     await insertVelocityRecord(t, domainId, 8, 7, 2);
 
-    const result7 = await t.query(api.backlinkVelocity.getVelocityHistory, {
+    const result7 = await asUser.query(api.backlinkVelocity.getVelocityHistory, {
       domainId,
       days: 7,
     });
     expect(result7.length).toBe(1);
 
-    const result14 = await t.query(api.backlinkVelocity.getVelocityHistory, {
+    const result14 = await asUser.query(api.backlinkVelocity.getVelocityHistory, {
       domainId,
       days: 14,
     });
@@ -131,8 +143,8 @@ describe("getVelocityHistory", () => {
 describe("getVelocityStats", () => {
   test("returns zeros for empty history", async () => {
     const t = convexTest(schema, modules);
-    const domainId = await setupDomain(t);
-    const stats = await t.query(api.backlinkVelocity.getVelocityStats, {
+    const { domainId, asUser } = await setupDomain(t);
+    const stats = await asUser.query(api.backlinkVelocity.getVelocityStats, {
       domainId,
     });
     expect(stats.avgNewPerDay).toBe(0);
@@ -144,13 +156,13 @@ describe("getVelocityStats", () => {
 
   test("calculates correct averages and totals", async () => {
     const t = convexTest(schema, modules);
-    const domainId = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
     await insertVelocityRecord(t, domainId, 1, 10, 2);
     await insertVelocityRecord(t, domainId, 2, 20, 4);
     await insertVelocityRecord(t, domainId, 3, 6, 0);
 
-    const stats = await t.query(api.backlinkVelocity.getVelocityStats, {
+    const stats = await asUser.query(api.backlinkVelocity.getVelocityStats, {
       domainId,
       days: 30,
     });
@@ -172,12 +184,12 @@ describe("getVelocityStats", () => {
 describe("detectVelocityAnomalies", () => {
   test("returns empty when fewer than 3 data points", async () => {
     const t = convexTest(schema, modules);
-    const domainId = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
     await insertVelocityRecord(t, domainId, 1, 5, 2);
     await insertVelocityRecord(t, domainId, 2, 6, 1);
 
-    const anomalies = await t.query(api.backlinkVelocity.detectVelocityAnomalies, {
+    const anomalies = await asUser.query(api.backlinkVelocity.detectVelocityAnomalies, {
       domainId,
     });
     expect(anomalies).toEqual([]);
@@ -185,7 +197,7 @@ describe("detectVelocityAnomalies", () => {
 
   test("detects spikes in backlink velocity", async () => {
     const t = convexTest(schema, modules);
-    const domainId = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
     // Normal days: ~10 net change
     for (let i = 1; i <= 10; i++) {
@@ -194,7 +206,7 @@ describe("detectVelocityAnomalies", () => {
     // Spike day: 200 new
     await insertVelocityRecord(t, domainId, 0, 200, 2);
 
-    const anomalies = await t.query(api.backlinkVelocity.detectVelocityAnomalies, {
+    const anomalies = await asUser.query(api.backlinkVelocity.detectVelocityAnomalies, {
       domainId,
       days: 30,
     });
@@ -207,13 +219,13 @@ describe("detectVelocityAnomalies", () => {
 
   test("returns empty when all data points are identical", async () => {
     const t = convexTest(schema, modules);
-    const domainId = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
     for (let i = 1; i <= 5; i++) {
       await insertVelocityRecord(t, domainId, i, 10, 5);
     }
 
-    const anomalies = await t.query(api.backlinkVelocity.detectVelocityAnomalies, {
+    const anomalies = await asUser.query(api.backlinkVelocity.detectVelocityAnomalies, {
       domainId,
     });
     // All same => stdDev = 0 => zScore = 0 => no anomalies
@@ -228,7 +240,7 @@ describe("detectVelocityAnomalies", () => {
 describe("saveDailyVelocity", () => {
   test("creates a new velocity record", async () => {
     const t = convexTest(schema, modules);
-    const domainId = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
     const result = await t.mutation(internal.backlinkVelocity.saveDailyVelocity, {
       domainId,
@@ -256,7 +268,7 @@ describe("saveDailyVelocity", () => {
 
   test("updates existing record for same date", async () => {
     const t = convexTest(schema, modules);
-    const domainId = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
     await t.mutation(internal.backlinkVelocity.saveDailyVelocity, {
       domainId,
@@ -296,7 +308,7 @@ describe("saveDailyVelocity", () => {
 describe("recalculateVelocityHistory", () => {
   test("rebuilds velocity from backlink firstSeen/lastSeen dates", async () => {
     const t = convexTest(schema, modules);
-    const domainId = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
     // Insert some backlinks with firstSeen dates
     await t.run(async (ctx: any) => {
@@ -358,7 +370,7 @@ describe("recalculateVelocityHistory", () => {
 
   test("clears existing velocity records before rebuilding", async () => {
     const t = convexTest(schema, modules);
-    const domainId = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
     // Insert old velocity record
     await insertVelocityRecord(t, domainId, 5, 99, 99);
@@ -394,7 +406,7 @@ describe("recalculateVelocityHistory", () => {
 
   test("uses summary totalBacklinks when available", async () => {
     const t = convexTest(schema, modules);
-    const domainId = await setupDomain(t);
+    const { domainId, asUser } = await setupDomain(t);
 
     // Insert summary
     await t.run(async (ctx: any) => {

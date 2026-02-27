@@ -199,6 +199,11 @@ interface StrategyDataSummary {
     nearPage1: Array<{ phrase: string; position: number; searchVolume: number }>;
     recommendations: Array<{ category: string; priority: string; title: string; description: string }>;
   };
+  gsc?: {
+    isPrimary: boolean;
+    keywordsWithGscData: number;
+    topByClicks: Array<{ phrase: string; position: number; clicks: number; impressions: number; ctr: number }>;
+  };
 }
 
 // ─── Data Collection ───
@@ -578,6 +583,24 @@ async function collectDomainData(
       nearPage1: insightsData.nearPage1.slice(0, 10),
       recommendations: insightsData.recommendations.slice(0, 15),
     },
+    // GSC real search data when available
+    ...(domain.gscPrimary === true ? {
+      gsc: {
+        isPrimary: true,
+        keywordsWithGscData: activeKws.filter((kw: any) => kw.positionSource === "gsc").length,
+        topByClicks: activeKws
+          .filter((kw: any) => kw.gscClicks != null && kw.gscClicks > 0)
+          .sort((a: any, b: any) => (b.gscClicks ?? 0) - (a.gscClicks ?? 0))
+          .slice(0, 15)
+          .map((kw: any) => ({
+            phrase: kw.phrase,
+            position: kw.currentPosition ?? 0,
+            clicks: kw.gscClicks ?? 0,
+            impressions: kw.gscImpressions ?? 0,
+            ctr: kw.gscCtr ?? 0,
+          })),
+      },
+    } : {}),
   };
 }
 
@@ -631,7 +654,12 @@ Position Distribution: ${JSON.stringify(data.keywords.positionDistribution)}
 Top Performers (in top 10): ${JSON.stringify(data.keywords.topPerformers.slice(0, 15))}
 At Risk (dropping): ${JSON.stringify(data.keywords.atRisk.slice(0, 15))}
 Quick Win Candidates (pos 4-30, diff <50): ${JSON.stringify(data.keywords.quickWins.slice(0, 15))}
-
+${data.gsc ? `
+=== GSC REAL DATA (Google Search Console — REAL measured data, not estimates) ===
+GSC is PRIMARY source (${data.gsc.keywordsWithGscData} keywords with real positions). Prioritize GSC clicks/CTR for decision-making.
+Top keywords by real clicks:
+${data.gsc.topByClicks.map((kw) => `- "${kw.phrase}" pos #${kw.position} — ${kw.clicks} clicks, ${kw.impressions} impr, CTR ${(kw.ctr * 100).toFixed(1)}%`).join("\n")}
+` : ""}
 === DISCOVERED KEYWORDS (${data.discoveredKeywords.totalCount} total, ${data.discoveredKeywords.rankedCount} ranked) ===
 Top 3: ${data.discoveredKeywords.top3} | Top 10: ${data.discoveredKeywords.top10}
 Average Position: ${data.discoveredKeywords.avgPosition ?? "no data"}
@@ -850,7 +878,12 @@ Position Distribution: ${JSON.stringify(data.keywords.positionDistribution)}
 Top Performers (in top 10): ${JSON.stringify(data.keywords.topPerformers.slice(0, 15))}
 At Risk (dropping): ${JSON.stringify(data.keywords.atRisk.slice(0, 15))}
 Quick Win Candidates (pos 4-30, diff <50): ${JSON.stringify(data.keywords.quickWins.slice(0, 15))}
-
+${data.gsc ? `
+=== GSC REAL DATA (Google Search Console — REAL measured data, not estimates) ===
+GSC is PRIMARY source (${data.gsc.keywordsWithGscData} keywords with real positions). Prioritize GSC clicks/CTR for decision-making.
+Top keywords by real clicks:
+${data.gsc.topByClicks.map((kw) => `- "${kw.phrase}" pos #${kw.position} — ${kw.clicks} clicks, ${kw.impressions} impr, CTR ${(kw.ctr * 100).toFixed(1)}%`).join("\n")}
+` : ""}
 === DISCOVERED KEYWORDS (${data.discoveredKeywords.totalCount} total, ${data.discoveredKeywords.rankedCount} ranked) ===
 Top 3: ${data.discoveredKeywords.top3} | Top 10: ${data.discoveredKeywords.top10}
 Average Position: ${data.discoveredKeywords.avgPosition ?? "no data"}
@@ -1424,6 +1457,14 @@ export const generateDomainStrategy = action({
     generateContentMockups: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
+    // Auth: verify caller has access to this domain
+    const domainAccess = await ctx.runQuery(internal.lib.analyticsHelpers.verifyDomainAccess, {
+      domainId: args.domainId,
+    });
+    if (!domainAccess) {
+      return { success: false, error: "Not authorized" };
+    }
+
     const sessionId = await ctx.runMutation(internal.aiStrategy.createSession, {
       domainId: args.domainId,
       businessDescription: args.businessDescription,
@@ -2380,6 +2421,14 @@ export const drillDownSection = action({
     });
     if (!session || session.status !== "completed" || !session.strategy) {
       return { success: false, error: "Session not found or not completed" };
+    }
+
+    // Auth: verify caller has access to the session's domain
+    const domainAccess = await ctx.runQuery(internal.lib.analyticsHelpers.verifyDomainAccess, {
+      domainId: session.domainId,
+    });
+    if (!domainAccess) {
+      return { success: false, error: "Not authorized" };
     }
 
     // 2. Resolve AI provider config from organization

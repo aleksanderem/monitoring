@@ -30,6 +30,16 @@
         "namePlaceholder": "My Website",
         "cta": "Add Domain"
     },
+    "gscConnect": {
+        "heading": "Connect Google Search Console",
+        "description": "Get real search data from Google — actual clicks, impressions, and ranking positions instead of estimates.",
+        "cta": "Connect Google Search Console",
+        "connecting": "Connecting...",
+        "connected": "Connected!",
+        "syncing": "Syncing your search data — this takes a moment...",
+        "skipForNow": "Skip for now — you can connect later in settings",
+        "whyConnect": "Why connect? GSC provides 100% real data from Google: actual clicks, impressions, CTR, and ranking positions. Without it, position data comes from third-party estimates. You can always connect later from domain settings."
+    },
     "skip": "Skip",
     "stepOf": "Step {current} of {total}",
     "back": "Back"

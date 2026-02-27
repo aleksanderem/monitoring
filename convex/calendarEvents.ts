@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
+import { auth } from "./auth";
+import { requireTenantAccess } from "./permissions";
 
 // ─── Queries ─────────────────────────────────────────────────────────
 
@@ -16,6 +18,10 @@ export const getEvents = query({
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     // Fetch events in the date range using the composite index
     let events = await ctx.db
       .query("calendarEvents")
@@ -49,6 +55,10 @@ export const getUpcomingEvents = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const now = Date.now();
     const weekFromNow = now + 7 * 24 * 60 * 60 * 1000;
 
@@ -89,6 +99,10 @@ export const getEventCounts = query({
     endDate: v.number(),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return {};
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     const events = await ctx.db
       .query("calendarEvents")
       .withIndex("by_domain_date", (q) =>
@@ -156,6 +170,10 @@ export const createEvent = mutation({
     color: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Authentication required");
+    await requireTenantAccess(ctx, "domain", args.domainId);
+
     return await ctx.db.insert("calendarEvents", {
       domainId: args.domainId,
       category: args.category as any,
@@ -186,6 +204,13 @@ export const updateEventStatus = mutation({
     status: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Authentication required");
+
+    const event = await ctx.db.get(args.eventId);
+    if (!event) throw new Error("Event not found");
+    await requireTenantAccess(ctx, "domain", event.domainId);
+
     const update: Record<string, any> = {
       status: args.status,
     };
@@ -204,6 +229,13 @@ export const deleteEvent = mutation({
     eventId: v.id("calendarEvents"),
   },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Authentication required");
+
+    const event = await ctx.db.get(args.eventId);
+    if (!event) throw new Error("Event not found");
+    await requireTenantAccess(ctx, "domain", event.domainId);
+
     await ctx.db.delete(args.eventId);
   },
 });

@@ -138,6 +138,9 @@ export const _getUserKeywordMeta = internalQuery({
 export const getStats = action({
   args: {},
   handler: async (ctx): Promise<StatsResult | null> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Authentication required");
+
     const meta: UserKeywordMeta | null = await ctx.runQuery(internal.dashboard._getUserKeywordMeta);
     if (!meta) {
       return null;
@@ -259,6 +262,9 @@ export const getStats = action({
 export const getPositionDistribution = action({
   args: {},
   handler: async (ctx): Promise<DistributionBucket[]> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Authentication required");
+
     const emptyBuckets: DistributionBucket[] = [
       { range: "1-3", count: 0 },
       { range: "4-10", count: 0 },
@@ -331,6 +337,9 @@ export const getPositionDistribution = action({
 export const getRecentChanges = action({
   args: {},
   handler: async (ctx): Promise<ChangesResult> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Authentication required");
+
     const meta: UserKeywordMeta | null = await ctx.runQuery(internal.dashboard._getUserKeywordMeta);
     if (!meta || meta.domains.length === 0) {
       return { gainers: [], losers: [] };
@@ -427,6 +436,9 @@ export const getRecentChanges = action({
 export const getRecentActivity = action({
   args: {},
   handler: async (ctx): Promise<ActivityItem[]> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Authentication required");
+
     const meta: UserKeywordMeta | null = await ctx.runQuery(internal.dashboard._getUserKeywordMeta);
     if (!meta || meta.domains.length === 0) {
       return [];
