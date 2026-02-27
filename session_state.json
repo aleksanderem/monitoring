@@ -1,18 +1,18 @@
 {
-  "session_id": "S0146",
-  "started_at": "2026-02-28T10:00:00Z",
-  "last_updated": "2026-02-27T09:19:00Z",
+  "session_id": "S0147",
+  "started_at": "2026-02-27T12:00:00Z",
+  "last_updated": "2026-02-27T12:00:00Z",
   "status": "active",
-  "focus": "GSC-first Phase 5 complete, committing",
+  "focus": "Deploy repairGscPrimary, verify GSC-first end-to-end flow",
   "tasks_snapshot": {
-    "total": 5,
-    "not_started": 0,
-    "in_progress": 0,
-    "passing": 5,
+    "total": 3,
+    "not_started": 2,
+    "in_progress": 1,
+    "passing": 0,
     "failing": 0,
     "blocked": 0
   },
-  "active_task_ids": [],
+  "active_task_ids": [1],
   "blockers": [],
-  "notes": "Phase 5 onboarding GSC step complete. All 5 locales updated. Build+tests pass."
+  "notes": "Continuing from S0146. gscPrimary=None on all GSC-connected domains. repairGscPrimary mutation written but not deployed."
 }

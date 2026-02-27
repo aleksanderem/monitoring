@@ -776,6 +776,25 @@ export const getAllActiveConnections = internalQuery({
   },
 });
 
+// ─── Repair: backfill gscPrimary for domains that have gscPropertyUrl ────────
+
+export const repairGscPrimary = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // Find all domains that have gscPropertyUrl set but gscPrimary is not true
+    const allDomains = await ctx.db.query("domains").collect();
+    let repaired = 0;
+    for (const domain of allDomains) {
+      if (domain.gscPropertyUrl && domain.gscPrimary !== true) {
+        await ctx.db.patch(domain._id, { gscPrimary: true });
+        repaired++;
+        console.log(`Repaired gscPrimary for domain ${domain.domain} (${domain._id})`);
+      }
+    }
+    return { repaired, total: allDomains.length };
+  },
+});
+
 // ─── Internal mutations ────────────────────────────────────────────
 
 export const storeGscMetrics = internalMutation({

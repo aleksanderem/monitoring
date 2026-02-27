@@ -521,35 +521,45 @@ export const storePositionInternal = internalMutation({
     // Denormalize: update keyword record with current position data
     const keyword = await ctx.db.get(args.keywordId);
     if (keyword) {
-      const recentPositions = keyword.recentPositions ?? [];
+      // GSC guard: when GSC owns the effective position, D4S only updates supplementary fields
+      if (keyword.positionSource === "gsc") {
+        await ctx.db.patch(args.keywordId, {
+          searchVolume: args.searchVolume,
+          difficulty: args.difficulty,
+          latestCpc: args.cpc,
+          lastUpdated: Date.now(),
+        });
+      } else {
+        const recentPositions = keyword.recentPositions ?? [];
 
-      // Add/replace entry for this date, keep last 7 sorted by date
-      const filtered = recentPositions.filter((p) => p.date !== args.date);
-      filtered.push({ date: args.date, position: args.position });
-      filtered.sort((a, b) => a.date.localeCompare(b.date));
-      const trimmed = filtered.slice(-7);
+        // Add/replace entry for this date, keep last 7 sorted by date
+        const filtered = recentPositions.filter((p) => p.date !== args.date);
+        filtered.push({ date: args.date, position: args.position });
+        filtered.sort((a, b) => a.date.localeCompare(b.date));
+        const trimmed = filtered.slice(-7);
 
-      const latestEntry = trimmed[trimmed.length - 1];
-      const prevEntry = trimmed.length >= 2 ? trimmed[trimmed.length - 2] : null;
+        const latestEntry = trimmed[trimmed.length - 1];
+        const prevEntry = trimmed.length >= 2 ? trimmed[trimmed.length - 2] : null;
 
-      const currentPos = latestEntry?.position ?? null;
-      const previousPos = prevEntry?.position ?? keyword.currentPosition ?? null;
-      const change = (currentPos != null && previousPos != null)
-        ? previousPos - currentPos
-        : null;
+        const currentPos = latestEntry?.position ?? null;
+        const previousPos = prevEntry?.position ?? keyword.currentPosition ?? null;
+        const change = (currentPos != null && previousPos != null)
+          ? previousPos - currentPos
+          : null;
 
-      await ctx.db.patch(args.keywordId, {
-        currentPosition: currentPos,
-        previousPosition: previousPos,
-        positionChange: change,
-        currentUrl: args.url,
-        searchVolume: args.searchVolume,
-        difficulty: args.difficulty,
-        latestCpc: args.cpc,
-        positionUpdatedAt: Date.now(),
-        lastUpdated: Date.now(),
-        recentPositions: trimmed,
-      });
+        await ctx.db.patch(args.keywordId, {
+          currentPosition: currentPos,
+          previousPosition: previousPos,
+          positionChange: change,
+          currentUrl: args.url,
+          searchVolume: args.searchVolume,
+          difficulty: args.difficulty,
+          latestCpc: args.cpc,
+          positionUpdatedAt: Date.now(),
+          lastUpdated: Date.now(),
+          recentPositions: trimmed,
+        });
+      }
     }
 
     return positionId;

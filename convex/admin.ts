@@ -1595,3 +1595,20 @@ export const triggerRepairDenormalization = mutation({
     return { scheduled: true };
   },
 });
+
+/**
+ * Repair gscPrimary flag on domains that have gscPropertyUrl but missing gscPrimary.
+ * This fixes domains that were GSC-connected before the gscPrimary field was introduced.
+ */
+export const triggerRepairGscPrimary = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const adminUserId = await requireSuperAdmin(ctx);
+
+    await ctx.scheduler.runAfter(0, internal.gsc.repairGscPrimary, {});
+
+    await logAdminAction(ctx, adminUserId, "trigger_repair_gsc_primary", "system", "gsc_repair", {});
+
+    return { scheduled: true };
+  },
+});
