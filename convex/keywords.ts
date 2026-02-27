@@ -875,6 +875,39 @@ export const addKeywords = mutation({
       const domain = await ctx.db.get(args.domainId);
       if (domain) {
         await ctx.db.patch(args.domainId, { keywordCount: (domain.keywordCount ?? 0) + results.length });
+
+        // Pre-populate GSC data for newly added keywords when GSC is primary.
+        // Looks up existing gscKeywordMetrics (from previous syncs) so the user
+        // sees real data immediately instead of waiting for the next scheduled sync.
+        if (domain.gscPrimary === true) {
+          for (let i = 0; i < uniquePhrases.length; i++) {
+            const phrase = uniquePhrases[i];
+            const keywordId = results[i];
+            // Find most recent GSC metric for this phrase
+            const gscRows = await ctx.db
+              .query("gscKeywordMetrics")
+              .withIndex("by_domain_keyword", (q) =>
+                q.eq("domainId", args.domainId).eq("keyword", phrase)
+              )
+              .collect();
+            if (gscRows.length === 0) continue;
+
+            // Pick the most recent date
+            const latest = gscRows.sort((a, b) => b.date.localeCompare(a.date))[0];
+            const gscPosition = Math.round(latest.position * 10) / 10;
+
+            await ctx.db.patch(keywordId, {
+              currentPosition: gscPosition,
+              positionSource: "gsc" as const,
+              gscClicks: latest.clicks,
+              gscImpressions: latest.impressions,
+              gscCtr: latest.ctr,
+              gscUrl: latest.url,
+              positionUpdatedAt: Date.now(),
+              recentPositions: [{ date: latest.date, position: gscPosition }],
+            });
+          }
+        }
       }
     }
 
@@ -1639,6 +1672,30 @@ export const createKeywordInternal = internalMutation({
     const domain = await ctx.db.get(args.domainId);
     if (domain) {
       await ctx.db.patch(args.domainId, { keywordCount: (domain.keywordCount ?? 0) + 1 });
+
+      // Pre-populate GSC data when GSC is primary
+      if (domain.gscPrimary === true) {
+        const gscRows = await ctx.db
+          .query("gscKeywordMetrics")
+          .withIndex("by_domain_keyword", (q) =>
+            q.eq("domainId", args.domainId).eq("keyword", args.phrase)
+          )
+          .collect();
+        if (gscRows.length > 0) {
+          const latest = gscRows.sort((a, b) => b.date.localeCompare(a.date))[0];
+          const gscPosition = Math.round(latest.position * 10) / 10;
+          await ctx.db.patch(keywordId, {
+            currentPosition: gscPosition,
+            positionSource: "gsc" as const,
+            gscClicks: latest.clicks,
+            gscImpressions: latest.impressions,
+            gscCtr: latest.ctr,
+            gscUrl: latest.url,
+            positionUpdatedAt: Date.now(),
+            recentPositions: [{ date: latest.date, position: gscPosition }],
+          });
+        }
+      }
     }
 
     return keywordId;
