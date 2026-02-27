@@ -38,5 +38,6 @@
   "clearFilters": "Filter zurücksetzen",
   "paginationInfo": "Seite {current} von {total} ({count} Ergebnisse)",
   "previous": "Zurück",
-  "next": "Weiter"
+  "next": "Weiter",
+  "shareLinkFailed": "[DE] Failed to create share link. Please try again."
 }

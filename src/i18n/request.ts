@@ -34,6 +34,7 @@ export default getRequestConfig(async () => {
         "dashboards",
         "scheduledReports",
         "help",
+        "calendar",
     ];
 
     const messages: Record<string, any> = {};
