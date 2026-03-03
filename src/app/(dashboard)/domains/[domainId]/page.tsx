@@ -464,6 +464,16 @@ function BusinessContextSection({ domainId, domain }: { domainId: Id<"domains">;
   );
 }
 
+/** Map lockReason → target tab for navigation-type actions. */
+const LOCK_NAV_TARGET: Record<string, string> = {
+  lockReasonAddKeywordsAndCheck: "monitoring",
+  lockReasonRunSerpCheck: "monitoring",
+  lockReasonAddKeywords: "monitoring",
+  lockReasonAddCompetitors: "competitors",
+  lockReasonRunAnalysis: "competitors",
+  lockReasonSetContext: "settings",
+};
+
 function TabContentOrCTA({
   tabId,
   moduleReadiness,
@@ -479,6 +489,12 @@ function TabContentOrCTA({
 }) {
   const state = moduleReadiness[tabId];
   if (state?.locked) {
+    // If the navigation target is the tab itself, show content instead of CTA
+    // (e.g. monitoring tab locked because no keywords — show empty state with add button)
+    const navTarget = LOCK_NAV_TARGET[state.lockReason];
+    if (navTarget === tabId) {
+      return <>{children}</>;
+    }
     return <LockedTabCTA tabId={tabId} lockReason={state.lockReason} domainId={domainId} onNavigateToTab={onNavigateToTab} />;
   }
   return <>{children}</>;
