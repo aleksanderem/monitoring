@@ -515,10 +515,29 @@ export const processSerpFetchJobInternal = internalAction({
       failedKeywords: failedCount,
     });
 
-    // Update visibility snapshot from keyword positions
+    // Update visibility snapshot from keyword positions (includes recentPositions backfill)
     await ctx.runMutation(internal.keywordSerpJobs.computeVisibilitySnapshot, {
       domainId: job.domainId,
     });
+
+    // Auto-fetch historical visibility data if chart would show too few points
+    const historyCount = await ctx.runQuery(internal.keywordSerpJobs.countVisibilityHistory, {
+      domainId: job.domainId,
+    });
+    if (historyCount < 5) {
+      const domain = await ctx.runQuery(internal.keywordSerpJobs.getDomainInternal, {
+        domainId: job.domainId,
+      });
+      if (domain) {
+        console.log(`[processSerpFetchJob] Only ${historyCount} visibility history entries — auto-fetching DataForSEO history`);
+        await ctx.scheduler.runAfter(0, internal.dataforseo.fetchAndStoreVisibilityHistoryInternal, {
+          domainId: job.domainId,
+          domain: domain.domain,
+          location: domain.settings.location,
+          language: domain.settings.language,
+        });
+      }
+    }
 
     // Notify team
     await ctx.runMutation(internal.notifications.createJobNotification, {
@@ -536,8 +555,35 @@ export const processSerpFetchJobInternal = internalAction({
   },
 });
 
-// After SERP job completes, aggregate keyword positions into a visibility snapshot
-// for the overview chart (domainVisibilityHistory table)
+// Helper: classify a position into a bucket name
+function classifyPosition(pos: number) {
+  if (pos === 1) return "pos_1";
+  if (pos <= 3) return "pos_2_3";
+  if (pos <= 10) return "pos_4_10";
+  if (pos <= 20) return "pos_11_20";
+  if (pos <= 30) return "pos_21_30";
+  if (pos <= 40) return "pos_31_40";
+  if (pos <= 50) return "pos_41_50";
+  if (pos <= 60) return "pos_51_60";
+  if (pos <= 70) return "pos_61_70";
+  if (pos <= 80) return "pos_71_80";
+  if (pos <= 90) return "pos_81_90";
+  return "pos_91_100";
+}
+
+function emptyBuckets() {
+  return {
+    pos_1: 0, pos_2_3: 0, pos_4_10: 0, pos_11_20: 0,
+    pos_21_30: 0, pos_31_40: 0, pos_41_50: 0,
+    pos_51_60: 0, pos_61_70: 0, pos_71_80: 0,
+    pos_81_90: 0, pos_91_100: 0,
+    count: 0,
+  };
+}
+
+// After SERP job completes, aggregate keyword positions into visibility snapshots
+// for the overview chart (domainVisibilityHistory table).
+// Also backfills recent days from recentPositions so the chart shows multi-day data.
 export const computeVisibilitySnapshot = internalMutation({
   args: { domainId: v.id("domains") },
   handler: async (ctx, args) => {
@@ -546,66 +592,98 @@ export const computeVisibilitySnapshot = internalMutation({
       .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
       .collect();
 
-    // Count keywords in each position bucket
-    let pos_1 = 0, pos_2_3 = 0, pos_4_10 = 0, pos_11_20 = 0;
-    let pos_21_30 = 0, pos_31_40 = 0, pos_41_50 = 0;
-    let pos_51_60 = 0, pos_61_70 = 0, pos_71_80 = 0;
-    let pos_81_90 = 0, pos_91_100 = 0;
-    let totalRanking = 0;
+    const today = new Date().toISOString().split("T")[0];
+    const now = Date.now();
 
+    // Build per-date buckets from recentPositions (past days) + currentPosition (today)
+    const dateMap = new Map<string, ReturnType<typeof emptyBuckets>>();
+
+    for (const kw of keywords) {
+      // Backfill from recentPositions (last ~7 entries with dates)
+      if (kw.recentPositions) {
+        for (const rp of kw.recentPositions) {
+          if (rp.position == null || rp.position <= 0) continue;
+          const dateKey = rp.date;
+          if (!dateMap.has(dateKey)) dateMap.set(dateKey, emptyBuckets());
+          const buckets = dateMap.get(dateKey)!;
+          buckets[classifyPosition(rp.position)]++;
+          buckets.count++;
+        }
+      }
+
+      // Today's snapshot from currentPosition (overrides any recentPositions entry for today)
+      const pos = kw.currentPosition;
+      if (pos != null && pos > 0) {
+        if (!dateMap.has(today)) dateMap.set(today, emptyBuckets());
+        // recentPositions might already include today — we'll recalculate today's bucket fresh below
+      }
+    }
+
+    // Recalculate today's bucket fresh from currentPosition (authoritative source)
+    const todayBuckets = emptyBuckets();
     for (const kw of keywords) {
       const pos = kw.currentPosition;
       if (pos == null || pos <= 0) continue;
-      totalRanking++;
-      if (pos === 1) pos_1++;
-      else if (pos <= 3) pos_2_3++;
-      else if (pos <= 10) pos_4_10++;
-      else if (pos <= 20) pos_11_20++;
-      else if (pos <= 30) pos_21_30++;
-      else if (pos <= 40) pos_31_40++;
-      else if (pos <= 50) pos_41_50++;
-      else if (pos <= 60) pos_51_60++;
-      else if (pos <= 70) pos_61_70++;
-      else if (pos <= 80) pos_71_80++;
-      else if (pos <= 90) pos_81_90++;
-      else pos_91_100++;
+      todayBuckets[classifyPosition(pos)]++;
+      todayBuckets.count++;
+    }
+    if (todayBuckets.count > 0) {
+      dateMap.set(today, todayBuckets);
     }
 
-    if (totalRanking === 0) {
-      console.log(`[computeVisibilitySnapshot] No ranking keywords for domain ${args.domainId}, skipping`);
+    if (dateMap.size === 0) {
+      console.log(`[computeVisibilitySnapshot] No ranking data for domain ${args.domainId}, skipping`);
       return;
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    // Upsert each date's snapshot
+    let upserted = 0;
+    for (const [date, metrics] of dateMap) {
+      const existing = await ctx.db
+        .query("domainVisibilityHistory")
+        .withIndex("by_domain_date", (q) =>
+          q.eq("domainId", args.domainId).eq("date", date)
+        )
+        .unique();
 
-    // Upsert today's entry
-    const existing = await ctx.db
-      .query("domainVisibilityHistory")
-      .withIndex("by_domain_date", (q) =>
-        q.eq("domainId", args.domainId).eq("date", today)
-      )
-      .unique();
-
-    const metrics = {
-      pos_1, pos_2_3, pos_4_10, pos_11_20,
-      pos_21_30, pos_31_40, pos_41_50,
-      pos_51_60, pos_61_70, pos_71_80,
-      pos_81_90, pos_91_100,
-      count: totalRanking,
-    };
-
-    if (existing) {
-      await ctx.db.patch(existing._id, { metrics, fetchedAt: Date.now() });
-    } else {
-      await ctx.db.insert("domainVisibilityHistory", {
-        domainId: args.domainId,
-        date: today,
-        metrics,
-        fetchedAt: Date.now(),
-      });
+      if (existing) {
+        // Only overwrite if this is today (fresh data) or no data existed before
+        if (date === today || existing.metrics.count === 0) {
+          await ctx.db.patch(existing._id, { metrics, fetchedAt: now });
+          upserted++;
+        }
+      } else {
+        await ctx.db.insert("domainVisibilityHistory", {
+          domainId: args.domainId,
+          date,
+          metrics,
+          fetchedAt: now,
+        });
+        upserted++;
+      }
     }
 
-    console.log(`[computeVisibilitySnapshot] Stored snapshot for ${args.domainId}: ${totalRanking} ranking keywords`);
+    console.log(`[computeVisibilitySnapshot] Stored ${upserted} snapshots (${dateMap.size} dates) for ${args.domainId}`);
+  },
+});
+
+// Count existing visibility history entries for a domain (used to decide if auto-fetch is needed)
+export const countVisibilityHistory = internalQuery({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    const entries = await ctx.db
+      .query("domainVisibilityHistory")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+    return entries.length;
+  },
+});
+
+// Get domain details for auto-fetch (internal, no auth)
+export const getDomainInternal = internalQuery({
+  args: { domainId: v.id("domains") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.domainId);
   },
 });
 

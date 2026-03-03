@@ -2250,15 +2250,11 @@ interface HistoricalVisibilityItem {
   metrics: VisibilityMetrics;
 }
 
-// Fetch and store 12 months of domain visibility history
-export const fetchAndStoreVisibilityHistory = action({
-  args: {
-    domainId: v.id("domains"),
-    domain: v.string(),
-    location: v.string(),
-    language: v.string(),
-  },
-  handler: async (ctx, args): Promise<{ success: boolean; error?: string; datesStored?: number }> => {
+// Shared handler for visibility history fetch (used by both public action and internal action)
+async function fetchAndStoreVisibilityHistoryHandler(
+  ctx: any,
+  args: { domainId: Id<"domains">; domain: string; location: string; language: string }
+): Promise<{ success: boolean; error?: string; datesStored?: number }> {
     const login = process.env.DATAFORSEO_LOGIN;
     const password = process.env.DATAFORSEO_PASSWORD;
 
@@ -2457,7 +2453,25 @@ export const fetchAndStoreVisibilityHistory = action({
       console.error("Error fetching visibility history:", error);
       return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
-  },
+}
+
+const visibilityHistoryArgs = {
+  domainId: v.id("domains"),
+  domain: v.string(),
+  location: v.string(),
+  language: v.string(),
+};
+
+// Public action (called from frontend "Fetch History" button)
+export const fetchAndStoreVisibilityHistory = action({
+  args: visibilityHistoryArgs,
+  handler: fetchAndStoreVisibilityHistoryHandler,
+});
+
+// Internal action (called from auto-fetch after SERP job when history is sparse)
+export const fetchAndStoreVisibilityHistoryInternal = internalAction({
+  args: visibilityHistoryArgs,
+  handler: fetchAndStoreVisibilityHistoryHandler,
 });
 
 // Store visibility history data

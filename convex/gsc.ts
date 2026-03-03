@@ -1045,6 +1045,31 @@ export const updateGscTokens = internalMutation({
   },
 });
 
+/**
+ * Get top N pages for a domain by clicks (used by URL inspection to pick which pages to inspect)
+ */
+export const getTopPagesByClicks = internalQuery({
+  args: { domainId: v.id("domains"), limit: v.optional(v.number()) },
+  handler: async (ctx, { domainId, limit = 200 }) => {
+    const pages = await ctx.db
+      .query("gscPageMetrics")
+      .withIndex("by_domain_page", (q) => q.eq("domainId", domainId))
+      .collect();
+
+    // Deduplicate by page URL, keeping highest clicks
+    const pageMap = new Map<string, number>();
+    for (const p of pages) {
+      const current = pageMap.get(p.page) ?? 0;
+      if (p.clicks > current) pageMap.set(p.page, p.clicks);
+    }
+
+    return Array.from(pageMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([url]) => url);
+  },
+});
+
 export const getDomainsWithGscProperty = internalQuery({
   args: { organizationId: v.id("organizations") },
   handler: async (ctx, { organizationId }) => {

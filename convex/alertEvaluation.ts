@@ -8,6 +8,7 @@ import {
   evaluateNewCompetitor,
   evaluateBacklinkLost,
   evaluateVisibilityDrop,
+  evaluateGscTrafficDrop,
   type AlertTrigger,
 } from "./alertEvaluators";
 
@@ -445,6 +446,15 @@ async function evaluateRule(
         history[1].metrics
       );
       return trigger ? [trigger] : [];
+    }
+
+    case "gsc_traffic_drop": {
+      // Fetch content decay data from Supabase via internal action
+      const decayData = await ctx.runAction(
+        internal.actions.gscAnalytics.getContentDecayInternal,
+        { domainId: domain._id, limit: 100 }
+      );
+      return evaluateGscTrafficDrop(rule, decayData ?? []);
     }
 
     default:

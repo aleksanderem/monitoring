@@ -19,6 +19,7 @@ import type * as actions_dataforseoLocations from "../actions/dataforseoLocation
 import type * as actions_generateLlmsTxt from "../actions/generateLlmsTxt.js";
 import type * as actions_generatePlatformInstructions from "../actions/generatePlatformInstructions.js";
 import type * as actions_generateSchema from "../actions/generateSchema.js";
+import type * as actions_gscAnalytics from "../actions/gscAnalytics.js";
 import type * as actions_gscSync from "../actions/gscSync.js";
 import type * as actions_scrapeHomepage from "../actions/scrapeHomepage.js";
 import type * as actions_sendEmail from "../actions/sendEmail.js";
@@ -151,6 +152,7 @@ declare const fullApi: ApiFromModules<{
   "actions/generateLlmsTxt": typeof actions_generateLlmsTxt;
   "actions/generatePlatformInstructions": typeof actions_generatePlatformInstructions;
   "actions/generateSchema": typeof actions_generateSchema;
+  "actions/gscAnalytics": typeof actions_gscAnalytics;
   "actions/gscSync": typeof actions_gscSync;
   "actions/scrapeHomepage": typeof actions_scrapeHomepage;
   "actions/sendEmail": typeof actions_sendEmail;

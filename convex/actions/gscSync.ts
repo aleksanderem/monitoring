@@ -4,6 +4,7 @@ import { action, internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { writeGscPerformance, writeUrlInspections, type GscPerformanceRow, type UrlInspectionRow } from "../lib/supabase";
 
 // ─── Helper: refresh access token if expired ────────────────────────
 
@@ -353,9 +354,52 @@ async function syncGscDataInternal(ctx: any, organizationId: any) {
             metrics: denormMetrics.slice(i, i + 100),
           });
         }
+
+        // Dual-write to Supabase
+        const sbRows: GscPerformanceRow[] = rows.map((row) => ({
+          convex_domain_id: domain._id,
+          date: endDate,
+          query: row.keys[0],
+          page: null,
+          device: null,
+          country: null,
+          search_type: "web",
+          clicks: row.clicks,
+          impressions: row.impressions,
+          ctr: row.ctr,
+          position: row.position,
+        }));
+        await writeGscPerformance(sbRows);
       }
     } catch (error) {
       console.error(`GSC keyword sync error for domain ${domain._id}:`, error);
+    }
+
+    // Phase 1b — Query+Page (needed for cannibalization view in Supabase)
+    try {
+      const rows = await fetchGscAnalytics({
+        ...fetchParams,
+        dimensions: ["query", "page"],
+        rowLimit: 5000,
+      });
+      if (rows.length > 0) {
+        const sbRows: GscPerformanceRow[] = rows.map((row) => ({
+          convex_domain_id: domain._id,
+          date: endDate,
+          query: row.keys[0],
+          page: row.keys[1],
+          device: null,
+          country: null,
+          search_type: "web",
+          clicks: row.clicks,
+          impressions: row.impressions,
+          ctr: row.ctr,
+          position: row.position,
+        }));
+        await writeGscPerformance(sbRows);
+      }
+    } catch (error) {
+      console.error(`GSC query+page sync error for domain ${domain._id}:`, error);
     }
 
     // Phase 2 — Pages
@@ -381,6 +425,21 @@ async function syncGscDataInternal(ctx: any, organizationId: any) {
             metrics: metrics.slice(i, i + 100),
           });
         }
+
+        const sbRows: GscPerformanceRow[] = rows.map((row) => ({
+          convex_domain_id: domain._id,
+          date: endDate,
+          query: null,
+          page: row.keys[0],
+          device: null,
+          country: null,
+          search_type: "web",
+          clicks: row.clicks,
+          impressions: row.impressions,
+          ctr: row.ctr,
+          position: row.position,
+        }));
+        await writeGscPerformance(sbRows);
       }
     } catch (error) {
       console.error(`GSC page sync error for domain ${domain._id}:`, error);
@@ -407,6 +466,21 @@ async function syncGscDataInternal(ctx: any, organizationId: any) {
         await ctx.runMutation(internal.gsc.storeGscDeviceMetrics, {
           metrics,
         });
+
+        const sbRows: GscPerformanceRow[] = rows.map((row) => ({
+          convex_domain_id: domain._id,
+          date: endDate,
+          query: null,
+          page: null,
+          device: row.keys[0],
+          country: null,
+          search_type: "web",
+          clicks: row.clicks,
+          impressions: row.impressions,
+          ctr: row.ctr,
+          position: row.position,
+        }));
+        await writeGscPerformance(sbRows);
       }
     } catch (error) {
       console.error(`GSC device sync error for domain ${domain._id}:`, error);
@@ -435,6 +509,21 @@ async function syncGscDataInternal(ctx: any, organizationId: any) {
             metrics: metrics.slice(i, i + 100),
           });
         }
+
+        const sbRows: GscPerformanceRow[] = rows.map((row) => ({
+          convex_domain_id: domain._id,
+          date: endDate,
+          query: null,
+          page: null,
+          device: null,
+          country: row.keys[0],
+          search_type: "web",
+          clicks: row.clicks,
+          impressions: row.impressions,
+          ctr: row.ctr,
+          position: row.position,
+        }));
+        await writeGscPerformance(sbRows);
       }
     } catch (error) {
       console.error(`GSC country sync error for domain ${domain._id}:`, error);
@@ -520,6 +609,21 @@ export const historicalBackfill = internalAction({
               metrics: metrics.slice(i, i + 100),
             });
           }
+
+          const sbRows: GscPerformanceRow[] = rows.map((row) => ({
+            convex_domain_id: domainId,
+            date: endDate,
+            query: row.keys[0],
+            page: null,
+            device: null,
+            country: null,
+            search_type: "web",
+            clicks: row.clicks,
+            impressions: row.impressions,
+            ctr: row.ctr,
+            position: row.position,
+          }));
+          await writeGscPerformance(sbRows);
         }
 
         console.log(`Backfill month ${startDate} to ${endDate}: ${rows.length} rows for domain ${domainId}`);
@@ -586,6 +690,109 @@ export const historicalBackfill = internalAction({
         `Backfill denormalization error for domain ${domainId}:`,
         error
       );
+    }
+  },
+});
+
+// ─── Internal action: inspect top pages via URL Inspection API ──────
+
+export const inspectTopPages = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const connections = await ctx.runQuery(
+      internal.gsc.getAllActiveConnections,
+      {}
+    );
+
+    for (const conn of connections) {
+      try {
+        let accessToken: string;
+        try {
+          accessToken = await refreshTokenIfNeeded(ctx, conn);
+        } catch {
+          console.error(`Token refresh failed for URL inspection, org ${conn.organizationId}`);
+          continue;
+        }
+
+        const domains = await ctx.runQuery(internal.gsc.getDomainsWithGscProperty, {
+          organizationId: conn.organizationId,
+        });
+
+        for (const domain of domains ?? []) {
+          if (!domain.gscPropertyUrl) continue;
+
+          const topPages = await ctx.runQuery(internal.gsc.getTopPagesByClicks, {
+            domainId: domain._id,
+            limit: 200,
+          });
+
+          if (topPages.length === 0) continue;
+
+          const inspectionRows: UrlInspectionRow[] = [];
+
+          for (const pageUrl of topPages) {
+            try {
+              const response = await fetch(
+                "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect",
+                {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    inspectionUrl: pageUrl,
+                    siteUrl: domain.gscPropertyUrl,
+                  }),
+                }
+              );
+
+              if (response.status === 429) {
+                console.warn(`URL Inspection rate limited for ${domain.gscPropertyUrl}, stopping`);
+                break;
+              }
+
+              if (!response.ok) {
+                const errText = await response.text();
+                console.warn(`URL Inspection failed for ${pageUrl}: ${response.status} ${errText}`);
+                continue;
+              }
+
+              const data = await response.json();
+              const idx = data.inspectionResult?.indexStatusResult;
+              const mob = data.inspectionResult?.mobileUsabilityResult;
+              const rich = data.inspectionResult?.richResultsResult;
+
+              inspectionRows.push({
+                convex_domain_id: domain._id,
+                url: pageUrl,
+                indexing_state: idx?.verdict ?? null,
+                coverage_state: idx?.coverageState ?? null,
+                robots_txt_state: idx?.robotsTxtState ?? null,
+                last_crawl_time: idx?.lastCrawlTime ?? null,
+                crawled_as: idx?.crawledAs ?? null,
+                google_canonical: idx?.googleCanonical ?? null,
+                user_canonical: idx?.userCanonical ?? null,
+                mobile_usability: mob?.verdict ?? null,
+                rich_results_valid: rich?.detectedItems?.filter((i: any) => i.items?.length > 0).length ?? 0,
+                rich_results_errors: rich?.detectedItems?.filter((i: any) => i.items?.some((it: any) => it.issues?.length > 0)).length ?? 0,
+              });
+
+              // Respect rate limits: 100ms delay between calls
+              await new Promise((r) => setTimeout(r, 100));
+            } catch (err) {
+              console.warn(`URL Inspection error for ${pageUrl}:`, err);
+            }
+          }
+
+          if (inspectionRows.length > 0) {
+            await writeUrlInspections(inspectionRows);
+            console.log(`URL Inspection: wrote ${inspectionRows.length} results for domain ${domain._id}`);
+          }
+        }
+      } catch (error) {
+        console.error(`URL Inspection failed for org ${conn.organizationId}:`, error);
+      }
     }
   },
 });

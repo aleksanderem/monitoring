@@ -204,6 +204,18 @@ interface StrategyDataSummary {
     keywordsWithGscData: number;
     topByClicks: Array<{ phrase: string; position: number; clicks: number; impressions: number; ctr: number }>;
   };
+  gscAnalytics?: {
+    quickWins: Array<{ query: string; page: string; clicks: number; impressions: number; ctr: number; position: number }>;
+    cannibalization: Array<{ query: string; page_count: number; competing_pages: string[]; total_clicks: number; total_impressions: number }>;
+    contentDecay: Array<{ page: string; recent_clicks: number; prev_clicks: number; click_change: number; pct_change: number }>;
+    indexationHealth: {
+      total: number; indexed: number; blocked: number; mobileFriendly: number;
+      notMobileFriendly: number; richResultsCount: number; richErrorsCount: number;
+      blockedUrls: Array<{ url: string; state: string; coverage: string }>;
+    } | null;
+    crawlBudgetWaste: Array<{ url: string; waste_reason: string; total_clicks: number; total_impressions: number; indexing_state: string; coverage_state: string }>;
+    zeroClickQueries: Array<{ query: string; total_clicks: number; total_impressions: number; avg_position: number; ctr_pct: number }>;
+  };
 }
 
 // ─── Data Collection ───
@@ -263,6 +275,32 @@ async function collectDomainData(
     ctx.runQuery(internal.aiStrategy.getInsightsInternal, { domainId }),
     ctx.runQuery(internal.aiStrategy.getTopicClustersInternal, { domainId }),
   ]);
+
+  // ── GSC Supabase analytics (only for GSC-connected domains) ──
+  let gscAnalytics: StrategyDataSummary["gscAnalytics"] = undefined;
+  if (domain.gscPrimary === true) {
+    try {
+      const [gscQW, gscCannibal, gscDecay, gscIndexHealth, gscBudgetWaste, gscZeroClick] = await Promise.all([
+        ctx.runAction(internal.actions.gscAnalytics.getQuickWinsInternal, { domainId: domainId as any, limit: 30, minImpressions: 50 }),
+        ctx.runAction(internal.actions.gscAnalytics.getCannibalizationInternal, { domainId: domainId as any, limit: 20 }),
+        ctx.runAction(internal.actions.gscAnalytics.getContentDecayInternal, { domainId: domainId as any, limit: 20 }),
+        ctx.runAction(internal.actions.gscAnalytics.getIndexationHealthInternal, { domainId: domainId as any }),
+        ctx.runAction(internal.actions.gscAnalytics.getCrawlBudgetWasteInternal, { domainId: domainId as any, limit: 20 }),
+        ctx.runAction(internal.actions.gscAnalytics.getZeroClickQueriesInternal, { domainId: domainId as any, limit: 30 }),
+      ]);
+      gscAnalytics = {
+        quickWins: gscQW ?? [],
+        cannibalization: gscCannibal ?? [],
+        contentDecay: gscDecay ?? [],
+        indexationHealth: gscIndexHealth ?? null,
+        crawlBudgetWaste: gscBudgetWaste ?? [],
+        zeroClickQueries: gscZeroClick ?? [],
+      };
+      console.log(`[collectDomainData] GSC analytics loaded: quickWins=${gscAnalytics.quickWins.length}, cannibal=${gscAnalytics.cannibalization.length}, decay=${gscAnalytics.contentDecay.length}, budgetWaste=${gscAnalytics.crawlBudgetWaste.length}, zeroClick=${gscAnalytics.zeroClickQueries.length}`);
+    } catch (err) {
+      console.error(`[collectDomainData] GSC analytics fetch failed (non-fatal):`, err);
+    }
+  }
 
   // ── Process keywords ──
   const activeKws = allKeywords.filter((k: any) => k.status === "active");
@@ -601,7 +639,85 @@ async function collectDomainData(
           })),
       },
     } : {}),
+    // GSC advanced analytics from Supabase
+    ...(gscAnalytics ? { gscAnalytics } : {}),
   };
+}
+
+// ─── GSC Analytics Prompt Section ───
+
+function buildGscAnalyticsPromptSection(data: StrategyDataSummary): string {
+  const ga = data.gscAnalytics;
+  if (!ga) return "";
+
+  const hasAnyData = ga.quickWins.length > 0
+    || ga.cannibalization.length > 0
+    || ga.contentDecay.length > 0
+    || ga.indexationHealth != null
+    || ga.crawlBudgetWaste.length > 0
+    || ga.zeroClickQueries.length > 0;
+
+  if (!hasAnyData) return "";
+
+  const sections: string[] = [
+    `\n=== GSC ADVANCED ANALYTICS (Real Google Search Console data from Supabase) ===`,
+    `USE THIS DATA for strategic decisions — it's REAL measured data, not estimates.`,
+  ];
+
+  if (ga.quickWins.length > 0) {
+    sections.push(`\nGSC QUICK WINS — Page 2 queries with high impressions (push to page 1 for fast traffic gains):`);
+    sections.push(ga.quickWins.slice(0, 20).map((qw) =>
+      `- "${qw.query}" on ${qw.page} | pos ${qw.position.toFixed(1)} | ${qw.impressions} impr | ${qw.clicks} clicks | CTR ${(qw.ctr * 100).toFixed(1)}%`
+    ).join("\n"));
+    sections.push(`ACTION: Include these in quickWins section. These are REAL measured opportunities from GSC, higher priority than estimated data.`);
+  }
+
+  if (ga.cannibalization.length > 0) {
+    sections.push(`\nGSC CANNIBALIZATION — Multiple pages competing for the same query (splitting rankings):`);
+    sections.push(ga.cannibalization.slice(0, 15).map((c) =>
+      `- "${c.query}" → ${c.page_count} pages competing | ${c.total_impressions} impr | ${c.total_clicks} clicks | pages: ${(c.competing_pages ?? []).slice(0, 3).join(", ")}${(c.competing_pages ?? []).length > 3 ? "..." : ""}`
+    ).join("\n"));
+    sections.push(`ACTION: Include in technicalSEO and riskAssessment. Recommend page consolidation or canonical tags.`);
+  }
+
+  if (ga.contentDecay.length > 0) {
+    sections.push(`\nGSC CONTENT DECAY — Pages losing 30%+ clicks (need content refresh):`);
+    sections.push(ga.contentDecay.slice(0, 15).map((d) =>
+      `- ${d.page} | recent: ${d.recent_clicks} clicks → prev: ${d.prev_clicks} clicks | change: ${d.click_change} (${d.pct_change != null ? d.pct_change.toFixed(0) : "?"}%)`
+    ).join("\n"));
+    sections.push(`ACTION: Include in contentStrategy as refresh priorities. These pages are actively losing traffic.`);
+  }
+
+  if (ga.indexationHealth) {
+    const ih = ga.indexationHealth;
+    sections.push(`\nGSC INDEXATION HEALTH (URL Inspection API):`);
+    sections.push(`Total inspected: ${ih.total} | Indexed: ${ih.indexed} | Blocked: ${ih.blocked} | Mobile-friendly: ${ih.mobileFriendly} | Rich results: ${ih.richResultsCount} valid, ${ih.richErrorsCount} errors`);
+    if (ih.blockedUrls.length > 0) {
+      sections.push(`Blocked URLs:`);
+      sections.push(ih.blockedUrls.slice(0, 10).map((u) =>
+        `- ${u.url} | state: ${u.state} | coverage: ${u.coverage}`
+      ).join("\n"));
+    }
+    sections.push(`ACTION: Include in technicalSEO. Blocked pages need robots.txt/noindex review. Rich result errors need schema fixes.`);
+  }
+
+  if (ga.crawlBudgetWaste.length > 0) {
+    sections.push(`\nGSC CRAWL BUDGET WASTE — URLs consuming crawl budget without value:`);
+    sections.push(ga.crawlBudgetWaste.slice(0, 15).map((w) =>
+      `- ${w.url} | reason: ${w.waste_reason} | ${w.total_clicks} clicks | ${w.total_impressions} impr | index: ${w.indexing_state} | coverage: ${w.coverage_state}`
+    ).join("\n"));
+    sections.push(`ACTION: Include in technicalSEO. Recommend blocking/removing these from crawl via robots.txt or noindex.`);
+  }
+
+  if (ga.zeroClickQueries.length > 0) {
+    sections.push(`\nGSC ZERO-CLICK QUERIES — High impressions but near-zero clicks (featured snippet opportunities):`);
+    sections.push(ga.zeroClickQueries.slice(0, 20).map((z) =>
+      `- "${z.query}" | ${z.total_impressions} impr | ${z.total_clicks} clicks | avg pos ${z.avg_position.toFixed(1)} | CTR ${z.ctr_pct.toFixed(1)}%`
+    ).join("\n"));
+    sections.push(`ACTION: Include in contentStrategy. These queries need schema markup, featured snippet optimization, or richer meta descriptions.`);
+  }
+
+  return sections.join("\n");
 }
 
 // ─── Prompt Builder ───
@@ -659,7 +775,7 @@ ${data.gsc ? `
 GSC is PRIMARY source (${data.gsc.keywordsWithGscData} keywords with real positions). Prioritize GSC clicks/CTR for decision-making.
 Top keywords by real clicks:
 ${data.gsc.topByClicks.map((kw) => `- "${kw.phrase}" pos #${kw.position} — ${kw.clicks} clicks, ${kw.impressions} impr, CTR ${(kw.ctr * 100).toFixed(1)}%`).join("\n")}
-` : ""}
+` : ""}${buildGscAnalyticsPromptSection(data)}
 === DISCOVERED KEYWORDS (${data.discoveredKeywords.totalCount} total, ${data.discoveredKeywords.rankedCount} ranked) ===
 Top 3: ${data.discoveredKeywords.top3} | Top 10: ${data.discoveredKeywords.top10}
 Average Position: ${data.discoveredKeywords.avgPosition ?? "no data"}
@@ -883,7 +999,7 @@ ${data.gsc ? `
 GSC is PRIMARY source (${data.gsc.keywordsWithGscData} keywords with real positions). Prioritize GSC clicks/CTR for decision-making.
 Top keywords by real clicks:
 ${data.gsc.topByClicks.map((kw) => `- "${kw.phrase}" pos #${kw.position} — ${kw.clicks} clicks, ${kw.impressions} impr, CTR ${(kw.ctr * 100).toFixed(1)}%`).join("\n")}
-` : ""}
+` : ""}${buildGscAnalyticsPromptSection(data)}
 === DISCOVERED KEYWORDS (${data.discoveredKeywords.totalCount} total, ${data.discoveredKeywords.rankedCount} ranked) ===
 Top 3: ${data.discoveredKeywords.top3} | Top 10: ${data.discoveredKeywords.top10}
 Average Position: ${data.discoveredKeywords.avgPosition ?? "no data"}
@@ -1596,6 +1712,32 @@ export const processStrategyGeneration = internalAction({
         ctx.runQuery(internal.aiStrategy.getTopicClustersInternal, { domainId }),
       ]);
 
+      // GSC Supabase analytics (only for GSC-connected domains)
+      let gscAnalytics: StrategyDataSummary["gscAnalytics"] = undefined;
+      if (domain.gscPrimary === true) {
+        try {
+          const [gscQW, gscCannibal, gscDecay, gscIndexHealth, gscBudgetWaste, gscZeroClick] = await Promise.all([
+            ctx.runAction(internal.actions.gscAnalytics.getQuickWinsInternal, { domainId, limit: 30, minImpressions: 50 }),
+            ctx.runAction(internal.actions.gscAnalytics.getCannibalizationInternal, { domainId, limit: 20 }),
+            ctx.runAction(internal.actions.gscAnalytics.getContentDecayInternal, { domainId, limit: 20 }),
+            ctx.runAction(internal.actions.gscAnalytics.getIndexationHealthInternal, { domainId }),
+            ctx.runAction(internal.actions.gscAnalytics.getCrawlBudgetWasteInternal, { domainId, limit: 20 }),
+            ctx.runAction(internal.actions.gscAnalytics.getZeroClickQueriesInternal, { domainId, limit: 30 }),
+          ]);
+          gscAnalytics = {
+            quickWins: gscQW ?? [],
+            cannibalization: gscCannibal ?? [],
+            contentDecay: gscDecay ?? [],
+            indexationHealth: gscIndexHealth ?? null,
+            crawlBudgetWaste: gscBudgetWaste ?? [],
+            zeroClickQueries: gscZeroClick ?? [],
+          };
+          console.log(`[Strategy] GSC analytics: qw=${gscAnalytics.quickWins.length} cannibal=${gscAnalytics.cannibalization.length} decay=${gscAnalytics.contentDecay.length} waste=${gscAnalytics.crawlBudgetWaste.length} zeroCl=${gscAnalytics.zeroClickQueries.length}`);
+        } catch (err) {
+          console.error(`[Strategy] GSC analytics fetch failed (non-fatal):`, err);
+        }
+      }
+
       // Step 2 (35%, collecting): Competitor enrichment
       await markStep(ctx, sessionId, 2, 35, "collecting", "Analyzing competitors & keyword map...");
 
@@ -1930,6 +2072,25 @@ export const processStrategyGeneration = internalAction({
           nearPage1: insightsData.nearPage1.slice(0, 10),
           recommendations: insightsData.recommendations.slice(0, 15),
         },
+        // GSC real search data when available
+        ...(domain.gscPrimary === true ? {
+          gsc: {
+            isPrimary: true,
+            keywordsWithGscData: activeKws.filter((kw: any) => kw.positionSource === "gsc").length,
+            topByClicks: activeKws
+              .filter((kw: any) => kw.gscClicks != null && kw.gscClicks > 0)
+              .sort((a: any, b: any) => (b.gscClicks ?? 0) - (a.gscClicks ?? 0))
+              .slice(0, 15)
+              .map((kw: any) => ({
+                phrase: kw.phrase,
+                position: kw.currentPosition ?? 0,
+                clicks: kw.gscClicks ?? 0,
+                impressions: kw.gscImpressions ?? 0,
+                ctr: kw.gscCtr ?? 0,
+              })),
+          },
+        } : {}),
+        ...(gscAnalytics ? { gscAnalytics } : {}),
       };
 
       // Step 4 (55%, analyzing): Resolve AI configuration
