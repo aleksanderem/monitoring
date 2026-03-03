@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { Button } from "@/components/base/buttons/button";
@@ -26,21 +26,34 @@ export function LockedTabCTA({ tabId, lockReason, domainId, onNavigateToTab }: L
 
   const fetchBacklinks = useAction(api.backlinks.fetchBacklinksFromAPI);
   const triggerAudit = useMutation(api.seoAudit_actions.triggerSeoAuditScan);
+  const refreshPositions = useMutation(api.keywords.refreshKeywordPositions);
+  const keywords = useQuery(
+    api.keywords.getKeywords,
+    lockReason === "lockReasonRunSerpCheck" ? { domainId } : "skip"
+  );
 
   const actionConfig = getActionConfig(lockReason);
 
   async function handleApiAction() {
     setIsLoading(true);
     try {
-      if (tabId === "backlinks") {
+      if (lockReason === "lockReasonRunSerpCheck") {
+        const ids = (keywords ?? []).map((k) => k._id);
+        if (ids.length === 0) {
+          toast.error(t("lockedTabNoKeywords"));
+          return;
+        }
+        await refreshPositions({ keywordIds: ids });
+        toast.success(t("lockedTabSerpCheckStarted"));
+      } else if (lockReason === "lockReasonFetchBacklinks") {
         await fetchBacklinks({ domainId });
         toast.success(t("lockedTabBacklinksFetched"));
-      } else if (tabId === "on-site") {
+      } else if (lockReason === "lockReasonRunAudit") {
         await triggerAudit({ domainId });
         toast.success(t("lockedTabAuditStarted"));
       }
     } catch (error) {
-      console.error(`[LockedTabCTA] Failed action for ${tabId}:`, error);
+      console.error(`[LockedTabCTA] Failed action for ${lockReason}:`, error);
       toast.error(t("lockedTabActionFailed"));
     } finally {
       setIsLoading(false);
@@ -91,8 +104,10 @@ function getActionConfig(lockReason: string): ActionConfig | null {
     case "lockReasonRunAudit":
       return { type: "api-action", buttonKey: "lockedTabRunAudit" };
 
-    // Navigate to monitoring tab
     case "lockReasonRunSerpCheck":
+      return { type: "api-action", buttonKey: "lockedTabRunSerpCheck" };
+
+    // Navigate to monitoring tab
     case "lockReasonAddKeywords":
       return { type: "navigate", buttonKey: "lockedTabGoToMonitoring", targetTab: "monitoring" };
 

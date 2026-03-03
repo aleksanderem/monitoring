@@ -466,7 +466,6 @@ function BusinessContextSection({ domainId, domain }: { domainId: Id<"domains">;
 
 /** Map lockReason → target tab for navigation-type actions. */
 const LOCK_NAV_TARGET: Record<string, string> = {
-  lockReasonRunSerpCheck: "monitoring",
   lockReasonAddKeywords: "monitoring",
   lockReasonAddCompetitors: "competitors",
   lockReasonRunAnalysis: "competitors",
