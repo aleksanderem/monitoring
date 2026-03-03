@@ -1103,3 +1103,109 @@ export const getDomainsWithGscProperty = internalQuery({
     return domains;
   },
 });
+
+// ─── GSC Keywords Not Yet Tracked ─────────────────────────────────
+
+/**
+ * Returns GSC keywords that are NOT in the keywords table, for UI browsing.
+ * Aggregates last 28 days of gscKeywordMetrics per keyword.
+ * User can then call addKeywords({ source: "gsc_manual" }) to promote selected ones.
+ */
+export const getGscKeywordsNotTracked = query({
+  args: {
+    domainId: v.id("domains"),
+    limit: v.optional(v.number()),
+    sortBy: v.optional(
+      v.union(v.literal("position"), v.literal("clicks"), v.literal("impressions"))
+    ),
+  },
+  handler: async (ctx, { domainId, limit, sortBy }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+
+    const domain = await ctx.db.get(domainId);
+    if (!domain) return null;
+
+    // Auth: verify user belongs to the org that owns this domain
+    const project = await ctx.db.get(domain.projectId);
+    if (!project) return null;
+    const team = await ctx.db.get(project.teamId);
+    if (!team) return null;
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_user", (q) =>
+        q.eq("organizationId", team.organizationId).eq("userId", userId)
+      )
+      .first();
+    if (!membership) return null;
+
+    // Load tracked keywords
+    const trackedKeywords = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", domainId))
+      .collect();
+    const trackedPhrases = new Set(trackedKeywords.map((k) => k.phrase.toLowerCase()));
+
+    // Load recent GSC metrics (last 28 days)
+    const startDate = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+
+    const gscMetrics = await ctx.db
+      .query("gscKeywordMetrics")
+      .withIndex("by_domain_date", (q) =>
+        q.eq("domainId", domainId).gte("date", startDate)
+      )
+      .collect();
+
+    // Aggregate per keyword: total clicks/impressions, latest position/CTR
+    const byKeyword = new Map<
+      string,
+      { keyword: string; position: number; clicks: number; impressions: number; ctr: number; latestDate: string }
+    >();
+
+    for (const m of gscMetrics) {
+      const key = m.keyword.toLowerCase();
+      if (trackedPhrases.has(key)) continue;
+
+      const existing = byKeyword.get(key);
+      if (existing) {
+        existing.clicks += m.clicks;
+        existing.impressions += m.impressions;
+        if (m.date > existing.latestDate) {
+          existing.position = m.position;
+          existing.ctr = m.ctr;
+          existing.latestDate = m.date;
+        }
+      } else {
+        byKeyword.set(key, {
+          keyword: m.keyword,
+          position: m.position,
+          clicks: m.clicks,
+          impressions: m.impressions,
+          ctr: m.ctr,
+          latestDate: m.date,
+        });
+      }
+    }
+
+    // Sort
+    const results = Array.from(byKeyword.values());
+    const sort = sortBy ?? "clicks";
+    if (sort === "position") {
+      results.sort((a, b) => a.position - b.position);
+    } else if (sort === "impressions") {
+      results.sort((a, b) => b.impressions - a.impressions);
+    } else {
+      results.sort((a, b) => b.clicks - a.clicks);
+    }
+
+    return results.slice(0, limit ?? 200).map((g) => ({
+      keyword: g.keyword,
+      position: Math.round(g.position * 10) / 10,
+      clicks: g.clicks,
+      impressions: g.impressions,
+      ctr: g.ctr,
+    }));
+  },
+});

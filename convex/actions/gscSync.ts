@@ -355,6 +355,21 @@ async function syncGscDataInternal(ctx: any, organizationId: any) {
           });
         }
 
+        // Phase 1c — Auto-import top GSC keywords into monitoring (up to domain limit)
+        try {
+          const importMetrics = [...denormMetrics].sort(
+            (a, b) => a.position - b.position || b.impressions - a.impressions
+          );
+          for (let i = 0; i < importMetrics.length; i += 100) {
+            await ctx.runMutation(internal.keywords.autoImportGscKeywords, {
+              domainId: domain._id,
+              metrics: importMetrics.slice(i, i + 100),
+            });
+          }
+        } catch (error) {
+          console.error(`[gscSync] Auto-import keywords error for domain ${domain._id}:`, error);
+        }
+
         // Dual-write to Supabase
         const sbRows: GscPerformanceRow[] = rows.map((row) => ({
           convex_domain_id: domain._id,
