@@ -191,6 +191,14 @@ const I18N: Record<string, string> = {
   "lockReasonSetContext": "Set business context to unlock",
   "lockReasonAddKeywords": "Add keywords first to unlock",
   "lockMoreInfo": "How does it work?",
+  // Lock action buttons
+  "lockAction.lockReasonRunSerpCheck":   "Run SERP Check",
+  "lockAction.lockReasonFetchBacklinks": "Fetch Backlinks",
+  "lockAction.lockReasonRunAudit":       "Run Site Audit",
+  "lockAction.lockReasonAddKeywords":    "Add Keywords",
+  "lockAction.lockReasonAddCompetitors": "Add Competitors",
+  "lockAction.lockReasonRunAnalysis":    "Run Analysis",
+  "lockAction.lockReasonSetContext":     "Set Context",
 };
 
 const I18N_PL: Record<string, string> = {
@@ -308,6 +316,14 @@ const I18N_PL: Record<string, string> = {
   "lockReasonSetContext": "Ustaw kontekst biznesowy aby odblokować",
   "lockReasonAddKeywords": "Dodaj słowa kluczowe aby odblokować",
   "lockMoreInfo": "Jak to działa?",
+  // Lock action buttons
+  "lockAction.lockReasonRunSerpCheck":   "Sprawdź SERP",
+  "lockAction.lockReasonFetchBacklinks": "Pobierz Backlinki",
+  "lockAction.lockReasonRunAudit":       "Uruchom Audyt",
+  "lockAction.lockReasonAddKeywords":    "Dodaj Frazy",
+  "lockAction.lockReasonAddCompetitors": "Dodaj Konkurentów",
+  "lockAction.lockReasonRunAnalysis":    "Uruchom Analizę",
+  "lockAction.lockReasonSetContext":     "Ustaw Kontekst",
 };
 
 function loc(key: string, locale?: string): string {
@@ -1019,6 +1035,17 @@ const LOCK_PREREQS: Record<string, string[]> = {
   lockReasonRunAudit:            ["settings"],
   lockReasonSetContext:           ["settings"],
   lockReasonAddKeywords:          ["settings"],
+};
+
+// Maps lockReason → tab to navigate to when user clicks the unlock button on a card
+const LOCK_ACTION_TARGET: Record<string, string> = {
+  lockReasonRunSerpCheck:   "monitoring",
+  lockReasonFetchBacklinks: "backlinks",
+  lockReasonRunAudit:       "on-site",
+  lockReasonAddKeywords:    "monitoring",
+  lockReasonAddCompetitors: "competitors",
+  lockReasonRunAnalysis:    "competitors",
+  lockReasonSetContext:     "settings",
 };
 
 function resolveChain(tabId: string): string[] {
@@ -2120,43 +2147,47 @@ export function ModuleHubCard({
         {/* Lock overlay for blocked modules */}
         {isLocked && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-t-2xl bg-black/30 backdrop-blur-sm dark:bg-black/40 dark:backdrop-blur-sm">
+            {/* Info icon — top-right corner */}
+            {benefitText && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); setLockHighlight(state.lockReason ? LOCK_PREREQS[state.lockReason] : undefined); setActive(true); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setLockHighlight(state.lockReason ? LOCK_PREREQS[state.lockReason] : undefined); setActive(true); } }}
+                      className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white/70 transition-colors hover:bg-white/30 hover:text-white"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 13 13" fill="none">
+                        <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.4" />
+                        <path d="M6.5 5.5V9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                        <circle cx="6.5" cy="3.75" r="0.75" fill="currentColor" />
+                      </svg>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-[200px] text-xs">
+                    {loc("lockMoreInfo", data?.locale)}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/90 shadow-lg dark:bg-white/90">
               <EzIcon name="square-lock-01" size={22} color="#525252" strokeColor="#525252" />
             </div>
             <p className="max-w-[220px] rounded-lg bg-black/50 px-3 py-1.5 text-center text-[12px] font-bold leading-snug text-white">
               {state.lockReason ? loc(state.lockReason, data?.locale) : ""}
             </p>
-            {state.lockReason && (LOCK_PREREQS[state.lockReason] ?? []).length > 0 && (
-              <div className="flex flex-wrap items-center justify-center gap-1.5 px-6">
-                {(LOCK_PREREQS[state.lockReason] ?? []).map((mid) => (
-                  <div
-                    key={mid}
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); onNavigateToTab?.(mid); }}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onNavigateToTab?.(mid); } }}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-black/70"
-                  >
-                    <EzIcon name={MODULE_ICONS[mid] ?? "settings-05"} size={12} color="#ffffff" strokeColor="#ffffff" />
-                    {loc(`shell.${mid}`, data?.locale)}
-                  </div>
-                ))}
-              </div>
-            )}
-            {benefitText && (
+            {/* Contextual unlock button */}
+            {state.lockReason && LOCK_ACTION_TARGET[state.lockReason] && (
               <div
                 role="button"
                 tabIndex={0}
-                onClick={(e) => { e.stopPropagation(); setLockHighlight(state.lockReason ? LOCK_PREREQS[state.lockReason] : undefined); setActive(true); }}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setLockHighlight(state.lockReason ? LOCK_PREREQS[state.lockReason] : undefined); setActive(true); } }}
-                className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[11px] font-bold text-neutral-800 shadow-lg transition-colors hover:bg-neutral-100"
+                onClick={(e) => { e.stopPropagation(); onNavigateToTab?.(LOCK_ACTION_TARGET[state.lockReason!]); }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onNavigateToTab?.(LOCK_ACTION_TARGET[state.lockReason!]); } }}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[11px] font-bold text-neutral-800 shadow-lg transition-colors hover:bg-neutral-100"
               >
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                  <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.4" />
-                  <path d="M6.5 5.5V9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                  <circle cx="6.5" cy="3.75" r="0.75" fill="currentColor" />
-                </svg>
-                {loc("lockMoreInfo", data?.locale)}
+                {loc(`lockAction.${state.lockReason}`, data?.locale)}
               </div>
             )}
           </div>
