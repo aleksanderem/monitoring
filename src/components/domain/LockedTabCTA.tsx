@@ -92,7 +92,6 @@ function getActionConfig(lockReason: string): ActionConfig | null {
       return { type: "api-action", buttonKey: "lockedTabRunAudit" };
 
     // Navigate to monitoring tab
-    case "lockReasonAddKeywordsAndCheck":
     case "lockReasonRunSerpCheck":
     case "lockReasonAddKeywords":
       return { type: "navigate", buttonKey: "lockedTabGoToMonitoring", targetTab: "monitoring" };

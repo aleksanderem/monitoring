@@ -466,7 +466,6 @@ function BusinessContextSection({ domainId, domain }: { domainId: Id<"domains">;
 
 /** Map lockReason → target tab for navigation-type actions. */
 const LOCK_NAV_TARGET: Record<string, string> = {
-  lockReasonAddKeywordsAndCheck: "monitoring",
   lockReasonRunSerpCheck: "monitoring",
   lockReasonAddKeywords: "monitoring",
   lockReasonAddCompetitors: "competitors",
@@ -560,7 +559,14 @@ export default function DomainDetailPage() {
     { id: "alerts", label: t('tabAlerts'), icon: Activity },
     { id: "settings", label: t('tabSettings'), icon: Settings01 },
     ...(isSuperAdmin ? [{ id: "diagnostics", label: t('tabDiagnostics'), icon: Settings01 }] : []),
-  ];
+  ].map((tab) => {
+    // Don't show lock indicator when the resolution target is the tab itself
+    // (e.g. monitoring locked for "add keywords" — show content, not CTA)
+    if (tab.locked && tab.lockReason && LOCK_NAV_TARGET[tab.lockReason] === tab.id) {
+      return { ...tab, locked: false, lockReason: "" };
+    }
+    return tab;
+  });
 
   const domain = useQuery(api.domains.getDomain, { domainId });
   const keywords = useQuery(api.keywords.getKeywords, { domainId });

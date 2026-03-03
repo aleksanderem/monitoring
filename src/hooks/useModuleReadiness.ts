@@ -65,8 +65,11 @@ export function useModuleReadiness(domainId: Id<"domains">): ModuleReadinessMap 
 
     switch (tabId) {
       case "monitoring":
-        if (!steps.keywordsMonitored || !steps.serpChecked) {
-          return { locked: true, lockReason: "lockReasonAddKeywordsAndCheck" };
+        if (!steps.keywordsMonitored) {
+          return { locked: true, lockReason: "lockReasonAddKeywords" };
+        }
+        if (!steps.serpChecked) {
+          return { locked: true, lockReason: "lockReasonRunSerpCheck" };
         }
         return { locked: false, lockReason: "" };
 
