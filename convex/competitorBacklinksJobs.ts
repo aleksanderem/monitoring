@@ -172,8 +172,8 @@ export const processBacklinksJobInternal = internalAction({
         throw new Error("Competitor not found");
       }
 
-      // Call the existing backlinks fetch action
-      await ctx.runAction(api.backlinks.fetchCompetitorBacklinksFromAPI, {
+      // Call the internal backlinks fetch action (no auth needed for internal context)
+      await ctx.runAction(internal.backlinks.fetchCompetitorBacklinksInternal, {
         competitorId: job.competitorId,
       });
 

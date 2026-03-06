@@ -140,6 +140,36 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
     }
   };
 
+  const handleFetchAllBacklinks = async () => {
+    const eligible = activeCompetitors.filter(
+      (c) => !backlinksJobs?.find((j) => j.competitorId === c._id)
+    );
+    if (eligible.length === 0) return;
+    try {
+      await Promise.all(
+        eligible.map((c) => createBacklinksJob({ domainId, competitorId: c._id }))
+      );
+      toast.success(t('competitorMgmtFetchAllBacklinksToast', { count: eligible.length }));
+    } catch (error: any) {
+      toast.error(error.message || t('competitorMgmtToastRemoveFailed'));
+    }
+  };
+
+  const handleAnalyzeAllContentGaps = async () => {
+    const eligible = activeCompetitors.filter(
+      (c) => !contentGapJobs?.find((j) => j.competitorId === c._id)
+    );
+    if (eligible.length === 0) return;
+    try {
+      await Promise.all(
+        eligible.map((c) => createContentGapJob({ domainId, competitorId: c._id }))
+      );
+      toast.success(t('competitorMgmtAnalyzeAllContentGapsToast', { count: eligible.length }));
+    } catch (error: any) {
+      toast.error(error.message || t('contentGapToastRefreshFailed'));
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-end gap-2">
@@ -147,6 +177,32 @@ export function CompetitorManagementSection({ domainId }: CompetitorManagementSe
           <PermissionGate permission="competitors.add">
             <Button onClick={handleBulkDelete} size="sm" color="tertiary-destructive" iconLeading={Trash01}>
               {tc('delete')} ({selectedCompetitors.size})
+            </Button>
+          </PermissionGate>
+        )}
+        {activeCompetitors.length > 0 && (
+          <PermissionGate permission="competitors.add">
+            <Button
+              onClick={handleFetchAllBacklinks}
+              size="sm"
+              color="secondary"
+              iconLeading={Link03}
+              isDisabled={activeCompetitors.every((c) => backlinksJobs?.find((j) => j.competitorId === c._id))}
+            >
+              {t('competitorMgmtFetchAllBacklinks')}
+            </Button>
+          </PermissionGate>
+        )}
+        {activeCompetitors.length > 0 && (
+          <PermissionGate permission="competitors.add">
+            <Button
+              onClick={handleAnalyzeAllContentGaps}
+              size="sm"
+              color="secondary"
+              iconLeading={Target04}
+              isDisabled={activeCompetitors.every((c) => contentGapJobs?.find((j) => j.competitorId === c._id))}
+            >
+              {t('competitorMgmtAnalyzeAllContentGaps')}
             </Button>
           </PermissionGate>
         )}
