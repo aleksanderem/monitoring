@@ -59,6 +59,8 @@ import { LiveBadge } from "@/components/domain/badges/LiveBadge";
 import { Activity } from "@untitledui/icons";
 import { VisibilityStats } from "@/components/domain/sections/VisibilityStats";
 import { GscOverviewSection, GscAlertBanner } from "@/components/domain/GscMetricsCard";
+import { GscInsightsSection } from "@/components/domain/sections/GscInsightsSection";
+import { GscIndexationHealth } from "@/components/domain/sections/GscIndexationHealth";
 import { TopKeywordsTable } from "@/components/domain/tables/TopKeywordsTable";
 import { AllKeywordsTable } from "@/components/domain/tables/AllKeywordsTable";
 import { DiscoveredKeywordsTable } from "@/components/domain/tables/DiscoveredKeywordsTable";
@@ -103,7 +105,7 @@ import { EzIcon } from "@/components/foundations/ez-icon";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { usePermissions } from "@/hooks/usePermissions";
-import { LockedTabCTA, type LockedTabId } from "@/components/domain/LockedTabCTA";
+import { LockedTabCTA } from "@/components/domain/LockedTabCTA";
 import { PermissionGate } from "@/components/auth/PermissionGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -462,20 +464,36 @@ function BusinessContextSection({ domainId, domain }: { domainId: Id<"domains">;
   );
 }
 
+/** Map lockReason → target tab for navigation-type actions. */
+const LOCK_NAV_TARGET: Record<string, string> = {
+  lockReasonAddKeywords: "monitoring",
+  lockReasonAddCompetitors: "competitors",
+  lockReasonRunAnalysis: "competitors",
+  lockReasonSetContext: "settings",
+};
+
 function TabContentOrCTA({
   tabId,
   moduleReadiness,
   domainId,
+  onNavigateToTab,
   children,
 }: {
   tabId: string;
   moduleReadiness: Record<string, { locked: boolean; lockReason: string }>;
   domainId: Id<"domains">;
+  onNavigateToTab: (tabId: string) => void;
   children: React.ReactNode;
 }) {
   const state = moduleReadiness[tabId];
   if (state?.locked) {
-    return <LockedTabCTA tabId={tabId as LockedTabId} lockReason={state.lockReason} domainId={domainId} />;
+    // If the navigation target is the tab itself, show content instead of CTA
+    // (e.g. monitoring tab locked because no keywords — show empty state with add button)
+    const navTarget = LOCK_NAV_TARGET[state.lockReason];
+    if (navTarget === tabId) {
+      return <>{children}</>;
+    }
+    return <LockedTabCTA tabId={tabId} lockReason={state.lockReason} domainId={domainId} onNavigateToTab={onNavigateToTab} />;
   }
   return <>{children}</>;
 }
@@ -540,7 +558,14 @@ export default function DomainDetailPage() {
     { id: "alerts", label: t('tabAlerts'), icon: Activity },
     { id: "settings", label: t('tabSettings'), icon: Settings01 },
     ...(isSuperAdmin ? [{ id: "diagnostics", label: t('tabDiagnostics'), icon: Settings01 }] : []),
-  ];
+  ].map((tab) => {
+    // Don't show lock indicator when the resolution target is the tab itself
+    // (e.g. monitoring locked for "add keywords" — show content, not CTA)
+    if (tab.locked && tab.lockReason && LOCK_NAV_TARGET[tab.lockReason] === tab.id) {
+      return { ...tab, locked: false, lockReason: "" };
+    }
+    return tab;
+  });
 
   const domain = useQuery(api.domains.getDomain, { domainId });
   const keywords = useQuery(api.keywords.getKeywords, { domainId });
@@ -962,18 +987,23 @@ export default function DomainDetailPage() {
                   <Tab
                     id={item.id}
                     badge={item.badge}
-                    className={item.locked ? "opacity-50" : undefined}
+                    className={item.locked ? "opacity-60" : undefined}
                   >
                     <span className="relative inline-flex">
                       <EzIcon name={TAB_EZICONS[item.id] || "settings-05"} size={18} color="#94a3b8" strokeColor="#94a3b8" />
                       {item.locked && (
-                        <span className="absolute -right-1 -bottom-1 flex h-3 w-3 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
-                          <EzIcon name="lock-01" size={8} color="#9ca3af" strokeColor="#9ca3af" />
+                        <span className="absolute -right-1 -bottom-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
+                          <EzIcon name="lock" size={10} color="#9ca3af" strokeColor="#9ca3af" />
                         </span>
                       )}
                     </span>
-                    <span title={item.locked ? t(item.lockReason) : undefined}>
-                      {item.label}
+                    <span className="flex flex-col items-start" title={item.locked ? t(item.lockReason) : undefined}>
+                      <span>{item.label}</span>
+                      {item.locked && (
+                        <span className="hidden text-[11px] leading-tight text-tertiary font-normal lg:inline">
+                          {t(item.lockReason)}
+                        </span>
+                      )}
                     </span>
                   </Tab>
                 )}
@@ -987,18 +1017,23 @@ export default function DomainDetailPage() {
                   <Tab
                     id={item.id}
                     badge={item.badge}
-                    className={item.locked ? "opacity-50" : undefined}
+                    className={item.locked ? "opacity-60" : undefined}
                   >
                     <span className="relative inline-flex">
                       <EzIcon name={TAB_EZICONS[item.id] || "settings-05"} size={18} color="#94a3b8" strokeColor="#94a3b8" />
                       {item.locked && (
-                        <span className="absolute -right-1 -bottom-1 flex h-3 w-3 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
-                          <EzIcon name="lock-01" size={8} color="#9ca3af" strokeColor="#9ca3af" />
+                        <span className="absolute -right-1 -bottom-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
+                          <EzIcon name="lock" size={10} color="#9ca3af" strokeColor="#9ca3af" />
                         </span>
                       )}
                     </span>
-                    <span title={item.locked ? t(item.lockReason) : undefined}>
-                      {item.label}
+                    <span className="flex flex-col items-start" title={item.locked ? t(item.lockReason) : undefined}>
+                      <span>{item.label}</span>
+                      {item.locked && (
+                        <span className="hidden text-[11px] leading-tight text-tertiary font-normal lg:inline">
+                          {t(item.lockReason)}
+                        </span>
+                      )}
                     </span>
                   </Tab>
                 )}
@@ -1048,7 +1083,7 @@ export default function DomainDetailPage() {
             {/* Monitoring Tab */}
             <TabPanel id="monitoring">
               <ErrorBoundary label="Monitoring">
-              <TabContentOrCTA tabId="monitoring" moduleReadiness={moduleReadiness} domainId={domainId}>
+              <TabContentOrCTA tabId="monitoring" moduleReadiness={moduleReadiness} domainId={domainId} onNavigateToTab={handleTabChange}>
               <div className="flex flex-col gap-8">
                 {/* Header with Add Keywords Button */}
                 <div className="flex items-center justify-between">
@@ -1080,6 +1115,12 @@ export default function DomainDetailPage() {
                 {/* GSC Metrics (renders null if not connected) */}
                 <GscOverviewSection domainId={domainId} />
 
+                {/* GSC Insights — Quick Wins, Cannibalization, Content Decay */}
+                <GscInsightsSection domainId={domainId} />
+
+                {/* GSC Indexation Health — URL inspection results */}
+                <GscIndexationHealth domainId={domainId} />
+
                 {/* Statistics Section */}
                 <MonitoringStats domainId={domainId} />
 
@@ -1096,7 +1137,7 @@ export default function DomainDetailPage() {
             {/* Keyword Map Tab */}
             <TabPanel id="keyword-map">
               <ErrorBoundary label="Keyword Map">
-              <TabContentOrCTA tabId="keyword-map" moduleReadiness={moduleReadiness} domainId={domainId}>
+              <TabContentOrCTA tabId="keyword-map" moduleReadiness={moduleReadiness} domainId={domainId} onNavigateToTab={handleTabChange}>
               <KeywordMapSection domainId={domainId} />
               </TabContentOrCTA>
               </ErrorBoundary>
@@ -1105,7 +1146,7 @@ export default function DomainDetailPage() {
             {/* Visibility Tab */}
             <TabPanel id="visibility">
               <ErrorBoundary label="Visibility">
-              <TabContentOrCTA tabId="visibility" moduleReadiness={moduleReadiness} domainId={domainId}>
+              <TabContentOrCTA tabId="visibility" moduleReadiness={moduleReadiness} domainId={domainId} onNavigateToTab={handleTabChange}>
               <div className="flex flex-col gap-6">
                 {/* Header with Fetch Button */}
                 <div className="flex items-center justify-between">
@@ -1166,7 +1207,7 @@ export default function DomainDetailPage() {
             {/* Backlinks Tab */}
             <TabPanel id="backlinks">
               <ErrorBoundary label="Backlinks">
-              <TabContentOrCTA tabId="backlinks" moduleReadiness={moduleReadiness} domainId={domainId}>
+              <TabContentOrCTA tabId="backlinks" moduleReadiness={moduleReadiness} domainId={domainId} onNavigateToTab={handleTabChange}>
               <div className="flex flex-col gap-6">
                 {/* Header with Fetch Button */}
                 <div className="flex items-center justify-between">
@@ -1287,7 +1328,7 @@ export default function DomainDetailPage() {
             {/* Link Building Tab */}
             <TabPanel id="link-building">
               <ErrorBoundary label="Link Building">
-              <TabContentOrCTA tabId="link-building" moduleReadiness={moduleReadiness} domainId={domainId}>
+              <TabContentOrCTA tabId="link-building" moduleReadiness={moduleReadiness} domainId={domainId} onNavigateToTab={handleTabChange}>
               <LinkBuildingSection domainId={domainId} domainName={domain.domain} />
               </TabContentOrCTA>
               </ErrorBoundary>
@@ -1296,7 +1337,7 @@ export default function DomainDetailPage() {
             {/* Competitors Tab */}
             <TabPanel id="competitors">
               <ErrorBoundary label="Competitors">
-              <TabContentOrCTA tabId="competitors" moduleReadiness={moduleReadiness} domainId={domainId}>
+              <TabContentOrCTA tabId="competitors" moduleReadiness={moduleReadiness} domainId={domainId} onNavigateToTab={handleTabChange}>
               <div className="space-y-6">
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50">
@@ -1356,7 +1397,7 @@ export default function DomainDetailPage() {
             {/* On-Site Tab */}
             <TabPanel id="on-site">
               <ErrorBoundary label="On-Site">
-              <TabContentOrCTA tabId="on-site" moduleReadiness={moduleReadiness} domainId={domainId}>
+              <TabContentOrCTA tabId="on-site" moduleReadiness={moduleReadiness} domainId={domainId} onNavigateToTab={handleTabChange}>
               <OnSiteSection domainId={domainId} />
               </TabContentOrCTA>
               </ErrorBoundary>
@@ -1365,7 +1406,7 @@ export default function DomainDetailPage() {
             {/* Content Gaps Tab */}
             <TabPanel id="content-gaps">
               <ErrorBoundary label="Content Gaps">
-              <TabContentOrCTA tabId="content-gaps" moduleReadiness={moduleReadiness} domainId={domainId}>
+              <TabContentOrCTA tabId="content-gaps" moduleReadiness={moduleReadiness} domainId={domainId} onNavigateToTab={handleTabChange}>
               <ContentGapSection domainId={domainId} />
               </TabContentOrCTA>
               </ErrorBoundary>
@@ -1374,7 +1415,7 @@ export default function DomainDetailPage() {
             {/* Insights Tab */}
             <TabPanel id="insights">
               <ErrorBoundary label="Insights">
-              <TabContentOrCTA tabId="insights" moduleReadiness={moduleReadiness} domainId={domainId}>
+              <TabContentOrCTA tabId="insights" moduleReadiness={moduleReadiness} domainId={domainId} onNavigateToTab={handleTabChange}>
               <InsightsSection domainId={domainId} />
               </TabContentOrCTA>
               </ErrorBoundary>
@@ -1383,7 +1424,7 @@ export default function DomainDetailPage() {
             {/* AI Research Tab */}
             <TabPanel id="ai-research">
               <ErrorBoundary label="AI Research">
-              <TabContentOrCTA tabId="ai-research" moduleReadiness={moduleReadiness} domainId={domainId}>
+              <TabContentOrCTA tabId="ai-research" moduleReadiness={moduleReadiness} domainId={domainId} onNavigateToTab={handleTabChange}>
               <AIKeywordResearchSection domainId={domainId} />
               </TabContentOrCTA>
               </ErrorBoundary>
@@ -1392,7 +1433,7 @@ export default function DomainDetailPage() {
             {/* Strategy Tab */}
             <TabPanel id="strategy">
               <ErrorBoundary label="Strategy">
-              <TabContentOrCTA tabId="strategy" moduleReadiness={moduleReadiness} domainId={domainId}>
+              <TabContentOrCTA tabId="strategy" moduleReadiness={moduleReadiness} domainId={domainId} onNavigateToTab={handleTabChange}>
               <StrategySection domainId={domainId} />
               </TabContentOrCTA>
               </ErrorBoundary>

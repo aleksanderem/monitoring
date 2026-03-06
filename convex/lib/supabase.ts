@@ -44,6 +44,35 @@ export interface CompetitorPositionRow {
   url: string | null;
 }
 
+export interface GscPerformanceRow {
+  convex_domain_id: string;
+  date: string;
+  query: string | null;
+  page: string | null;
+  device: string | null;
+  country: string | null;
+  search_type: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+export interface UrlInspectionRow {
+  convex_domain_id: string;
+  url: string;
+  indexing_state: string | null;
+  coverage_state: string | null;
+  robots_txt_state: string | null;
+  last_crawl_time: string | null;
+  crawled_as: string | null;
+  google_canonical: string | null;
+  user_canonical: string | null;
+  mobile_usability: string | null;
+  rich_results_valid: number;
+  rich_results_errors: number;
+}
+
 // ─── Retry helper ─────────────────────────────────────────
 
 /**
@@ -109,6 +138,47 @@ export async function writeCompetitorPositions(rows: CompetitorPositionRow[]): P
       throw new Error(`writeCompetitorPositions failed (${rows.length} rows): ${error.message}`);
     }
   }, `writeCompetitorPositions(${rows.length} rows)`);
+}
+
+/**
+ * Upsert GSC performance data to Supabase with retry.
+ * Batches in chunks of 500 to avoid payload limits.
+ */
+export async function writeGscPerformance(rows: GscPerformanceRow[]): Promise<void> {
+  const sb = getSupabaseAdmin();
+  if (!sb || rows.length === 0) return;
+
+  // Batch in chunks of 500
+  for (let i = 0; i < rows.length; i += 500) {
+    const chunk = rows.slice(i, i + 500);
+    await withRetry(async () => {
+      const { error } = await sb
+        .from("gsc_performance")
+        .upsert(chunk, { onConflict: "convex_domain_id,date,query,page,device,country,search_type" });
+
+      if (error) {
+        throw new Error(`writeGscPerformance failed (${chunk.length} rows): ${error.message}`);
+      }
+    }, `writeGscPerformance(${chunk.length} rows, batch ${Math.floor(i / 500) + 1})`);
+  }
+}
+
+/**
+ * Upsert URL inspection results to Supabase with retry.
+ */
+export async function writeUrlInspections(rows: UrlInspectionRow[]): Promise<void> {
+  const sb = getSupabaseAdmin();
+  if (!sb || rows.length === 0) return;
+
+  await withRetry(async () => {
+    const { error } = await sb
+      .from("url_inspections")
+      .upsert(rows, { onConflict: "convex_domain_id,url" });
+
+    if (error) {
+      throw new Error(`writeUrlInspections failed (${rows.length} rows): ${error.message}`);
+    }
+  }, `writeUrlInspections(${rows.length} rows)`);
 }
 
 // ─── Monitoring helpers ───────────────────────────────────

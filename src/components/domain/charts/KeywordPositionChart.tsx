@@ -41,6 +41,17 @@ export function KeywordPositionChart({ positionHistory }: KeywordPositionChartPr
     );
   }
 
+  if (chartData.length === 1) {
+    return (
+      <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-lg border border-secondary bg-secondary/20">
+        <p className="text-sm font-medium text-primary">
+          {t("currentPositionLabel")}: #{chartData[0].position}
+        </p>
+        <p className="text-xs text-tertiary">{t("positionHistoryNeedsMoreData")}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">

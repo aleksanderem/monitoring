@@ -90,6 +90,32 @@ export const processStrategist = internalAction({
 
       const gaps = gapsResult.items;
 
+      // Fetch GSC Supabase analytics if GSC is connected
+      let gscAnalytics: any = undefined;
+      if (domain.gscPrimary === true) {
+        try {
+          const [gscQW, gscCannibal, gscDecay, gscIndexHealth, gscBudgetWaste, gscZeroClick] = await Promise.all([
+            ctx.runAction(internal.actions.gscAnalytics.getQuickWinsInternal, { domainId: domainId as any, limit: 20, minImpressions: 50 }),
+            ctx.runAction(internal.actions.gscAnalytics.getCannibalizationInternal, { domainId: domainId as any, limit: 15 }),
+            ctx.runAction(internal.actions.gscAnalytics.getContentDecayInternal, { domainId: domainId as any, limit: 15 }),
+            ctx.runAction(internal.actions.gscAnalytics.getIndexationHealthInternal, { domainId: domainId as any }),
+            ctx.runAction(internal.actions.gscAnalytics.getCrawlBudgetWasteInternal, { domainId: domainId as any, limit: 15 }),
+            ctx.runAction(internal.actions.gscAnalytics.getZeroClickQueriesInternal, { domainId: domainId as any, limit: 20 }),
+          ]);
+          gscAnalytics = {
+            quickWins: gscQW ?? [],
+            cannibalization: gscCannibal ?? [],
+            contentDecay: gscDecay ?? [],
+            indexationHealth: gscIndexHealth ?? null,
+            crawlBudgetWaste: gscBudgetWaste ?? [],
+            zeroClickQueries: gscZeroClick ?? [],
+          };
+          console.log(`[AI Strategist] GSC analytics: qw=${gscAnalytics.quickWins.length}, cannibal=${gscAnalytics.cannibalization.length}, decay=${gscAnalytics.contentDecay.length}`);
+        } catch (err) {
+          console.error(`[AI Strategist] GSC analytics fetch failed (non-fatal):`, err);
+        }
+      }
+
       console.log(`[AI Strategist] Domain: ${domain.domain}, keywords: ${allKeywords.length}, gaps: ${gaps.length}`);
 
       // 2. Build a concise data snapshot for the AI
@@ -199,6 +225,8 @@ export const processStrategist = internalAction({
             ctr: kw.gscCtr,
             source: kw.positionSource ?? "d4s",
           })),
+        // GSC Supabase analytics (when available)
+        ...(gscAnalytics ? { gscAnalytics } : {}),
       };
 
       // 3. If there are zero keywords, skip AI call
@@ -314,6 +342,27 @@ GSC REAL DATA (${data.gscKeywordCount} keywords with measured positions from Goo
 Note: Position data marked as GSC comes from real Google measurements, not estimates.
 Top keywords by real clicks:
 ${data.topKeywordsGsc.map((kw: any) => `- "${kw.phrase}" pos #${kw.position} — ${kw.clicks} clicks, ${kw.impressions} impressions, CTR ${(kw.ctr * 100).toFixed(1)}%`).join("\n")}
+` : ""}
+
+${data.gscAnalytics ? `
+=== GSC ADVANCED ANALYTICS ===
+${data.gscAnalytics.quickWins?.length > 0 ? `
+PAGE 2 QUICK WINS (high-impression queries just off page 1 — schedule optimization events):
+${data.gscAnalytics.quickWins.slice(0, 10).map((r: any) => `- "${r.query}" pos ${r.position?.toFixed(1)} | ${r.impressions} imp | ${r.clicks} clicks | ${r.page}`).join("\n")}` : ""}
+${data.gscAnalytics.cannibalization?.length > 0 ? `
+KEYWORD CANNIBALIZATION (multiple pages competing — schedule consolidation/redirect events):
+${data.gscAnalytics.cannibalization.slice(0, 8).map((r: any) => `- "${r.query}" → ${r.page_count} pages competing | ${r.total_impressions} total imp`).join("\n")}` : ""}
+${data.gscAnalytics.contentDecay?.length > 0 ? `
+CONTENT DECAY (pages losing 30%+ clicks — schedule content refresh events):
+${data.gscAnalytics.contentDecay.slice(0, 8).map((r: any) => `- ${r.page} | ${r.recent_clicks} recent vs ${r.prev_clicks} prev clicks (${r.pct_change?.toFixed(0)}%)`).join("\n")}` : ""}
+${data.gscAnalytics.indexationHealth ? `
+INDEXATION: ${data.gscAnalytics.indexationHealth.indexed}/${data.gscAnalytics.indexationHealth.total} indexed, ${data.gscAnalytics.indexationHealth.blocked} blocked${data.gscAnalytics.indexationHealth.blockedUrls?.length > 0 ? ` — schedule audit_task for blocked URLs` : ""}` : ""}
+${data.gscAnalytics.crawlBudgetWaste?.length > 0 ? `
+CRAWL BUDGET WASTE (schedule audit_task events to fix):
+${data.gscAnalytics.crawlBudgetWaste.slice(0, 8).map((r: any) => `- ${r.url} | reason: ${r.waste_reason}`).join("\n")}` : ""}
+${data.gscAnalytics.zeroClickQueries?.length > 0 ? `
+ZERO-CLICK QUERIES (high impressions, near-zero clicks — schedule content optimization for featured snippets):
+${data.gscAnalytics.zeroClickQueries.slice(0, 8).map((r: any) => `- "${r.query}" | ${r.total_impressions} imp | pos ${r.avg_position?.toFixed(1)} | CTR ${r.ctr_pct?.toFixed(1)}%`).join("\n")}` : ""}
 ` : ""}
 
 ${data.insights.recommendations?.length > 0 ? `

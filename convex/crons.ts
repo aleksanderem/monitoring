@@ -87,6 +87,13 @@ crons.daily(
   internal.actions.gscSync.syncAllGscConnections
 );
 
+// Inspect top pages for URL indexation data weekly on Sundays at 3 AM UTC
+crons.weekly(
+  "inspect-top-pages",
+  { dayOfWeek: "sunday", hourUTC: 3, minuteUTC: 0 },
+  internal.actions.gscSync.inspectTopPages
+);
+
 // Process scheduled report delivery daily at 6 AM UTC
 crons.daily(
   "process-scheduled-reports",

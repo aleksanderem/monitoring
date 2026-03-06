@@ -2190,7 +2190,8 @@ export default defineSchema({
       v.literal("top_n_exit"),
       v.literal("new_competitor"),
       v.literal("backlink_lost"),
-      v.literal("visibility_drop")
+      v.literal("visibility_drop"),
+      v.literal("gsc_traffic_drop")
     ),
     isActive: v.boolean(),
     threshold: v.number(),

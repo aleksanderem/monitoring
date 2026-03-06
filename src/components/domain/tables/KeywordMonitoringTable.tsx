@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { toast } from "sonner";
 import {
@@ -154,6 +154,39 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
   const activeSerpJob = useQuery(api.keywordSerpJobs.getActiveJobForDomain, { domainId });
   const selection = useRowSelection();
   const { limitError, handleError: handleLimitError, clearLimitError } = useLimitErrorHandler();
+
+  // Cooldown status for refresh buttons
+  const refreshLimitStatus = useQuery(api.limits.getRefreshLimitStatus, {
+    domainId,
+    keywordCount: keywords?.length ?? 0,
+  });
+  const [cooldownRemaining, setCooldownRemaining] = useState<string | null>(null);
+
+  const formatCooldownTime = useCallback((ms: number) => {
+    const totalSeconds = Math.ceil(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return minutes > 0 ? `${minutes}:${String(seconds).padStart(2, "0")}` : `${seconds}s`;
+  }, []);
+
+  useEffect(() => {
+    const canRefreshAt = refreshLimitStatus?.cooldown?.canRefreshAt;
+    if (!canRefreshAt || !refreshLimitStatus?.cooldown?.blocked) {
+      setCooldownRemaining(null);
+      return;
+    }
+    const tick = () => {
+      const remaining = canRefreshAt - Date.now();
+      if (remaining <= 0) {
+        setCooldownRemaining(null);
+      } else {
+        setCooldownRemaining(formatCooldownTime(remaining));
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [refreshLimitStatus?.cooldown?.canRefreshAt, refreshLimitStatus?.cooldown?.blocked, formatCooldownTime]);
 
   // Track SERP job completion and show notification
   const [lastSerpJobId, setLastSerpJobId] = useState<string | null>(null);
@@ -454,11 +487,11 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                         setRefreshModalAction("refresh");
                         setRefreshModalOpen(true);
                       }}
-                      disabled={!keywords || keywords.length === 0}
+                      disabled={!keywords || keywords.length === 0 || !!cooldownRemaining}
                       className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-primary hover:bg-secondary/50 transition-colors disabled:opacity-50"
                     >
                       <RefreshCw01 className="h-4 w-4" />
-                      {t('refreshAll')}
+                      {cooldownRemaining ? t('refreshCooldownActive', { time: cooldownRemaining }) : t('refreshAll')}
                     </button>
                     <button
                       onClick={() => {
@@ -466,11 +499,11 @@ export function KeywordMonitoringTable({ domainId }: KeywordMonitoringTableProps
                         setRefreshModalAction("serp");
                         setRefreshModalOpen(true);
                       }}
-                      disabled={!keywords || keywords.length === 0 || (!!activeSerpJob && activeSerpJob.status !== "completed")}
+                      disabled={!keywords || keywords.length === 0 || (!!activeSerpJob && activeSerpJob.status !== "completed") || !!cooldownRemaining}
                       className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-primary hover:bg-secondary/50 transition-colors disabled:opacity-50"
                     >
                       <SearchLg className="h-4 w-4" />
-                      {activeSerpJob && activeSerpJob.status !== "completed" ? t('fetching') : t('fetchSerpData')}
+                      {cooldownRemaining ? t('refreshCooldownActive', { time: cooldownRemaining }) : activeSerpJob && activeSerpJob.status !== "completed" ? t('fetching') : t('fetchSerpData')}
                     </button>
                     <div className="my-1 border-t border-secondary" />
                     <button

@@ -835,14 +835,12 @@ export const saveCompetitorBacklinkData = internalMutation({
 });
 
 /**
- * Action to fetch competitor backlinks from external API
+ * Internal action to fetch competitor backlinks from external API (no auth required).
+ * Called by the public action (after auth) and by the background job processor.
  */
-export const fetchCompetitorBacklinksFromAPI = action({
+export const fetchCompetitorBacklinksInternal = internalAction({
   args: { competitorId: v.id("competitors") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Authentication required");
-
     // Get competitor info
     const competitor = await ctx.runQuery(internal.competitors.getCompetitorInternal, {
       competitorId: args.competitorId,
@@ -941,5 +939,20 @@ export const fetchCompetitorBacklinksFromAPI = action({
       console.error("Error fetching competitor backlinks:", error);
       throw new Error(`Failed to fetch competitor backlinks: ${error}`);
     }
+  },
+});
+
+/**
+ * Public action to fetch competitor backlinks (requires auth, delegates to internal).
+ */
+export const fetchCompetitorBacklinksFromAPI = action({
+  args: { competitorId: v.id("competitors") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Authentication required");
+
+    await ctx.runAction(internal.backlinks.fetchCompetitorBacklinksInternal, {
+      competitorId: args.competitorId,
+    });
   },
 });

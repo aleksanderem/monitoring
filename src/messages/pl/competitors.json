@@ -142,6 +142,10 @@
     "competitorMgmtToastRemoveFailed": "Nie udało się usunąć konkurenta",
     "competitorMgmtJobFetching": "Pobieranie backlinków...",
     "competitorMgmtJobAnalyzing": "Analizowanie luk w treści...",
+    "competitorMgmtFetchAllBacklinks": "Pobierz backlinki wszystkich",
+    "competitorMgmtAnalyzeAllContentGaps": "Analizuj luki wszystkich",
+    "competitorMgmtFetchAllBacklinksToast": "Rozpoczęto pobieranie backlinków dla {count} konkurentów",
+    "competitorMgmtAnalyzeAllContentGapsToast": "Rozpoczęto analizę luk dla {count} konkurentów",
 
     "removeCompetitorConfirm": "Czy na pewno chcesz usunąć tego konkurenta? Zostanie ukryty ze śledzenia.",
     "removeCompetitorsConfirm": "Czy na pewno chcesz usunąć {count} konkurentów?",

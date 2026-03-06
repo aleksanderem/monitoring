@@ -142,6 +142,10 @@
     "competitorMgmtToastRemoveFailed": "Failed to remove competitor",
     "competitorMgmtJobFetching": "Fetching backlinks...",
     "competitorMgmtJobAnalyzing": "Analyzing content gaps...",
+    "competitorMgmtFetchAllBacklinks": "Fetch All Backlinks",
+    "competitorMgmtAnalyzeAllContentGaps": "Analyze All Content Gaps",
+    "competitorMgmtFetchAllBacklinksToast": "Started backlinks fetch for {count} competitor(s)",
+    "competitorMgmtAnalyzeAllContentGapsToast": "Started content gap analysis for {count} competitor(s)",
 
     "removeCompetitorConfirm": "Are you sure you want to remove this competitor? It will be hidden from tracking.",
     "removeCompetitorsConfirm": "Are you sure you want to remove {count} competitor(s)?",

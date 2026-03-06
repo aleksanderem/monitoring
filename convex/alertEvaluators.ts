@@ -169,3 +169,32 @@ export function evaluateVisibilityDrop(
 
   return null;
 }
+
+// =================================================================
+// GSC Traffic Drop Evaluator
+// =================================================================
+
+/**
+ * Checks for pages with significant GSC traffic drops.
+ * Uses content decay data from Supabase (v_content_decay view).
+ * Threshold is percentage drop (e.g., 30 means 30% drop).
+ */
+export function evaluateGscTrafficDrop(
+  rule: Doc<"alertRules">,
+  decayData: { page: string; recent_clicks: number; prev_clicks: number; pct_change: number }[]
+): AlertTrigger[] {
+  const triggers: AlertTrigger[] = [];
+  const dropThreshold = -(rule.threshold); // threshold is positive, pct_change is negative
+
+  for (const item of decayData) {
+    if (item.pct_change < dropThreshold) {
+      triggers.push({
+        details: `Page "${item.page}" lost ${Math.abs(Math.round(item.pct_change))}% clicks (${item.prev_clicks} → ${item.recent_clicks})`,
+        previousValue: item.prev_clicks,
+        currentValue: item.recent_clicks,
+      });
+    }
+  }
+
+  return triggers;
+}

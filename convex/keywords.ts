@@ -1188,6 +1188,7 @@ export const storeGscPositionDenormalized = internalMutation({
     }
 
     let updated = 0;
+    const matchedPositions: Array<{ keywordId: string; date: string; position: number; url?: string }> = [];
     for (const metric of args.metrics) {
       const kw = keywordsByPhrase.get(metric.keyword.toLowerCase());
       if (!kw) continue;
@@ -1229,13 +1230,120 @@ export const storeGscPositionDenormalized = internalMutation({
         patch.positionSource = "gsc" as const;
         patch.positionUpdatedAt = Date.now();
         patch.recentPositions = trimmed;
+
+        // Write to keywordPositions time-series table (same upsert pattern as storePositionInternal)
+        const existing = await ctx.db
+          .query("keywordPositions")
+          .withIndex("by_keyword_date", (q) =>
+            q.eq("keywordId", kw._id).eq("date", metric.date)
+          )
+          .unique();
+
+        if (existing) {
+          await ctx.db.patch(existing._id, {
+            position: gscPosition,
+            url: metric.url ?? null,
+            fetchedAt: Date.now(),
+          });
+        } else {
+          await ctx.db.insert("keywordPositions", {
+            keywordId: kw._id,
+            date: metric.date,
+            position: gscPosition,
+            url: metric.url ?? null,
+            fetchedAt: Date.now(),
+          });
+        }
+
+        matchedPositions.push({ keywordId: kw._id, date: metric.date, position: gscPosition, url: metric.url });
       }
 
       await ctx.db.patch(kw._id, patch);
       updated++;
     }
 
-    return { updated, total: args.metrics.length };
+    return { updated, total: args.metrics.length, matchedPositions };
+  },
+});
+
+// Auto-import GSC keywords that are not yet tracked in monitoring.
+// Called during GSC sync after metrics are stored and existing keywords are denormalized.
+// Inserts up to the remaining keyword quota, prioritized by position then impressions.
+export const autoImportGscKeywords = internalMutation({
+  args: {
+    domainId: v.id("domains"),
+    metrics: v.array(
+      v.object({
+        keyword: v.string(),
+        clicks: v.number(),
+        impressions: v.number(),
+        ctr: v.number(),
+        position: v.number(),
+        url: v.optional(v.string()),
+        date: v.string(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const domain = await ctx.db.get(args.domainId);
+    if (!domain) return { imported: 0 };
+
+    // Check remaining quota
+    const limitCheck = await checkKeywordLimit(ctx, args.domainId, 0);
+    if (limitCheck.remaining <= 0) return { imported: 0 };
+
+    // Load existing keywords and build lookup set
+    const existing = await ctx.db
+      .query("keywords")
+      .withIndex("by_domain", (q) => q.eq("domainId", args.domainId))
+      .collect();
+    const trackedPhrases = new Set(existing.map((k) => k.phrase.toLowerCase()));
+
+    // Deduplicate metrics by phrase (keep best position per keyword)
+    const bestByPhrase = new Map<string, typeof args.metrics[number]>();
+    for (const m of args.metrics) {
+      const key = m.keyword.toLowerCase();
+      if (trackedPhrases.has(key)) continue;
+      const prev = bestByPhrase.get(key);
+      if (!prev || m.position < prev.position) {
+        bestByPhrase.set(key, m);
+      }
+    }
+
+    // Filter invalid phrases and sort: position ASC, impressions DESC
+    const candidates = Array.from(bestByPhrase.values())
+      .filter((m) => isValidKeywordPhrase(m.keyword).valid)
+      .sort((a, b) => a.position - b.position || b.impressions - a.impressions)
+      .slice(0, limitCheck.remaining);
+
+    if (candidates.length === 0) return { imported: 0 };
+
+    // Insert keywords with pre-populated GSC data
+    for (const c of candidates) {
+      const gscPosition = Math.round(c.position * 10) / 10;
+      await ctx.db.insert("keywords", {
+        domainId: args.domainId,
+        phrase: c.keyword.toLowerCase(),
+        status: "active",
+        createdAt: Date.now(),
+        proposedBy: "gsc",
+        currentPosition: gscPosition,
+        positionSource: "gsc",
+        positionUpdatedAt: Date.now(),
+        gscClicks: c.clicks,
+        gscImpressions: c.impressions,
+        gscCtr: c.ctr,
+        gscUrl: c.url,
+        recentPositions: [{ date: c.date, position: gscPosition }],
+      });
+    }
+
+    // Update denormalized count
+    await ctx.db.patch(args.domainId, {
+      keywordCount: (domain.keywordCount ?? 0) + candidates.length,
+    });
+
+    return { imported: candidates.length };
   },
 });
 

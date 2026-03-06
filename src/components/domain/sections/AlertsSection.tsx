@@ -13,7 +13,7 @@ import { Button } from "@/components/base/buttons/button";
 // Types
 // =================================================================
 
-type AlertRuleType = "position_drop" | "top_n_exit" | "new_competitor" | "backlink_lost" | "visibility_drop";
+type AlertRuleType = "position_drop" | "top_n_exit" | "new_competitor" | "backlink_lost" | "visibility_drop" | "gsc_traffic_drop";
 
 const RULE_TYPES: AlertRuleType[] = [
   "position_drop",
@@ -21,6 +21,7 @@ const RULE_TYPES: AlertRuleType[] = [
   "new_competitor",
   "backlink_lost",
   "visibility_drop",
+  "gsc_traffic_drop",
 ];
 
 const RULE_TYPE_DEFAULTS: Record<AlertRuleType, { threshold: number; topN?: number }> = {
@@ -29,6 +30,7 @@ const RULE_TYPE_DEFAULTS: Record<AlertRuleType, { threshold: number; topN?: numb
   new_competitor: { threshold: 1 },
   backlink_lost: { threshold: 5 },
   visibility_drop: { threshold: 20 },
+  gsc_traffic_drop: { threshold: 30 },
 };
 
 function getRuleTypeLabel(t: (key: string) => string, type: AlertRuleType): string {
@@ -38,12 +40,13 @@ function getRuleTypeLabel(t: (key: string) => string, type: AlertRuleType): stri
     new_competitor: t("alertTypeNewCompetitor"),
     backlink_lost: t("alertTypeBacklinkLost"),
     visibility_drop: t("alertTypeVisibilityDrop"),
+    gsc_traffic_drop: t("alertTypeGscTrafficDrop"),
   };
   return map[type] || type;
 }
 
 function getThresholdUnit(t: (key: string) => string, type: AlertRuleType): string {
-  if (type === "visibility_drop") return t("alertPercentLabel");
+  if (type === "visibility_drop" || type === "gsc_traffic_drop") return t("alertPercentLabel");
   if (type === "backlink_lost") return t("alertBacklinksLabel");
   return t("alertPositionsLabel");
 }
