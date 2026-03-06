@@ -92,6 +92,7 @@ import type * as lib_diagnosticCross from "../lib/diagnosticCross.js";
 import type * as lib_diagnosticIndependent from "../lib/diagnosticIndependent.js";
 import type * as lib_diagnosticTypes from "../lib/diagnosticTypes.js";
 import type * as lib_keywordValidation from "../lib/keywordValidation.js";
+import type * as lib_positionHelpers from "../lib/positionHelpers.js";
 import type * as lib_supabase from "../lib/supabase.js";
 import type * as limits from "../limits.js";
 import type * as linkBuilding_mutations from "../linkBuilding_mutations.js";
@@ -225,6 +226,7 @@ declare const fullApi: ApiFromModules<{
   "lib/diagnosticIndependent": typeof lib_diagnosticIndependent;
   "lib/diagnosticTypes": typeof lib_diagnosticTypes;
   "lib/keywordValidation": typeof lib_keywordValidation;
+  "lib/positionHelpers": typeof lib_positionHelpers;
   "lib/supabase": typeof lib_supabase;
   limits: typeof limits;
   linkBuilding_mutations: typeof linkBuilding_mutations;

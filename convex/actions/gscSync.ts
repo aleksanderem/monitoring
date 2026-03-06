@@ -4,7 +4,7 @@ import { action, internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { writeGscPerformance, writeUrlInspections, type GscPerformanceRow, type UrlInspectionRow } from "../lib/supabase";
+import { writeGscPerformance, writeKeywordPositions, writeUrlInspections, type GscPerformanceRow, type UrlInspectionRow } from "../lib/supabase";
 
 // ─── Helper: refresh access token if expired ────────────────────────
 
@@ -348,11 +348,30 @@ async function syncGscDataInternal(ctx: any, organizationId: any) {
           position: row.position,
           url: undefined as string | undefined,
         }));
+        const allMatchedPositions: Array<{ keywordId: string; date: string; position: number; url?: string }> = [];
         for (let i = 0; i < denormMetrics.length; i += 100) {
-          await ctx.runMutation(internal.keywords.storeGscPositionDenormalized, {
+          const result = await ctx.runMutation(internal.keywords.storeGscPositionDenormalized, {
             domainId: domain._id,
             metrics: denormMetrics.slice(i, i + 100),
           });
+          if (result?.matchedPositions) {
+            allMatchedPositions.push(...result.matchedPositions);
+          }
+        }
+
+        // Dual-write GSC positions to Supabase keyword_positions table
+        if (allMatchedPositions.length > 0) {
+          writeKeywordPositions(
+            allMatchedPositions.map((p) => ({
+              convex_domain_id: domain._id,
+              convex_keyword_id: p.keywordId as any,
+              date: p.date,
+              position: p.position,
+              url: p.url ?? null,
+            }))
+          ).catch((err) =>
+            console.error(`[gscSync] Supabase keyword_positions write failed:`, err)
+          );
         }
 
         // Phase 1c — Auto-import top GSC keywords into monitoring (up to domain limit)
@@ -687,15 +706,35 @@ export const historicalBackfill = internalAction({
           position: row.position,
           url: undefined as string | undefined,
         }));
+        const backfillPositions: Array<{ keywordId: string; date: string; position: number; url?: string }> = [];
         for (let i = 0; i < denormMetrics.length; i += 100) {
-          await ctx.runMutation(
+          const result = await ctx.runMutation(
             internal.keywords.storeGscPositionDenormalized,
             {
               domainId,
               metrics: denormMetrics.slice(i, i + 100),
             }
           );
+          if (result?.matchedPositions) {
+            backfillPositions.push(...result.matchedPositions);
+          }
         }
+
+        // Dual-write backfill GSC positions to Supabase
+        if (backfillPositions.length > 0) {
+          writeKeywordPositions(
+            backfillPositions.map((p) => ({
+              convex_domain_id: domainId,
+              convex_keyword_id: p.keywordId as any,
+              date: p.date,
+              position: p.position,
+              url: p.url ?? null,
+            }))
+          ).catch((err) =>
+            console.error(`[gscSync] Backfill Supabase keyword_positions write failed:`, err)
+          );
+        }
+
         console.log(
           `Backfill denormalization: updated ${latestRows.length} keywords for domain ${domainId}`
         );

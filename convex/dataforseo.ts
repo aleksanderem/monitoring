@@ -798,7 +798,7 @@ export const fetchPositionsInternal = internalAction({
               if (keywordInfo) {
                 updates.push({
                   keywordId: keywordInfo.id,
-                  searchVolume: result.search_volume,
+                  searchVolume: result.search_volume ?? undefined,
                   difficulty: result.competition ? Math.round(result.competition * 100) : undefined,
                 });
               }

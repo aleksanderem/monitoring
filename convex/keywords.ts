@@ -1188,6 +1188,7 @@ export const storeGscPositionDenormalized = internalMutation({
     }
 
     let updated = 0;
+    const matchedPositions: Array<{ keywordId: string; date: string; position: number; url?: string }> = [];
     for (const metric of args.metrics) {
       const kw = keywordsByPhrase.get(metric.keyword.toLowerCase());
       if (!kw) continue;
@@ -1229,13 +1230,39 @@ export const storeGscPositionDenormalized = internalMutation({
         patch.positionSource = "gsc" as const;
         patch.positionUpdatedAt = Date.now();
         patch.recentPositions = trimmed;
+
+        // Write to keywordPositions time-series table (same upsert pattern as storePositionInternal)
+        const existing = await ctx.db
+          .query("keywordPositions")
+          .withIndex("by_keyword_date", (q) =>
+            q.eq("keywordId", kw._id).eq("date", metric.date)
+          )
+          .unique();
+
+        if (existing) {
+          await ctx.db.patch(existing._id, {
+            position: gscPosition,
+            url: metric.url ?? null,
+            fetchedAt: Date.now(),
+          });
+        } else {
+          await ctx.db.insert("keywordPositions", {
+            keywordId: kw._id,
+            date: metric.date,
+            position: gscPosition,
+            url: metric.url ?? null,
+            fetchedAt: Date.now(),
+          });
+        }
+
+        matchedPositions.push({ keywordId: kw._id, date: metric.date, position: gscPosition, url: metric.url });
       }
 
       await ctx.db.patch(kw._id, patch);
       updated++;
     }
 
-    return { updated, total: args.metrics.length };
+    return { updated, total: args.metrics.length, matchedPositions };
   },
 });
 
