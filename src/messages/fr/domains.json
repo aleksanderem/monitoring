@@ -396,6 +396,7 @@
   "lockedTabSerpCheckStarted": "Vérification SERP lancée pour tous les mots-clés — les positions apparaîtront sous peu",
   "lockedTabNoKeywords": "Aucun mot-clé à vérifier",
   "lockedTabActionFailed": "Impossible de lancer l'action. Veuillez réessayer.",
+  "lockedTabCooldown": "Cooldown ({time})",
   "lockedTabGoToMonitoring": "Aller au Monitoring",
   "lockedTabGoToCompetitors": "Aller aux Concurrents",
   "lockedTabGoToSettings": "Aller aux Paramètres",

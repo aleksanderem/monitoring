@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -26,11 +26,45 @@ export function LockedTabCTA({ tabId, lockReason, domainId, onNavigateToTab }: L
 
   const fetchBacklinks = useAction(api.backlinks.fetchBacklinksFromAPI);
   const triggerAudit = useMutation(api.seoAudit_actions.triggerSeoAuditScan);
-  const refreshPositions = useMutation(api.keywords.refreshKeywordPositions);
+  const createSerpFetchJob = useMutation(api.keywordSerpJobs.createSerpFetchJob);
   const keywords = useQuery(
     api.keywords.getKeywords,
     lockReason === "lockReasonRunSerpCheck" ? { domainId } : "skip"
   );
+
+  // Cooldown for SERP check action
+  const isSerpCheck = lockReason === "lockReasonRunSerpCheck";
+  const refreshLimitStatus = useQuery(
+    api.limits.getRefreshLimitStatus,
+    isSerpCheck ? { domainId, keywordCount: keywords?.length ?? 0 } : "skip"
+  );
+  const [cooldownRemaining, setCooldownRemaining] = useState<string | null>(null);
+
+  const formatCooldownTime = useCallback((ms: number) => {
+    const totalSeconds = Math.ceil(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return minutes > 0 ? `${minutes}:${String(seconds).padStart(2, "0")}` : `${seconds}s`;
+  }, []);
+
+  useEffect(() => {
+    const canRefreshAt = refreshLimitStatus?.cooldown?.canRefreshAt;
+    if (!canRefreshAt || !refreshLimitStatus?.cooldown?.blocked) {
+      setCooldownRemaining(null);
+      return;
+    }
+    const tick = () => {
+      const remaining = canRefreshAt - Date.now();
+      if (remaining <= 0) {
+        setCooldownRemaining(null);
+      } else {
+        setCooldownRemaining(formatCooldownTime(remaining));
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [refreshLimitStatus?.cooldown?.canRefreshAt, refreshLimitStatus?.cooldown?.blocked, formatCooldownTime]);
 
   const actionConfig = getActionConfig(lockReason);
 
@@ -43,7 +77,7 @@ export function LockedTabCTA({ tabId, lockReason, domainId, onNavigateToTab }: L
           toast.error(t("lockedTabNoKeywords"));
           return;
         }
-        await refreshPositions({ keywordIds: ids });
+        await createSerpFetchJob({ domainId, keywordIds: ids });
         toast.success(t("lockedTabSerpCheckStarted"));
       } else if (lockReason === "lockReasonFetchBacklinks") {
         await fetchBacklinks({ domainId });
@@ -88,8 +122,11 @@ export function LockedTabCTA({ tabId, lockReason, domainId, onNavigateToTab }: L
           size="md"
           onClick={handleClick}
           isLoading={isLoading}
+          disabled={!!cooldownRemaining}
         >
-          {t(actionConfig.buttonKey)}
+          {cooldownRemaining
+            ? t("lockedTabCooldown", { time: cooldownRemaining })
+            : t(actionConfig.buttonKey)}
         </Button>
       )}
     </div>

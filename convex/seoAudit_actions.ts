@@ -490,9 +490,23 @@ export const pollSeoAuditStatus = internalAction({
     scanId: v.id("onSiteScans"),
     jobId: v.string(),
     domainId: v.id("domains"),
+    pollCount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    console.log(`[POLL] Checking job: ${args.jobId}`);
+    const pollCount = args.pollCount ?? 0;
+    const MAX_POLL_RETRIES = 120; // ~30 min at 15s intervals
+    const MAX_ERROR_RETRIES = 5; // fail after 5 consecutive errors
+
+    console.log(`[POLL] Checking job: ${args.jobId} (poll #${pollCount})`);
+
+    if (pollCount >= MAX_POLL_RETRIES) {
+      console.error(`[POLL] Max poll retries (${MAX_POLL_RETRIES}) reached — failing scan`);
+      await ctx.runMutation(internal.seoAudit_actions.failScan, {
+        scanId: args.scanId,
+        error: `SEO audit timed out after ${MAX_POLL_RETRIES} polls`,
+      });
+      return;
+    }
 
     const scan = await ctx.runQuery(
       internal.seoAudit_queries.getScanById,
@@ -564,9 +578,9 @@ export const pollSeoAuditStatus = internalAction({
       await ctx.scheduler.runAfter(
         15000,
         internal.seoAudit_actions.pollSeoAuditStatus,
-        { scanId: args.scanId, jobId: args.jobId, domainId: args.domainId }
+        { scanId: args.scanId, jobId: args.jobId, domainId: args.domainId, pollCount: pollCount + 1 }
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error("[POLL] Error:", error);
 
       const scanCheck = await ctx.runQuery(
@@ -578,11 +592,22 @@ export const pollSeoAuditStatus = internalAction({
         return;
       }
 
+      // Track consecutive errors via pollCount; fail after MAX_ERROR_RETRIES consecutive errors
+      const errorCount = pollCount + 1;
+      if (errorCount >= MAX_ERROR_RETRIES) {
+        console.error(`[POLL] ${MAX_ERROR_RETRIES} consecutive errors — failing scan`);
+        await ctx.runMutation(internal.seoAudit_actions.failScan, {
+          scanId: args.scanId,
+          error: `SEO audit polling failed after ${MAX_ERROR_RETRIES} retries: ${error?.message || String(error)}`,
+        });
+        return;
+      }
+
       // Retry in 15s
       await ctx.scheduler.runAfter(
         15000,
         internal.seoAudit_actions.pollSeoAuditStatus,
-        { scanId: args.scanId, jobId: args.jobId, domainId: args.domainId }
+        { scanId: args.scanId, jobId: args.jobId, domainId: args.domainId, pollCount: errorCount }
       );
     }
   },
@@ -605,26 +630,30 @@ export const storeSeoAuditResults = internalMutation({
   handler: async (ctx, args) => {
     console.log("[STORE] Processing SEO audit results");
 
+    // Sanitize keys to ASCII-only before storing in Convex
+    const sanitizedResults = sanitizeKeysForConvex(args.results);
+
     // Parse results — handle multiple API response formats:
     // 1. Array of URL audits (direct)
     // 2. {results: [...]} wrapper
     // 3. {result: {url, score, results: [...]}} — single audit from async job
     // 4. {result: [...]} — array from async job
     let urlResults: any[];
-    if (Array.isArray(args.results)) {
-      urlResults = args.results;
-    } else if (Array.isArray(args.results?.results)) {
-      urlResults = args.results.results;
-    } else if (Array.isArray(args.results?.result)) {
-      urlResults = args.results.result;
-    } else if (args.results?.result && typeof args.results.result === "object" && args.results.result.url) {
+    const r = sanitizedResults as any;
+    if (Array.isArray(r)) {
+      urlResults = r;
+    } else if (Array.isArray(r?.results)) {
+      urlResults = r.results;
+    } else if (Array.isArray(r?.result)) {
+      urlResults = r.result;
+    } else if (r?.result && typeof r.result === "object" && r.result.url) {
       // Single audit result object — wrap in array
-      urlResults = [args.results.result];
-    } else if (args.results?.url) {
+      urlResults = [r.result];
+    } else if (r?.url) {
       // Direct audit result
-      urlResults = [args.results];
+      urlResults = [r];
     } else {
-      urlResults = [args.results];
+      urlResults = [r];
     }
 
     // Debug: log first result structure
@@ -820,6 +849,25 @@ export const storeSeoAuditResults = internalMutation({
   },
 });
 
+/**
+ * Recursively sanitize an object so all keys are ASCII-only (Convex requirement).
+ * Non-ASCII characters in keys are replaced with underscores.
+ */
+function sanitizeKeysForConvex(obj: unknown): unknown {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeKeysForConvex);
+  if (typeof obj === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+      // Replace non-ASCII and control characters with underscore
+      const safeKey = key.replace(/[^\x20-\x7E]/g, "_");
+      result[safeKey] = sanitizeKeysForConvex(value);
+    }
+    return result;
+  }
+  return obj;
+}
+
 // Priority → severity mapping for Full Audit API
 const PRIORITY_TO_SEVERITY: Record<string, "critical" | "warning" | "recommendation"> = {
   critical: "critical",
@@ -851,7 +899,9 @@ export const storeFullAuditResults = internalMutation({
     result: v.any(),
   },
   handler: async (ctx, args) => {
-    const result = args.result;
+    // Sanitize all keys to ASCII-only (Convex requirement) — API may return
+    // page titles with non-ASCII chars (e.g. Polish ż, ó) as object keys.
+    const result = sanitizeKeysForConvex(args.result) as any;
 
     // Detect format: if result has "summary" with "grade", it's the new sections format.
     // If it has "url" + "results" (array of checks), or "total_checks", it's legacy per-URL.

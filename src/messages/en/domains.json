@@ -414,6 +414,7 @@
   "lockedTabSerpCheckStarted": "SERP check started for all keywords — positions will appear shortly",
   "lockedTabNoKeywords": "No keywords found to check",
   "lockedTabActionFailed": "Failed to start the action. Please try again.",
+  "lockedTabCooldown": "Cooldown ({time})",
   "lockedTabGoToMonitoring": "Go to Monitoring",
   "lockedTabGoToCompetitors": "Go to Competitors",
   "lockedTabGoToSettings": "Go to Settings",

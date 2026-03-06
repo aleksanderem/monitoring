@@ -396,6 +396,7 @@
   "lockedTabSerpCheckStarted": "SERP-Prüfung für alle Keywords gestartet — Positionen erscheinen in Kürze",
   "lockedTabNoKeywords": "Keine Keywords zum Prüfen gefunden",
   "lockedTabActionFailed": "Aktion konnte nicht gestartet werden. Bitte erneut versuchen.",
+  "lockedTabCooldown": "Cooldown ({time})",
   "lockedTabGoToMonitoring": "Zum Monitoring",
   "lockedTabGoToCompetitors": "Zu Wettbewerbern",
   "lockedTabGoToSettings": "Zu Einstellungen",
